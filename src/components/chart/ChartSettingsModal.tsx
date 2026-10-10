@@ -7,7 +7,7 @@ import { motion, AnimatePresence, useDragControls } from "framer-motion";
 import { X, Settings, Info, BarChart2 } from "lucide-react";
 import { DialogBehaviour } from "@/components/ui/DialogFrame";
 import { applyGammaHeatPreset, rgbTripletOf, applyProfilePreset, lawfulOrderLineLooks, ORDER_LINE_ALPHA_FLOOR, PROFILE_PRESET_RED_GREEN, type OrderLineDash } from "@/lib/chart/appearanceLaw";
-import { PROFILE_SPECIES, PROFILE_SPECIES_LABEL, SPECIES_INK_KEYS, lawfulSpeciesInks, lawfulSpeciesOpacity, type ProfileSpeciesKey } from "@/lib/chart/appearanceLaw";
+import { INVENTION_DIALS, INVENTION_DIAL_LABEL, lawfulInventionOpacity, type InventionDialKey, PROFILE_SPECIES, PROFILE_SPECIES_LABEL, SPECIES_INK_KEYS, lawfulSpeciesInks, lawfulSpeciesOpacity, type ProfileSpeciesKey } from "@/lib/chart/appearanceLaw";
 import { PROFILE_INK_AT_REST } from "@/lib/chart/profileFamilyInk";
 
 import {
@@ -64,6 +64,9 @@ export interface ChartSettings {
   // PER-SPECIES profile dials (Founder 2026-10-10). Absent = 1. Clamped by
   // appearanceLaw.lawfulSpeciesOpacity; loudness only, never a species' form.
   profileSpeciesOpacity?: Partial<Record<ProfileSpeciesKey, number>>;
+  // PER-INVENTION dials (Founder G19 Supermax §5, 2026-10-10). Absent = 1. Clamped by
+  // appearanceLaw.lawfulInventionOpacity; the governor applies them per governed layer.
+  inventionOpacity?: Partial<Record<InventionDialKey, number>>;
   // PER-SPECIES body ink (VALUE / TAIL / WASH). POC and edges stay the family's.
   // Made lawful by appearanceLaw.lawfulSpeciesInks (never the field, never the
   // POC, never two species alike); a refused ink is named here, not hidden.
@@ -580,6 +583,14 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                     {PROFILE_SPECIES.map(sp => (
                       <Dial key={sp} value={s.profileSpeciesOpacity?.[sp]} label={PROFILE_SPECIES_LABEL[sp]}
                         onChange={v => set({ profileSpeciesOpacity: lawfulSpeciesOpacity({ ...(s.profileSpeciesOpacity ?? {}), [sp]: v }) })} />
+                    ))}
+                  </details>
+                  <details data-invention-dials style={{ marginTop: 4 }}>
+                    <summary style={{ fontSize: 12, color: "#8896BE", cursor: "pointer", minHeight: 32, display: "flex", alignItems: "center" }}>Inventions · each one</summary>
+                    <div style={{ fontSize: 11, color: "#8b8fa8", margin: "2px 0 6px" }}>Never below a readable floor. Entry, stop and target lines keep their own look (Order lines, below).</div>
+                    {INVENTION_DIALS.map(k => (
+                      <Dial key={k} value={s.inventionOpacity?.[k]} label={INVENTION_DIAL_LABEL[k]}
+                        onChange={v => set({ inventionOpacity: lawfulInventionOpacity({ ...(s.inventionOpacity ?? {}), [k]: v }) })} />
                     ))}
                   </details>
                   <details data-profile-species-inks style={{ marginTop: 4 }}>

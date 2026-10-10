@@ -294,6 +294,76 @@ export function speciesLayerOpacity(v: unknown): Record<string, number> {
   }
   return out;
 }
+/* ── PER-INVENTION OPACITY (Founder G19 Supermax §5, 2026-10-10: "independent
+   appearance controls for … market walls, weather and pressure layers, footprint
+   bid/ask cells, delta bubbles, Big Trade bubbles, imbalance highlights, memory
+   ghosts and scars, drawing tools and structural zones … no global transparency
+   adjustment may fade every invention into the same indistinguishable layer").
+   One dial per invention, keyed onto the governed layers it paints through, so it
+   rides the attention governor's per-layer dial: after the family dial, the same
+   0.4–1.6 clamp, the same 0.2 readable floor, never on CHROME or the selected
+   item. RISK ON PRICE (order / protection geometry) is deliberately NOT here — its
+   look is the order lines' own appearance, which has a protection floor. ──── */
+export const INVENTION_DIALS = [
+  "BRICK_WALLS", "CALL_PUT_WALLS", "GAMMA", "DERIVATIVES_PRESSURE", "WEATHER",
+  "FOOTPRINT", "DELTA_BUBBLES", "BIG_TRADES", "IMBALANCES", "DELTA_LEVELS",
+  "ABSORPTION", "EXHAUSTION", "EFFORT", "FLOW_CURRENT", "CVD_NOTCH",
+  "FVG", "ZONES_STRUCTURE", "MEMORY_GHOSTS", "LIQUIDITY_LIFECYCLE", "REGIME",
+  "VALUE_CANDLE", "EXPECTED_ENVELOPE", "BREATH_RIBBON", "DIVERGENCE", "ANATOMY",
+] as const;
+export type InventionDialKey = (typeof INVENTION_DIALS)[number];
+export const INVENTION_DIAL_LABEL: Readonly<Record<InventionDialKey, string>> = {
+  BRICK_WALLS: "Liquidity Brick Walls", CALL_PUT_WALLS: "Call / Put Walls", GAMMA: "Gamma exposure",
+  DERIVATIVES_PRESSURE: "Derivatives Pressure", WEATHER: "Liquidity Weather", FOOTPRINT: "Footprint cells",
+  DELTA_BUBBLES: "Delta bubbles", BIG_TRADES: "Big Trades", IMBALANCES: "Stacked imbalances",
+  DELTA_LEVELS: "Delta levels", ABSORPTION: "Absorption", EXHAUSTION: "Exhaustion",
+  EFFORT: "Effort → Response", FLOW_CURRENT: "Flow Current", CVD_NOTCH: "CVD notches",
+  FVG: "Fair Value Gaps", ZONES_STRUCTURE: "Zones & structure", MEMORY_GHOSTS: "Memory ghosts & scars",
+  LIQUIDITY_LIFECYCLE: "Liquidity lifecycle", REGIME: "Regime", VALUE_CANDLE: "Value Candle",
+  EXPECTED_ENVELOPE: "Expected envelope", BREATH_RIBBON: "Breath ribbon", DIVERGENCE: "Delta divergence",
+  ANATOMY: "Candle anatomy",
+};
+/** The governed layers each invention paints through (attention-governor keys). */
+export const INVENTION_DIAL_LAYERS: Readonly<Record<InventionDialKey, readonly string[]>> = {
+  BRICK_WALLS: ["brickWalls"], CALL_PUT_WALLS: ["callWall", "putWall"],
+  GAMMA: ["gammaHeatmap", "gammaPositive", "gammaNegative", "gammaFlip", "gammaConcentration"],
+  DERIVATIVES_PRESSURE: ["derivativesPressure"], WEATHER: ["weather", "heatLens"],
+  FOOTPRINT: ["footprint"], DELTA_BUBBLES: ["bubbles"], BIG_TRADES: ["bigTrades"], IMBALANCES: ["stack"],
+  DELTA_LEVELS: ["deltaLevels"], ABSORPTION: ["absorption"], EXHAUSTION: ["exhaustion"],
+  EFFORT: ["effort", "forceResponse"], FLOW_CURRENT: ["flowCurrent"], CVD_NOTCH: ["cvdNotch"],
+  FVG: ["fvg", "fvgMemory"], ZONES_STRUCTURE: ["marketZones", "marketStructure", "scaffolding"],
+  MEMORY_GHOSTS: ["memoryGhost", "sessionGhosts"], LIQUIDITY_LIFECYCLE: ["liquidityLifecycle"],
+  REGIME: ["regimeMagnets", "regimeChannel", "regimeField", "regimeLighting"],
+  VALUE_CANDLE: ["valueCandle"], EXPECTED_ENVELOPE: ["expectedEnvelope"], BREATH_RIBBON: ["breathRibbon"],
+  DIVERGENCE: ["divergence"], ANATOMY: ["anatomyCards"],
+};
+/** The stored per-invention dials made lawful: known inventions only, each clamped; 1 is dropped. */
+export function lawfulInventionOpacity(v: unknown): Partial<Record<InventionDialKey, number>> {
+  const out: Partial<Record<InventionDialKey, number>> = {};
+  if (!v || typeof v !== "object") return out;
+  for (const k of INVENTION_DIALS) {
+    const raw = (v as Record<string, unknown>)[k];
+    if (raw == null) continue;
+    const n = clampSpeciesOpacity(raw);
+    if (n !== 1) out[k] = n;
+  }
+  return out;
+}
+/**
+ * Per governed layer, the one multiplier the governor applies after the family dial:
+ * the species dial × the invention dial (they never name the same layer; the product
+ * keeps the clamp honest if one ever does).
+ */
+export function layerDialOpacity(species: unknown, inventions: unknown): Record<string, number> {
+  const out: Record<string, number> = speciesLayerOpacity(species);
+  const law = lawfulInventionOpacity(inventions);
+  for (const k of INVENTION_DIALS) {
+    const n = law[k];
+    if (n == null) continue;
+    for (const layer of INVENTION_DIAL_LAYERS[k]) out[layer] = clampSpeciesOpacity((out[layer] ?? 1) * n);
+  }
+  return out;
+}
 /**
  * A drawing species' alpha with its dial (Fixed Range, Bid/Ask Split): the
  * paint site's own alpha × the dial, never above 1 and never below the same

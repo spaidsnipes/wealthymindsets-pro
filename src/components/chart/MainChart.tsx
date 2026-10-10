@@ -64,7 +64,7 @@ import { installTypeFloor, NARROW_NAME_MIN_PX } from "@/lib/chart/typeFloor";
 import { partitionVolumeIndicators } from "@/lib/chart/volumeIndicatorTruth";
 import { createLongPress } from "@/lib/chart/longPress";
 import { clampBubbleScale, clampWallThickness, footprintNumberPx, lawfulOrderLineLooks, lawfulSettings, volumeInk } from "@/lib/chart/appearanceLaw";
-import { drawingSpeciesAlpha, lawfulSpeciesInks, speciesLayerOpacity } from "@/lib/chart/appearanceLaw";
+import { drawingSpeciesAlpha, lawfulSpeciesInks, layerDialOpacity } from "@/lib/chart/appearanceLaw";
 import { DEFAULT_CHART_SETTINGS, FLOW_COLOR_DEFAULTS, VOLUME_COLOR_PICKER_DEFAULTS } from "./ChartSettingsModal";
 import { currentProofScene, proofCaptureOpen, proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { inspectedBarMark } from "@/lib/chart/inspectedBarMark";
@@ -1414,6 +1414,7 @@ interface Props {
     volumeUp?: string; volumeDown?: string;
     profileOpacity?: number; wallOpacity?: number; memoryOpacity?: number;
     profileSpeciesOpacity?: Partial<Record<string, number>>;
+    inventionOpacity?: Partial<Record<string, number>>;
     profileSpeciesInk?: Partial<Record<string, string>>;
     bubbleScale?: number; footprintNumberStep?: number; wallThickness?: number;
     // ORDER LINES (Founder P0 2026-10-10) — made lawful by appearanceLaw.lawfulOrderLineLooks.
@@ -2441,9 +2442,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // The trader's opacity dials, read by the paint loop (no re-render per frame).
   const userOpacityRef = useRef<{ PROFILES?: number; WALLS?: number; MEMORY?: number }>({});
   userOpacityRef.current = { PROFILES: chartSettings?.profileOpacity, WALLS: chartSettings?.wallOpacity, MEMORY: chartSettings?.memoryOpacity };
-  // Per-species profile dials (appearanceLaw): governed layers through the governor, drawings at their paint site.
+  // Per-species profile dials and per-invention dials (appearanceLaw): governed layers through the
+  // governor, drawings at their paint site.
   const speciesOpacityRef = useRef<Record<string, number>>({});
-  speciesOpacityRef.current = speciesLayerOpacity(chartSettings?.profileSpeciesOpacity);
+  speciesOpacityRef.current = layerDialOpacity(chartSettings?.profileSpeciesOpacity, chartSettings?.inventionOpacity);
   const speciesDrawDialRef = useRef<{ FIXED_RANGE?: number; BID_ASK?: number }>({});
   speciesDrawDialRef.current = { FIXED_RANGE: chartSettings?.profileSpeciesOpacity?.FIXED_RANGE, BID_ASK: chartSettings?.profileSpeciesOpacity?.BID_ASK };
   // Slice B marks (Chart Settings › Marks), read by the paint loop; clamped in appearanceLaw.

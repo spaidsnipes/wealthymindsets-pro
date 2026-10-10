@@ -72,7 +72,8 @@ describe("wired end to end", () => {
     expect(MODAL.length).toBeGreaterThan(5000);
   });
   it("MainChart feeds the governor and the two drawing species", () => {
-    expect(CHART).toContain("speciesOpacityRef.current = speciesLayerOpacity(chartSettings?.profileSpeciesOpacity);");
+    // 2026-10-10 18:20: the species dials now share one per-layer map with the invention dials (layerDialOpacity).
+    expect(CHART).toContain("speciesOpacityRef.current = layerDialOpacity(chartSettings?.profileSpeciesOpacity, chartSettings?.inventionOpacity);");
     expect(CHART).toContain("speciesOpacity: speciesOpacityRef.current,");
     expect(CHART).toContain("ctx.globalAlpha = drawingSpeciesAlpha(ctx.globalAlpha, speciesDrawDialRef.current.FIXED_RANGE);");
     expect(CHART).toContain("ctx.globalAlpha = drawingSpeciesAlpha(ctx.globalAlpha, speciesDrawDialRef.current.BID_ASK);");
