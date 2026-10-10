@@ -114,7 +114,7 @@ describe("the webhook signature", () => {
 const USER = "user-7", CUS = "cus_A1", SUB = "sub_A1";
 const ctx = { serverLive: false, env: ENV };
 const ev = (o: Partial<BillingEventFacts> & { id: string; type: string; createdSec: number }): BillingEventFacts => ({
-  livemode: false, userId: null, product: null, customerId: null, subscriptionId: null, chargeId: null, tierName: null, priceId: null,
+  livemode: false, userId: null, product: null, customerId: null, subscriptionId: null, chargeId: null, tierName: null, legalShown: null, priceId: null,
   sessionMode: null, paymentStatus: null, subscriptionStatus: null, periodEndSec: null, fullyRefunded: false, ...o,
 });
 const checkout = (id = "evt_c1", at = 1000, tier = "PASSPORT") => ev({ id, type: "checkout.session.completed", createdSec: at, userId: USER, product: BILLING_PRODUCT, customerId: CUS, subscriptionId: SUB, tierName: tier, sessionMode: "subscription", paymentStatus: "paid" });

@@ -68,16 +68,26 @@ describe("TicketSections — tablet / desktop", () => {
     expect(html).not.toMatch(/trade-review|trade-edit|trade-act-sections/);
     expect(html.match(/<details/g)).toHaveLength(1);
     expect(html).toContain('data-testid="trade-entry-path" data-book="flat"');
+    // Inputs and the send block are two parts (side by side on a desk): the live-order block alone is the second.
+    const inputs = html.slice(html.indexOf('data-testid="trade-entry-inputs"'), html.indexOf('data-testid="trade-entry-send"'));
+    const send = html.slice(html.indexOf('data-testid="trade-entry-send"'), html.indexOf("<details"));
+    expect(inputs).toContain("RISK_LINE");
+    expect(inputs).not.toContain("LIVE_ORDER");
+    expect(send).toContain("LIVE_ORDER");
+    expect(send).not.toMatch(/SIDE|PRICE|SIZE/);
     expect(html).toContain("Details · FLAT · 0 working");
     expect(order(html)).toEqual(["QUOTE", "SIDE", "CLOSING", "ACTION_LINE", "PROPOSAL", "SIZE", "ENTRY_TYPE", "PRICE", "RISK_INPUTS", "RISK_LINE", "PICK_STATUS", "LIVE_ORDER", "BOOK", "ECONOMICS", "PROTECTION_DRYRUN", "PLAN", "PROTECT"]);
     // The entry path ends before the fold begins: LIVE_ORDER is outside <details>, the book inside it.
     expect(html.indexOf("LIVE_ORDER")).toBeLessThan(html.indexOf("<details"));
     expect(html.indexOf("BOOK")).toBeGreaterThan(html.indexOf("<details"));
   });
-  it("holding or working: the book block is in the entry path, under the quote, outside the fold", () => {
+  it("holding or working: the book block is in the send part, directly above the live-order block, outside the fold", () => {
     const html = renderToStaticMarkup(<TicketSections compact={false} bookActive sections={sections} summary="Details · LONG · 1 working" />);
     expect(html).toContain('data-book="active"');
-    expect(order(html).slice(0, 3)).toEqual(["QUOTE", "BOOK", "SIDE"]);
+    expect(order(html).slice(0, 2)).toEqual(["QUOTE", "SIDE"]);
+    const send = html.slice(html.indexOf('data-testid="trade-entry-send"'), html.indexOf("<details"));
+    expect(send.indexOf("BOOK")).toBeGreaterThan(-1);
+    expect(send.indexOf("BOOK")).toBeLessThan(send.indexOf("LIVE_ORDER"));
     expect(html.indexOf("BOOK")).toBeLessThan(html.indexOf("<details"));
   });
 });

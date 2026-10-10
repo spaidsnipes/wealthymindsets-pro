@@ -107,3 +107,37 @@ describe("broker readback → lines (read routes only)", () => {
     expect(readTastytradePosition({ symbol: "/MNQZ6", quantity: 0, "quantity-direction": "Zero", "average-open-price": "1" })).toBeNull();
   });
 });
+
+describe("draft lines are draggable; broker lines are not (Founder P0 2026-10-09: let the trader trade)", () => {
+  it("only a STAGED entry / stop / target may be dragged", async () => {
+    const { chartOrderLineDraggable } = await import("./chartOrderLines");
+    const l = (role: string, status: string) => ({ id: "x", role, status, price: 100, contract: "/NQZ6", detail: "BUY 1" }) as never;
+    for (const role of ["ENTRY", "STOP", "TARGET"]) expect(chartOrderLineDraggable(l(role, "STAGED"))).toBe(true);
+    for (const status of ["WORKING", "PARTIALLY_FILLED", "RECONCILING", "UNKNOWN", "CANCEL_PENDING", "POSITION"]) expect(chartOrderLineDraggable(l("STOP", status))).toBe(false);
+    expect(chartOrderLineDraggable(l("WORKING", "STAGED"))).toBe(false);
+    expect(chartOrderLineDraggable(l("POSITION", "STAGED"))).toBe(false);
+  });
+  it("a drag or a menu pick lands in the SAME record the ticket reads, stamped with its source, without an armed pick and without disarming one", async () => {
+    const m = await import("./chartOrderLines");
+    m.resetChartOrderLinesForTest();
+    expect(m.deliverChartDraftPrice("nq1!", "STOP", 25000.25, "DRAG")).toBe(true);
+    // The hook's snapshot is the store's own record.
+    const read = () => { let got: unknown = null; const H = () => { got = m.useChartPricePick().picked; return null; }; void H; return got; };
+    void read;
+    m.armChartPricePick("TARGET", 1);
+    expect(m.deliverChartDraftPrice("NQ1!", "ENTRY", 25010, "MENU")).toBe(true);
+    expect(m.chartPricePickArmed()).toBe("TARGET"); // a drag / menu price is not a pick
+    expect(m.deliverChartPricePick("NQ1!", 25100)).toBe(true);
+    expect(m.chartPricePickArmed()).toBeNull();
+    expect(m.deliverChartDraftPrice("NQ1!", "STOP", NaN, "DRAG")).toBe(false);
+    expect(m.deliverChartDraftPrice("NQ1!", "STOP", -1, "DRAG")).toBe(false);
+  });
+  it("the handle says the role, the shown price and the TICKET's own money — the chart computes none", async () => {
+    const { draftHandleWords, BROKER_LINE_NOT_MOVABLE } = await import("./chartOrderLines");
+    const stop = { id: "ticket-stop", role: "STOP", status: "STAGED", price: 24990, contract: "/NQZ6", detail: "SELL 1", pnlUsd: -400 } as never;
+    expect(draftHandleWords(stop, 24990.25, 2)).toBe("STOP 24990.25 · −$400.00");
+    const entry = { id: "ticket-entry", role: "ENTRY", status: "STAGED", price: 25010, contract: "/NQZ6", detail: "BUY 1 LIMIT" } as never;
+    expect(draftHandleWords(entry, 25010, 2)).toBe("ENTRY 25010.00");
+    expect(BROKER_LINE_NOT_MOVABLE).toContain("not movable from the chart");
+  });
+});

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { billingKv, loadEntitlement, saveEntitlement, userForCustomer } from "@/lib/billing/billingStore";
+import { billingKv, loadEntitlement, noteWebhookVerified, saveEntitlement, userForCustomer } from "@/lib/billing/billingStore";
 import { emptyEntitlement, readStripeEvent, reduceBillingEvent, withChargeLink } from "@/lib/billing/entitlement";
 import { STRIPE_WEBHOOK_SECRET_ENV, billingStanding } from "@/lib/billing/standing";
 import { chargeLink } from "@/lib/billing/stripeApi";
@@ -47,11 +47,12 @@ export async function POST(request: Request) {
   if (!kv) return answer({ error: "The record store is not available.", code: "RETRY" }, 503);
   try {
     const userId = ev.userId ?? (await userForCustomer(kv, ev.customerId));
-    if (!userId) return answer({ outcome: "NO_RECORD" });
+    if (!userId) { await noteWebhookVerified(kv, { atMs: Date.now(), type: ev.type, outcome: "NO_RECORD", livemode: ev.livemode }); return answer({ outcome: "NO_RECORD" }); }
     const stored = await loadEntitlement(kv, userId);
     const before = stored && stored.livemode === standing.live ? stored : emptyEntitlement(userId, standing.live);
     const result = reduceBillingEvent(before, ev, { serverLive: standing.live, env: process.env });
     if (result.record !== before) await saveEntitlement(kv, result.record);
+    await noteWebhookVerified(kv, { atMs: Date.now(), type: ev.type, outcome: result.outcome, livemode: ev.livemode });
     return answer({ outcome: result.outcome, changed: result.changed });
   } catch {
     return answer({ error: "The record could not be written.", code: "RETRY" }, 503);

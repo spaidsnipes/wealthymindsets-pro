@@ -13,7 +13,7 @@
 
 import React from "react";
 
-import { COMPACT_BUILD_SECTIONS, COMPACT_PEEK_SECTIONS, COMPACT_REVIEW_SECTIONS, ticketSections, type TicketSection, type TicketStep } from "@/lib/execution/ticketLayout";
+import { wideSendSections, COMPACT_BUILD_SECTIONS, COMPACT_PEEK_SECTIONS, COMPACT_REVIEW_SECTIONS, ticketSections, type TicketSection, type TicketStep } from "@/lib/execution/ticketLayout";
 
 const GOLD = "#C9A55C", MUTED = "#8a8271", LINE = "rgba(139,106,41,0.35)";
 const show = (on: boolean): React.CSSProperties => ({ display: on ? "contents" : "none" });
@@ -40,10 +40,17 @@ export function TicketSections({ compact, bookActive = false, peek = false, step
   const layout = ticketSections(compact, bookActive);
   const each = (ids: readonly TicketSection[]) => ids.map(id => <React.Fragment key={id}>{sections[id]}</React.Fragment>);
   if (!compact) {
+    const send = wideSendSections(bookActive);
     // Tablet / desktop ACT: the entry path, then ONE Details fold (the same disclosure the phone uses).
     return (
       <>
-        <div data-testid="trade-entry-path" data-book={bookActive ? "active" : "flat"} style={{ display: "contents" }}>{each(layout.action)}</div>
+        {/* Two parts so a wide desk can stand them side by side (globals.css, ≥ 1100 px): what the trader sets,
+            and the live-order block that previews and sends it. Measured on serving 52824b6 at 1440 × 900 in one
+            column: the path ran 865 px in an 810 px panel (the live-order block alone is 314 px). */}
+        <div data-testid="trade-entry-path" data-book={bookActive ? "active" : "flat"} className="wm-ticket-entry-path">
+          <div data-testid="trade-entry-inputs" style={{ display: "grid", gap: 10, minWidth: 0, alignContent: "start" }}>{each(layout.action.filter(id => !send.includes(id)))}</div>
+          <div data-testid="trade-entry-send" style={{ display: "grid", gap: 10, minWidth: 0, alignContent: "start" }}>{each(send)}</div>
+        </div>
         <details data-testid="trade-details" style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: "6px 8px" }}>
           <summary data-testid="trade-details-summary" style={{ cursor: "pointer", color: GOLD, fontWeight: 600, minHeight: 32 }}>{summary}</summary>
           <div style={{ display: "grid", gap: 10, marginTop: 8 }}>{each(layout.details)}</div>

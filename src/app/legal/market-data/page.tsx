@@ -1,5 +1,6 @@
 "use client";
 
+import { MARKET_DATA_DISCLOSURE_VERSION } from "@/lib/legal/legalVersion";
 import { LegalPage, legalH2 } from "@/components/legal/LegalPage";
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
@@ -9,7 +10,7 @@ export default function MarketDataDisclosure() {
   // Inside the OS shell for members: this page reads no market feed.
   usePublishOsStanding({ surface: "Market-data disclosure", feed: FEEDLESS_SURFACE });
   return (
-    <LegalPage title="Market-data disclosure" version="2026-10-05">
+    <LegalPage title="Market-data disclosure" version={MARKET_DATA_DISCLOSURE_VERSION}>
       <p>Every price on WM Pro carries the name of where it came from and how fresh it is. If WM Pro cannot say, it says that instead of guessing.</p>
 
       <h2 style={legalH2}>Freshness words</h2>

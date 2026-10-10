@@ -133,6 +133,10 @@ describe("POST /api/billing/checkout", () => {
     expect(session.params.get("metadata[product]")).toBe("WM_PRO");
     expect(session.params.get("metadata[wm_tier]")).toBe("PASSPORT");
     expect(session.params.get("metadata[passport_id_ref]")).toBe(USER);
+    // Which legal text the buyer could read, recorded with the purchase — on the session, its subscription and the record.
+    expect(session.params.get("metadata[legal_shown]")).toBe("policies 2026-10-05 · risk 2026-10-05 · terms+privacy NOT IN EFFECT");
+    expect(session.params.get("subscription_data[metadata][legal_shown]")).toBe("policies 2026-10-05 · risk 2026-10-05 · terms+privacy NOT IN EFFECT");
+    expect(JSON.parse(mocks.kv!.store.get(`billing:v1:user:${USER}`)!).legalShown).toBe("policies 2026-10-05 · risk 2026-10-05 · terms+privacy NOT IN EFFECT");
     expect(session.params.get("subscription_data[metadata][passport_id_ref]")).toBe(USER);
   });
 
@@ -281,7 +285,9 @@ describe("POST /api/billing/webhook", () => {
     const puts = (mocks.kv!.put as unknown as { mock: { calls: unknown[] } }).mock.calls.length;
     for (let i = 0; i < 3; i++) expect(await (await signed(paid())).json()).toEqual({ outcome: "REPLAYED", changed: false });
     expect(mocks.kv!.store.get(`billing:v1:user:${USER}`)).toBe(snapshot);
-    expect((mocks.kv!.put as unknown as { mock: { calls: unknown[] } }).mock.calls.length).toBe(puts);
+    // The only writes a replay makes are the operator's "last verified webhook" note — never the member's record, its index or its customer key.
+    const after = (mocks.kv!.put as unknown as { mock: { calls: [string, string][] } }).mock.calls.slice(puts).map(c => c[0]);
+    expect(after).toEqual(["billing:v1:webhook:last", "billing:v1:webhook:last", "billing:v1:webhook:last"]);
     const { memberTier } = await import("@/lib/billing/billingStore");
     expect(await memberTier(USER, process.env, async () => mocks.kv)).toBe("PASSPORT");
   });
@@ -325,7 +331,9 @@ describe("POST /api/billing/webhook", () => {
     configure();
     const res = await signed(event({ id: "evt_6", type: "invoice.payment_failed", data: { object: { customer: "cus_STRANGER", subscription: "sub_X" } } }));
     expect(await res.json()).toEqual({ outcome: "NO_RECORD" });
-    expect(mocks.kv!.store.size).toBe(0);
+    // No member record, no index, no customer key — only the operator's note that a signed event arrived.
+    expect([...mocks.kv!.store.keys()]).toEqual(["billing:v1:webhook:last"]);
+    expect(mocks.kv!.store.get("billing:v1:webhook:last")).not.toMatch(/cus_|sub_/);
   });
 });
 

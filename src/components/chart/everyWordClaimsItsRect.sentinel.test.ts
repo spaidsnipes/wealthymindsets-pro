@@ -161,3 +161,32 @@ describe("the asked question keeps its words; a truth line never paints on anoth
     expect(REG).toContain("if (rows) {");
   });
 });
+
+describe("trade from the chart: draggable DRAFT lines and Trade at <price> (Founder P0 2026-10-09)", () => {
+  const ROOM = readFileSync(path.join(process.cwd(), "src/components/chart/ChartsDashboard.tsx"), "utf8");
+  const LINES = readFileSync(path.join(process.cwd(), "src/lib/execution/chartOrderLines.ts"), "utf8");
+  it("a drag only ever reaches the ticket DRAFT through the chartOrderLines owner — no send, no broker call, no fetch", () => {
+    const i = CHART.indexOf("const beginDraftDrag = useCallback(");
+    const j = CHART.indexOf("useEffect(() => {\n    if (!brokerLineNote) return;", i);
+    expect(i).toBeGreaterThan(0); expect(j).toBeGreaterThan(i);
+    const block = CHART.slice(i, j);
+    expect(block).toContain('deliverChartDraftPrice(symbol, cur.role, cur.pending, "DRAG")');
+    expect(block).not.toMatch(/fetch\(|\/api\/|placeOrder|submitOrder|sendOrder|localStorage/);
+    expect(block).toContain("if (!chartOrderLineDraggable(l)) return;");
+    expect(LINES).toContain('return l.status === "STAGED" && (l.role === "ENTRY" || l.role === "STOP" || l.role === "TARGET");');
+  });
+  it("the handle is a 44px touch target that snaps to tick, moves by keyboard, and a broker line says it cannot be moved", () => {
+    expect(CHART).toContain('data-testid={can ? "draft-line-handle" : "broker-line-tag"}');
+    expect(CHART).toContain("height: 44, minWidth: 44,");
+    expect(CHART).toContain("return snapToTick(symbol, Number(raw));");
+    expect(CHART).toContain('if (e.key === "ArrowUp") { e.preventDefault(); nudgeDraftLine(l, e.shiftKey ? 10 : 1); }');
+    expect(CHART).toContain("onClick={can ? undefined : () => setBrokerLineNote(BROKER_LINE_NOT_MOVABLE)}");
+    expect(CHART).toContain("const words = can ? draftHandleWords(l, shown, dpH) : orderLineWords(l).text;");
+  });
+  it("Trade at <price>: the menu item exists only with the prop; the room opens the ticket and hands the price to the draft as an ENTRY from the MENU", () => {
+    expect(CHART).toContain("...(onTradeAtPrice ? [{");
+    expect(CHART).toContain("action: () => onTradeAtPrice(snapToTick(symbol, ctxMenu.price)),");
+    expect(ROOM).toContain('onTradeAtPrice={price => { setTradeOpen(true); deliverChartDraftPrice(symbol, "ENTRY", price, "MENU"); }}');
+    expect([...ROOM.matchAll(/onTradeAtPrice=/g)].length).toBe(1); // the main chart mount only
+  });
+});

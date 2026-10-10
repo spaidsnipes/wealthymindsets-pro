@@ -43,6 +43,8 @@ export interface EntitlementRecord {
   readonly seenEventIds: readonly string[];
   /** How the Stripe customer was matched to this identity; EMAIL means a human should review it. */
   readonly customerMatch: "STORED" | "METADATA" | "EMAIL" | "CREATED" | null;
+  /** Which legal text the buyer was shown when the checkout started (legalVersion.legalShownAtPurchase), as Stripe returned it. */
+  readonly legalShown: string | null;
 }
 
 export const SEEN_EVENTS_KEPT = 100;
@@ -58,7 +60,7 @@ export function withChargeLink(ev: BillingEventFacts, link: { readonly subscript
 }
 
 export function emptyEntitlement(userId: string, livemode: boolean): EntitlementRecord {
-  return { v: 1, userId, customerId: null, subscriptionId: null, tier: null, status: null, currentPeriodEnd: null, livemode, lastEventId: null, lastEventAt: null, seenEventIds: [], customerMatch: null };
+  return { v: 1, userId, customerId: null, subscriptionId: null, tier: null, status: null, currentPeriodEnd: null, livemode, lastEventId: null, lastEventAt: null, seenEventIds: [], customerMatch: null, legalShown: null };
 }
 
 /** Parse a stored record fail-closed: anything unreadable is no record. */
@@ -76,6 +78,7 @@ export function readEntitlement(raw: unknown): EntitlementRecord | null {
     lastEventAt: typeof o.lastEventAt === "number" && Number.isFinite(o.lastEventAt) ? o.lastEventAt : null,
     seenEventIds: Array.isArray(o.seenEventIds) ? o.seenEventIds.filter((x): x is string => typeof x === "string").slice(-SEEN_EVENTS_KEPT) : [],
     customerMatch: match,
+    legalShown: typeof o.legalShown === "string" && o.legalShown ? o.legalShown.slice(0, 200) : null,
   };
 }
 
@@ -106,6 +109,8 @@ export interface BillingEventFacts {
   readonly subscriptionId: string | null;
   readonly chargeId: string | null;
   readonly tierName: string | null;
+  /** `legal_shown` from the session's metadata — what the server wrote when the checkout started. */
+  readonly legalShown: string | null;
   readonly priceId: string | null;
   readonly sessionMode: string | null;
   readonly paymentStatus: string | null;
@@ -136,6 +141,7 @@ export function readStripeEvent(raw: unknown): BillingEventFacts | null {
     subscriptionId: isSubscription ? s(obj.id) : idOf(obj.subscription) ?? idOf(((obj.parent as Record<string, unknown> | undefined)?.subscription_details as Record<string, unknown> | undefined)?.subscription),
     chargeId: ev.type === "charge.refunded" ? s(obj.id) : ev.type === "charge.dispute.created" ? idOf(obj.charge) : null,
     tierName: s(meta.wm_tier),
+    legalShown: s(meta.legal_shown)?.slice(0, 200) ?? null,
     priceId: idOf(item0.price),
     sessionMode: s(obj.mode),
     paymentStatus: s(obj.payment_status),
@@ -190,7 +196,7 @@ export function reduceBillingEvent(record: EntitlementRecord, ev: BillingEventFa
     const tier = paidTierByName(ev.tierName);
     if (!tier || !ev.customerId || !ev.subscriptionId) return same("UNKNOWN_TIER");
     if (record.customerId && record.customerId !== ev.customerId) return same("DIFFERENT_CUSTOMER");
-    return apply({ customerId: ev.customerId, subscriptionId: ev.subscriptionId, tier, status: "active" }, "ACTIVATED");
+    return apply({ customerId: ev.customerId, subscriptionId: ev.subscriptionId, tier, status: "active", legalShown: ev.legalShown ?? record.legalShown }, "ACTIVATED");
   }
 
   if (!record.customerId) return same("NO_RECORD");

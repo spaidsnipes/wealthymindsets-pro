@@ -142,7 +142,14 @@ export interface ChartContextInput {
  */
 const CANONICAL_ROLES = new Set<string>([
   "LIVE", "DELAYED", "STALE", "PARTIAL", "PROXY", "REPLAY", "UNAVAILABLE",
+  // The canonical CLOSED word (2026-10-09): the session is closed and the price
+  // is its last verified value. Without it here a closed market reached the
+  // model as "role UNKNOWN" — and the glass's own word for it was lost.
+  "CLOSED",
 ]);
+
+/** What the model is told beside `[role CLOSED]` — closed and last verified, never stale and never live. */
+export const CLOSED_ROLE_WORDS = "closed · last verified" as const;
 
 function canonicalRole(v: unknown): string | null {
   if (typeof v !== "string") return null;
@@ -279,6 +286,7 @@ export function formatChartContextNote(context: ChartContextInput | null | undef
   // exactly what taught the model to quote a stale close as if it were live.
   const role = canonicalRole(context.role);
   note += role !== null ? ` [role ${role}]` : ` [role UNKNOWN]`;
+  if (role === "CLOSED") note += ` (${CLOSED_ROLE_WORDS} — the session is closed; this is its last verified price, not a stale one and not a live one)`;
 
   const change = selectTickerChangeDisplay({
     change: num(context.change),

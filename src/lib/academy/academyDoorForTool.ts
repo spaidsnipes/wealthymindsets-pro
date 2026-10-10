@@ -38,6 +38,7 @@ export const ACADEMY_DOOR_FOR_TOOL: Readonly<Record<string, AcademyDoor>> = {
   BRICK_WALLS: WALLS,
   DERIVATIVES_PRESSURE: WALLS,
   LIQUIDITY_WEATHER: WEATHER,
+  LIQUIDITY_LIFECYCLE: WEATHER,
   "FP_bid-ask": FOOTPRINT,
   FP_delta: FOOTPRINT,
   FP_imbalance: FOOTPRINT,
@@ -45,6 +46,7 @@ export const ACADEMY_DOOR_FOR_TOOL: Readonly<Record<string, AcademyDoor>> = {
   "FP_aggressive-passive": FOOTPRINT,
   "FP_big-trades": FOOTPRINT,
   EFFORT_RESPONSE: EFFORT,
+  EFFORT_MARK: EFFORT,
 };
 
 export function academyDoorForTool(id: string): AcademyDoor | null {

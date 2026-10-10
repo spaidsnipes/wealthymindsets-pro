@@ -22,8 +22,10 @@ import type { OptionsPanel } from "@/lib/charts/instrumentContextStrip";
 const GOLD = "#C9A55C";
 
 export function InstrumentContextStrip({
-  symbol, assetClass, activeTab, onTab, onRoom, onIndicators, indicatorCount, onPanel, openPanel = null, onWatchlist, watchlistOpen = false, onTrade, tradeOpen = false,
+  symbol, assetClass, activeTab, onTab, onRoom, onIndicators, indicatorCount, onPanel, openPanel = null, onWatchlist, watchlistOpen = false, onTrade, tradeOpen = false, tradeAside = null,
 }: {
+  /** What stands beside the TRADE door — the chart's position strip. The strip owns its own truth; this bar only places it. */
+  readonly tradeAside?: React.ReactNode;
   /** Garden 18 §LXVII: ONE verb. The panel reads what is on the chart. */
   readonly onTrade?: () => void;
   readonly tradeOpen?: boolean;
@@ -107,6 +109,7 @@ export function InstrumentContextStrip({
           Trade
         </button>
       ) : null}
+      {tradeAside}
       <Link
         href="/desk"
         data-testid="context-desk"

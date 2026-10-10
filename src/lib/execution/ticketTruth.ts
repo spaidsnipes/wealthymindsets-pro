@@ -62,6 +62,33 @@ export function prefillNote(x: {
   return { stale: false, text: base };
 }
 
+/**
+ * A DRAFT PRICE THAT CAME FROM THE CHART (Founder P0 2026-10-09). How it got there is said beside the
+ * field, for as long as the field still holds that price: an armed pick, a drag of the staged line, or the
+ * chart's "Trade at <price>". It is a draft — never an order, never sent by arriving.
+ */
+export type ChartDraftSource = "PICK" | "DRAG" | "MENU";
+export interface ChartDraft { readonly role: "ENTRY" | "STOP" | "TARGET"; readonly px: number; readonly source: ChartDraftSource }
+
+/**
+ * What an ENTRY price from the chart does to the entry order type. PURE.
+ *   "Trade at <price>" (MENU)  → always a LIMIT at that price — never Market;
+ *   a pick or a drag            → Market becomes Limit; a Stop / Stop Limit entry moves its TRIGGER
+ *                                 (that is the line the trader is holding); a Limit stays a Limit.
+ */
+export function chartEntryEffect(source: ChartDraftSource, entryType: string): { readonly entryType: "Limit" | "Stop" | "Stop Limit"; readonly field: "LIMIT" | "TRIGGER" } {
+  if (source !== "MENU" && (entryType === "Stop" || entryType === "Stop Limit")) return { entryType, field: "TRIGGER" };
+  return { entryType: "Limit", field: "LIMIT" };
+}
+
+/** The note beside a field whose price came from the chart; null once the trader types something else. */
+export function chartDraftNote(d: ChartDraft | null, currentPx: number | null, role: ChartDraft["role"]): string | null {
+  if (!d || d.role !== role || currentPx == null || Math.abs(currentPx - d.px) > 1e-9) return null;
+  const how = d.source === "DRAG" ? "dragged on the chart" : "picked from the chart";
+  const what = role === "ENTRY" ? "Entry" : role === "STOP" ? "Stop" : "Target";
+  return `${what} ${how} at ${d.px} — a draft; nothing is sent until you preview and confirm.`;
+}
+
 /** The book line for this contract. */
 export function bookLine(x: {
   readonly readback: "FRESH" | "STALE" | "NEVER_READ" | null;

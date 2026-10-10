@@ -56,8 +56,8 @@ const DEFS: readonly { slug: string; title: string; duration: string; tools: rea
   { slug: "living-profile", title: "Living Profile", duration: "5m", tools: [{ id: "LIVING_PROFILE", label: "Living Profile" }] },
   { slug: "walls", title: "Brick Walls and Derivatives Pressure", duration: "7m", tools: [{ id: "BRICK_WALLS", label: "Brick Walls" }, { id: "DERIVATIVES_PRESSURE", label: "Derivatives Pressure" }] },
   { slug: "absorption", title: "Absorption", duration: "5m", tools: [{ id: "ABSORPTION", label: "Absorption Shelf" }] },
-  { slug: "liquidity-weather", title: "Liquidity Weather", duration: "5m", tools: [{ id: "LIQUIDITY_WEATHER", label: "Liquidity Weather" }] },
-  { slug: "effort-response", title: "Effort → Response", duration: "5m", tools: [{ id: "EFFORT_RESPONSE", label: "Effort → Response" }] },
+  { slug: "liquidity-weather", title: "Liquidity Weather", duration: "6m", tools: [{ id: "LIQUIDITY_WEATHER", label: "Liquidity Weather" }, { id: "LIQUIDITY_LIFECYCLE", label: "Liquidity Lifecycle" }] },
+  { slug: "effort-response", title: "Effort → Response", duration: "6m", tools: [{ id: "EFFORT_RESPONSE", label: "Effort → Response" }, { id: "EFFORT_MARK", label: "Effort Mark" }] },
   { slug: "footprint", title: "Footprint", duration: "8m", tools: [
     { id: "FP_bid-ask", label: "Bid × Ask" }, { id: "FP_delta", label: "Delta Bubbles" }, { id: "FP_volume-profile", label: "Vol Profile" },
     { id: "FP_imbalance", label: "Imbalance" }, { id: "FP_aggressive-passive", label: "Agg/Passive Proxy" }, { id: "FP_big-trades", label: "Big Trades" },

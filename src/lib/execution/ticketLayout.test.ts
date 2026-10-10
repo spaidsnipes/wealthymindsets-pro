@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { selectBrokerOrderLines, type BrokerReadback } from "./brokerOrderLines";
 import { ticketBook } from "./ticketBook";
-import { COMPACT_HALF_MAX_HEIGHT, halfControl, halfInForce, WIDE_TICKET_MAX_HEIGHT, bookIsActive, COMPACT_ACT_MAX_HEIGHT, COMPACT_BUILD_SECTIONS, COMPACT_PEEK_MAX_HEIGHT, COMPACT_PEEK_SECTIONS, COMPACT_REVIEW_SECTIONS, COMPACT_TICKET_MAX_WIDTH, COMPACT_TICKET_QUERY, compactRiskLine, detailsSummary, foldControl, reviewGate, ticketSections, ticketStage, ticketStep } from "./ticketLayout";
+import { wideSendSections, COMPACT_HALF_MAX_HEIGHT, halfControl, halfInForce, WIDE_TICKET_MAX_HEIGHT, bookIsActive, COMPACT_ACT_MAX_HEIGHT, COMPACT_BUILD_SECTIONS, COMPACT_PEEK_MAX_HEIGHT, COMPACT_PEEK_SECTIONS, COMPACT_REVIEW_SECTIONS, COMPACT_TICKET_MAX_WIDTH, COMPACT_TICKET_QUERY, compactRiskLine, detailsSummary, foldControl, reviewGate, ticketSections, ticketStage, ticketStep } from "./ticketLayout";
 
 const NOW = Date.parse("2026-10-08T18:30:00Z");
 const rb = (over: Partial<BrokerReadback>): BrokerReadback => ({ asOfMs: NOW - 1000, ok: true, orders: [], positions: [], tails: ["5019"], orderAccounts: {}, ...over });
@@ -27,9 +27,12 @@ describe("ticketSections — one ticket, two orders", () => {
     expect(order).toEqual([...order].sort((a, b) => a - b));
     expect(order.every(i => i >= 0)).toBe(true);
   });
-  it("holding or working: the position / MODIFY / FLATTEN block joins the entry path right under the quote, and leaves Details", () => {
+  it("holding or working: the position / MODIFY / FLATTEN block leaves Details and joins the path, directly above the live-order block", () => {
     const l = ticketSections(false, true);
-    expect(l.action.slice(0, 3)).toEqual(["QUOTE", "BOOK", "SIDE"]);
+    expect(l.action.slice(0, 2)).toEqual(["QUOTE", "SIDE"]);            // still nothing but the quote above BUY / SELL
+    expect(l.action.slice(-2)).toEqual(["BOOK", "LIVE_ORDER"]);
+    expect(wideSendSections(true)).toEqual(["BOOK", "LIVE_ORDER"]);
+    expect(wideSendSections(false)).toEqual(["LIVE_ORDER"]);
     expect(l.details).toEqual(["ECONOMICS", "PROTECTION_DRYRUN", "PLAN", "PROTECT"]);
     expect(new Set([...l.action, ...l.details]).size).toBe(l.action.length + l.details.length);
     const flat = { position: { state: "FLAT" }, working: [] } as never;
@@ -90,6 +93,10 @@ describe("TradePanel is ONE ticket in both layouts", () => {
     expect(T).toContain('data-half={halfOn ? "yes" : undefined}');
     const css = readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
     expect(css).toContain('[data-testid="trade-panel"][data-stage="ACT"][data-half="yes"] { max-height: 50svh !important; }');
+    // The wide entry path: one column by default, two on a desk, where the panel widens to hold them.
+    expect(css).toContain(".wm-ticket-entry-path { display: grid; gap: 10px; min-width: 0; }");
+    expect(css).toContain('[data-testid="trade-panel"][data-layout="full"] { width: min(760px, calc(100vw - 48px)) !important; }');
+    expect(css).toContain('[data-testid="trade-panel"][data-layout="full"] .wm-ticket-entry-path { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 16px; align-items: start; }');
     expect(T).toContain('<TicketSections compact={compact} bookActive={bookIsActive(book)} peek={stage === "PEEK"} step={step} review={review} inFlight={!stageInput.preSend}');
     expect(T).toContain("onReview={() => { if (review.allowed) setReviewing(true); }} onEdit={() => { if (stageInput.preSend) setReviewing(false); }}");
     expect(T).toContain("const step = ticketStep({ stage, reviewing, preSend: stageInput.preSend, compact });");

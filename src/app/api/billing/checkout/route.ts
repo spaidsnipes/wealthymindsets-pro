@@ -1,3 +1,4 @@
+import { legalShownAtPurchase } from "@/lib/legal/legalVersion";
 import { NextResponse } from "next/server";
 
 import { billingKv, loadEntitlement, saveEntitlement } from "@/lib/billing/billingStore";
@@ -62,12 +63,14 @@ export async function POST(request: Request) {
   }
   try {
     const base = record && record.livemode === standing.live ? record : emptyEntitlement(auth.user.sub, standing.live);
-    await saveEntitlement(kv, { ...base, customerId: customer.customerId, customerMatch: customer.match });
+    await saveEntitlement(kv, { ...base, customerId: customer.customerId, customerMatch: customer.match, legalShown: legalShownAtPurchase() });
   } catch {
     return refuse(publicFailure(new Error("billing record not saved"), "billing-checkout"), 503);
   }
 
-  const metadata = { [PASSPORT_REF_KEY]: auth.user.sub, product: BILLING_PRODUCT, wm_tier: tier };
+  // WHICH LEGAL TEXT THE BUYER COULD READ, recorded with the purchase (one owner: lib/legal/legalVersion).
+  const legalShown = legalShownAtPurchase();
+  const metadata = { [PASSPORT_REF_KEY]: auth.user.sub, product: BILLING_PRODUCT, wm_tier: tier, legal_shown: legalShown };
   const session = await stripeCall(process.env, "checkout/sessions", {
     method: "POST",
     // Not clock-based: the same member asking for the same tier gets the same session back.

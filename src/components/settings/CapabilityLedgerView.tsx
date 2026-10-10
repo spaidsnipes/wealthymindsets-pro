@@ -82,6 +82,18 @@ export function CapabilityLedgerView() {
     return () => { live = false; };
   }, [guest, provider]);
   const gateNow = gate && gate.provider === provider ? serverGateNowLine(gate.standing) : null;
+  // Supermax §11: the operator's billing readiness — names present / absent, the standing word, the last verified
+  // webhook event, records by status. Owner only (the route refuses anyone else); never a value.
+  const [billing, setBilling] = useState<{ line: string; asOf: string; names: { name: string; present: boolean }[] } | null>(null);
+  useEffect(() => {
+    if (guest) return;
+    let live = true;
+    fetch("/api/billing/readiness", { cache: "no-store" })
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => { if (live && j && typeof j.line === "string" && Array.isArray(j.names)) setBilling({ line: j.line, asOf: String(j.asOf ?? ""), names: j.names }); })
+      .catch(() => { /* stays unread */ });
+    return () => { live = false; };
+  }, [guest]);
   return (
     <section data-testid="capability-ledger" className="px-4 py-3">
       <div className="text-xs font-semibold text-wm-text">What each rail is for</div>
@@ -110,6 +122,16 @@ export function CapabilityLedgerView() {
           </li>
         ))}
       </ul>
+      {!guest && billing ? (
+        <div data-testid="billing-readiness" className="mt-3 border-t border-wm-border pt-2">
+          <div className="text-xs font-semibold text-wm-text">Billing (operator)</div>
+          <p className="mt-0.5 text-[11px] leading-snug text-wm-text-muted">{billing.line}</p>
+          <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10.5px] text-wm-text-dim">
+            {billing.names.map(n => <li key={n.name} data-present={n.present ? "yes" : "no"}><span className="font-mono">{n.name}</span> · {n.present ? "present" : "absent"}</li>)}
+          </ul>
+          <p className="mt-0.5 text-[10.5px] text-wm-text-dim">as of {billing.asOf}</p>
+        </div>
+      ) : null}
     </section>
   );
 }

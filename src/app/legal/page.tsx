@@ -1,5 +1,6 @@
 "use client";
 
+import { LEGAL_INDEX_VERSION, TERMS_PRIVACY_STATE, termsPrivacyInEffect } from "@/lib/legal/legalVersion";
 import Link from "next/link";
 
 import { LegalPage, legalH2 } from "@/components/legal/LegalPage";
@@ -11,18 +12,22 @@ export default function LegalIndex() {
   // Inside the OS shell for members: this page reads no market feed.
   usePublishOsStanding({ surface: "Policies", feed: FEEDLESS_SURFACE });
   return (
-    <LegalPage title="Policies" version="2026-10-05">
+    <LegalPage title="Policies" version={LEGAL_INDEX_VERSION}>
       <h2 style={legalH2}>Published</h2>
       <ul>
         <li><Link href="/legal/risk" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "#c9a55c" }}>Risk disclosure</Link> — trading risk, what WM Pro is and is not, and how orders work.</li>
         <li><Link href="/legal/market-data" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "#c9a55c" }}>Market-data disclosure</Link> — where prices come from, how fresh they are, and what you may not do with them.</li>
       </ul>
-      <h2 style={legalH2}>Not yet published</h2>
+      {/* The state is the legal-version owner's (lib/legal/legalVersion): the checkout records the same value, so this
+          page and a purchase record cannot disagree. This paragraph is shown ONLY while they are not in effect. */}
+      {termsPrivacyInEffect() ? null : (<>
+      <h2 style={legalH2} data-testid="terms-privacy-state" data-state={TERMS_PRIVACY_STATE}>Not yet published</h2>
       <p>
         The <strong>Terms of Service</strong> and <strong>Privacy Policy</strong> are being finalised and are <strong>not in effect yet</strong>.
         Paid plans are not on sale until they are. When they are published, this page will link them with their version date, and your
         account will record which version you accepted.
       </p>
+      </>)}
     </LegalPage>
   );
 }

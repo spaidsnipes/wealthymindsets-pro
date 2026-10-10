@@ -1,5 +1,6 @@
 "use client";
 
+import { RISK_DISCLOSURE_VERSION } from "@/lib/legal/legalVersion";
 import Link from "next/link";
 import { LegalPage, legalH2 } from "@/components/legal/LegalPage";
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
@@ -10,7 +11,7 @@ export default function RiskDisclosure() {
   // Inside the OS shell for members: this page reads no market feed.
   usePublishOsStanding({ surface: "Risk disclosure", feed: FEEDLESS_SURFACE });
   return (
-    <LegalPage title="Risk disclosure" version="2026-10-05">
+    <LegalPage title="Risk disclosure" version={RISK_DISCLOSURE_VERSION}>
       <p>Trading stocks, options, futures, futures options and crypto can lose money quickly, including more than you put in on leveraged products such as futures and short options. Only trade with money you can afford to lose.</p>
 
       <h2 style={legalH2}>What WM Pro is — and is not</h2>

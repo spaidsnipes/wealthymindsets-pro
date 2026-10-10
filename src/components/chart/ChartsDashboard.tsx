@@ -85,6 +85,7 @@ import { LeftDrawingSidebar } from "./LeftDrawingSidebar";
 import { WatchlistPanel } from "./WatchlistPanel";
 import { AlertsPanel, type PriceAlert } from "./AlertsPanel";
 import { ChartSettingsModal, type ChartSettings, DEFAULT_CHART_SETTINGS } from "./ChartSettingsModal";
+import { deliverChartDraftPrice } from "@/lib/execution/chartOrderLines";
 import {
   CANDLE_DOWN_DEFAULT,
   CANDLE_UP_DEFAULT,
@@ -264,6 +265,7 @@ import { useDecisionContext } from "@/lib/experience/useDecisionContext";
 import { lifecyclePhaseFor, lifecycleStageFor, stageForPhase } from "@/lib/experience/decisionLifecycle";
 import CanvasBadgeMini from "@/components/experience/CanvasBadgeMini";
 import { CanvasFidelityChip } from "@/components/experience/CanvasFidelityChip";
+import { ChartBookStrip } from "@/components/chart/ChartBookStrip";
 import { useAuth } from "@/contexts/AuthContext";
 import { LENS_FIXTURE_BANNER, lensFixturePressure, lensFixtureWeather, parseAttentionFixture, parseLensFixture } from "@/lib/chart/lensFixture";
 // Real aggressor flow still grades the canonical capability state here;
@@ -5846,6 +5848,17 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         {narrowViewport && (
           <CanvasFidelityChip reading={chartHonesty} ungraded={chartHonestyUngraded} />
         )}
+        {/* The same position strip, on the phone's WAIT / WHY row (CSS shows
+            this one below 768px and the bar's one above it). */}
+        {narrowViewport && (
+          <ChartBookStrip
+            symbol={symbol}
+            lastPrice={chartBars.length ? chartBars[chartBars.length - 1].close : null}
+            placement="ROW"
+            onOpenTicket={() => setTradeOpen(true)}
+            ticketOpen={tradeOpen}
+          />
+        )}
         </div>
         {/* Internal depth readiness stays in the broker/capability drawer.
             A missing L2 wire must not occupy permanent chart chrome, and the
@@ -6523,6 +6536,16 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               watchlistOpen={watchlistOpen}
               onTrade={() => setTradeOpen(v => !v)}
               tradeOpen={tradeOpen}
+              // The broker's own position / working-orders readback, beside the door (Founder order §6).
+              tradeAside={
+                <ChartBookStrip
+                  symbol={symbol}
+                  lastPrice={chartBars.length ? chartBars[chartBars.length - 1].close : null}
+                  placement="BAR"
+                  onOpenTicket={() => setTradeOpen(true)}
+                  ticketOpen={tradeOpen}
+                />
+              }
             />
           )}
           {futuresOptionsOpen && assetClass === "crypto" && deribitCurrencyFor(symbol) && (
@@ -7222,6 +7245,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                     <MainChart
                       symbol={symbol}
                       timeframe={timeframe}
+                      /* TRADE FROM THE CHART (Founder P0 2026-10-09): "Trade at <price>"
+                         opens the ticket through its one open path and hands the
+                         price to the DRAFT as an entry. Nothing is sent. */
+                      onTradeAtPrice={price => { setTradeOpen(true); deliverChartDraftPrice(symbol, "ENTRY", price, "MENU"); }}
                       lensFixtureWeather={!!lensFixtureWeatherVM}
                       attentionFixtureQuiet={attentionFixture === "QUESTION_QUIET"}
                       /* Canon F24 / C-101: the timeframe is chosen ON THE GLASS,

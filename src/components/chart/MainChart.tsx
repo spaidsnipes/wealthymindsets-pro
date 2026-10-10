@@ -48,7 +48,7 @@ import { FVG_OPACITY, fvgAlpha, fvgBandGeometry, fvgClearZoneX, fvgCostReceipt, 
 import type { RegimeSeriesPoint } from "@/lib/marketData/viewModels/selectRegimeSeries";
 import { bucketStep, profileContribution } from "@/lib/chart/profileContribution";
 import type { LivingDevelopmentPoint } from "@/lib/marketData/viewModels/selectLivingProfile";
-import { chartPricePickArmed, deliverChartPricePick, orderLineWords, registerChartPricePickHost, useChartOrderLines } from "@/lib/execution/chartOrderLines";
+import { BROKER_LINE_NOT_MOVABLE, chartOrderLineDraggable, chartPricePickArmed, deliverChartDraftPrice, deliverChartPricePick, draftHandleWords, orderLineWords, registerChartPricePickHost, useChartOrderLines, type ChartOrderLine } from "@/lib/execution/chartOrderLines";
 import { anchorListLines, anchorsKey, COMPOSE_NOTES_KEY, composeNoteAnchors, pipHitRect, placePipHit, type DisplacedNote, type PipRect } from "@/lib/chart/eventNoteComposer";
 import { logicalForTime, xForLogical, SESSION_BAND_LABEL, SESSION_BANDS_BUDGET_MS, sessionSpans, sessionsAt, type SessionSpan } from "@/lib/chart/sessionBands";
 import { hasNoCentralVolume, needsTradedVolumeSentence, needsTradedVolumeWords, volumeBearingBars, volumeTruthFor } from "@/lib/chart/volumeTruth";
@@ -540,6 +540,7 @@ import { rankPoolsForGlass, type LiquidityLifecycleVM } from "@/lib/marketData/v
 import { selectContradiction, type ContradictionInput, type ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
 import { selectRiskOnPrice, planFromDrawing, type PositionPlanInput, type RiskOnPriceVM } from "@/lib/marketData/viewModels/selectRiskOnPrice";
 import { selectRiskEconomics, snapToTick } from "@/lib/marketData/contractEconomics";
+import { instrumentEconomics } from "@/lib/marketData/contractEconomics";
 import { loadPaperSnapshot, PAPER_KEY } from "@/lib/paperTrade";
 import { PAPER_BOOK_RECOVERY_WORDS, paperPositionLineTitle, selectPaperPositionLines, type PaperPositionLine } from "@/lib/chart/paperPositionLines";
 import { brokerCostLineTitle, PRICE_LINE_NATIVE_TITLE, priceLineWordsReceipt, priceLineWordsRightEdge, type PriceLineWords } from "@/lib/chart/paperPositionLines";
@@ -1808,6 +1809,13 @@ interface Props {
   /** ASK-3: a tap on a bar-anchored glass object (the wisdom line) selects that bar → Inspect. */
   onSelectBarAt?: (time: number) => void;
   /**
+   * TRADE FROM THE CHART (Founder P0 2026-10-09): "Trade at <price>" in the
+   * chart's context menu (right-click / long-press) hands the tick-snapped
+   * price to the room. The chart decides nothing else — no side, no size, no
+   * send. The menu item exists only while this is passed.
+   */
+  onTradeAtPrice?: (price: number) => void;
+  /**
    * ASK-18 (Sheriff §35): a finger has no hover, so Inspect / Effort followed
    * the forming bar forever. A TOUCH tap on a candle (nothing more specific
    * under it) pins that bar; a second tap on the same bar releases it.
@@ -2177,6 +2185,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   selectedMarketObjectId = null,
   onSelectMarketObject,
   onSelectBarAt,
+  onTradeAtPrice,
   onTouchPinBar,
   structureZones = [],
   selectedMarketObjectWait = null,
@@ -6821,6 +6830,67 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
      the shown market has not reached. Nothing here sends anything. */
   const chartOrderLines = useChartOrderLines(symbol);
   const orderLinesRef = useRef<any[]>([]);
+  /* DRAGGABLE DRAFT LINES (Founder P0 2026-10-09: "let the trader trade").
+     A STAGED entry / stop / target carries a 44px handle at the plot's right
+     edge: drag it (mouse or touch) or nudge it with ↑ / ↓ and the snapped price
+     is handed to the ticket DRAFT through the chartOrderLines owner — the same
+     record a pick writes. Nothing here sends; a broker readback line has no
+     handle to drag and says so when pressed. The handle's money is the
+     ticket's own figure, re-read as the ticket republishes during the drag. */
+  const [draftDrag, setDraftDrag] = useState<{ id: string; price: number } | null>(null);
+  const draftDragRef = useRef<{ id: string; role: "ENTRY" | "STOP" | "TARGET"; lastSent: number; raf: number; pending: number | null } | null>(null);
+  const [brokerLineNote, setBrokerLineNote] = useState<string | null>(null);
+  const draftPriceAt = useCallback((clientY: number): number | null => {
+    const host = containerRef.current, series = candleRef.current;
+    if (!host || !series) return null;
+    const raw = series.coordinateToPrice(clientY - host.getBoundingClientRect().top);
+    if (raw == null || !Number.isFinite(Number(raw)) || Number(raw) <= 0) return null;
+    return snapToTick(symbol, Number(raw));
+  }, [symbol]);
+  const beginDraftDrag = useCallback((l: ChartOrderLine, e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!chartOrderLineDraggable(l)) return;
+    e.preventDefault(); e.stopPropagation();
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* capture is a nicety */ }
+    draftDragRef.current = { id: l.id, role: l.role as "ENTRY" | "STOP" | "TARGET", lastSent: l.price, raf: 0, pending: null };
+    setDraftDrag({ id: l.id, price: l.price });
+  }, []);
+  const moveDraftDrag = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
+    const d = draftDragRef.current;
+    if (!d) return;
+    const px = draftPriceAt(e.clientY);
+    if (px == null) return;
+    setDraftDrag({ id: d.id, price: px });
+    d.pending = px;
+    // At most one delivery a frame, and only when the snapped price changed.
+    if (!d.raf) d.raf = requestAnimationFrame(() => {
+      const cur = draftDragRef.current;
+      if (!cur) return;
+      cur.raf = 0;
+      if (cur.pending != null && cur.pending !== cur.lastSent) { cur.lastSent = cur.pending; deliverChartDraftPrice(symbol, cur.role, cur.pending, "DRAG"); }
+    });
+  }, [draftPriceAt, symbol]);
+  const endDraftDrag = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
+    const d = draftDragRef.current;
+    if (!d) return;
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* already released */ }
+    if (d.raf) cancelAnimationFrame(d.raf);
+    if (d.pending != null && d.pending !== d.lastSent) deliverChartDraftPrice(symbol, d.role, d.pending, "DRAG");
+    draftDragRef.current = null;
+    setDraftDrag(null);
+  }, [symbol]);
+  const nudgeDraftLine = useCallback((l: ChartOrderLine, ticks: number) => {
+    if (!chartOrderLineDraggable(l)) return;
+    // One tick of the instrument's own grid; with no tick on file, one unit of its display precision.
+    const econ = instrumentEconomics(symbol, l.price);
+    const step = econ.status === "PRICED" && econ.tickSize != null ? econ.tickSize : Math.pow(10, -displayPrecisionFor(symbol, barsRef.current ?? []));
+    const next = snapToTick(symbol, l.price + ticks * step);
+    if (next > 0 && next !== l.price) deliverChartDraftPrice(symbol, l.role as "ENTRY" | "STOP" | "TARGET", next, "DRAG");
+  }, [symbol]);
+  useEffect(() => {
+    if (!brokerLineNote) return;
+    const t = window.setTimeout(() => setBrokerLineNote(null), 3200);
+    return () => window.clearTimeout(t);
+  }, [brokerLineNote]);
   useEffect(() => {
     const series = candleRef.current;
     if (!series || !ready || !chartOrderLines.length) return;
@@ -29129,6 +29199,73 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             price/time coordinate. Unselected objects remain restrained brass
             pins; the evidence plaque exists only after explicit selection and
             only when the canonical WAIT selector returned a standing. */}
+        {/* DRAFT-LINE HANDLES — see beginDraftDrag. Right edge of the plot, on each
+            order line's own price; 44px tall for a thumb. A STAGED line's handle
+            drags; any other line's says it cannot be moved from the chart. */}
+        {(() => {
+          const series = candleRef.current;
+          if (!series || !chartOrderLines.length || replayCameraOn) return null;
+          void rangeVer; // re-placed on every scroll / zoom
+          let axisWH = 60;
+          try { axisWH = Math.max(0, Number(chartRef.current?.priceScale("right").width()) || 60); } catch { /* keep default */ }
+          const dpH = displayPrecisionFor(symbol, barsRef.current ?? []);
+          return chartOrderLines.map(l => {
+            const dragging = draftDrag?.id === l.id;
+            const shown = dragging && draftDrag ? draftDrag.price : l.price;
+            const y = series.priceToCoordinate(shown);
+            if (y == null || !Number.isFinite(Number(y))) return null;
+            const can = chartOrderLineDraggable(l);
+            const words = can ? draftHandleWords(l, shown, dpH) : orderLineWords(l).text;
+            return (
+              <button
+                key={`order-handle-${l.id}`}
+                type="button"
+                data-testid={can ? "draft-line-handle" : "broker-line-tag"}
+                data-order-line={l.id}
+                data-order-role={l.role}
+                data-order-status={l.status}
+                data-draggable={can ? "true" : "false"}
+                data-dragging={dragging ? "true" : "false"}
+                aria-label={can
+                  ? `${words}. Drag, or press up or down, to move this ${l.role.toLowerCase()} in the ticket draft. Nothing is sent.`
+                  : `${words}. ${BROKER_LINE_NOT_MOVABLE}`}
+                title={can ? "Drag to move this draft price — nothing is sent" : BROKER_LINE_NOT_MOVABLE}
+                onPointerDown={can ? e => beginDraftDrag(l, e) : undefined}
+                onPointerMove={can ? moveDraftDrag : undefined}
+                onPointerUp={can ? endDraftDrag : undefined}
+                onPointerCancel={can ? endDraftDrag : undefined}
+                onClick={can ? undefined : () => setBrokerLineNote(BROKER_LINE_NOT_MOVABLE)}
+                onContextMenu={can ? undefined : e => { e.preventDefault(); e.stopPropagation(); setBrokerLineNote(BROKER_LINE_NOT_MOVABLE); }}
+                onKeyDown={can ? e => {
+                  if (e.key === "ArrowUp") { e.preventDefault(); nudgeDraftLine(l, e.shiftKey ? 10 : 1); }
+                  else if (e.key === "ArrowDown") { e.preventDefault(); nudgeDraftLine(l, e.shiftKey ? -10 : -1); }
+                } : undefined}
+                style={{
+                  position: "absolute", right: axisWH + 4, top: Number(y), transform: "translateY(-50%)", zIndex: 73,
+                  height: 44, minWidth: 44, padding: "0 4px 0 0", border: 0, background: "transparent",
+                  display: "flex", alignItems: "center", gap: 0,
+                  cursor: can ? (dragging ? "grabbing" : "ns-resize") : "not-allowed", touchAction: "none", userSelect: "none",
+                }}
+              >
+                <span aria-hidden="true" style={{
+                  display: "inline-flex", alignItems: "center", gap: 6, height: 22, padding: "0 8px", borderRadius: 4,
+                  background: "rgba(11,10,8,0.92)", border: `1px ${can ? "solid" : "dashed"} ${orderLineWords(l).ink}`,
+                  color: can ? "#ead9ad" : orderLineWords(l).ink, font: "700 11px ui-monospace, SFMono-Regular, Menlo, monospace", whiteSpace: "nowrap",
+                  boxShadow: dragging ? "0 0 0 2px rgba(201,165,92,0.35)" : "none",
+                }}>
+                  {can ? <span style={{ color: orderLineWords(l).ink }}>⇕</span> : null}
+                  {can ? words : `${l.role} · broker`}
+                </span>
+              </button>
+            );
+          });
+        })()}
+        {brokerLineNote ? (
+          <div role="status" data-testid="broker-line-note" style={{
+            position: "absolute", right: 72, top: 96, zIndex: 74, maxWidth: 260, padding: "6px 10px", borderRadius: 6,
+            background: "rgba(11,10,8,0.94)", border: "1px solid rgba(201,165,92,0.45)", color: "#ead9ad", font: "600 11px Inter, ui-sans-serif, system-ui, sans-serif",
+          }}>{brokerLineNote}</div>
+        ) : null}
         {projectedMarketObjects.map(target => {
           const selected = target.object.objectId === selectedMarketObjectId;
           return (
@@ -30196,6 +30333,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               </span>
             </div>
             {[
+              ...(onTradeAtPrice ? [{
+                label: `Trade at ${snapToTick(symbol, ctxMenu.price).toFixed(displayPrecisionFor(symbol, barsRef.current ?? []))}`, color: "#C9A55C",
+                action: () => onTradeAtPrice(snapToTick(symbol, ctxMenu.price)),
+              }] : []),
               ...(ctxMenu.nearDrawingIdx !== null ? [
                 {
                   label: "🎨 Edit style", color: "#4FA3E0",

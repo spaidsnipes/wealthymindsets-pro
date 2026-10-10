@@ -270,7 +270,7 @@ describe("the note's canonical role set matches the producer's", () => {
     // added below, and this test will fail until formatChartContextNote knows
     // about it too.
     const roles: MarketQualityState[] = [
-      "LIVE", "DELAYED", "STALE", "PARTIAL", "PROXY", "REPLAY", "UNAVAILABLE",
+      "LIVE", "DELAYED", "STALE", "PARTIAL", "PROXY", "REPLAY", "UNAVAILABLE", "CLOSED",
     ];
     for (const r of roles) {
       const note = formatChartContextNote({ symbol: "TSLA", role: r, price: 100 });
@@ -403,5 +403,31 @@ describe("§20 — the options scope reaches SpaidBot in the owner's words (2026
     for (const bad of [null, "WHOLE", { kind: "EVERYTHING" }, { kind: "NEAR_MONEY_SUBSET", contracts: -1, reachPct: 4 }, { kind: "NEAR_MONEY_SUBSET", contracts: 123, reachPct: "4%" }, { kind: "NEAR_MONEY_SUBSET", contracts: 1.5, reachPct: 4 }]) {
       expect(formatOptionsScopeNote(bad)).toBe("");
     }
+  });
+});
+
+/*
+  THE CANONICAL CLOSED WORD (2026-10-09). A closed market is not a stale one:
+  its last price is verified, the session is simply over. The note says so in
+  the glass's own words, and the route's instructions tell the model the same.
+*/
+describe("a closed market says closed · last verified — never stale, never live", () => {
+  it("the note carries the role and the words", () => {
+    const note = formatChartContextNote({ symbol: "NQ1!", role: "CLOSED", price: 31123.25 });
+    expect(note).toContain("[role CLOSED]");
+    expect(note).toContain("closed · last verified");
+    expect(note).not.toMatch(/\[role (STALE|LIVE|UNKNOWN)\]/);
+  });
+  it("no other role borrows the closed words", () => {
+    for (const r of ["LIVE", "DELAYED", "STALE", "PARTIAL", "PROXY", "REPLAY", "UNAVAILABLE"]) {
+      expect(formatChartContextNote({ symbol: "TSLA", role: r, price: 100 }), r).not.toContain("closed · last verified");
+    }
+  });
+  it("the SpaidBot route tells the model how to speak about a closed market", async () => {
+    const { readFileSync } = await import("node:fs");
+    const route = readFileSync("src/app/api/spaidbot/route.ts", "utf8");
+    expect(route).toMatch(/\[role CLOSED\]/);
+    expect(route).toMatch(/closed · last verified/);
+    expect(route).toMatch(/Never call a closed market's price stale or live/);
   });
 });

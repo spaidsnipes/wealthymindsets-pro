@@ -129,10 +129,18 @@ export type TicketSection =
  */
 export const WIDE_ACTION_SECTIONS: readonly TicketSection[] = ["QUOTE", "SIDE", "CLOSING", "ACTION_LINE", "PROPOSAL", "SIZE", "ENTRY_TYPE", "PRICE", "RISK_INPUTS", "RISK_LINE", "PICK_STATUS", "LIVE_ORDER"];
 export const WIDE_DETAILS_SECTIONS: readonly TicketSection[] = ["BOOK", "ECONOMICS", "PROTECTION_DRYRUN", "PLAN", "PROTECT"];
-/** Holding or working: the position / working-orders / MODIFY / FLATTEN block comes up beside the entry path, right under the quote. */
+/**
+ * The wide ticket's SEND part — what stands beside the inputs on a desk: the live-order block, and above it the
+ * position / working-orders / MODIFY / FLATTEN block while a position is held or an order is working (measured
+ * on serving 52824b6 at 1440 × 900: with the book above the inputs the path ran 1,173–1,264 px in an 810 px panel).
+ */
+export function wideSendSections(bookActive: boolean): readonly TicketSection[] {
+  return bookActive ? ["BOOK", "LIVE_ORDER"] : ["LIVE_ORDER"];
+}
+/** Holding or working: the book block leaves Details and joins the path, directly above the live-order block. */
 function wideLayout(bookActive: boolean): { readonly action: readonly TicketSection[]; readonly details: readonly TicketSection[] } {
   if (!bookActive) return { action: WIDE_ACTION_SECTIONS, details: WIDE_DETAILS_SECTIONS };
-  return { action: ["QUOTE", "BOOK", ...WIDE_ACTION_SECTIONS.filter(s => s !== "QUOTE")], details: WIDE_DETAILS_SECTIONS.filter(s => s !== "BOOK") };
+  return { action: [...WIDE_ACTION_SECTIONS.filter(s => s !== "LIVE_ORDER"), "BOOK", "LIVE_ORDER"], details: WIDE_DETAILS_SECTIONS.filter(s => s !== "BOOK") };
 };
 /**
  * The phone's action path, in three groups (approved 2026-10-09 after the serving read on 9f4d784:

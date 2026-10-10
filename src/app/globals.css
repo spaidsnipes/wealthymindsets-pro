@@ -1832,6 +1832,16 @@ input[type=range]::-webkit-slider-runnable-track {
    the ticket stands above the chart's market-object pins (z 72), which the
    phone rule hides only below 640px — an order ticket outranks a chart
    handle at every touch width. Desktop unchanged. */
+/* THE WIDE TICKET'S ENTRY PATH (Founder P0 2026-10-09). One column by default; on a desk (≥ 1100 px) the
+   inputs and the live-order block stand side by side and the panel widens to hold them, so a bracket order
+   — side, quantity, type, price, stop, target, risk / reward, account, preview / send — shows with no
+   scrolling inside the ticket at 1440 × 900 and at 1180 × 820. Phone layout (data-layout="compact") untouched. */
+.wm-ticket-entry-path { display: grid; gap: 10px; min-width: 0; }
+@media (min-width: 1100px) {
+  [data-testid="trade-panel"][data-layout="full"] { width: min(760px, calc(100vw - 48px)) !important; }
+  [data-testid="trade-panel"][data-layout="full"] .wm-ticket-entry-path { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 16px; align-items: start; }
+}
+
 @media (pointer: coarse) {
   [data-testid="trade-panel"] { z-index: 74 !important; }
   [data-testid="trade-panel"] :is(button, select, summary, input:not([type="checkbox"]):not([type="radio"])) {
@@ -2423,6 +2433,23 @@ input[type=range]::-webkit-slider-runnable-track {
 .wm-instrument-context-strip > .wm-trade-door:focus-visible {
   outline: 2px solid #ede6d3;
   outline-offset: 2px;
+}
+
+/* ── THE POSITION STRIP STANDS IN ONE PLACE PER GLASS ─────────────────────
+   Two mounts read one store: beside the TRADE door from 768px up, on the
+   phone's WAIT / WHY row below it. The hidden one is display:none — out of
+   the layout and out of the accessibility tree. On the phone row it takes the
+   44px floor, and the row scrolls sideways rather than cutting a truth word
+   (UNPROTECTED, STALE, SAMPLE never shrink — ChartBookStrip). */
+@media (max-width: 767px) {
+  .wm-book-strip--bar { display: none !important; }
+  .wm-book-strip--row { min-height: 44px !important; margin-right: 0 !important; }
+}
+@media (min-width: 768px) {
+  .wm-book-strip--row { display: none !important; }
+}
+@media (pointer: coarse) {
+  .wm-book-strip { min-height: 44px !important; }
 }
 
 /* ── PHONE: THE ASSISTANT DOCKS IN THE NAV BAR, NOT ON THE ROOM ───────────

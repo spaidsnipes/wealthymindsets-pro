@@ -39,7 +39,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSymbolOwnedState } from "@/lib/marketData/useSymbolOwnedState";
 
 import { TastytradeLiveOrder, type TastytradeIntent } from "@/components/chart/TastytradeLiveOrder";
-import { orderActionLine, prefillNote, protectBasisLine, quoteStreamLabel, SPAIDBOT_BOUNDARY, type Prefill } from "@/lib/execution/ticketTruth";
+import { chartDraftNote, chartEntryEffect, type ChartDraft, orderActionLine, prefillNote, protectBasisLine, quoteStreamLabel, SPAIDBOT_BOUNDARY, type Prefill } from "@/lib/execution/ticketTruth";
 import { brokerStateWords, ticketBook, type WorkingOrderRow } from "@/lib/execution/ticketBook";
 import type { WmOrderState } from "@/lib/broker/tastytradeOrderState";
 import { TicketBookRows, type CancelAck } from "@/components/chart/TicketBookRows";
@@ -81,6 +81,9 @@ const RED = "#e0786b";
 const MONO: React.CSSProperties = { fontVariantNumeric: "tabular-nums" };
 
 type Kind = "FUTURE" | "STOCK" | "OPTION" | "CRYPTO" | "FX";
+
+/** The newest chart draft this module has applied (outlives the panel — see the effect that reads it). */
+let consumedChartDraftSeq = 0;
 
 function kindOf(symbol: string): Kind {
   const c = canonicalAssetClass(symbol);
@@ -179,13 +182,16 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   // Seed the limit from the touch you would trade against, once per contract + side — only after a
   // side is picked, only from a LIVE quote, and it names its source and age (ticketTruth.prefillNote).
   const seeded = useRef("");
+  // A limit the trader set from the chart is never overwritten by the quote prefill.
+  const chartLimit = useRef(false);
+  useEffect(() => { chartLimit.current = false; }, [symbol]);
   const [prefill, setPrefill] = useState<Prefill | null>(null);
   useEffect(() => {
     if (!side) return;
     const key = `${contract?.symbol}|${side}`;
     const touch = side === "BUY" ? q?.ask : q?.bid;
     const fresh = q?.quoteAt != null && selectTapeQuoteFreshness(q.quoteAt, Date.now()).kind === "FRESH";
-    if (contract && touch != null && fresh && seeded.current !== key) {
+    if (contract && touch != null && fresh && seeded.current !== key && !chartLimit.current) {
       seeded.current = key;
       const px = Number(touch.toFixed(dp));
       setLimit(touch.toFixed(dp));
@@ -220,15 +226,26 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   const [entryPhase, setEntryPhase] = useState<LiveOrderPhase>("DISARMED");
   const pickHosted = useChartPricePickHosted();
   const { pick, picked } = useChartPricePick();
-  const lastPick = useRef(0);
+  // A draft price from the chart — an armed pick, a drag of the staged line, or "Trade at <price>" — edits the
+  // DRAFT only. It is applied once (consumedChartDraftSeq outlives the panel, so a draft delivered while the
+  // ticket was closed is applied when it opens, and one already applied is never re-applied on a reopen).
+  // It only sets fields: no focus, no scroll, no step change — a drag never pulls the ticket around.
+  const [chartDrafts, setChartDrafts] = useState<readonly ChartDraft[]>([]);
+  useEffect(() => { setChartDrafts([]); }, [symbol]);
   useEffect(() => {
-    if (!picked || picked.seq === lastPick.current || picked.symbol !== symbol.toUpperCase()) return;
-    lastPick.current = picked.seq;
-    const v = (tick ? Math.round(picked.price / tick) * tick : picked.price).toFixed(dp);
+    if (!picked || picked.seq <= consumedChartDraftSeq || picked.symbol !== symbol.toUpperCase()) return;
+    consumedChartDraftSeq = picked.seq;
+    const px = tick ? Math.round(picked.price / tick) * tick : picked.price;
+    const v = px.toFixed(dp);
+    const source = picked.source ?? "PICK";
     if (picked.role === "STOP") setStop(v);
     else if (picked.role === "TARGET") setTarget(v);
-    else if (effectiveEntryType === "Stop" || effectiveEntryType === "Stop Limit") setEntryTrigger(v);
-    else { if (effectiveEntryType === "Market") setEntryType("Limit"); setLimit(v); }
+    else {
+      const fx = chartEntryEffect(source, effectiveEntryType);
+      if (fx.entryType !== effectiveEntryType) setEntryType(fx.entryType);
+      if (fx.field === "TRIGGER") setEntryTrigger(v); else { setLimit(v); chartLimit.current = true; }
+    }
+    setChartDrafts(ds => [...ds.filter(d => d.role !== picked.role), { role: picked.role, px: Number(v), source }]);
     setAnswer(null);
   }, [picked]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => cancelChartPricePick(), []);
@@ -360,6 +377,13 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   const review = reviewGate({ priceOk: entryFields != null, entryType: effectiveEntryType, stopWrongSide });
   // Sheriff P1-2: a chart's bar close is not a quote — the limit is never prefilled from it.
   const quoteLabel = quoteStreamLabel({ stream: snap.stream, bid: q?.bid, ask: q?.ask, quoteAtMs: q?.quoteAt, nowMs, contract: contract?.symbol ?? null, streamWords: STREAM_WORDS });
+  // Beside the fields: which draft prices came from the chart, for as long as each field still holds that price.
+  const draftOf = (role: ChartDraft["role"]) => chartDrafts.find(d => d.role === role) ?? null;
+  const chartDraftNotes = [
+    chartDraftNote(draftOf("ENTRY"), effectiveEntryType === "Stop" || effectiveEntryType === "Stop Limit" ? triggerNum : limitNum, "ENTRY"),
+    chartDraftNote(draftOf("STOP"), stopNum, "STOP"),
+    chartDraftNote(draftOf("TARGET"), targetNum, "TARGET"),
+  ].filter((n): n is string => !!n);
   const prefillLine = prefillNote({ prefill, limitPx: limitNum, currentTouch: prefill?.touch === "ASK" ? q?.ask : q?.bid, tick, nowMs });
   // §23 — POSITION STATE · WORKING ORDERS · MODIFY · FLATTEN, from the broker readback only; fail-closed.
   const book = ticketBook(broker, contract?.symbol ?? null, { killSwitch: !!server.limits?.killSwitch, limitsSet: server.state === "SET", proofRefusal: sceneGate?.reason ?? null });
@@ -505,6 +529,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
           </div>
     </>),
     PICK_STATUS: (<>
+          {chartDraftNotes.map(n => <p key={n} data-testid="trade-chart-draft-note" style={{ color: GOLD, fontSize: 11, margin: 0 }}>{n}</p>)}
           {pick ? <p role="status" data-testid="trade-pick-armed" style={{ color: GOLD, fontSize: 11 }}>Click a price on the chart for the {pick.role.toLowerCase()}.</p> : null}
     </>),
     PROTECTION_DRYRUN: (<>

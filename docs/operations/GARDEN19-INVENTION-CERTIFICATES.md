@@ -6,7 +6,7 @@ Written 2026-10-06, 23:50–00:30 CDT, by the INVENTION CENSUS lane. **This pass
 
 One row per section of the order's second part ("0 — PRIMARY ORDER" through "66 — GARDEN 19 CONSTITUTIONAL CLOSE"; §0 is the preamble and has no row). Titles are the Founder's. Section numbers in the last column of evidence (§5, §6a, §10, §13, §22, §23 …) point into THIS document; proof files are in `~/wm-held/proof/`. Only what this document and the proof files cite is counted: a row with no serving receipt is BUILT · NOT READ or lower. Production at writing: `16f363a` (LIVE 07:54:56 CDT).
 
-**Totals (66), as of 18:49 CDT Oct 9 (production `b72f896`):** **PROVED ON SERVING** 47 · **PROVED ON FIXTURE · real-account read owed** 12 · **BUILT · NOT READ** 1 · **PARTIAL** 4 · **NOT BUILT** 0 · **FOUNDER DECISION** 2. (At 18:28: 46 · 12 · 1 · 5 · 0 · 2. At 13:32: 45 · 12 · 1 · 6 · 0 · 2. At 08:10: 39 · 5 · 2 · 18 · 0 · 2.)
+**Totals (66), as of 19:16 CDT Oct 9 (production `52824b6`):** **PROVED ON SERVING** 47 · **PROVED ON FIXTURE · real-account read owed** 12 · **BUILT · NOT READ** 1 · **PARTIAL** 4 · **NOT BUILT** 0 · **FOUNDER DECISION** 2. (At 18:28: 46 · 12 · 1 · 5 · 0 · 2. At 13:32: 45 · 12 · 1 · 6 · 0 · 2. At 08:10: 39 · 5 · 2 · 18 · 0 · 2.)
 
 | § | Founder's title | State | Proved by (build · time) — or exactly what is missing | Lane |
 |---|---|---|---|---|
@@ -44,7 +44,7 @@ One row per section of the order's second part ("0 — PRIMARY ORDER" through "6
 | 32 | ⓘ FVG EDUCATION | **PROVED ON SERVING** | Tools → "fvg" → ⓘ preview → Academy (`c02c2d4`, §13 row 21); the §32 sentence verbatim in `CONCEPT_EDUCATION.FVG_IMBALANCE`. | cert lane |
 | 33 | ACADEMY: FAIR VALUE GAPS & IMBALANCE | **PROVED ON SERVING** | 21 lessons in the one Academy, 63 / 63 layouts (`4769a31`); lesson 20 text (`0dd1130` 07:45 Oct 9). Quiz proved on the sample scene with 0 storage writes (`16f363a` 07:58–08:02). One wording fix for the scene's pass screen is in the tree, unshipped (§23b). **UPDATE 2026-10-09 11:43 CDT:** the scene's pass screen now reads "10/10 correct · Marked verified on this page only — not saved (proof scene)." (serving `ada59d4`). **UPDATE 12:54 CDT** (serving `6e150db`, builtAt 17:49:21Z, 390): all 21 lesson drawings measure 318 px wide; **every label renders at 11.02 px (21 of 21 lessons, 93 labels), none runs past its drawing**; captions at 11 px; lesson 21 reads "Reference the gap on your FVG trades in the Journal." **UPDATE 18:44 CDT** (serving `b72f896`, builtAt 23:40:43Z, 390): the audit paragraphs are on lessons 1, 5, 10, 13, 18 and 19; the ON THE CHART box is on all 21 lessons at 11–12 px, inside the column. "must fill" appears once on lessons 1 and 10 — the MYTH card. | cert lane |
 | 34 | ACADEMY MUST CHALLENGE MYTHS | **PROVED ON SERVING** | Myth card on lessons 1, 10, 14, 15, 16 in the Founder's words (`4769a31`; §22a). | cert lane |
-| 35 | ACADEMY ↔ LIVE MARKET | **PROVED ON SERVING** | 21 / 21 "Show me on a chart" links followed (`92895d6` 9, `0dd1130` 12); Practice in Replay starts Replay (`92895d6` 07:22); Inspect opens the lesson for the gap's own state — 14, 9, 15 (`0dd1130` 07:48–07:50) — §23b. **UPDATE 18:45 CDT** (serving `b72f896`, tools OFF in a clean scene, the ⓘ in Tools → Browse all tools, at 1440 and at 390): FVG / Imbalance → "Academy · What is an imbalance? ›" (fvg-1); Living Profile → FVG + profile (fvg-12); Brick Walls, Derivatives Pressure, Absorption Shelf, Liquidity Weather → FVG + order flow (fvg-13); Effort → Response → Displacement (fvg-5) — each beside "Add to chart". **Not read: the footprint modes' ⓘ** (their buttons are not in the Tool Finder or Chart tools while footprint is off — pinned by unit only). "Bid/Ask Split Profile" has no door. | cert lane |
+| 35 | ACADEMY ↔ LIVE MARKET | **PROVED ON SERVING** | 21 / 21 "Show me on a chart" links followed (`92895d6` 9, `0dd1130` 12); Practice in Replay starts Replay (`92895d6` 07:22); Inspect opens the lesson for the gap's own state — 14, 9, 15 (`0dd1130` 07:48–07:50) — §23b. **UPDATE 18:45 CDT** (serving `b72f896`, tools OFF in a clean scene, the ⓘ in Tools → Browse all tools, at 1440 and at 390): FVG / Imbalance → "Academy · What is an imbalance? ›" (fvg-1); Living Profile → FVG + profile (fvg-12); Brick Walls, Derivatives Pressure, Absorption Shelf, Liquidity Weather → FVG + order flow (fvg-13); Effort → Response → Displacement (fvg-5) — each beside "Add to chart". **Not read: the footprint modes' ⓘ** (their buttons are not in the Tool Finder or Chart tools while footprint is off — pinned by unit only). "Bid/Ask Split Profile" has no door. **UPDATE 19:13 CDT** (serving `52824b6`, builtAt 00:08:08Z, at 1440 and 390, tools OFF): the ⓘ doors now land on each tool's own primer — Living Profile → "Living Profile"; Brick Walls and Derivatives Pressure → "Brick Walls and Derivatives Pressure"; Absorption Shelf → "Absorption"; Effort → Response → "Effort → Response"; Liquidity Weather → "Liquidity Weather"; FVG keeps lesson 1. The six primers read at 390 and 1440: every text leaf 11 px or more, nothing past the edge, the four grades, SILENCE and "what it cannot know" on each, a knowledge check on each. Liquidity Lifecycle and Effort Mark had no door on `52824b6` (folded into their primers in the tree, 19:15). Footprint modes' ⓘ still unread. | cert lane |
 | 36 | ACADEMY ↔ PERSONAL EDGE | **PROVED ON FIXTURE · real-account read owed** | "Show me my examples" on the sample scene (`559884e`). The sample row's landing on its decision shipped in `16f363a`, not read. Owed: a real FVG-referenced entry. **UPDATE 2026-10-09 11:44 CDT → sample landing PROVED** (serving `ada59d4`): the row `#SAMPLE-24` followed in-app lands on `/journal?scene=journal-fixture#SAMPLE-24`, the decision is in view and marked "OPENED FROM A LINK · this sample decision". Still owed: a real FVG-referenced entry. | cert lane |
 | 37 | BACKTEST LAB | **PROVED ON SERVING** | One engine, as-of clock, n of m, pooled, filters (`eea2771`, `c4de0f0`); structure / profile splits (`b290eef`). The order-flow relationship is not offered (see §14). | scanner / backtest / replay / SpaidBot lane |
 | 38 | REPLAY | **PROVED ON SERVING** | `REPLAY:…\|LEAK:0`, a later-born object drops out (`301d85d`); stepping at 1180 and 834 (`c02c2d4`); lifecycle test birth → memory (`c02c2d4`). | scanner / backtest / replay / SpaidBot lane |
@@ -3050,12 +3050,12 @@ Status words: **PROVED** (a serving receipt in this document covers it) · **PAR
 | 3 | Canon station | **PARTIAL** | chart lane | §3a (plate ⇄ glass per certificate) | no serving read of the station tonight |
 | 4 | Visual manifestation | **PARTIAL** | chart lane | §11 inventory, §12 certificates, finish-line §8, §43–§46, §53 (§25) | §11c top gaps; glass word collisions at 834 (§26c #7) |
 | 5 | Appearance controls | **BUILDING tonight** | chart lane | §26d (Tools drawer read; per-tool controls are icon-only) | no certificate row for the controls themselves |
-| 6 | First-class trading | **PARTIAL** | Sheriff lane (TRADE door) + ticket / brokers lanes | §10b ticket rows, §21c, "§66 receipt", handover 1, 6, 16 | brass TRADE door shipped in `b72f896` — not read by the cert lane; first paint at four sizes; atomic MODIFY, bracket / OCO; real working-order cancel; Founder decisions 1, 6, 16 |
+| 6 | First-class trading | **PARTIAL** | Sheriff lane + ticket / brokers lanes | §10b ticket rows, §21c, "§66 receipt", handover 1, 6, 16 | `52824b6`: the ticket opens on order entry at every size with a phone HALF state, one shared broker readback — not read by the cert lane; atomic MODIFY, bracket / OCO; real working-order cancel; Founder decisions 1, 6, 16. **No order was sent tonight — trading evidence is sample-scene only** |
 | 7 | Founder prop-evaluation desk (Founder-only, inside Journal / Review) | **BUILT · NOT READ** (`b72f896`) | ticket / journal lane | none yet — the desk and its engine (`propEvaluation.ts`) shipped in `b72f896` | a serving read: account truth, the consistency engine (required = max(target, largest day ÷ 0.30); remaining = required − net; a two-day plan said to be impossible when the arithmetic says so), the scenario lab (illustrative, never a target), and that a member cannot see it |
 | 8 | Prop data + SpaidBot | **MOUNTED · synthetic-certified only** (file import + owner sample, `00e7002`) · SpaidBot explainer shipped (`00e7002`, unread) · **FOUNDER** (real fills export; dashboard read-back) | brokers lane (file import); cert lane (SpaidBot files tonight); ticket lane (the desk's "Ask SpaidBot about these rules" control) | finish-line §30, §31; §28 | a real fills export from the firm (only synthetic files have been read); the TradeDay day boundary; the dashboard read-back; the desk's Ask control; a serving read |
-| 9 | Journal / Review / Academy | **PARTIAL** | management + cert lanes | finish-line §23–§29, §33–§36, §40–§42, §56; §27 (Academy audit, read on serving); §29 (tool primers — tree) | the 12 sample-data rows (Founder actions); the six tool primers and their repointed ⓘ doors are in the tree, unshipped and unread; the footprint ⓘ door (Sheriff lane) |
+| 9 | Journal / Review / Academy | **PARTIAL** | management + cert lanes | finish-line §23–§29, §33–§36, §40–§42, §56; §27; §29 (tool primers — LIVE `52824b6`, read on serving 19:12–19:13) | the 12 sample-data rows (Founder actions); the footprint ⓘ door (Sheriff lane); Liquidity Lifecycle and Effort Mark folded into their primers in the tree |
 | 10 | SpaidBot entry | **PARTIAL** | cert lane (SpaidBot files tonight) | finish-line §30 PROVED; §28; §29b (launcher read) | on /desk at 390 the docked launcher sits over a "⇕" control (P2); an answer under the new rules cannot be read without a provider call |
-| 11 | Passport / Stripe | **BUILDING** (billing pure owners shipped in `00e7002`; routes next) · **FOUNDER** (turn-on) | brokers / billing lane | §22b, handover 4, 19–21 | the routes; six environment variables; Terms / Privacy still say "not in effect yet"; WOW World live-mode findings (handover 20) |
+| 11 | Passport / Stripe | **BUILT · OFF** (billing routes + pricing buttons fail closed, `52824b6`) · **FOUNDER** (keys) | brokers / billing lane | §22b, handover 4, 19, 20 | the Founder's six environment variables; Terms / Privacy "not in effect yet"; guest checks being read by the billing lane; **Stripe has not been run** |
 | 12 | Device parity | **PARTIAL** | Sheriff + chart lanes | finish-line §43, §52, §58; §26c–§26f | physical phone and tablet (handover d) |
 | 13 | Hourly checkpoints | **BUILDING tonight** | cert lane | the log below | — |
 | 14 | Release certification | **PARTIAL** | cert lane | the FINISH LINE table (66 rows); FOUNDER HANDOVER; end-of-shift receipt | 12 sample-data rows, §5, §52, §58, §59, §62; the 18 handover items |
@@ -3070,6 +3070,7 @@ Status words: **PROVED** (a serving receipt in this document covers it) · **PAR
 | 18:35 | `c9303a7` (no ship since) | 46 · 12 · 1 · 5 · 2 Founder | Supermax §9 Academy audit built in the tree (ten list items covered, ON THE CHART box in 21 lessons, ⓘ doors for the named inventions); public-language sweep (one correction, the manifest); map rows 5–8 and 11 carry the order's text. Gate call — cert lane frozen green |
 | 18:49 | **`b72f896` LIVE 18:42:54** (coordinator ship gate; 17,814 tests; build identity builtAt 23:40:43Z) | 47 · 12 · 1 · 4 · 2 Founder | Shipped: brass TRADE door (§6 partial), Question Lens always painted, owner-only prop desk + engine (§7 built, unread), prop fills import (§8, unmounted), the Academy slice, the manifest. Read on it: lessons + ON THE CHART at 390; ⓘ doors at 1440 and 390 for six of the seven inventions (footprint ⓘ unread). §5 back to PROVED (regime word TRANSITION read on BTC-USD by the management lane). SpaidBot audited; owner-only evaluation explainer and no-promise rules in the tree. Gate call 2 — cert lane frozen green |
 | 19:02 | **`00e7002` LIVE 18:56:11** (coordinator ship gate; 17,877 tests). Another session's `733a34f` (passport bridge accepts thewow.online) is also in main | 47 · 12 · 1 · 4 · 2 Founder | Shipped: phone type floor / absorption cap / profile rows, one-owner fidelity word, prop desk file import + owner sample (§8 mounted, synthetic-certified only), billing pure owners (§11 building), the SpaidBot slice. Read on it: the SpaidBot launcher in non-chart rooms (§29b). In the tree: six tool primers + repointed ⓘ doors (§29a). Handover items 19–24 added |
+| 19:16 | **`52824b6` LIVE 19:12:06** (coordinator ship gate; 17,936 tests; build identity builtAt 00:08:08Z) | 47 · 12 · 1 · 4 · 2 Founder | Shipped: ticket opens on order entry at every size + phone HALF (§6), shared broker readback store, word registry ENFORCE by default, the canonical CLOSED word, billing routes + pricing buttons fail-closed (§11 built, off), the six tool primers. Read on it: six primers at 390 and 1440, repointed ⓘ doors at both. In the tree: Liquidity Lifecycle + Effort Mark folded into their primers; SpaidBot's note and instructions say "closed · last verified" for a closed market |
 
 ## 27. Supermax §9 and §11 / §14 — Academy audit, ⓘ doors, public language (cert lane, written 18:35 CDT Oct 9; tree, not shipped)
 
@@ -3168,3 +3169,83 @@ No message was sent on the Founder's account. Serving reads on `b72f896` (own ta
 | /profile · 834 | 48 × 48 at x 766–814, y 726–774 — 12 px above the nav (y 786–844) | floating bottom-right (the dock applies below 768 px); over no text at rest |
 | /profile · 1440 | 48 × 48 at x 1372–1420, y 776–824 | bottom-right corner; no nav |
 | /desk · 390 | 44 × 44 at x 340–384, y 793–837 | docked — **over a "⇕" control** (P2, chart / Desk lane) |
+
+
+---
+
+## RELEASE CERTIFICATE — DRAFT (Supermax §13 hour-8, §14) — cert lane, drafted 19:16 CDT Oct 9; the coordinator rules on the verdict
+
+**GUEST READY: NOT YET** — draft verdict, with the exact blockers in section G. Everything below is what this document and the proof files can cite at 19:16; later ships are appended to the hourly log, not here.
+
+### A. Commits with real LIVE times (Oct 9, CDT)
+
+| Build | LIVE | Source | Carried |
+|---|---|---|---|
+| `f9f61fe` | 11:47:37 | ship gate | truth-line priority; finish-line table |
+| `e05c774` | 12:02:19 | proof file | phone ink no longer dimmed by the word budget; `scene=verify` |
+| `f37005c` | 12:17:44 | ship gate | phone glass second pass; gap frame geometry, glow count, volatility / regime lines |
+| `6944df9` | 12:26:36 | proof file | price sovereignty on phone glass; API P1-1 / 2 / 4 / 6 |
+| `5b12137` | 12:33:06 | proof file | effort mass capped; public proxy limiters |
+| `79bb6fd` | 12:39:37 | ship gate | no notch behind the newest candles; one failure wording |
+| `6e150db` | 12:53:21 | ship gate | lesson drawings at 11 px; CI green for the first time since Oct 6 |
+| `b2727cd` | never built | no build check on the commit | (same content as `b94f28c`) |
+| `b94f28c` | 13:21 | ship gate | truth lines in the silence stack; Connections words by audience |
+| `e8ca9f2` | 13:31:04 | ship gate | read-only order-gate standing for the owner |
+| `c9303a7` | 18:26 | ship gate | regime at formation: three honest outcomes; decision band plaque |
+| `b72f896` | 18:42:54 | ship gate | brass TRADE door; owner-only prop desk + engine; Academy audit; manifest sentence |
+| `00e7002` | 18:56:11 | ship gate | phone type floor; prop desk file import; billing pure owners; SpaidBot no-promise rules and owner explainer |
+| `52824b6` | 19:12:06 | ship gate | ticket opens on order entry; registry ENFORCE default; canonical CLOSED word; billing routes fail-closed; six tool primers |
+
+### B. Proof standing (19:16)
+
+| | Count | Where |
+|---|---|---|
+| Garden 19 FVG order, 66 sections | 47 proved on serving · 12 on sample data · 1 built, not read · 4 partial · 0 not built · 2 Founder decisions | FINISH LINE table |
+| Supermax order, 14 sections | none PROVED outright; PARTIAL: 1, 2, 3, 4, 6, 9, 10, 12, 14 · BUILDING / BUILT-unread: 5, 7, 8 · BUILT · OFF: 11 · log: 13 | SUPERMAX ORDER MAP |
+| Tests | 17,936 at the `52824b6` gate (coordinator) | ship gate |
+
+**Built, not read on serving:** the owner-only prop desk and its engine (§7); the prop fills import (§8, synthetic files only); the brass TRADE door and the ticket's order-entry opening (§6); SpaidBot's owner explainer and no-promise rules (no answer can be read without a provider call on the Founder's account); the footprint modes' ⓘ door.
+
+### C. Stress numbers
+
+**None to cite.** `~/wm-held/proof/g19-stress-2026-10-09.md` did not exist at 19:16. What is on file from today is narrower: limiters under normal load (`6e150db`, 12:56 — /scanner 92 responses, /charts 24, /readiness 52, no 429) and the gap layer's cost at 4× CPU slowdown (about 30 ms cold, 6–7 ms per closed bar). Neither is a stress test.
+
+### D. Trading evidence
+
+**Sample scene only — no order was sent, previewed or armed on any account tonight.** What is proved: the ticket's BUILD and REVIEW steps on the ticket sample scene (`559884e`, `f37005c`); the server gate READ with no order (`e8ca9f2`: both brokers WOULD_REFUSE, limits unset, `sent: false`); every execute row printing the gate's verdict. Not proved: a real order's path, a working-order cancel with the broker's acknowledgement, MODIFY as an atomic replace (not built), bracket / OCO (not built).
+
+### E. Stripe / billing
+
+**Built, off, not run.** The billing owners and routes are in `52824b6`; the pricing buttons fail closed. No key is set, no checkout has been opened, no webhook has been received. Terms and Privacy still say "not in effect yet". WOW World live-mode findings (double subscription; a refund leaves the membership active; the $20 purchase enforces nothing) are recorded as findings only (handover 20).
+
+### F. Open defects (19:16)
+
+| Defect | Owner | State |
+|---|---|---|
+| Webull submit: the glass says GATED while the route sends once armed and within caps | Founder decision 6 | open |
+| The live-order gate uses the browser's quote | Founder decision 16 | not built |
+| No order-submit rate limit and no daily cap | Founder decision 1 | none set |
+| /desk at 390: the docked SpaidBot launcher sits over a "⇕" control | chart / Desk lane | open (P2) |
+| Connect brokers at 834: 312 of 363 text leaves under 11 px | brokers lane | open (P2) — not re-read since `79bb6fd` |
+| Desk pane toolbars and glass words crowd at 834 | chart lane | open (P2) — not re-read since `e05c774` |
+| Regime at formation: "not classified" and corrected "does not reach" sentences | ticket lane | shipped `c9303a7`, unread (NQ closed until Sunday) |
+| Liquidity Lifecycle and Effort Mark have no ⓘ door on serving | cert lane | fixed in the tree 19:15 |
+| Footprint modes' ⓘ is not reachable while footprint is off | Sheriff lane | open |
+| A closed market reached SpaidBot as "role UNKNOWN" | cert lane | fixed in the tree 19:15 ("closed · last verified") |
+
+### G. GUEST READY — draft verdict per §14: **NOT YET**
+
+The order's §14 text was not in the cert lane's hands (only its title, "release certification"), so the lines below are the blockers this document can prove, not a line-by-line reading of §14 — the coordinator should check them against the order's own list.
+
+| Blocker | Why it blocks a guest release | Closes when |
+|---|---|---|
+| 1. Billing is built and off; Stripe has never been run; Terms / Privacy say "not in effect yet" | a guest cannot become a member through WM Pro | the Founder's keys, one test-mode run end to end, the legal pages in effect |
+| 2. No physical phone or tablet has been used | touch size, safe areas, real-phone performance and the phone glass are proved by emulation only | the Founder's ten minutes on his phone and iPad (handover d) |
+| 3. Twelve sections are proved on sample data only | plan snapshot, management, premature exit, Journal context, Review, Personal Edge have never been read on a real account | one real trade and one real journal entry (handover c) |
+| 4. No stress test on file | section C | the stress file |
+| 5. Trading is proved on the sample scene and by a gate read only | section D | the Founder's decisions 1, 6, 16, then one real small order by him |
+| 6. Tonight's builds that are unread on serving | section B | one read each |
+| 7. A guest's own path has not been walked tonight by this lane | the signed-in passes were the owner's session; the public pages passed 48 / 48 at 11:57 on `f9f61fe`, five builds ago | a signed-out pass on the final build, and a guest (not owner) session read of /charts, /pricing → checkout refusal, and the member view of Connections |
+| 8. Eighteen-plus decisions wait on the Founder | handover (b), items 1–24 | his rulings |
+
+**What a guest can rely on today:** the public pages name a Trading Operating System and make no outcome promise; a proof scene and a verification load write nothing; every tool says its evidence grade or stays silent; no order can be sent without server-held limits, which are unset.

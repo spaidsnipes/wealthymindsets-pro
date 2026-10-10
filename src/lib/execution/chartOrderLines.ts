@@ -76,13 +76,36 @@ export function orderLineWords(l: ChartOrderLine): OrderLineWords {
   };
 }
 
+/**
+ * HOW a draft price reached the ticket: an armed one-shot PICK, a DRAG of the
+ * staged line on the glass, or the chart's "Trade at <price>" MENU item
+ * (Founder P0 2026-10-09: "let the trader trade"). All three only ever edit
+ * the ticket DRAFT — nothing here sends, and nothing here touches a working
+ * broker order.
+ */
+export type DraftPriceSource = "PICK" | "DRAG" | "MENU";
+
+/** Only a ticket's own un-sent line may be dragged: STAGED entry / stop / target. Broker readback never. */
+export function chartOrderLineDraggable(l: ChartOrderLine): boolean {
+  return l.status === "STAGED" && (l.role === "ENTRY" || l.role === "STOP" || l.role === "TARGET");
+}
+
+/** What a non-draggable line answers when the trader tries to move it. */
+export const BROKER_LINE_NOT_MOVABLE = "Broker line — not movable from the chart. Change it in the ticket.";
+
+/** The drag handle's words: role, the shown (snapped) price, and the TICKET's own money figure. PURE. */
+export function draftHandleWords(l: ChartOrderLine, shownPrice: number, decimals: number): string {
+  const pnl = l.pnlUsd != null && Number.isFinite(l.pnlUsd) ? ` · ${money(l.pnlUsd)}` : "";
+  return `${l.role} ${shownPrice.toFixed(Math.max(0, Math.min(8, decimals)))}${pnl}`;
+}
+
 /* ── The store ───────────────────────────────────────────────────────────── */
 
 interface State {
   /** Lines by publisher ("ticket", "broker") then chart symbol (upper-case). */
   readonly lines: ReadonlyMap<string, ReadonlyMap<string, readonly ChartOrderLine[]>>;
   readonly pick: { readonly role: "ENTRY" | "STOP" | "TARGET"; readonly armedAtMs: number } | null;
-  readonly picked: { readonly role: "ENTRY" | "STOP" | "TARGET"; readonly symbol: string; readonly price: number; readonly seq: number } | null;
+  readonly picked: { readonly role: "ENTRY" | "STOP" | "TARGET"; readonly symbol: string; readonly price: number; readonly seq: number; readonly source: DraftPriceSource } | null;
 }
 
 let state: State = { lines: new Map(), pick: null, picked: null };
@@ -158,7 +181,19 @@ export function chartPricePickArmed(): "ENTRY" | "STOP" | "TARGET" | null {
  */
 export function deliverChartPricePick(chartSymbol: string, price: number): boolean {
   if (!state.pick || !Number.isFinite(price) || price <= 0) return false;
-  state = { ...state, picked: { role: state.pick.role, symbol: key(chartSymbol), price, seq: ++seq }, pick: null };
+  state = { ...state, picked: { role: state.pick.role, symbol: key(chartSymbol), price, seq: ++seq, source: "PICK" }, pick: null };
+  emit();
+  return true;
+}
+/**
+ * Chart → ticket: set a DRAFT price without arming a pick (a drag of the staged
+ * line, or "Trade at <price>"). Writes the same `picked` record the ticket
+ * already reads, stamped with its source. False for a non-price. An armed pick
+ * is left armed — a drag is not a pick. Never sends.
+ */
+export function deliverChartDraftPrice(chartSymbol: string, role: "ENTRY" | "STOP" | "TARGET", price: number, source: DraftPriceSource): boolean {
+  if (!Number.isFinite(price) || price <= 0) return false;
+  state = { ...state, picked: { role, symbol: key(chartSymbol), price, seq: ++seq, source } };
   emit();
   return true;
 }
