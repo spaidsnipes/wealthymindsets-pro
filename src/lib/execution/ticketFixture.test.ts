@@ -6,6 +6,7 @@ import { NO_PROOF_SCENE, parseProofScene, proofFixtureScene } from "@/lib/chart/
 import { ticketBook } from "./ticketBook";
 import { parseTicketFixture, TICKET_FIXTURE_BANNER, TICKET_FIXTURE_TAIL, ticketFixtureChartLines, ticketFixtureLines, ticketFixtureReadback } from "./ticketFixture";
 import { readFileSync } from "node:fs";
+import { chartOrderLineDraggable } from "./chartOrderLines";
 import path from "node:path";
 
 const NOW = Date.parse("2026-10-09T05:00:00Z");
@@ -104,6 +105,10 @@ describe("the sample book on the CHART (Sheriff: fixture state=working showed on
     expect(ticketFixtureChartLines(R("holding")).map(l => l.role)).toEqual(["POSITION"]);
     expect(ticketFixtureChartLines(R("flat"))).toEqual([]);
     expect(ticketFixtureChartLines(null)).toEqual([]);
+    // They carry the broker readback's own statuses (POSITION / WORKING), never STAGED — so they can never be dragged,
+    // and the chart's long-press reads them as broker lines.
+    expect(w.map(l => l.status).sort()).toEqual(["POSITION", "WORKING"]);
+    expect(w.some(chartOrderLineDraggable)).toBe(false);
   });
   it("the ticket publishes them under their own 'sample' publisher only in the scene", () => {
     const T = readFileSync(path.resolve(process.cwd(), "src/components/chart/TradePanel.tsx"), "utf8");

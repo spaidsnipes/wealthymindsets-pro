@@ -57,9 +57,13 @@ export function TicketBookRows({ book, acks, busyId, onCancel, onFlatten }: {
         })}
       </div>
 
+      {/* MODIFY behind its own disclosure (ruling 2026-10-10: the wide ticket's book column must fit). Its refusal — a
+          modify is NOT atomic — is never folded away: it stays inline under the summary. */}
       <div data-testid="trade-modify" data-state={book.modify.state} style={{ display: "grid", gap: 2 }}>
-        <span style={small()}>MODIFY · {book.modify.state}</span>
-        <span style={{ color: MUTED, fontSize: 11 }}>{book.modify.words}</span>
+        <details data-testid="trade-modify-details">
+          <summary style={{ ...small(), cursor: "pointer", minHeight: 24 }}>MODIFY · {book.modify.state}</summary>
+          <span style={{ color: MUTED, fontSize: 11 }}>{book.modify.words}</span>
+        </details>
         {book.modify.refusal ? <span role="status" data-testid="trade-modify-refusal" style={{ color: GOLD, fontSize: 11 }}>{book.modify.refusal}</span> : null}
       </div>
 

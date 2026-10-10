@@ -2050,6 +2050,7 @@ function WebullLiveCard({ reading }: { readonly reading: WebullLiveReading }): R
   return (
     <div
       data-testid="spine-webull-live"
+      data-owner-private="broker-quote"
       data-webull-phase={reading.phase}
       role="status"
       aria-live="polite"

@@ -187,7 +187,9 @@ export function parseProofScene(search: string): ProofScene {
   try { q = new URLSearchParams(search); } catch { return NO_PROOF_SCENE; }
   // lens-fixture is a clean chart scene that switches on the lens it fixes.
   const lensFixture = q.get(SCENE_PARAM) === "lens-fixture";
-  const clean = q.get(SCENE_PARAM) === "clean" || lensFixture;
+  // `scene=capture` is a clean scene (same layer overrides, same write hold)
+  // that also hides every owner-private block — see PROOF_CAPTURE_TOKEN.
+  const clean = q.get(SCENE_PARAM) === "clean" || q.get(SCENE_PARAM) === PROOF_CAPTURE_TOKEN || lensFixture;
   const onRaw = q.get(ON_PARAM);
   const barsRaw = q.get(BARS_PARAM);
   const indRaw = q.get(INDICATORS_PARAM);
@@ -328,6 +330,26 @@ function fixtureRoomOpen(): boolean {
  * verification load of a plain page carries this token.
  */
 export const PROOF_VERIFY_TOKEN = "verify" as const;
+
+/**
+ * `scene=capture` — MARKETING CAPTURE (coordinator ruling 2026-10-10). A clean
+ * scene on REAL data, no banner, nothing saved — and every owner-private block
+ * (paper P&L, the position strip, the broker quote / account rail, order and
+ * position lines from the trader's own broker) is withheld from the page, so a
+ * still of the chart shows the product, never the owner's account. Blocks opt
+ * in with `data-owner-private`; the page carries `data-capture="true"` on
+ * <html>, and one stylesheet rule removes them.
+ */
+export const PROOF_CAPTURE_TOKEN = "capture" as const;
+let loadedAsCapture: boolean | null = null;
+/** True while this page load is a capture load (latched like the other holds). */
+export function proofCaptureOpen(): boolean {
+  if (typeof window === "undefined" || !window.location) return false;
+  let now = false;
+  try { now = (new URLSearchParams(window.location.search ?? "").get(SCENE_PARAM) ?? "").trim() === PROOF_CAPTURE_TOKEN; } catch { now = false; }
+  if (loadedAsCapture === null) loadedAsCapture = now;
+  return now || loadedAsCapture === true;
+}
 export const PROOF_VERIFY_BANNER = "VERIFICATION — real data, nothing is saved" as const;
 
 /** The address asks for the verification hold. */

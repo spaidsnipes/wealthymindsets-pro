@@ -83,6 +83,7 @@ export function ChartBookStrip({
     <button
       type="button"
       data-testid="chart-book-strip"
+      data-owner-private="position-strip"
       data-placement={placement}
       data-book-state={strip.state}
       data-book-freshness={strip.freshness}

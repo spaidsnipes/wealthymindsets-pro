@@ -114,6 +114,7 @@ export function HeaderPnL() {
     : "rgba(255,255,255,0.14)";
   return (
     <div
+      data-owner-private="paper-pnl"
       className="wm-mobile-hide flex items-center gap-1 px-2 py-0.5 rounded-lg border mr-1"
       // 5px sides and no trailing margin so the 11px PAPER label fits the 1440 masthead (see below).
       style={{ borderColor: border, paddingLeft: 5, paddingRight: 5, marginRight: 0 }}

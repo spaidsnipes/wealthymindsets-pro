@@ -61,7 +61,7 @@ import { partitionVolumeIndicators } from "@/lib/chart/volumeIndicatorTruth";
 import { createLongPress } from "@/lib/chart/longPress";
 import { clampBubbleScale, clampWallThickness, footprintNumberPx, lawfulSettings, volumeInk } from "@/lib/chart/appearanceLaw";
 import { DEFAULT_CHART_SETTINGS, FLOW_COLOR_DEFAULTS, VOLUME_COLOR_PICKER_DEFAULTS } from "./ChartSettingsModal";
-import { currentProofScene, proofSceneHoldsWrites } from "@/lib/chart/proofScene";
+import { currentProofScene, proofCaptureOpen, proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { inspectedBarMark } from "@/lib/chart/inspectedBarMark";
 import { useSymbolOwnedState } from "@/lib/marketData/useSymbolOwnedState";
 /** One stable empty book (a fresh [] per render would re-run the cost-line effect every frame). */
@@ -6714,6 +6714,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     if (cv) cv.dataset.paperLines = plan.receipt;
     setPaperBookRecovery(plan.status === "RECOVERY_REQUIRED");
     if (plan.status !== "DRAWN") return;
+    // MARKETING CAPTURE: the owner's paper positions are never drawn.
+    if (proofCaptureOpen()) return;
 
     // Marked only against a price observed for THIS symbol. No such price
     // (no bars yet, or the last one belongs to the previous symbol) is the
@@ -6830,6 +6832,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   useEffect(() => {
     const series = candleRef.current;
     if (!series || !ready || !brokerCostPositions.length) return;
+    // MARKETING CAPTURE: the owner's broker positions are never drawn.
+    if (proofCaptureOpen()) return;
     brokerCostPositions.forEach(p => {
       const title = brokerCostLineTitle(p);
       try {
@@ -6945,6 +6949,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   useEffect(() => {
     const series = candleRef.current;
     if (!series || !ready || !chartOrderLines.length) return;
+    // MARKETING CAPTURE: no order or position line from the owner's ticket or broker.
+    if (proofCaptureOpen()) return;
     if (replayCameraOn) { try { if (canvasRef.current) canvasRef.current.dataset.orderLines = `WITHHELD:REPLAY:${chartOrderLines.length}`; } catch {} return; }
     for (const l of chartOrderLines) {
       const w = orderLineWords(l);
@@ -29323,7 +29329,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             drags; any other line's says it cannot be moved from the chart. */}
         {(() => {
           const series = candleRef.current;
-          if (!series || !chartOrderLines.length || replayCameraOn) return null;
+          if (!series || !chartOrderLines.length || replayCameraOn || proofCaptureOpen()) return null;
           void rangeVer; // re-placed on every scroll / zoom
           let axisWH = 60;
           try { axisWH = Math.max(0, Number(chartRef.current?.priceScale("right").width()) || 60); } catch { /* keep default */ }

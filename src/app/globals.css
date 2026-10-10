@@ -1840,6 +1840,9 @@ input[type=range]::-webkit-slider-runnable-track {
 @media (min-width: 1100px) {
   [data-testid="trade-panel"][data-layout="full"] { width: min(760px, calc(100vw - 48px)) !important; }
   [data-testid="trade-panel"][data-layout="full"] .wm-ticket-entry-path { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 16px; align-items: start; }
+  /* Holding or working: the book is a third column and the panel widens to hold it (ruling 2026-10-10). */
+  [data-testid="trade-panel"][data-layout="full"]:has(.wm-ticket-entry-path[data-book="active"]) { width: min(1120px, calc(100vw - 48px)) !important; }
+  [data-testid="trade-panel"][data-layout="full"] .wm-ticket-entry-path[data-book="active"] { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); }
 }
 
 @media (pointer: coarse) {
@@ -2558,6 +2561,12 @@ input[type=range]::-webkit-slider-runnable-track {
   /* The chart's context menu (right-click / long-press): every item a 44px row. */
   .wm-ctx-item { min-height: 44px; display: flex !important; align-items: center; }
 }
+
+/* ── MARKETING CAPTURE (scene=capture, 2026-10-10): the owner's account never
+   appears in a still of the product. Every block that shows the signed-in
+   trader's own money, position, broker or identity carries
+   `data-owner-private`; under capture the page withholds all of them. */
+html[data-capture="true"] [data-owner-private] { display: none !important; }
 
 /* ── PHONE GLASS: THE DOM TYPE FLOOR IS 11px (ruling 2026-10-09) ──────────
    MEASURED on serving f9f61fe, /charts NQ1! 5m at 390x844: 71 text nodes

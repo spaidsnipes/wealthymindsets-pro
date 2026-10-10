@@ -9,11 +9,18 @@
  * every room's own shell; it takes no layout space and no pointer.
  */
 import React, { useEffect, useState } from "react";
-import { PROOF_VERIFY_BANNER, proofVerifyOpen } from "@/lib/chart/proofScene";
+import { PROOF_VERIFY_BANNER, proofCaptureOpen, proofVerifyOpen } from "@/lib/chart/proofScene";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 
 export function VerifySceneBanner(): React.ReactElement | null {
+  // MARKETING CAPTURE: mark the page so the one stylesheet rule withholds every
+  // owner-private block (proofScene.ts, PROOF_CAPTURE_TOKEN). No banner.
+  React.useEffect(() => {
+    if (!proofCaptureOpen()) return;
+    document.documentElement.dataset.capture = "true";
+    return () => { delete document.documentElement.dataset.capture; };
+  }, []);
   const { user } = useAuth();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);

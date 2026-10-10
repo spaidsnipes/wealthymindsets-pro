@@ -3018,6 +3018,7 @@ Status words: **PROVED** (a serving receipt in this document covers it) · **PAR
 | 00:50 Oct 10 | **`3180aae` LIVE 00:47:08 CDT** (coordinator ship gate; 18,001 tests) | 47 · 12 · 1 · 4 · 2 Founder | Shipped: order-rate limiter + daily cap on every live send, unset refuses (built; the gate read not yet read on serving — the browser link has been down since 00:32); plaque keep-out + LAST VERIFIED wording; SAMPLE lines in the ticket scene; one contract resolution; desk folds + Ask SpaidBot (owner); "prop" in SpaidBot's ask allow-list; the cert lane's privacy move. Guest walk on `32c95db` (Sheriff, Playwright, signed out, 9 public + 14 interior routes at 390 / 1440): no P0, two P2s being fixed — `~/wm-held/proof/g19-guest-walk-2026-10-10.md` |
 | 01:01 Oct 10 | **`60e9994` LIVE 01:01:09 CDT** (ship gate; 18,033 tests) | 47 · 12 · 1 · 4 · 2 Founder | Chart Settings volume colours + three layer-opacity dials with a readable floor and the opposed-pair law (not seen on glass); Journal this trade for imported round trips; Morning Prep prop card + ORB / order-flow checklist items; phone ticket grip; guests no longer call the coverage ledger; icon buttons named; SILENCE in 57 ⓘ records; privacy sweep of older documents |
 | 01:15 Oct 10 | **`c4ce273` LIVE 01:13:43 CDT** (ship gate; 18,073 tests) | 47 · 12 · 1 · 4 · 2 Founder | Marks section (bubbles, footprint numbers, wall thickness, red / green preset, memory fade); the volume-indicator silence decision owner (`volumeIndicatorTruth.ts`, 21 indicators — **the chart hook is pending in the chart lane's next slice, so they still draw flat on spot FX**); Webull "Journal this trade"; intention → plan freeze; ticket keys (Enter never sends); `/api/auth/me` answers 200 signed-out; the strip in phone landscape; SILENCE in the 283-record catalogue. **Paper fills: not built** — the journal has no paper marker; the ticket lane is building the separation. In the tree: Gravity and Options view wording (§30d) |
+| 01:32 Oct 10 | **`92dee6c` LIVE 01:30:15 CDT** (ship gate; 18,091 tests) | 47 · 12 · 1 · 4 · 2 Founder | Long-press menu (Trade at a price on iOS), phone menu clamp, handles above the phone ticket; **the volume indicators are silent where nothing traded (hook live)**; paper fills journaled as PAPER and excluded from every live result (sentinel over every journal-book reader); Alpaca PAPER capture; Gravity / Options wording. Chart lane on `c4ce273`, desktop: mouse drag of entry / stop, keyboard target, right-click Trade at → a labelled Limit draft — PASS, nothing sent. Cert lane reads on `c4ce273`: §30e |
 
 ## 27. Supermax §9 and §11 / §14 — Academy audit, ⓘ doors, public language (cert lane, written 18:35 CDT Oct 9; tree, not shipped)
 
@@ -3292,3 +3293,26 @@ A test pins both sentences to the code they quote.
 | 14 | Duplicate truth | PARTIAL | **PARTIAL** | one owner for "is there traded volume" now also decides the 21 volume indicators (decision shipped; hook pending) |
 
 **Count unchanged: 1 PASS · 7 PARTIAL · 6 NOT YET.** Nothing above was read on serving by the cert lane since `32c95db` — the browser link has been down since 00:32.
+
+### 30e. Serving reads on `c4ce273` (cert lane, own tab, read-only, 01:20–01:23 CDT Oct 10; build identity builtAt 06:10:22Z; frames under `scene=verify`; 0 storage writes, 0 non-GET requests; nothing pressed except row-expand toggles)
+
+| Read | Result | State |
+|---|---|---|
+| Order gate, both brokers (owner) | both answer; the order-rate block is present on both (no per-minute or per-day limit set, so nothing remains to count); both would refuse; nothing sent. Account-level detail held privately | PROVED (the rate block exists on the read) |
+| Morning Prep (owner, 1440) | prop card on screen: "PROP EVALUATION · TODAY — No evaluation entered — open the Journal's desk. Journal →". The two new checklist items ("Opening range marked (first 5 / 15 minutes) and the plan for a break vs a failure written"; "Order flow read at the levels (delta / absorption / big trades) — no trade without a read") are in the served code, **not seen on screen** — they appear with "+ NEW PREP", which creates an entry and was not pressed | card PROVED · checklist items in the bundle only |
+| Webull ledger (Journal → Broker Ledger, 1440) | 50 round trips; 6 expanded (a disclosure toggle) → 6 "Journal this trade →" buttons; none pressed; no Save shown | PROVED (presence) |
+| Tool primers at 390 | a SILENCE line in every section: Living Profile 1/1, walls 2/2, Absorption 1/1, Liquidity Weather 2/2 (Liquidity Lifecycle folded in), Effort → Response 2/2 (Effort Mark folded in), Footprint 6/6 | PROVED |
+
+### 30f. The volume indicators' own words (tree, 01:32)
+
+With the hook LIVE in `92dee6c`, the 21 volume indicators' DEGRADED / SILENCE now say what the chart does: "No central traded volume (spot FX, spot metals), or a feed that sends only placeholder volume — it is withheld: no line is drawn, and the chart says why in its silence line (NEEDS TRADED VOLUME)." (Was: "… what draws is flat or meaningless. Leave it off on those markets.") **Owed:** a serving read on a spot-FX chart with a volume indicator on.
+
+### G‴. §14 map — changes since G″ (01:32 CDT Oct 10)
+
+| # | Line | Now | What moved |
+|---|---|---|---|
+| 3 | Trading | **NOT YET** | chart lane on `c4ce273`, desktop: drag entry / stop, keyboard target, right-click Trade at → labelled Limit draft — PASS, nothing sent; long-press Trade at on iOS + handles above the phone ticket (`92dee6c`, not read); paper fills now journaled as PAPER and excluded from live results. Still: no real order, nothing broker-reconciled; the Founder's decisions |
+| 5 | Journal / Morning Prep / imports / Review | **PARTIAL** | paper vs live separation built (`92dee6c`, sentinel over every journal-book reader); Webull "Journal this trade" present on serving (§30e); Morning Prep prop card on serving. Still: real-account reads |
+| 14 | Duplicate truth | **PARTIAL** | one owner for "is there traded volume" now decides every volume tool, including the 21 indicators (hook live). Still: no single duplicate audit |
+
+**Count unchanged: 1 PASS · 7 PARTIAL · 6 NOT YET.**

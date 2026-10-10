@@ -54,7 +54,7 @@ function ladder(src: Src, win: number | null): Pick<InventionEducation, "needs" 
       evidence: `Price only is not enough: it reads ${SRC_WORDS.volume}.`,
       full: "Every bar carries the traded volume the exchange feed reported.",
       partial: `Some bars report zero or partial volume (thin hours, some delayed or index feeds) — those bars pull the reading toward zero. ${short}`,
-      degraded: "No central traded volume (spot FX, spot metals) — the volume terms are zero, so what draws is flat or meaningless. Leave it off on those markets.",
+      degraded: "No central traded volume (spot FX, spot metals), or a feed that sends only placeholder volume — it is withheld: no line is drawn, and the chart says why in its silence line (NEEDS TRADED VOLUME).",
     };
   }
   if (needs === "SIDED_TAPE") {

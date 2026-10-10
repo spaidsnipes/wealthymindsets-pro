@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { selectBrokerOrderLines, type BrokerReadback } from "./brokerOrderLines";
 import { ticketBook } from "./ticketBook";
-import { HALF_DRAG_SNAP_PX, halfFromDrag, wideSendSections, COMPACT_HALF_MAX_HEIGHT, halfControl, halfInForce, WIDE_TICKET_MAX_HEIGHT, bookIsActive, COMPACT_ACT_MAX_HEIGHT, COMPACT_BUILD_SECTIONS, COMPACT_PEEK_MAX_HEIGHT, COMPACT_PEEK_SECTIONS, COMPACT_REVIEW_SECTIONS, COMPACT_TICKET_MAX_WIDTH, COMPACT_TICKET_QUERY, compactRiskLine, detailsSummary, foldControl, reviewGate, ticketSections, ticketStage, ticketStep } from "./ticketLayout";
+import { WIDE_ACTION_SECTIONS, wideColumns, HALF_DRAG_SNAP_PX, halfFromDrag, wideSendSections, COMPACT_HALF_MAX_HEIGHT, halfControl, halfInForce, WIDE_TICKET_MAX_HEIGHT, bookIsActive, COMPACT_ACT_MAX_HEIGHT, COMPACT_BUILD_SECTIONS, COMPACT_PEEK_MAX_HEIGHT, COMPACT_PEEK_SECTIONS, COMPACT_REVIEW_SECTIONS, COMPACT_TICKET_MAX_WIDTH, COMPACT_TICKET_QUERY, compactRiskLine, detailsSummary, foldControl, reviewGate, ticketSections, ticketStage, ticketStep } from "./ticketLayout";
 
 const NOW = Date.parse("2026-10-08T18:30:00Z");
 const rb = (over: Partial<BrokerReadback>): BrokerReadback => ({ asOfMs: NOW - 1000, ok: true, orders: [], positions: [], tails: ["5019"], orderAccounts: {}, ...over });
@@ -33,6 +33,11 @@ describe("ticketSections — one ticket, two orders", () => {
     expect(l.action.slice(-2)).toEqual(["BOOK", "LIVE_ORDER"]);
     expect(wideSendSections(true)).toEqual(["BOOK", "LIVE_ORDER"]);
     expect(wideSendSections(false)).toEqual(["LIVE_ORDER"]);
+    // Ruling 2026-10-10: on a desk the book is a THIRD column (inputs | book | send) in a wider panel.
+    expect(wideColumns(true).map(c => c.join(","))).toEqual([WIDE_ACTION_SECTIONS.filter(x => x !== "LIVE_ORDER").join(","), "BOOK", "LIVE_ORDER"]);
+    expect(wideColumns(false)).toHaveLength(2);
+    const css = readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
+    expect(css).toContain('[data-testid="trade-panel"][data-layout="full"]:has(.wm-ticket-entry-path[data-book="active"]) { width: min(1120px, calc(100vw - 48px)) !important; }');
     expect(l.details).toEqual(["ECONOMICS", "PROTECTION_DRYRUN", "PLAN", "PROTECT"]);
     expect(new Set([...l.action, ...l.details]).size).toBe(l.action.length + l.details.length);
     const flat = { position: { state: "FLAT" }, working: [] } as never;

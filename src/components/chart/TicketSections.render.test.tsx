@@ -81,13 +81,19 @@ describe("TicketSections — tablet / desktop", () => {
     expect(html.indexOf("LIVE_ORDER")).toBeLessThan(html.indexOf("<details"));
     expect(html.indexOf("BOOK")).toBeGreaterThan(html.indexOf("<details"));
   });
-  it("holding or working: the book block is in the send part, directly above the live-order block, outside the fold", () => {
+  it("holding or working: the book is its own column between the inputs and the send block, outside the fold", () => {
     const html = renderToStaticMarkup(<TicketSections compact={false} bookActive sections={sections} summary="Details · LONG · 1 working" />);
     expect(html).toContain('data-book="active"');
     expect(order(html).slice(0, 2)).toEqual(["QUOTE", "SIDE"]);
+    const bookCol = html.slice(html.indexOf('data-testid="trade-entry-book"'), html.indexOf('data-testid="trade-entry-send"'));
+    expect(bookCol).toContain("BOOK");
+    expect(bookCol).not.toMatch(/LIVE_ORDER|SIDE|PRICE/);
+    expect(html.indexOf('data-testid="trade-entry-inputs"')).toBeLessThan(html.indexOf('data-testid="trade-entry-book"'));
     const send = html.slice(html.indexOf('data-testid="trade-entry-send"'), html.indexOf("<details"));
-    expect(send.indexOf("BOOK")).toBeGreaterThan(-1);
-    expect(send.indexOf("BOOK")).toBeLessThan(send.indexOf("LIVE_ORDER"));
+    expect(send).toContain("LIVE_ORDER");
+    expect(send).not.toContain("BOOK");
+    // FLAT has no book column.
+    expect(renderToStaticMarkup(<TicketSections compact={false} sections={sections} summary="x" />)).not.toContain('data-testid="trade-entry-book"');
     expect(html.indexOf("BOOK")).toBeLessThan(html.indexOf("<details"));
   });
 });

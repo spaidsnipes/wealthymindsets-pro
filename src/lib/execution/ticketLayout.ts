@@ -147,6 +147,15 @@ export const WIDE_DETAILS_SECTIONS: readonly TicketSection[] = ["BOOK", "ECONOMI
 export function wideSendSections(bookActive: boolean): readonly TicketSection[] {
   return bookActive ? ["BOOK", "LIVE_ORDER"] : ["LIVE_ORDER"];
 }
+/**
+ * The wide ticket's columns (ruling 2026-10-10, after the 92dee6c-era read: holding / working ran 48–218 px of inner
+ * scroll at 1440 × 900 and 1180 × 820). FLAT: inputs | send. Holding or working: inputs | the book | send — on a desk
+ * (≥ 1100 px) three columns side by side in a wider panel; below that they stack in the same order.
+ */
+export function wideColumns(bookActive: boolean): readonly (readonly TicketSection[])[] {
+  const inputs = WIDE_ACTION_SECTIONS.filter(s => s !== "LIVE_ORDER");
+  return bookActive ? [inputs, ["BOOK"], ["LIVE_ORDER"]] : [inputs, ["LIVE_ORDER"]];
+}
 /** Holding or working: the book block leaves Details and joins the path, directly above the live-order block. */
 function wideLayout(bookActive: boolean): { readonly action: readonly TicketSection[]; readonly details: readonly TicketSection[] } {
   if (!bookActive) return { action: WIDE_ACTION_SECTIONS, details: WIDE_DETAILS_SECTIONS };
