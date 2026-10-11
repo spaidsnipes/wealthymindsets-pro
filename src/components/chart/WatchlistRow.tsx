@@ -201,7 +201,7 @@ export function WatchlistRow({
               row has no price but it DOES have something to say. */}
           {priced ? (
             <>
-              <div
+              <div className="wm-wl-price"
                 style={{ fontSize: 11, color: refusal ? "#8b8fa8" : dirColor, fontFamily: "monospace", fontWeight: 600 }}
                 title={refusal ? `${sym}: not certified — ${refusal}\n\nA provider answered and WM declined the answer. This is a refusal, not a delay.` : undefined}
               >
@@ -213,7 +213,7 @@ export function WatchlistRow({
                 // Only the deviation gets labelled — crypto's rolling 24h
                 // figure, which answers a different question than the equity row
                 // directly above it.
-                <div
+                <div className="wm-wl-change" data-dir={changePct > 0 ? "up" : changePct < 0 ? "down" : "flat"}
                   style={{ fontSize: 9, color: dirColor, fontFamily: "monospace", display: "flex", alignItems: "baseline", justifyContent: "flex-end", gap: 3 }}
                   title={`${sym}: ${describeChangeWindow(changeWindow)}`}
                 >

@@ -2709,6 +2709,18 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
     order: 9; flex: 1 0 100% !important; overflow-x: auto !important; flex-wrap: nowrap !important; scrollbar-width: none; max-height: 44px;
   }
 
+  /* SHEETS ARE FULL SCREEN ON A PHONE (Watchlist, Tools, Settings…): a ShellModalDrawer floated as a
+     card 12px in from the edges with the chart behind it; an app presents the sheet edge to edge. */
+  [data-placement] > [role="dialog"][data-touch-floor] {
+    width: 100vw !important; margin: 0 !important; height: 100svh !important; max-height: 100svh !important;
+    border-radius: 0 !important; border: 0 !important;
+  }
+  /* WATCHLIST ROWS READ LIKE AN APP'S: the price at 14px, the day's change as a coloured pill. */
+  .wm-wl-price { font-size: 14px !important; }
+  .wm-wl-change { font-size: 12px !important; font-weight: 700 !important; padding: 2px 6px; border-radius: 6px; margin-top: 2px; }
+  .wm-wl-change[data-dir="up"] { background: rgba(0,192,118,0.16); }
+  .wm-wl-change[data-dir="down"] { background: rgba(255,77,103,0.16); }
+
   /* THE PHONE APP (Founder 2026-10-11: "like Webull, moomoo, Robinhood mobile"). The desk masthead
      leaves the market screen while the feed reading is LIVE and established; any other reading keeps
      the masthead as that one reading alone (a DELAYED / STALE word is the truth, never hidden). */
