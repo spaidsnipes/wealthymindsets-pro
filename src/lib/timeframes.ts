@@ -345,6 +345,9 @@ export const CHART_TF_SHIPPED: readonly TFId[] = Object.freeze([
   "1m", "2m", "5m", "15m", "30m", "1h", "1D", "1W", "1M",
 ]);
 
+/** The phone's one-tap timeframe row (TimeframeGlassChip quick row, Founder 2026-10-11): a subset of the shipped nine. */
+export const PHONE_QUICK_TF: readonly TFId[] = Object.freeze(["1m", "5m", "15m", "1h", "1D"] as TFId[]);
+
 /** Period-style views used by the heatmap. Same ids — no second vocabulary. */
 export const HEATMAP_TF_ORDER: readonly TFId[] = Object.freeze([
   "1D", "1W", "1M", "3M", "6M", "1Y", "5Y",

@@ -33,3 +33,15 @@ describe("phone portrait market room", () => {
     expect(block).toContain('.wm-chart-market-pane[data-market-primary="true"] .wm-nectar-vault-chip { display: none !important; }');
   });
 });
+
+describe("the phone's timeframe is a row of one-tap rungs", () => {
+  const CHIP = readFileSync(path.join(process.cwd(), "src/components/chart/TimeframeGlassChip.tsx"), "utf8");
+  it("reads the chip", () => { expect(CHIP.length).toBeGreaterThan(2_000); });
+  it("rungs come from the registry; ⋯ opens the same menu; hidden from 640 up", () => {
+    expect(CHIP).toContain("{PHONE_QUICK_TF.map(id => (");
+    expect(CHIP).toContain('className="wm-tf-quick wm-tf-quick--more wm-tap-slop" aria-haspopup="true"');
+    expect(CSS).toContain(".wm-tf-quickrow { display: none; }");
+    expect(block).toContain('.wm-chart-market-pane[data-market-primary="true"] .wm-tf-quickrow {');
+    expect(block).toContain('.wm-tf-quick--more { position: sticky; right: 0; }');
+  });
+});

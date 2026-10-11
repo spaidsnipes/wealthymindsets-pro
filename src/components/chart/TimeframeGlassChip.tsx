@@ -38,7 +38,7 @@
 import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import {
-  CANON_LADDER, CANON_LADDER_GROUPS, CHART_TF_SHIPPED, TICK_TF_IDS, canonRungSpokenName, getTimeframe,
+  CANON_LADDER, CANON_LADDER_GROUPS, CHART_TF_SHIPPED, PHONE_QUICK_TF, TICK_TF_IDS, canonRungSpokenName, getTimeframe,
   isTickTfId, tickTfSpokenName, timeframeSpokenName, type CanonRung, type ChartTfId, type TFId,
 } from "@/lib/timeframes";
 import { canonAvailabilityFor, ladderOnNowSentence } from "@/lib/marketData/chartBarRoute";
@@ -103,6 +103,14 @@ interface Props {
 /** "TICK · 100T–2000T from signed prints" — the TICK rung where a tape carries prints. */
 export const TICK_FROM_PRINTS = `TICK \u00B7 ${TICK_TF_IDS[0]}\u2013${TICK_TF_IDS[TICK_TF_IDS.length - 1]} from signed prints`;
 
+/*
+ * PHONE QUICK ROW (Founder, 2026-10-11: "an actual mobile version"). On a phone portrait the
+ * timeframe is a row of one-tap rungs in the chart's footer — the way a trading app shows it —
+ * not one chip that opens a menu. The rungs come from the registry (PHONE_QUICK_TF); "⋯" opens
+ * the same full menu and ladder. Hidden from 640 up (globals.css .wm-tf-quickrow), so the desk
+ * and the tablet are unchanged. The current rung is marked aria-current, like the menu's.
+ */
+
 export function TimeframeGlassChip({ timeframe, setTimeframe, symbol, tickRefusal }: Props) {
   const [open, setOpen] = useState(false);
   const [ladderOpen, setLadderOpen] = useState(false);
@@ -150,6 +158,24 @@ export function TimeframeGlassChip({ timeframe, setTimeframe, symbol, tickRefusa
         pointerEvents: "none",
       }}
     >
+      <div className="wm-tf-quickrow" role="group" aria-label="Quick timeframes" style={{ pointerEvents: "auto" }}>
+        {PHONE_QUICK_TF.map(id => (
+          <button key={id} type="button" data-tf={id} aria-current={id === timeframe ? "true" : undefined}
+            aria-label={`${timeframeSpokenName(id)} bars`}
+            onClick={() => choose(id)}
+            className={clsx("wm-tf-quick wm-tap-slop", id === timeframe && "wm-tf-quick--on")}>
+            {getTimeframe(id).label}
+          </button>
+        ))}
+        <button type="button" className="wm-tf-quick wm-tf-quick--more wm-tap-slop" aria-haspopup="true" aria-expanded={open}
+          aria-label={`More timeframes. Now ${timeframeSpokenName(timeframe as never)}.`}
+          onClick={() => {
+            if (!open) setLadderOpen(!CHART_TF_SHIPPED.includes(timeframe as TFId));
+            setOpen(o => !o);
+          }}>
+          {PHONE_QUICK_TF.includes(timeframe as TFId) ? "\u22EF" : current}
+        </button>
+      </div>
       {open && (
         <div
           // `wm-chart-timeframes` stays FIRST and `role`/`aria-label` follow it:

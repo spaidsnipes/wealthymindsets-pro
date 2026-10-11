@@ -2629,6 +2629,8 @@ input[type=range]::-moz-range-track { height: 4px; background: #26262d; border-r
    `data-owner-private`; under capture the page withholds all of them. */
 html[data-capture="true"] [data-owner-private] { display: none !important; }
 
+.wm-tf-quickrow { display: none; }
+
 /* ══ A PHONE IS NOT A SMALL DESK (Founder, 2026-10-11 04:25: "make an actual mobile
    version, not a quarter of the computer version") ════════════════════════════
    MEASURED BEFORE (393x852, market room): the masthead spent 133px on three desk
@@ -2671,6 +2673,24 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-os-feed-standing.wm-os-feed-standing { order: 3; flex: 1 0 100% !important; min-width: 0 !important; }
   body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-os-feed-standing[data-tone="LIVE"][data-established="true"] { display: none !important; }
 
+  /* TIMEFRAME AS A ROW OF ONE-TAP RUNGS (TimeframeGlassChip PHONE_QUICK_TF): it spans the
+     footer between the volume read and the ⇕ control and scrolls sideways if it must; the desk's
+     single chip steps back (the row's "⋯" opens the same menu and ladder). */
+  .wm-chart-market-pane[data-market-primary="true"] .wm-chart-timeframe-chip {
+    left: 112px !important; right: 50px !important; transform: none !important;
+  }
+  .wm-chart-market-pane[data-market-primary="true"] .wm-chart-timeframe-chip-trigger { display: none !important; }
+  .wm-chart-market-pane[data-market-primary="true"] .wm-tf-quickrow {
+    display: flex !important; gap: 4px; justify-content: flex-start; overflow-x: auto; scrollbar-width: none;
+  }
+  .wm-chart-market-pane[data-market-primary="true"] .wm-tf-quick {
+    flex: 0 0 auto; min-width: 34px; height: 30px; padding: 0 6px; border-radius: 6px;
+    font: 700 12px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.02em;
+    color: #c0b8a0; background: rgba(11,10,8,0.82); border: 1px solid rgba(139,106,41,0.35);
+  }
+  /* "⋯" (the whole ladder) is pinned at the row's right edge, so it is never scrolled away. */
+  .wm-chart-market-pane[data-market-primary="true"] .wm-tf-quick--more { position: sticky; right: 0; }
+  .wm-chart-market-pane[data-market-primary="true"] .wm-tf-quick--on { color: #0b0b0d; background: #d4af37; border-color: #d4af37; }
   .wm-chart-market-pane[data-market-primary="true"] button[aria-label="Data window"],
   .wm-chart-market-pane[data-market-primary="true"] .wm-nectar-vault-chip { display: none !important; }
 }
