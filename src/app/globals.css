@@ -2784,8 +2784,9 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   .wm-mobile-tab:active { color: #ede6d3; }
   /* One bar in every room: where the app bar stands, the four-door strip steps back. */
   body:has(.wm-mobile-tabbar) :is(.wm-os-phone-nav, .wm-mobile-nav) { display: none !important; }
-  /* SpaidBot's launcher stands above the bar, never on a tab (measured /profile 393: on top of More). */
-  body:has(.wm-mobile-tabbar) .wm-spaidbot-launcher { bottom: calc(64px + env(safe-area-inset-bottom)) !important; top: auto !important; }
+  /* SpaidBot docks IN the bar, as it does in the four-door nav (Sheriff batch 8): the app bar gives up 56px
+     at its end so the launcher never sits on a tab (measured /profile 393: it covered More). */
+  body:not(:has(.wm-spaidbot-chart-context)):has(.wm-spaidbot-launcher) .wm-mobile-tabbar { padding-inline-end: calc(56px + env(safe-area-inset-right)) !important; }
   .wm-mobile-tab--current { color: #d4af37; }
   .wm-mobile-tab--trade {
     flex: 1.3 1 0; margin: 5px 4px; border-radius: 12px; color: #0b0b0d;
