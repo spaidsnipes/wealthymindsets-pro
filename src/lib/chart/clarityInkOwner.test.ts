@@ -106,3 +106,22 @@ describe("Clarity ink owner — gold never reverts to red/green under a live str
     expect(dash).toContain("const effChartSettings: ChartSettings = useMemo(() => {");
   });
 });
+
+describe("the watchdog outside the paint loop (2026-10-11: no candles while the overlay was paused)", () => {
+  it("returns the trader's ink when Clarity has not drawn for CLARITY_STALL_MS with bars on hand", async () => {
+    const { ClarityInkOwner, CLARITY_STALL_MS } = await import("./clarityInkOwner");
+    const o = new ClarityInkOwner();
+    const applied: Record<string, unknown>[] = [];
+    const series = { applyOptions: (x: Record<string, unknown>) => { applied.push(x); } };
+    o.inkForNewSeries(null, true, true, 1_000);
+    expect(o.hidden).toBe(true);
+    expect(o.watchdog(series, null, 50, 1_000 + CLARITY_STALL_MS - 1)).toBe(false);   // still in grace
+    expect(o.watchdog(series, null, 0, 1_000 + CLARITY_STALL_MS + 5)).toBe(false);     // no bars: nothing to show
+    expect(o.watchdog(series, null, 50, 1_000 + CLARITY_STALL_MS + 5)).toBe(true);     // stalled: ink returns
+    expect(o.hidden).toBe(false);
+    // Clarity paints again → hidden again, and a fresh draw resets the clock.
+    o.afterFrame(series, null, 30, 50, 5_000);
+    expect(o.hidden).toBe(true);
+    expect(o.watchdog(series, null, 50, 5_500)).toBe(false);
+  });
+});

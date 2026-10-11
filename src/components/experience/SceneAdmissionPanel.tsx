@@ -454,7 +454,7 @@ export function SceneAdmissionPanel({
           }}
         >
           {compilation.admitsAmbient
-            ? "Ambient surfaces may take the room — Academy, Nectar and celebration are allowed here."
+            ? "Ambient surfaces may take the room — Academy, market memory and celebration are allowed here."
             : "Ambient surfaces are withheld — only capital truth and material invalidation may take the room."}
         </div>
 

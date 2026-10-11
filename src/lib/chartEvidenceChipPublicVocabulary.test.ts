@@ -133,3 +133,18 @@ describe("chart Market Evidence bubbles — the identity contract", () => {
     expect(code).toMatch(/\{tapeSource === "unavailable" \? "—" : tapeSource\}/);
   });
 });
+
+describe("the engine's internal name stays off the public chart (Founder 2026-10-11: keep Nectar, remove the clutter)", () => {
+  it("the LIVE TAPE chip, the tape pill and the header vault pill never print the engine's name", () => {
+    const chart = fs.readFileSync(path.join(process.cwd(), "src/components/chart/MainChart.tsx"), "utf8");
+    const health = fs.readFileSync(path.join(process.cwd(), "src/components/ui/DataHealth.tsx"), "utf8");
+    const pill = fs.readFileSync(path.join(process.cwd(), "src/components/layout/HeaderVaultPill.tsx"), "utf8");
+    expect(chart.length).toBeGreaterThan(100_000);
+    expect(chart).not.toContain(">WM NECTAR<");
+    expect(chart).not.toContain("WM Nectar memory for");
+    expect(health).not.toContain("<span>Nectar</span>");
+    expect(pill).not.toContain("Nectar Vault");
+    // The engine itself is kept: the chart still subscribes to it.
+    expect(chart).toContain("subscribeToSessionNectar");
+  });
+});

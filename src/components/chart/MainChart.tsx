@@ -2877,6 +2877,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // The ONE owner of the native candle ink while Clarity may be on (clarityInkOwner.ts).
   const clarityInkRef = useRef<ClarityInkOwner | null>(null);
   if (!clarityInkRef.current) clarityInkRef.current = new ClarityInkOwner();
+  // The Clarity watchdog runs on a timer, not on paint frames: when the overlay loop is paused or
+  // stalled, the native candles come back instead of leaving a chart with no candles (clarityInkOwner).
+  useEffect(() => {
+    const t = window.setInterval(() => {
+      const srs = candleRef.current;
+      if (srs) clarityInkRef.current?.watchdog(srs, chartSettingsRef.current, barsRef.current?.length ?? 0);
+    }, 400);
+    return () => window.clearInterval(t);
+  }, []);
   const flowCurrentOnRef = useRef(flowCurrentOnChart);
   useEffect(() => { flowCurrentOnRef.current = flowCurrentOnChart; }, [flowCurrentOnChart]);
   const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false, regimeLighting: false, questionLens: false, anatomyCards: false, memoryGhost: false, expectedEnvelope: false, contradiction: false, riskOnPrice: true, liquidityLifecycle: false, mtfAncestry: false, derivativesPressure: false, brickWalls: false, callWall: false, putWall: false, gammaHeatmap: false, gammaPositive: false, gammaNegative: false, gammaFlip: false, gammaConcentration: false });
@@ -30638,8 +30647,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               data-nectar-quarantined={nectar.receipts.quarantined}
               data-nectar-unsupported={nectar.unsupportedCapabilities}
               role="group"
-              aria-label={`Live footprint recording; historical bars before this tab opened stay blank. Nectar memory for ${normalizeSym(symbol)}. Fidelity ${fidelityLabel}. Accumulated summary — may include browser-restored counters. Summary delta ${fmt(s.delta)}. ${s.tradeCount} summary trades. ${coverageAriaClause}. ${s.bigTradeCount} summary large trades. ${gapCount} gaps. Coverage retention: ${retentionShort}. Raw tape is not retained.`}
-              title={`LIVE TAPE — new bars only; historical bars before this tab opened stay blank.\nWM Nectar memory for ${normalizeSym(symbol)}.\nAccumulated summary — may include browser-restored counters; not raw tape.\nSummary horizon began: ${horizonTime}\nSummary buys: ${fmt(s.buyVol)}\nSummary sells: ${fmt(s.sellVol)}\nSummary delta = Buys − Sells\nFidelity: ${fidelityLabel} (source-classified)\n${coverageTitleLine}\nCollector receipts this runtime: ${nectar.receipts.accepted} accepted / ${nectar.receipts.quarantined - nectar.receipts.duplicates} quarantined / ${nectar.unsupportedCapabilities} unsupported${nectar.receipts.duplicates > 0 ? ` (${nectar.receipts.duplicates} repeat hearings of an accepted print by another chart pane, dropped — not bad data)` : ""}\nGaps observed: ${gapCount}\nCoverage retention: ${retentionShort} — operational counts/timestamps only; raw price/size/aggressor tape is not durably stored while provider rights remain UNKNOWN.`}
+              aria-label={`Live footprint recording; historical bars before this tab opened stay blank. Session tape memory for ${normalizeSym(symbol)}. Fidelity ${fidelityLabel}. Accumulated summary — may include browser-restored counters. Summary delta ${fmt(s.delta)}. ${s.tradeCount} summary trades. ${coverageAriaClause}. ${s.bigTradeCount} summary large trades. ${gapCount} gaps. Coverage retention: ${retentionShort}. Raw tape is not retained.`}
+              title={`LIVE TAPE — new bars only; historical bars before this tab opened stay blank.\nSession tape memory for ${normalizeSym(symbol)}.\nAccumulated summary — may include browser-restored counters; not raw tape.\nSummary horizon began: ${horizonTime}\nSummary buys: ${fmt(s.buyVol)}\nSummary sells: ${fmt(s.sellVol)}\nSummary delta = Buys − Sells\nFidelity: ${fidelityLabel} (source-classified)\n${coverageTitleLine}\nCollector receipts this runtime: ${nectar.receipts.accepted} accepted / ${nectar.receipts.quarantined - nectar.receipts.duplicates} quarantined / ${nectar.unsupportedCapabilities} unsupported${nectar.receipts.duplicates > 0 ? ` (${nectar.receipts.duplicates} repeat hearings of an accepted print by another chart pane, dropped — not bad data)` : ""}\nGaps observed: ${gapCount}\nCoverage retention: ${retentionShort} — operational counts/timestamps only; raw price/size/aggressor tape is not durably stored while provider rights remain UNKNOWN.`}
               data-visual-density="compact"
               style={{
                 position: "absolute", top: 42, left: "50%", transform: "translateX(-50%)",
@@ -30655,9 +30664,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               {tradeChannel?.coverageState === "STALE" || (tradeChannel?.lastEventAt != null && Date.now() - tradeChannel.lastEventAt > 60_000)
                 ? <span style={{ color: "#8B92AC", fontWeight: 850 }}>○ TAPE QUIET</span>
                 : <span style={{ color: "#00C076", fontWeight: 850 }}>● LIVE TAPE</span>}
+              {/* The engine's name is internal (Founder 2026-10-11: "keep the invention, remove the clutter"):
+                  the chip says what the tape is — its fidelity — not which engine keeps it. */}
               <span>
-                <span style={{ color: "#8B92AC", fontWeight: 600 }}>WM NECTAR</span>
-                <span style={{ color: fidelityColor, fontWeight: 850, marginLeft: 6, letterSpacing: "0.02em" }}>· {fidelityLabel}</span>
+                <span style={{ color: fidelityColor, fontWeight: 850, letterSpacing: "0.02em" }}>{fidelityLabel}</span>
               </span>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                 <span style={{ color: "#8B92AC", fontWeight: 600 }}>Δ </span>

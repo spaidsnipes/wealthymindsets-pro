@@ -250,7 +250,7 @@ export function NectarHeartbeat(props: NectarHeartbeatProps) {
       : `${Math.floor(ageMs / 60_000)}m ago`
     : null;
 
-  const ariaLabel = `${props.symbol} Nectar ${s.label.toLowerCase()}${ageText ? `, last event ${ageText}` : ""}${props.observedCount != null ? `, ${props.observedCount} observed this session` : ""}`;
+  const ariaLabel = `${props.symbol} tape ${s.label.toLowerCase()}${ageText ? `, last event ${ageText}` : ""}${props.observedCount != null ? `, ${props.observedCount} observed this session` : ""}`;
 
   return (
     <span
@@ -264,7 +264,7 @@ export function NectarHeartbeat(props: NectarHeartbeatProps) {
       style={{ borderColor: s.border, color: s.text }}
     >
       <span aria-hidden="true">{s.glyph}</span>
-      <span>Nectar</span>
+      <span>Tape</span>
       <span className="text-[color:var(--wm-text-1,#ede6d3)]">{s.label}</span>
       {ageText && <span className="text-[color:var(--wm-text-2,#8a8271)]">· {ageText}</span>}
     </span>

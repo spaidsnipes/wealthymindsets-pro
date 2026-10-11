@@ -51,11 +51,11 @@ export function HeaderVaultPill() {
       href="/nectar"
       aria-label={
         hasGaps
-          ? `Nectar Vault: ${count} symbol${count === 1 ? "" : "s"} with retained browser-local stats, ${gapCount} coverage gap${gapCount === 1 ? "" : "s"} recorded. Open the Vault.`
-          : `Nectar Vault: ${count} symbol${count === 1 ? "" : "s"} with retained browser-local stats. Open the Vault.`
+          ? `Evidence vault: ${count} symbol${count === 1 ? "" : "s"} with retained browser-local stats, ${gapCount} coverage gap${gapCount === 1 ? "" : "s"} recorded. Open the Vault.`
+          : `Evidence vault: ${count} symbol${count === 1 ? "" : "s"} with retained browser-local stats. Open the Vault.`
       }
       title={
-        `WM Nectar Vault — ${count} symbol${count === 1 ? "" : "s"} with retained browser-local tape stats ` +
+        `Evidence vault — ${count} symbol${count === 1 ? "" : "s"} with retained browser-local tape stats ` +
         `(localStorage, up to 32 symbols, 7-day retention).\n` +
         (hasGaps ? `Coverage gaps recorded across channels: ${gapCount}. Open the Vault to inspect per-channel receipts.\n` : "") +
         `Summary is preserved across refresh and symbol switch within that window.\n` +

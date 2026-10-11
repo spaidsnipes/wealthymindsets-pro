@@ -77,6 +77,14 @@ export function isHiddenInk(o: Partial<CandleInk>): boolean {
 export const CLARITY_EMPTY_FRAMES_BEFORE_RESTORE = 30;
 
 /**
+ * THE WATCHDOG OUTSIDE THE PAINT LOOP (Founder 2026-10-11, "gold candles blink"; reproduced on serving:
+ * a hidden document paused the overlay loop while the native series stayed transparent — a chart with
+ * NO candles). The empty-frame restore above only runs when a frame runs. A timer that does not depend
+ * on frames returns the trader's ink when Clarity has not drawn for this long with bars on hand.
+ */
+export const CLARITY_STALL_MS = 1000;
+
+/**
  * Content key for an appearance-settings object: two objects with the same
  * values share a key, so a consumer keyed on it re-runs only when a value
  * actually changed (never on a parent re-render that rebuilt the object).
@@ -90,6 +98,8 @@ export class ClarityInkOwner {
   /** The series currently carries CLARITY_HIDDEN_INK. */
   hidden = false;
   private emptyFrames = 0;
+  /** When Clarity last drew a candle (or a hidden series was born — its grace starts then). */
+  private lastDrawnAt = 0;
 
   /**
    * Ink a NEW candle series is born with. Hidden whenever Clarity is on — even
@@ -100,8 +110,9 @@ export class ClarityInkOwner {
    * series shows nothing either way, and a Clarity layer that never paints is
    * still caught by the empty-frame restore below.
    */
-  inkForNewSeries(settings: CandleInkSettings | null | undefined, clarityOn: boolean, _hasBars: boolean): CandleInk {
+  inkForNewSeries(settings: CandleInkSettings | null | undefined, clarityOn: boolean, _hasBars: boolean, nowMs: number = Date.now()): CandleInk {
     this.emptyFrames = 0;
+    this.lastDrawnAt = nowMs;
     if (clarityOn) { this.hidden = true; return { ...CLARITY_HIDDEN_INK }; }
     this.hidden = false;
     return traderCandleInk(settings);
@@ -115,9 +126,10 @@ export class ClarityInkOwner {
   }
 
   /** Clarity drew `drawn` candles this frame out of `barCount` on hand. */
-  afterFrame(series: InkSeries, settings: CandleInkSettings | null | undefined, drawn: number, barCount: number): void {
+  afterFrame(series: InkSeries, settings: CandleInkSettings | null | undefined, drawn: number, barCount: number, nowMs: number = Date.now()): void {
     if (drawn > 0) {
       this.emptyFrames = 0;
+      this.lastDrawnAt = nowMs;
       if (!this.hidden) {
         try { series.applyOptions({ ...CLARITY_HIDDEN_INK }); this.hidden = true; } catch { /* next frame */ }
       }
@@ -127,6 +139,13 @@ export class ClarityInkOwner {
     if (barCount <= 0) return;
     this.emptyFrames++;
     if (this.emptyFrames >= CLARITY_EMPTY_FRAMES_BEFORE_RESTORE) this.restore(series, settings);
+  }
+
+  /** Timer-driven (not frame-driven): a hidden series with bars on hand that Clarity has not drawn for CLARITY_STALL_MS gets the trader's ink back. Returns true when it restored. */
+  watchdog(series: InkSeries, settings: CandleInkSettings | null | undefined, barCount: number, nowMs: number = Date.now()): boolean {
+    if (!this.hidden || barCount <= 0 || nowMs - this.lastDrawnAt < CLARITY_STALL_MS) return false;
+    this.restore(series, settings);
+    return !this.hidden;
   }
 
   /** Clarity turned off, or the layer faulted: the trader's ink returns now. */
