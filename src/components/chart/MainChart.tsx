@@ -14899,6 +14899,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // own receipt read SILENT:FAR.
               if (!absorbPaints) {
                 ds.absorptionTerrain = att.offWord(true);
+              } else if (narrowGlass) {
+                // PHONE GLASS (2026-10-11): the effort ridges wrapped every candle of a phone plot in
+                // contour lines. Withheld on narrow glass and counted in the silence line; the
+                // absorption zones and their chips still paint.
+                ds.absorptionTerrain = "SILENT:NARROW_GLASS";
+                silenceFolded++;
               } else if (anatomy.basis !== "UNMEASURED" && terr.length >= 8) {
                 let paneBotT = H;
                 try { const ps = (chart as any).paneSize?.(0); if (ps && Number.isFinite(ps.height) && ps.height > 0) paneBotT = ps.height; } catch { /* canvas height */ }
@@ -17128,8 +17134,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // A single receipt for both would make a switched-off chart and a broken
         // feed read identically to anyone verifying live.
         // H-501 · switched on AND permitted at this depth by the ONE table.
-        const on = layerOnRef.current.valueCandle && att.paints("valueCandle");
-        ds.valueCandle = on ? glass.reason : att.offWord(layerOnRef.current.valueCandle);
+        // PHONE GLASS (Founder 2026-10-11, true mobile read): the per-bar value glass over ~8px phone
+        // bars turned the candles into one gold smear. On narrow glass it is withheld, said as
+        // SILENT:NARROW_GLASS, and counted in the "N SENSES SILENT" line (desk and tablet unchanged).
+        const vcNarrowSilent = narrowGlass && layerOnRef.current.valueCandle && att.paints("valueCandle");
+        if (vcNarrowSilent) silenceFolded++;
+        const on = layerOnRef.current.valueCandle && att.paints("valueCandle") && !vcNarrowSilent;
+        ds.valueCandle = on ? glass.reason : vcNarrowSilent ? "SILENT:NARROW_GLASS" : att.offWord(layerOnRef.current.valueCandle);
         // The right-edge rung histogram is retired (UI-02); its receipt is
         // withdrawn every frame so no probe reads a column that is not there.
         delete ds.valueCandleRungs;

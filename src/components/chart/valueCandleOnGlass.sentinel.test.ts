@@ -184,7 +184,9 @@ describe("the layer publishes a receipt in every state, including the silent one
   it("stamps the reason even when nothing is painted", () => {
     // 2026-09-26 (H-501 permission): OFF stays the trader's word; a layer
     // the depth withheld says SILENT:<depth> through the governor's offWord.
-    expect(block).toMatch(/ds\.valueCandle = on \? glass\.reason : att\.offWord\(layerOnRef\.current\.valueCandle\)/);
+    // 2026-10-11: on narrow glass the per-bar glass is withheld and says SILENT:NARROW_GLASS.
+    expect(block).toMatch(/ds\.valueCandle = on \? glass\.reason : vcNarrowSilent \? "SILENT:NARROW_GLASS" : att\.offWord\(layerOnRef\.current\.valueCandle\)/);
+    expect(block).toMatch(/if \(vcNarrowSilent\) silenceFolded\+\+;/);
   });
 
   it("withdraws the drawing receipts when the drawing goes away", () => {

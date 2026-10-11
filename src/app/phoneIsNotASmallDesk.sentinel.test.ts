@@ -80,6 +80,11 @@ describe("one price on the phone screen — the quote header owns it, big, with 
     expect(chart).toContain("function volumeTopMargin(paneWidthPx: number): number { return phonePane(paneWidthPx) ? 0.88 : 0.78; }");
     expect(chart).toContain('chart.priceScale("vol").applyOptions({ scaleMargins: { top: volumeTopMargin(paneW), bottom: 0 } });');
   });
+  it("narrow glass withholds the two per-bar inks that smeared phone candles, and counts them as silent", () => {
+    const chart = readFileSync(path.join(process.cwd(), "src/components/chart/MainChart.tsx"), "utf8");
+    expect(chart).toContain('ds.absorptionTerrain = "SILENT:NARROW_GLASS";');
+    expect(chart).toContain("const vcNarrowSilent = narrowGlass && layerOnRef.current.valueCandle && att.paints(\"valueCandle\");");
+  });
   it("a 360px phone keeps every timeframe rung in view", () => {
     expect(block).toContain('@media (max-width: 379px) {\n    .wm-chart-market-pane[data-market-primary="true"] .wm-tf-quickrow { gap: 2px; }');
   });
