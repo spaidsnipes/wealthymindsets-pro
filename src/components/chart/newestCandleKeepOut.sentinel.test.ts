@@ -73,7 +73,8 @@ describe("the profile family's level chips yield to the candles", () => {
 
   it("fills gold only where the placement is clear; on a candle its fill yields", () => {
     expect(chip).toMatch(/if \(spotL\.onCandles\) \{\s*ctx\.fillStyle = `rgba\(11,10,8,\$\{keepOutBackingAlpha\(spotL, 0\.9\)\}\)`;/);
-    expect(chip).toMatch(/\} else \{\s*ctx\.fillStyle = ink;\s*ctx\.fillRect\(r\.x, r\.y, r\.w, r\.h\);/);
+    // 2026-10-11 04:20: a truth name kept by force on the phone lays a solid under-fill first.
+    expect(chip).toMatch(/\} else \{\s*(if \(truthChipSolid\) \{[^}]*\}\s*)?ctx\.fillStyle = ink;\s*ctx\.fillRect\(r\.x, r\.y, r\.w, r\.h\);/);
   });
 
   it("ties a moved or slid chip back to its price with a dotted leader", () => {

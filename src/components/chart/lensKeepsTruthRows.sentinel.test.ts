@@ -31,3 +31,10 @@ describe("the gamma truth line says MODEL before its provenance", () => {
   });
 });
 
+
+describe("a truth level kept by force on the phone reads on solid ground", () => {
+  it("lays an opaque under-fill before its ink", () => {
+    expect(MC).toContain("truthChipSolid = true;");
+    expect(MC).toContain('if (truthChipSolid) {\n              ctx.save(); ctx.globalAlpha = 1; ctx.fillStyle = "#0b0a08"; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.restore();');
+  });
+});

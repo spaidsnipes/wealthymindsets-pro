@@ -21489,6 +21489,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const levelChip = (y: number, text: string, ink: string, opts: { rightX?: number; leftX?: number; minX?: number; floorY?: number } = {}) => {
           // A TRUTH LEVEL (Living POC / VAH / VAL) is flagged by its caller for this one call.
           const truthLevel = levelChipTruthLevel && narrowGlass;
+          // A truth name kept by force lays a solid under-fill first (serving 390 all-on,
+          // 2026-10-10: "EVEN · CAUTION" from the scaffolding plaque read through "LIVING POC").
+          let truthChipSolid = false;
           const floorY = opts.floorY ?? HEADER_FLOOR_Y;
           const rowFloor = floorY + LEVEL_CHIP_H / 2;
           let yy = nearestFreeLabelY(Math.max(y, rowFloor), levelChipYs, LEVEL_CHIP_H + 1);
@@ -21558,6 +21561,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             wordGate.declareTruth(text);
             onTop(spotL.rect, "INSPECT"); // a truth level's own name, kept on the phone
             levelChipsTruthKept++;
+            truthChipSolid = true;
           }
           if (W >= 640 && onNewestColumn(spotL.rect.x, spotL.rect.y, spotL.rect.w, spotL.rect.h)) {
             ctx.fillStyle = ink;
@@ -21610,6 +21614,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.strokeStyle = ink; ctx.lineWidth = 1; ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
             ctx.fillStyle = ink;
           } else {
+            if (truthChipSolid) {
+              ctx.save(); ctx.globalAlpha = 1; ctx.fillStyle = "#0b0a08"; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.restore();
+            }
             ctx.fillStyle = ink;
             ctx.fillRect(r.x, r.y, r.w, r.h);
             ctx.fillStyle = "rgba(11,10,8,0.95)";
