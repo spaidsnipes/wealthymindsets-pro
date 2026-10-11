@@ -22,14 +22,16 @@ import {
   type FabioContext,
 } from "@/lib/fabio";
 
+// House ladder (G19 pass 2026-10-10): a lesson category is its WORD; its ink is brass / ivory
+// strength — never SaaS teal / blue / purple / magenta / cyan, never the market's green / red.
 const CAT_COLOR: Record<string, string> = {
-  "Order Flow": "#4FA3E0",
-  "Smart Money": "#8B5CF6",
-  "Footprint / VP": "#00D4AA",
-  "CLC Rule": "#FF4D6A",
-  "Risk": "#F0B429",
-  "Psychology": "#E879F9",
-  "Session Playbook": "#22D3EE",
+  "Order Flow": "#ede6d3",
+  "Smart Money": "#ffd76a",
+  "Footprint / VP": "#c9a55c",
+  "CLC Rule": "#d4af37",
+  "Risk": "#c4a574",
+  "Psychology": "#c0b8a0",
+  "Session Playbook": "#b08d57",
 };
 
 function InsightCard({ ins, compact }: { ins: FabioInsight; compact?: boolean }) {
