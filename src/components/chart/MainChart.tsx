@@ -13349,8 +13349,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const padY = 4;
               const boxW = Math.round(tw + padX * 2);
               const boxH = 18;
-              // Position: right of the line if room, else left, else center on x.
-              const boxX = x + 6 + boxW < W ? x + 6 : (x - 6 - boxW > 0 ? x - 6 - boxW : Math.max(4, x - boxW / 2));
+              // Position: right of the line if room, else left, else center on x. "Room" is the
+              // PLOT's: the canvas runs under the price axis, and on a phone the pill ran under it
+              // ("TAPE 01:34 P…", true mobile read 2026-10-11).
+              const boxX = x + 6 + boxW < plotRight ? x + 6 : (x - 6 - boxW > 0 ? x - 6 - boxW : Math.max(4, Math.min(plotRight - boxW - 2, x - boxW / 2)));
               // On phones, the truthful footprint + session status chips occupy
               // the top of the chart. Keep the canvas-owned horizon label below
               // them so three truth surfaces never paint over one another.
@@ -26948,13 +26950,18 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.beginPath(); ctx.moveTo(bx, 28); ctx.lineTo(bx, H - 34); ctx.stroke();
             ctx.setLineDash([]);
             const when = new Date(firstSided.t * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
-            const words = candleSidesT
+            const wordsFull = candleSidesT
               ? `PRINT TAPE FROM ${when} — earlier bars: bar totals only`
               : `SIGNED TAPE FROM ${when} — earlier bars carry none`;
             ctx.font = marketFont("OBJECT_NAME");
             ctx.textBaseline = "bottom";
+            // A phone plot cannot hold the full line (it ran under the price axis, "…earlier bars car"):
+            // the short form keeps the same truth words (BAR TOTALS ONLY / CARRY NONE).
+            const words = ctx.measureText(wordsFull).width <= plotRight - 12 ? wordsFull
+              : candleSidesT ? `TAPE FROM ${when} · BAR TOTALS ONLY` : `TAPE FROM ${when} · EARLIER CARRY NONE`;
             const tw = ctx.measureText(words).width;
-            const tx = Math.max(6, Math.min(bx - tw - 6, W - tw - 6));
+            // Clamped to the PLOT, not the canvas: the canvas runs under the price axis.
+            const tx = Math.max(6, Math.min(bx - tw - 6, plotRight - tw - 6));
             // ITS ROW MAY BE TAKEN (serving NQ1! saved view at 1180, 16f363a:
             // this line printed over "VAL EST" / "POC EST" and a price on the
             // foot row). It steps up a row at a time past the chips and words
