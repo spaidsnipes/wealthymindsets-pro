@@ -69,6 +69,11 @@ describe("one price on the phone screen — the quote header owns it, big, with 
   it("the app bar steps aside while the keyboard is up", () => {
     expect(block).toContain('textarea, [contenteditable="true"]):focus) .wm-mobile-tabbar { display: none !important; }');
   });
+  it("the Lounge's banner is short on a phone and its circle / badges stay on /profile there", () => {
+    const lounge = readFileSync(path.join(process.cwd(), "src/app/lounge/page.tsx"), "utf8");
+    expect(lounge).toContain('<div className="relative h-[96px] md:h-[156px]" style={{');
+    expect(lounge).toContain('<div className="mt-3 hidden md:flex flex-col lg:flex-row lg:items-end gap-3">');
+  });
   it("a 360px phone keeps every timeframe rung in view", () => {
     expect(block).toContain('@media (max-width: 379px) {\n    .wm-chart-market-pane[data-market-primary="true"] .wm-tf-quickrow { gap: 2px; }');
   });

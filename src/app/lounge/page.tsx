@@ -634,13 +634,13 @@ function LoungeVibeHeader({ name, handle, avatar, color, ceo, postCount, stories
     <div>
       {/* ── Themed profile banner ── */}
       <div className="relative rounded-2xl overflow-hidden border" style={{ borderColor: "rgba(232,185,35,0.22)" }}>
-        <div className="relative" style={{
-          height: 156,
+        {/* A phone keeps the banner short (96px) so the feed is in reach (2026-10-11). */}
+        <div className="relative h-[96px] md:h-[156px]" style={{
           backgroundImage: theme.grad,
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}>
-          <div className="absolute inset-x-0 flex flex-col items-center pointer-events-none z-[1]" style={{ top: 36 }}>
+          <div className="absolute inset-x-0 top-4 md:top-9 flex flex-col items-center pointer-events-none z-[1]">
             <span className="font-black text-white leading-none" style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 34, letterSpacing: 1.2, textTransform: "uppercase", textShadow: "0 3px 22px rgba(0,0,0,0.9)" }}>{theme.name}</span>
             <span className="mt-3 text-[9px] font-black uppercase tracking-[0.3em]" style={{ color: theme.accent }}>{theme.tagline}</span>
           </div>
@@ -679,8 +679,9 @@ function LoungeVibeHeader({ name, handle, avatar, color, ceo, postCount, stories
             )}
           </div>
 
-          {/* Circle of Excellence — Top 8 + now playing */}
-          <div className="mt-3 flex flex-col lg:flex-row lg:items-end gap-3">
+          {/* Circle of Excellence — Top 8 + now playing. A phone leaves these to /profile, which
+              shows the same circle, so the composer and the feed come up the screen. */}
+          <div className="mt-3 hidden md:flex flex-col lg:flex-row lg:items-end gap-3">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1.5">
                 <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: theme.accent }}>Circle of Excellence</span>
@@ -712,7 +713,7 @@ function LoungeVibeHeader({ name, handle, avatar, color, ceo, postCount, stories
           </div>
 
           {/* Achievement badges */}
-          <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+          <div className="mt-3 hidden md:flex items-center gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
             <span className="text-[9px] font-black uppercase tracking-widest shrink-0 mr-1" style={{ color: theme.accent }}>Badges</span>
             <span className="text-[10px] text-wm-text-dim">Earned badges will appear here.</span>
           </div>
