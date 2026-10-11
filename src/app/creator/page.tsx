@@ -406,7 +406,7 @@ export default function CreatorPage() {
         {/* ── How it works ───────────────────────────────────── */}
         <div className="mb-12">
           <h2 className="text-base font-black text-wm-text mb-5 text-center">How It Works</h2>
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
               { step:"01", title:"Save Interest",    desc:"Save a program preference on this device while enrollment is being built.", color:"#c0b8a0" },
               { step:"02", title:"Get Verified",     desc:"Future enrollment will require a real account and referral-tracking service.", color:"#ede6d3" },
