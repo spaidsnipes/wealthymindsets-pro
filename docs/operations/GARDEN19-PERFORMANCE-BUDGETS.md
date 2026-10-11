@@ -54,6 +54,29 @@ equities closed — Saturday).
 | 15s bar fidelity vs venue | 17 of 19 live bars exact on O/H/L/C/V vs Coinbase public trades (the 2 others: the load bucket, and a bar still filling at read time) | e3f7686, `debug=fold` | n/a | n/a |
 | Hidden-tab catch-up | hidden 37 s → 3 buckets present, 2 caught up from the closed-bar ring, no hole | c4d4d4c | UNMEASURED | UNMEASURED |
 
+## Dense-scene paint bisect (2026-10-10 19:30–19:50 CDT)
+
+BTC-USD 5m, `scene=clean`, one fresh navigation per row, the machine idle (no test run — a concurrent
+full vitest run inflated the first dense reading to 60–67 ms mean). Claude-in-Chrome tab in a HIDDEN
+window with the visibility shim: frames arrive about once a second, so ANIMATED layers (the Weather
+storm's drifting phase) rebuild on every frame here, where a visible 60 fps window rebuilds them about
+every fifth frame, split in halves. Read the Weather row as an upper bound.
+
+| Scene (`on=`) | paintMeanMs / paintLongestMs | over 33 ms | build |
+|---|---|---|---|
+| nothing | 12.7 / 21.6 | 0 of 21 | 750e093 |
+| LiquidityWeather | 31.0 / 70.6 | 6 of 19 | 750e093 |
+| DerivativesPressure | 16.2 / 22.4 | 0 of 21 | 750e093 |
+| BrickWalls + Call / Put + Gamma heatmap | 21.3 / 40.0 | 1 of 19 | 750e093 |
+| Living + Composite + Profile Memory | 18.7 / 34.3 | 2 of 22 | 750e093 |
+| all eleven together (+ scaffolding PRO, FVG) | 43.0 / 106.3 | 15 of 23 | 750e093 |
+
+Finding → fix: Weather's cell sprites were keyed on ABSOLUTE pixel position, so on a live chart
+`heatLensCellSprites` read `REUSED:1|DRAWN:11` and `heatLensLayer=REDRAWN` on every sample (≈ 70 blur
+filters a frame). b4d214b keys them on the cell's shape: on serving the layer now reads
+`heatLensLayer=REUSED` sample after sample. The remaining Weather cost in this window is the storm's
+throttled-frame rebuild (above). A foreground reading on the Founder's screen is still owed.
+
 ## Not yet measured — how to
 
 * **Tablet / phone:** same probes at 834×1112 and 390×844 (the room's proof sizes) on a

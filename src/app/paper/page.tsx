@@ -2708,7 +2708,8 @@ export default function PaperTradingPage() {
     // `bg-wm-dark` painted over the sanctuary atmosphere. Dropping the
     // fills preserves the sanctuary as the room and keeps the header
     // hairline as its only chrome.
-    <div style={{ display:"flex",flexDirection:"column",width:"100%",height:"100%",overflow:"hidden" }}
+    // Tabular numerals across the room (house audit 2026-10-10: 23 proportional numerics at 834 — P&L, cash, fills).
+    <div style={{ display:"flex",flexDirection:"column",width:"100%",height:"100%",overflow:"hidden",fontVariantNumeric:"tabular-nums" }}
          className={styles.page}>
 
       {/* Header */}

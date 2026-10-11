@@ -104,7 +104,8 @@ export default function PricingPage() {
     setBusy(null);
   };
   return (
-    <div style={{ minHeight: "100vh", background: "#050506", color: INK, fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif", padding: "40px 16px 64px" }}>
+    // Tabular numerals across the room (house audit 2026-10-10: 29 proportional numerics at 834).
+    <div style={{ minHeight: "100vh", background: "#050506", color: INK, fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif", padding: "40px 16px 64px", fontVariantNumeric: "tabular-nums" }}>
       <div style={{ maxWidth: 1120, margin: "0 auto" }}>
         <div data-testid="product-line" style={{ fontFamily: "Georgia, 'Times New Roman', serif", letterSpacing: "0.28em", fontSize: 12, color: GOLD, lineHeight: 1.6 }}>{PRODUCT_LINE}</div>
         <h1 style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontWeight: 400, fontSize: 34, margin: "14px 0 8px" }}>Pricing</h1>

@@ -159,7 +159,8 @@ export default function ReadinessPage() {
   }, [attempt]);
 
   return (
-    <div className="min-h-screen bg-[#050506] text-wm-ivory">
+    // Tabular numerals across the room (house audit 2026-10-10: 26 proportional numerics at 834).
+    <div className="min-h-screen bg-[#050506] text-wm-ivory tabular-nums">
       <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_50%_0%,rgba(240,180,41,0.14),transparent_68%)]" />
       {/* Was a <main>. MainLayout already wraps this route in
           <main className="wm-app-surface">, so this was a second one and
