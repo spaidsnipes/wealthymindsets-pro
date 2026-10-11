@@ -2677,14 +2677,14 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
      footer between the volume read and the ⇕ control and scrolls sideways if it must; the desk's
      single chip steps back (the row's "⋯" opens the same menu and ladder). */
   .wm-chart-market-pane[data-market-primary="true"] .wm-chart-timeframe-chip {
-    left: 112px !important; right: 50px !important; transform: none !important;
+    left: 132px !important; right: 48px !important; transform: none !important;
   }
   .wm-chart-market-pane[data-market-primary="true"] .wm-chart-timeframe-chip-trigger { display: none !important; }
   .wm-chart-market-pane[data-market-primary="true"] .wm-tf-quickrow {
-    display: flex !important; gap: 4px; justify-content: flex-start; overflow-x: auto; scrollbar-width: none;
+    display: flex !important; gap: 3px; justify-content: flex-end; overflow-x: auto; scrollbar-width: none;
   }
   .wm-chart-market-pane[data-market-primary="true"] .wm-tf-quick {
-    flex: 0 0 auto; min-width: 34px; height: 30px; padding: 0 6px; border-radius: 6px;
+    flex: 0 0 auto; min-width: 30px; height: 30px; padding: 0 4px; border-radius: 6px;
     font: 700 12px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.02em;
     color: #c0b8a0; background: rgba(11,10,8,0.82); border: 1px solid rgba(139,106,41,0.35);
   }
