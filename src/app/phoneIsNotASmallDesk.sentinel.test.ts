@@ -88,7 +88,7 @@ describe("one price on the phone screen — the quote header owns it, big, with 
   });
   it("tablet top band: LIVE TAPE leaves the standing strip's spot", () => {
     const css = readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
-    expect(css).toContain("@media (min-width: 640px) and (max-width: 1023px) and (min-height: 521px) {\n  .wm-chart-market-pane[data-market-primary=\"true\"] .wm-live-session-chip {\n    top: 62px !important;");
+    expect(css).toContain("@media (min-width: 640px) and (max-width: 1279px) and (min-height: 521px) {\n  .wm-chart-market-pane[data-market-primary=\"true\"] .wm-live-session-chip {\n    top: 62px !important;");
   });
   it("a 360px phone keeps every timeframe rung in view", () => {
     expect(block).toContain('@media (max-width: 379px) {\n    .wm-chart-market-pane[data-market-primary="true"] .wm-tf-quickrow { gap: 2px; }');
