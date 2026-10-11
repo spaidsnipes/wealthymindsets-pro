@@ -73,3 +73,11 @@ describe("planProfileStack", () => {
     expect(none.livingBodyWidth).toBeNull();
   });
 });
+
+describe("phone-width glass", () => {
+  it("the solo profile lane takes 11 % of a phone-width glass, 16 % of a desk", () => {
+    expect(soloLane(375).width).toBe(41);
+    expect(soloLane(1300).width).toBe(160);
+    expect(soloLane(800).width).toBe(128);
+  });
+});

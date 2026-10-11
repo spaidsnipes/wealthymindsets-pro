@@ -74,6 +74,12 @@ describe("one price on the phone screen — the quote header owns it, big, with 
     expect(lounge).toContain('<div className="relative h-[96px] md:h-[156px]" style={{');
     expect(lounge).toContain('<div className="mt-3 hidden md:flex flex-col lg:flex-row lg:items-end gap-3">');
   });
+  it("the phone chart is a framed glass panel; volume is the bottom 12% and the profile 11%", () => {
+    expect(block).toContain("margin-inline: 6px !important; border: 1px solid rgba(212,175,55,0.22) !important; border-radius: 14px !important;");
+    const chart = readFileSync(path.join(process.cwd(), "src/components/chart/MainChart.tsx"), "utf8");
+    expect(chart).toContain("function volumeTopMargin(paneWidthPx: number): number { return phonePane(paneWidthPx) ? 0.88 : 0.78; }");
+    expect(chart).toContain('chart.priceScale("vol").applyOptions({ scaleMargins: { top: volumeTopMargin(paneW), bottom: 0 } });');
+  });
   it("a 360px phone keeps every timeframe rung in view", () => {
     expect(block).toContain('@media (max-width: 379px) {\n    .wm-chart-market-pane[data-market-primary="true"] .wm-tf-quickrow { gap: 2px; }');
   });

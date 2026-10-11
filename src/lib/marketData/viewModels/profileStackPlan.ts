@@ -54,7 +54,9 @@ export interface ProfileStackPlan {
 
 /** Solo geometry: the lane a single profile gets when nothing shares the edge. */
 export function soloLane(canvasWidth: number): VpColumnLayout {
-  const width = Math.min(160, Math.round(canvasWidth * 0.16));
+  // A phone-width glass (< 640px) gives the profile 11 %: 16 % of a 375px phone was a 60px wall
+  // over the newest candles and read as "a quarter of the chart" (Founder 2026-10-11).
+  const width = Math.min(160, Math.round(canvasWidth * (canvasWidth < 640 ? 0.11 : 0.16)));
   return { right: canvasWidth - 76, width, fits: width > 0 };
 }
 

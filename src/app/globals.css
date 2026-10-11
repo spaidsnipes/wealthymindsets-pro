@@ -2797,6 +2797,13 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-chart-market-summary .wm-chart-header-price-note { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; opacity: 0.8; }
   /* …so the legend's copy of the symbol and price steps back (its status words stay). */
   .wm-chart-market-pane[data-market-primary="true"] :is([data-chart-identity], [data-legend-group="price"]) { display: none !important; }
+  /* THE CHART IS A FRAMED GLASS PANEL (Founder 2026-10-11: "no borders on the left side … it feels
+     smushed inside the screen"): inset 6px from the phone's edges with a gold hairline and rounded
+     corners, so the candles stand inside a frame instead of running off the glass. */
+  .wm-chart-market-pane[data-market-primary="true"] {
+    margin-inline: 6px !important; border: 1px solid rgba(212,175,55,0.22) !important; border-radius: 14px !important;
+    overflow: hidden !important; box-shadow: 0 10px 30px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,236,170,0.06) !important;
+  }
   /* THE APP BAR replaces the sideways thumb strip; the strip's controls stay in the page for it to press. */
   body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-instrument-context-strip { display: none !important; }
   .wm-mobile-tabbar {

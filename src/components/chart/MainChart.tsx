@@ -2124,6 +2124,15 @@ function candleTopMargin(paneWidthPx: number): number {
   return paneWidthPx > 0 && paneWidthPx < 640 ? 0.22 : 0.06;
 }
 
+/**
+ * PHONE GLASS (Founder 2026-10-11: "the chart still feels like a quarter of the chart … smushed"):
+ * on a phone-width pane the volume band is the bottom 12 % (desk 22 %) and the candles stand on
+ * it, so the candles get the height — the volume bars had climbed into a third of a 300 px plot.
+ */
+function phonePane(paneWidthPx: number): boolean { return paneWidthPx > 0 && paneWidthPx < 640; }
+function candleBottomMargin(paneWidthPx: number): number { return phonePane(paneWidthPx) ? 0.12 : 0.18; }
+function volumeTopMargin(paneWidthPx: number): number { return phonePane(paneWidthPx) ? 0.88 : 0.78; }
+
 export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTimeframe, footprintType, footprintEnabled = true, candleType = "candles", pineOutput, pineCode, onBarsReady,
   drawingTool = "cursor", drawingStyle = DEFAULT_DRAWING_STYLE, magnetActive = false, lockDrawings = false,
   onCreatePriceAlert,
@@ -4461,7 +4470,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // PHONE (2026-10-04): the live-tape strip and the Effort / Inspect
           // chips cover the top ~90 px of a ~330 px pane; at 6 % the newest
           // price — and the Big Trade disc on it — painted underneath them.
-          scaleMargins: { top: candleTopMargin(el.clientWidth), bottom: 0.18 },
+          scaleMargins: { top: candleTopMargin(el.clientWidth), bottom: candleBottomMargin(el.clientWidth) },
           autoScale:    true,
         },
         timeScale: {
@@ -4960,7 +4969,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         lastValueVisible: false,
       });
       chart.priceScale("vol").applyOptions({
-        scaleMargins: { top: 0.78, bottom: 0 },
+        scaleMargins: { top: volumeTopMargin(el.clientWidth), bottom: 0 },
         borderColor:  "transparent",
       });
 
@@ -6754,7 +6763,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     // volume overlay at the bottom) — no need to shrink the candle scale for
     // oscillators. Keep a small bottom margin so volume bars don't touch wicks.
     try {
-      chart.priceScale("right").applyOptions({ scaleMargins: { top: candleTopMargin(containerRef.current?.clientWidth ?? 1000), bottom: 0.18 } });
+      const paneW = containerRef.current?.clientWidth ?? 1000;
+      chart.priceScale("right").applyOptions({ scaleMargins: { top: candleTopMargin(paneW), bottom: candleBottomMargin(paneW) } });
+      chart.priceScale("vol").applyOptions({ scaleMargins: { top: volumeTopMargin(paneW), bottom: 0 } });
     } catch {}
     // Make the candle pane dominant and oscillator panes compact. v5 stretch
     // factors are RELATIVE weights (resolution-independent), unlike setHeight

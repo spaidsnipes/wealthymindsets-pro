@@ -177,7 +177,7 @@ describe("H-703 — the histogram paints on the canvas, not the dots alone", () 
     // The cap moved to the one lane owner: solo geometry lives in soloLane.
     expect(block).toMatch(/stackPlan\.lanes\.LIVING \?\? soloLane\(W\)/);
     const plan = read("src/lib/marketData/viewModels/profileStackPlan.ts");
-    expect(plan).toMatch(/Math\.min\(160, Math\.round\(canvasWidth \* 0\.16\)\)/);
+    expect(plan).toMatch(/Math\.min\(160, Math\.round\(canvasWidth \* \(canvasWidth < 640 \? 0\.11 : 0\.16\)\)\)/);
   });
 });
 
