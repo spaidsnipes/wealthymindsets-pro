@@ -2699,9 +2699,14 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-os-masthead :is([data-testid="os-identity"], .wm-os-equipment-plates, div:has(> .wm-shell-access)) { display: none !important; }
   /* THE QUOTE HEADER: the asset picker and the symbol on top, the price BIG with its change under
      them, the fidelity chip at the right — one price on the screen. */
-  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-chart-market-summary { flex-wrap: wrap !important; align-items: baseline !important; row-gap: 0 !important; column-gap: 8px !important; }
-  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-chart-market-summary .wm-chart-header-price { order: 9; flex: 1 0 100%; font-size: 26px !important; line-height: 1.2 !important; letter-spacing: -0.01em; }
-  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-chart-market-summary .wm-chart-header-change { display: inline !important; font-size: 14px !important; }
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-chart-tabs {
+    height: auto !important; min-height: 44px !important; overflow: visible !important; flex-wrap: wrap !important;
+    align-items: center !important; padding: 4px 10px 6px !important; row-gap: 0 !important; column-gap: 8px !important;
+  }
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-chart-market-summary { display: contents !important; }
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-chart-market-summary .wm-fidelity-badge--chrome { margin-left: auto !important; }
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-chart-market-summary .wm-chart-header-price { order: 9; flex: 1 0 100%; font-size: 26px !important; line-height: 1.2 !important; letter-spacing: -0.01em; white-space: normal !important; }
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-chart-market-summary .wm-chart-header-change { display: inline !important; font-size: 13px !important; }
   /* …so the legend's copy of the symbol and price steps back (its status words stay). */
   .wm-chart-market-pane[data-market-primary="true"] :is([data-chart-identity], [data-legend-group="price"]) { display: none !important; }
   /* THE APP BAR replaces the sideways thumb strip; the strip's controls stay in the page for it to press. */
