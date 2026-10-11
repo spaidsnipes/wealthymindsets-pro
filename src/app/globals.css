@@ -2738,6 +2738,7 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
     background: none; border: 0; color: #a89c80; font: 600 11px/1.1 Inter, system-ui, sans-serif; letter-spacing: 0.02em; text-decoration: none;
   }
   .wm-mobile-tab:active { color: #ede6d3; }
+  .wm-mobile-tab--current { color: #d4af37; }
   .wm-mobile-tab--trade {
     flex: 1.3 1 0; margin: 5px 4px; border-radius: 12px; color: #0b0b0d;
     background: linear-gradient(135deg, #d4af37, #8b6a29); font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
