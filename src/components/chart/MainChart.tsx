@@ -349,6 +349,8 @@ const ORDER_LINE_HANDLE_SELECTOR = '[data-testid="draft-line-handle"], [data-tes
  * (Drive 02-market-sense-hedging-profile.svg — long-gamma 0.11, short-gamma 0.10).
  */
 const DP_FIELD_FLOOR_ALPHA = 0.1;
+/** A Weather cell sprite larger than this (device px²) is drawn straight onto the heat layer, not cached. */
+const HEAT_SPRITE_MAX_PX = 4_000_000;
 /**
  * G06 FOUNDER BODIES — the plate's own figures (WM_GuestTour_G06_Academy_
  * Anatomy_Teach), keyed off the plate so the chart carries THE Founder's
@@ -24999,13 +25001,23 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           let heatSpriteT: DOMMatrix | null = null;
           const heatSpritesUsed = new Set<string>();
           let heatSpritesReused = 0, heatSpritesDrawn = 0;
-          const paintHeatCellSprite = (part: string, reach: { x0: number; x1: number; y0: number; y1: number }, body: (c: CanvasRenderingContext2D) => void) => {
+          /* TRANSLATION-INVARIANT SPRITES (serving 750e093, BTC-USD 5m Weather alone,
+             2026-10-10 19:40 CDT: `heatLensCellSprites=REUSED:1|DRAWN:11` on every
+             sample and `heatLensLayer=REDRAWN` — the key held each cell's ABSOLUTE
+             pixel position, so every autoscale or scroll nudge re-ran ~70 blur
+             filters; Weather alone cost +18 ms mean / 70 ms worst). A cell's
+             sprite depends only on its SHAPE (width, band, tone, alpha, intensity,
+             seed): it is rendered once relative to the cell's origin and laid on at
+             the origin's device pixel each time the layer recomposes. */
+          const paintHeatCellSprite = (part: string, origin: { x: number; y: number }, reach: { x0: number; x1: number; y0: number; y1: number }, body: (c: CanvasRenderingContext2D) => void) => {
             const T = heatSpriteT ?? mainCtx.getTransform();
-            const sx = Math.max(0, Math.floor(T.a * reach.x0 + T.e)), sy = Math.max(0, Math.floor(T.d * reach.y0 + T.f));
-            const ex = Math.min(hc.width, Math.ceil(T.a * reach.x1 + T.e)), ey = Math.min(hc.height, Math.ceil(T.d * reach.y1 + T.f));
-            // A skewed transform or an empty reach: draw straight onto the layer, as before.
-            if (T.b !== 0 || T.c !== 0 || !(T.a > 0) || !(T.d > 0) || ex <= sx || ey <= sy) { heatSpritesDrawn++; body(ctxHeat); return; }
-            const key = `${hc.width}x${hc.height}|${T.a},${T.d},${T.e},${T.f}|${heat.maxOpacity}|${part}`;
+            // A skewed transform: draw straight onto the layer, as before.
+            if (T.b !== 0 || T.c !== 0 || !(T.a > 0) || !(T.d > 0)) { heatSpritesDrawn++; body(ctxHeat); return; }
+            const lx0 = Math.floor(T.a * (reach.x0 - origin.x)), lx1 = Math.ceil(T.a * (reach.x1 - origin.x));
+            const ly0 = Math.floor(T.d * (reach.y0 - origin.y)), ly1 = Math.ceil(T.d * (reach.y1 - origin.y));
+            const sw = lx1 - lx0, sh = ly1 - ly0;
+            if (sw <= 0 || sh <= 0 || sw * sh > HEAT_SPRITE_MAX_PX) { heatSpritesDrawn++; body(ctxHeat); return; }
+            const key = `${T.a},${T.d}|${heat.maxOpacity}|${part}`;
             const cache = heatCellSpritesRef.current;
             let sprite = cache.get(key);
             if (sprite) {
@@ -25013,13 +25025,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               contours += sprite.contours;
             } else {
               const sc = document.createElement("canvas");
-              sc.width = ex - sx; sc.height = ey - sy;
+              sc.width = sw; sc.height = sh;
               const sctx = sc.getContext("2d");
               if (!sctx) { heatSpritesDrawn++; body(ctxHeat); return; }
-              sctx.setTransform(T.a, 0, 0, T.d, T.e - sx, T.f - sy);
+              // World origin → sprite pixel (-lx0, -ly0): the body's own coordinates are kept.
+              sctx.setTransform(T.a, 0, 0, T.d, -lx0 - T.a * origin.x, -ly0 - T.d * origin.y);
               const before = contours;
               body(sctx);
-              sprite = { canvas: sc, x: sx, y: sy, contours: contours - before };
+              sprite = { canvas: sc, x: lx0, y: ly0, contours: contours - before };
               cache.set(key, sprite);
               heatSpritesDrawn++;
             }
@@ -25031,7 +25044,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctxHeat.globalAlpha = HEAT_SPRITE_WHOLE;
             ctxHeat.globalCompositeOperation = "source-over";
             ctxHeat.filter = "none";
-            ctxHeat.drawImage(sprite.canvas, sprite.x, sprite.y);
+            ctxHeat.drawImage(sprite.canvas, Math.round(T.a * origin.x + T.e) + sprite.x, Math.round(T.d * origin.y + T.f) + sprite.y);
             ctxHeat.restore();
           };
           let painted = 0;
@@ -25099,8 +25112,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const smokeRy = Math.max(band * 1.1, 34), smokeRx = Math.max(cw * 0.9, 30), smokeR = Math.max(smokeRx, smokeRy);
             const smokeBlur = Math.round(Math.min(18, Math.max(8, smokeRy / 3)));
             const reach = { x0: cx0 + cw * 0.2 - smokeR - 4 * smokeBlur - 2, x1: cx0 + cw * 0.8 + smokeR + 4 * smokeBlur + 2, y0: top + band / 2 - smokeRy * 1.4 - 4 * smokeBlur - 2, y1: top + band / 2 + smokeRy * 1.4 + 4 * smokeBlur + 2 };
-            const cellSpriteKey = heatKeyParts[heatKeyParts.length - 1];
-            heatDraws.push(() => paintHeatCellSprite(cellSpriteKey, reach, (ctxHeat: CanvasRenderingContext2D) => {
+            // The sprite's key is the cell's SHAPE, never its position (see paintHeatCellSprite).
+            const cellSpriteKey = `${cell.index}:${cw.toFixed(1)}:${band.toFixed(1)}:${alpha}:${tone}:${cell.intensity}`;
+            heatDraws.push(() => paintHeatCellSprite(cellSpriteKey, { x: cx0, y: top }, reach, (ctxHeat: CanvasRenderingContext2D) => {
             const wash = ctxHeat.createLinearGradient(0, top, 0, top + band);
             wash.addColorStop(0, "rgba(0,0,0,0)");
             wash.addColorStop(0.28, tone);
