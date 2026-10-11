@@ -8375,6 +8375,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // a plot narrower than NARROW_GLASS_MAX_PX, or shorter than
       // NARROW_GLASS_MIN_PLOT_H (a phone on its side: ~700 wide, ~200 tall).
       const narrowGlass = plotRight < NARROW_GLASS_MAX_PX || pane0Bottom < NARROW_GLASS_MIN_PLOT_H;
+      // PHONE AXIS TAGS (Founder 2026-10-11, true mobile read): a truth level's name + price on narrow
+      // glass is a tag in the price-axis column — the way a trading app tags a level — instead of a
+      // chip slid over the candles. Queued here, painted once the plot clip is released.
+      const axisLevelTags: { y: number; text: string; ink: string }[] = [];
       // PHONE: stacked translucent fields share ONE cap (fieldFogBudget.ts) so
       // their summed alpha over any candle never exceeds ~0.18. Desk: off.
       const fogGate = installFogGate(ctx);
@@ -21651,6 +21655,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // but their only names were in the note list). The SAME chip, on its
           // own row, stands just left of the newest candles' column instead —
           // declared truth and on-top, so no budget or registry can list it.
+          if (truthLevel) {
+            // The name and its price stay on the glass (coordinator ruling 2026-10-10: a truth
+            // level keeps its name on the phone), in the axis column — never over the candles.
+            axisLevelTags.push({ y: yy, text, ink });
+            wordGate.declareTruth(text);
+            levelChipsTruthKept++;
+            ctx.restore();
+            return;
+          }
           if (truthLevel && (spotL.onCandles || onNewestColumn(spotL.rect.x, spotL.rect.y, spotL.rect.w, spotL.rect.h))) {
             const col = newestColumnKeepOut();
             const kx = Math.max(keepOutMinX(), (col ? col.x : plotRight) - SOVEREIGN_SHAPE_PAD - cw);
@@ -27663,6 +27676,46 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
 
       // Release the plot-area clip established right after the data guard.
       ctx.restore();
+
+      // PHONE AXIS TAGS — painted outside the plot clip, right-aligned in the price-axis column. Each
+      // steps off the live price tag, the countdown pill and the tags already placed.
+      try {
+        if (axisLevelTags.length > 0) {
+          ctx.save();
+          ctx.font = "700 11px 'JetBrains Mono', monospace";
+          ctx.textAlign = "left"; ctx.textBaseline = "middle";
+          const tagH = 15;
+          const taken: { y0: number; y1: number }[] = [];
+          const lastLive = barsRef.current?.[barsRef.current.length - 1];
+          const liveY = lastLive ? srs?.priceToCoordinate(lastLive.close) : null;
+          if (liveY != null && Number.isFinite(liveY)) taken.push({ y0: (liveY as number) - 10, y1: (liveY as number) + 10 });
+          if (candleTimerRect) taken.push({ y0: candleTimerRect.y, y1: candleTimerRect.y + candleTimerRect.h });
+          const free = (y: number) => !taken.some(t => y - tagH / 2 < t.y1 && y + tagH / 2 > t.y0) && y - tagH / 2 >= 0 && y + tagH / 2 <= pane0Bottom;
+          let placedTags = 0;
+          for (const t of [...axisLevelTags].sort((a, b) => a.y - b.y)) {
+            let ty = t.y;
+            for (let k = 1; !free(ty) && k < 12; k++) {
+              const up = t.y - k * (tagH / 2 + 1), dn = t.y + k * (tagH / 2 + 1);
+              if (free(dn)) { ty = dn; break; }
+              if (free(up)) { ty = up; break; }
+            }
+            if (!free(ty)) continue;
+            const tw = Math.ceil(ctx.measureText(t.text).width);
+            const w = tw + 8;
+            const x = W - w - 1;
+            ctx.fillStyle = "#0b0a08"; ctx.fillRect(x, ty - tagH / 2, w, tagH);
+            ctx.fillStyle = t.ink; ctx.fillRect(x, ty - tagH / 2, w, tagH);
+            // a hairline from the tag's edge to the level's own row when it had to step
+            if (Math.abs(ty - t.y) > 1) { ctx.strokeStyle = t.ink; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x - 1, ty); ctx.lineTo(x - 6, t.y); ctx.stroke(); }
+            ctx.fillStyle = "rgba(11,10,8,0.95)";
+            ctx.fillText(t.text, x + 4, ty + 0.5);
+            taken.push({ y0: ty - tagH / 2, y1: ty + tagH / 2 });
+            placedTags++;
+          }
+          ctx.restore();
+          canvas.dataset.levelAxisTags = `${placedTags}/${axisLevelTags.length}`;
+        } else delete canvas.dataset.levelAxisTags;
+      } catch (err) { layerFault("LEVEL_AXIS_TAGS", err); }
 
       // ── Tape CVD caption (H-701): the pane names its source and its start ──
       const cvdSeries = tapeCvdSeriesRef.current;
