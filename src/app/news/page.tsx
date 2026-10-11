@@ -886,7 +886,7 @@ export default function NewsPage() {
           background: "linear-gradient(180deg, #0b0b0d 0%, rgba(11,11,13,0.6) 100%)",
         }}
       >
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0 md:shrink-0">
           <span
             aria-hidden="true"
             style={{
