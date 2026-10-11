@@ -18241,8 +18241,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         ═══════════════════════════════════════════════════════════════════ */
         {
           const dl = deltaLevelsRef.current;
-          const on = layerOnRef.current.deltaLevels && att.paints("deltaLevels");
-          ds.deltaLevels = on ? (dl ? dl.reason : "NO_READING") : att.offWord(layerOnRef.current.deltaLevels);
+          // PHONE GLASS (2026-10-11, true mobile read): the hollow SELL rungs printed as white boxes over the
+          // newest ~8px phone candles. Withheld on narrow glass, said as SILENT:NARROW_GLASS and counted.
+          const dlNarrowSilent = narrowGlass && layerOnRef.current.deltaLevels && att.paints("deltaLevels");
+          if (dlNarrowSilent) silenceFolded++;
+          const on = layerOnRef.current.deltaLevels && att.paints("deltaLevels") && !dlNarrowSilent;
+          ds.deltaLevels = on ? (dl ? dl.reason : "NO_READING") : dlNarrowSilent ? "SILENT:NARROW_GLASS" : att.offWord(layerOnRef.current.deltaLevels);
 
           if (on && dl?.drawn) {
             // VISIBILITY FLOOR (serving NQ1! 1m, 2026-10-01 21:15 CDT): DRAWN
