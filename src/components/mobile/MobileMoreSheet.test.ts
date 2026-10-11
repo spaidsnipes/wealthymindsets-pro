@@ -51,6 +51,13 @@ describe("More screen", () => {
     expect(src).toContain('if (t.id === "watchlist" && closed != null && /watchlist/i.test(closed)) return;');
   });
 
+  it("the Watchlist tab is lit while the watchlist sheet is open", () => {
+    const css = readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
+    const dash = readFileSync(path.join(process.cwd(), "src/components/chart/ChartsDashboard.tsx"), "utf8");
+    expect(css).toContain('body:has(#chart-watchlist-sheet) .wm-mobile-tab[data-tab="watchlist"] { color: #d4af37; }');
+    expect(dash).toContain('id="chart-watchlist-sheet"');
+  });
+
   it("the sheet stops at the app bar and clears the clock", () => {
     const css = readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
     expect(css).toContain(".wm-mobile-more { display: none; }");

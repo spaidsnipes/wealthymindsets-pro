@@ -2815,6 +2815,8 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
      at its end so the launcher never sits on a tab (measured /profile 393: it covered More). */
   body:not(:has(.wm-spaidbot-chart-context)):has(.wm-spaidbot-launcher) .wm-mobile-tabbar { padding-inline-end: calc(56px + env(safe-area-inset-right)) !important; }
   .wm-mobile-tab--current { color: #d4af37; }
+  /* The Watchlist tab is lit while its sheet is the one open, as an app's current tab is. */
+  body:has(#chart-watchlist-sheet) .wm-mobile-tab[data-tab="watchlist"] { color: #d4af37; }
   /* While the keyboard is up (a text field has focus) the bar steps aside, as an app's does, instead
      of riding up on the keyboard over the field being typed in. */
   body:has(:is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="button"], [type="submit"]), textarea, [contenteditable="true"]):focus) .wm-mobile-tabbar { display: none !important; }
