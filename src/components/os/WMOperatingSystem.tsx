@@ -43,6 +43,7 @@
 import { openWowWorld } from "@/lib/passport/openWowWorld";
 import { ToolsSlot } from "@/components/chart/orderFlowToolsSlot";
 import * as React from "react";
+import { MobileTabBar } from "@/components/mobile/MobileTabBar";
 import { InventionInfoButton, InventionPreview } from "@/components/chart/InventionInfo";
 import { educationTruthLines } from "@/lib/chart/inventionEducation";
 import { REPLAY_EDUCATION, REPLAY_EDUCATION_ID } from "@/lib/chart/surfaceEducation";
@@ -2707,6 +2708,9 @@ export function WMOperatingSystem({
           reachable — and it carries twenty-one where this carries five. See
           the prop's doc for why removing the strip alone would have been the
           amputation rather than the repair. */}
+      {/* THE ONE PHONE APP BAR (Founder 2026-10-11): portrait phones show the same Chart · Watchlist ·
+          TRADE · Journal · More bar in every room (CSS); the four-door strip below stays for wider glass. */}
+      {phoneDoorOnly ? null : <MobileTabBar />}
       {phoneDoorOnly ? null : (
       <nav
         className="wm-os-phone-nav"

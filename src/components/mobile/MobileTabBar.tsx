@@ -10,6 +10,7 @@
  * Journal), so there is still exactly one trade door and one way into each place.
  */
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import React from "react";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 
@@ -22,8 +23,8 @@ interface Tab {
   readonly href?: string;
   readonly icon: React.ReactNode;
   readonly primary?: boolean;
-  /** The screen this bar lives on (marked aria-current). */
-  readonly current?: boolean;
+  /** Where this tab goes when its control is not on this page (another room): the chart, told what to open. */
+  readonly fallbackHref?: string;
 }
 
 const stroke = { fill: "none", stroke: "currentColor", strokeWidth: 1.7, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
@@ -31,11 +32,11 @@ const stroke = { fill: "none", stroke: "currentColor", strokeWidth: 1.7, strokeL
 export const MOBILE_TABS: readonly Tab[] = [
   // Chart · Journal sit where the other rooms' phone bar has them (PHONE_SLOT_HREFS), so the bar
   // reads the same from screen to screen; the market screen's own jobs fill the middle.
-  { id: "chart", label: "Chart", href: INSTRUMENT_VIEW_ROUTE, current: true,
+  { id: "chart", label: "Chart", href: INSTRUMENT_VIEW_ROUTE,
     icon: <svg width="20" height="20" viewBox="0 0 24 24" {...stroke}><path d="M7 4v16M17 4v16" /><rect x="5" y="8" width="4" height="7" rx="1" /><rect x="15" y="6" width="4" height="9" rx="1" /></svg> },
-  { id: "watchlist", label: "Watchlist", target: '[data-testid="context-watchlist"]',
+  { id: "watchlist", label: "Watchlist", target: '[data-testid="context-watchlist"]', fallbackHref: `${INSTRUMENT_VIEW_ROUTE}?open=watchlist`,
     icon: <svg width="20" height="20" viewBox="0 0 24 24" {...stroke}><path d="M4 6h16M4 12h16M4 18h10" /></svg> },
-  { id: "trade", label: "Trade", target: '[data-testid="context-trade"]', primary: true,
+  { id: "trade", label: "Trade", target: '[data-testid="context-trade"]', fallbackHref: `${INSTRUMENT_VIEW_ROUTE}?open=trade`, primary: true,
     icon: <svg width="20" height="20" viewBox="0 0 24 24" {...stroke}><path d="M4 17l5-6 4 3 7-8" /><path d="M15 6h5v5" /></svg> },
   { id: "journal", label: "Journal", href: "/journal",
     icon: <svg width="20" height="20" viewBox="0 0 24 24" {...stroke}><path d="M6 4h10a2 2 0 0 1 2 2v14H8a2 2 0 0 1-2-2z" /><path d="M9 8h6M9 12h6" /></svg> },
@@ -53,19 +54,28 @@ export function pressMobileTab(target: string, doc: Pick<Document, "querySelecto
   return true;
 }
 
+/** The chart room opens what a tab from another room asked for, once (`?open=trade|watchlist`). */
+export const MOBILE_OPEN_PARAM = "open";
+
 export function MobileTabBar(): React.ReactElement {
+  const path = usePathname() ?? "";
+  const isCurrent = (t: Tab) => !!t.href && (path === t.href || path.startsWith(`${t.href}/`));
   return (
     <nav className="wm-mobile-tabbar" aria-label="Market app">
       {MOBILE_TABS.map(t => t.href ? (
-        <Link key={t.id} href={t.href} prefetch={false} data-tab={t.id} aria-current={t.current ? "page" : undefined}
-          className={t.current ? "wm-mobile-tab wm-mobile-tab--current" : "wm-mobile-tab"}>
+        <Link key={t.id} href={t.href} prefetch={false} data-tab={t.id} aria-current={isCurrent(t) ? "page" : undefined}
+          className={isCurrent(t) ? "wm-mobile-tab wm-mobile-tab--current" : "wm-mobile-tab"}>
           <span aria-hidden="true" className="wm-mobile-tab-icon">{t.icon}</span>
           <span className="wm-mobile-tab-label">{t.label}</span>
         </Link>
       ) : (
         <button key={t.id} type="button" data-tab={t.id}
           className={t.primary ? "wm-mobile-tab wm-mobile-tab--trade" : "wm-mobile-tab"}
-          onClick={() => { if (t.target) pressMobileTab(t.target); }}>
+          onClick={() => {
+            // This room's own control when it is here; from another room, the chart told what to open.
+            if (t.target && pressMobileTab(t.target)) return;
+            if (t.fallbackHref) window.location.assign(t.fallbackHref);
+          }}>
           <span aria-hidden="true" className="wm-mobile-tab-icon">{t.icon}</span>
           <span className="wm-mobile-tab-label">{t.label}</span>
         </button>

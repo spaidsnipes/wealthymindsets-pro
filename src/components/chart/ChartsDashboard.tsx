@@ -34,7 +34,7 @@ import { readResponseMatrix, readTemporalEvidenceDensity } from "@/lib/chart/eff
 import { MainChart, type VpDrawnLevels } from "./MainChart";
 import { WatchlistGrid } from "./WatchlistGrid";
 import { AssetClassSwitcher } from "./AssetClassSwitcher";
-import { MobileTabBar } from "@/components/mobile/MobileTabBar";
+import { MOBILE_OPEN_PARAM, MobileTabBar, pressMobileTab } from "@/components/mobile/MobileTabBar";
 import { isConfigurable, type IndicatorSettings, type IndicatorParams } from "./indicatorConfig";
 
 import { BROKER_CONNECT_EVENT, BROKER_CONNECT_PARAM, BROKER_CONNECT_VALUE } from "@/lib/broker/brokerConnectDoor";
@@ -724,6 +724,17 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // A WORKING order line pressed on the chart opens the ticket on its MODIFY (chartOrderLines.askChartLineModify).
   const chartModifyAsk = useChartLineModifyAsk();
   useEffect(() => { if (chartModifyAsk) setTradeOpen(true); }, [chartModifyAsk?.seq]); // eslint-disable-line react-hooks/exhaustive-deps
+  // THE PHONE APP BAR FROM ANOTHER ROOM (MobileTabBar, Founder 2026-10-11): `?open=trade` opens the one
+  // ticket and `?open=watchlist` the watchlist sheet, once, on arrival. Opening sends nothing.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const want = new URLSearchParams(window.location.search).get(MOBILE_OPEN_PARAM);
+    if (want === "trade") setTradeOpen(true);
+    else if (want === "watchlist") {
+      const t = window.setTimeout(() => { pressMobileTab('[data-testid="context-watchlist"]'); }, 400);
+      return () => window.clearTimeout(t);
+    }
+  }, []);
   // The Alpaca paper ticket, still one tap away from the Trade panel.
   const [paperOpen,       setPaperOpen]       = useState(false);
   const [optionSelection, setOptionSelection] = useState<{ underlying: string; owner: string; contract: OptionContract; source: OptionChainSource; fidelity: OptionChainFidelity; providerPath: string | null; rightsPolicyId: string | null } | null>(null);

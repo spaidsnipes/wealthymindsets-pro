@@ -60,7 +60,7 @@ describe("the phone app bar", () => {
   const BAR = readFileSync(path.join(process.cwd(), "src/components/mobile/MobileTabBar.tsx"), "utf8");
   it("presses the room's own controls — still one trade door", () => {
     expect(BAR.length).toBeGreaterThan(1_000);
-    expect(BAR).toContain(`target: '[data-testid="context-trade"]', primary: true`);
+    expect(BAR).toContain(`target: '[data-testid="context-trade"]', fallbackHref: \`\${INSTRUMENT_VIEW_ROUTE}?open=trade\`, primary: true`);
     expect(BAR).not.toMatch(/setTradeOpen|TradePanel/);
     expect(CSS).toContain(".wm-mobile-tabbar { display: none; }");
     expect(block).toContain('body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-instrument-context-strip { display: none !important; }');
@@ -83,6 +83,20 @@ describe("phone landscape is the chart", () => {
     expect(land.length).toBeGreaterThan(200);
     expect(land).toContain("@media (max-height: 520px) and (max-width: 1023px) {");
     expect(land).toContain(':has(.wm-os-feed-standing[data-tone="LIVE"][data-established="true"]) .wm-os-masthead.wm-os-masthead { display: none !important; }');
+  });
+});
+
+describe("one app bar in every room", () => {
+  const OS = readFileSync(path.join(process.cwd(), "src/components/os/WMOperatingSystem.tsx"), "utf8");
+  const DASH = readFileSync(path.join(process.cwd(), "src/components/chart/ChartsDashboard.tsx"), "utf8");
+  it("the OS shell mounts the same bar; the four-door strip steps back where it stands", () => {
+    expect(OS.length).toBeGreaterThan(20_000);
+    expect(OS).toContain("{phoneDoorOnly ? null : <MobileTabBar />}");
+    expect(block).toContain("body:has(.wm-mobile-tabbar) .wm-os-phone-nav { display: none !important; }");
+  });
+  it("from another room, TRADE / Watchlist arrive at the chart and open once; opening sends nothing", () => {
+    expect(DASH).toContain('if (want === "trade") setTradeOpen(true);');
+    expect(DASH).toContain("pressMobileTab('[data-testid=\"context-watchlist\"]')");
   });
 });
 
