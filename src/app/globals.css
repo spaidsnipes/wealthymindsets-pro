@@ -2629,6 +2629,7 @@ input[type=range]::-moz-range-track { height: 4px; background: #26262d; border-r
    `data-owner-private`; under capture the page withholds all of them. */
 html[data-capture="true"] [data-owner-private] { display: none !important; }
 
+.wm-mobile-tabbar { display: none; }
 .wm-tf-quickrow { display: none; }
 
 /* ══ A PHONE IS NOT A SMALL DESK (Founder, 2026-10-11 04:25: "make an actual mobile
@@ -2691,9 +2692,34 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   /* "⋯" (the whole ladder) is pinned at the row's right edge, so it is never scrolled away. */
   .wm-chart-market-pane[data-market-primary="true"] .wm-tf-quick--more { position: sticky; right: 0; }
   .wm-chart-market-pane[data-market-primary="true"] .wm-tf-quick--on { color: #0b0b0d; background: #d4af37; border-color: #d4af37; }
-  /* ONE PRICE ON THE SCREEN: the legend under the symbol row says the price with its change, so the
-     symbol row keeps the picker, the symbol and the fidelity chip — on one line. */
-  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-chart-market-summary .wm-chart-header-price { display: none !important; }
+  /* THE PHONE APP (Founder 2026-10-11: "like Webull, moomoo, Robinhood mobile"). The desk masthead
+     leaves the market screen while the feed reading is LIVE and established; any other reading keeps
+     the masthead as that one reading alone (a DELAYED / STALE word is the truth, never hidden). */
+  body:has(.wm-chart-market-pane[data-market-primary="true"]):has(.wm-os-feed-standing[data-tone="LIVE"][data-established="true"]) .wm-os-masthead.wm-os-masthead { display: none !important; }
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-os-masthead :is([data-testid="os-identity"], .wm-os-equipment-plates, div:has(> .wm-shell-access)) { display: none !important; }
+  /* THE QUOTE HEADER: the asset picker and the symbol on top, the price BIG with its change under
+     them, the fidelity chip at the right — one price on the screen. */
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-chart-market-summary { flex-wrap: wrap !important; align-items: baseline !important; row-gap: 0 !important; column-gap: 8px !important; }
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-chart-market-summary .wm-chart-header-price { order: 9; flex: 1 0 100%; font-size: 26px !important; line-height: 1.2 !important; letter-spacing: -0.01em; }
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-chart-market-summary .wm-chart-header-change { display: inline !important; font-size: 14px !important; }
+  /* …so the legend's copy of the symbol and price steps back (its status words stay). */
+  .wm-chart-market-pane[data-market-primary="true"] :is([data-chart-identity], [data-legend-group="price"]) { display: none !important; }
+  /* THE APP BAR replaces the sideways thumb strip; the strip's controls stay in the page for it to press. */
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-instrument-context-strip { display: none !important; }
+  .wm-mobile-tabbar {
+    display: flex !important; position: fixed; left: 0; right: 0; bottom: 0; z-index: 46;
+    box-sizing: border-box; height: calc(52px + env(safe-area-inset-bottom)); padding: 0 4px env(safe-area-inset-bottom);
+    background: #0b0a08; border-top: 1px solid rgba(139,106,41,0.32); align-items: stretch;
+  }
+  .wm-mobile-tab {
+    flex: 1 1 0; min-width: 44px; min-height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    background: none; border: 0; color: #a89c80; font: 600 11px/1.1 Inter, system-ui, sans-serif; letter-spacing: 0.02em;
+  }
+  .wm-mobile-tab:active { color: #ede6d3; }
+  .wm-mobile-tab--trade {
+    flex: 1.3 1 0; margin: 5px 4px; border-radius: 12px; color: #0b0b0d;
+    background: linear-gradient(135deg, #d4af37, #8b6a29); font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+  }
   .wm-chart-market-pane[data-market-primary="true"] button[aria-label="Data window"],
   .wm-chart-market-pane[data-market-primary="true"] .wm-nectar-vault-chip { display: none !important; }
 }

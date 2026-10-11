@@ -34,6 +34,7 @@ import { readResponseMatrix, readTemporalEvidenceDensity } from "@/lib/chart/eff
 import { MainChart, type VpDrawnLevels } from "./MainChart";
 import { WatchlistGrid } from "./WatchlistGrid";
 import { AssetClassSwitcher } from "./AssetClassSwitcher";
+import { MobileTabBar } from "@/components/mobile/MobileTabBar";
 import { isConfigurable, type IndicatorSettings, type IndicatorParams } from "./indicatorConfig";
 
 import { BROKER_CONNECT_EVENT, BROKER_CONNECT_PARAM, BROKER_CONNECT_VALUE } from "@/lib/broker/brokerConnectDoor";
@@ -5730,6 +5731,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       style={{ display:"flex", flexDirection:"column", width:"100%", height:"100%", overflow:"hidden", background: theme === "neon" ? "#02060a" : "transparent" }}
     >
       {theme === "neon" && <div className="wm-neon-scan" />}
+      {/* THE PHONE'S APP BAR (Founder 2026-10-11): portrait phones only, by CSS; presses the room's own controls. */}
+      <MobileTabBar />
       {/* Hidden context tag for SpaidBot to read current chart state.
           This is a real wire, not a debug attribute: SpaidBotButton parses it
           and POSTs it to /api/spaidbot, which injects it into the model's

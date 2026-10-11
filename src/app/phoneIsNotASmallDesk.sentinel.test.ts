@@ -46,11 +46,27 @@ describe("the phone's timeframe is a row of one-tap rungs", () => {
   });
 });
 
-describe("one price on the phone screen", () => {
+describe("one price on the phone screen — the quote header owns it, big, with its change", () => {
   const DASH = readFileSync(path.join(process.cwd(), "src/components/chart/ChartsDashboard.tsx"), "utf8");
   it("the symbol row's price copy steps back on a phone; the legend carries price + change", () => {
     expect(DASH.length).toBeGreaterThan(50_000);
     expect(DASH).toContain('<span className="wm-chart-header-price" style={{');
-    expect(block).toContain('.wm-chart-market-summary .wm-chart-header-price { display: none !important; }');
+    expect(block).toContain(".wm-chart-market-summary .wm-chart-header-price { order: 9; flex: 1 0 100%; font-size: 26px !important;");
+    expect(block).toContain(':is([data-chart-identity], [data-legend-group="price"]) { display: none !important; }');
   });
 });
+
+describe("the phone app bar", () => {
+  const BAR = readFileSync(path.join(process.cwd(), "src/components/mobile/MobileTabBar.tsx"), "utf8");
+  it("presses the room's own controls — still one trade door", () => {
+    expect(BAR.length).toBeGreaterThan(1_000);
+    expect(BAR).toContain(`target: '[data-testid="context-trade"]', primary: true`);
+    expect(BAR).not.toMatch(/setTradeOpen|TradePanel/);
+    expect(CSS).toContain(".wm-mobile-tabbar { display: none; }");
+    expect(block).toContain('body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-instrument-context-strip { display: none !important; }');
+  });
+  it("the masthead leaves only while the feed is LIVE and established", () => {
+    expect(block).toContain(':has(.wm-os-feed-standing[data-tone="LIVE"][data-established="true"]) .wm-os-masthead.wm-os-masthead { display: none !important; }');
+  });
+});
+
