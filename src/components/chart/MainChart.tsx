@@ -13792,7 +13792,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const lastBar  = liveBars.length ? liveBars[liveBars.length - 1] : null;
         const yRaw = lastBar ? srs?.priceToCoordinate(lastBar.close) : null;
         if (lastBar && yRaw != null && Number.isFinite(yRaw)) {
-          const y     = yRaw as number;
+          const yPrice = yRaw as number;
           const txt   = countdownRef.current;
           const flash = closeFlashRef.current;
           const neon  = chartSettings?.neon;
@@ -13800,8 +13800,19 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ctx.font = "bold 12px monospace";
           const tw    = ctx.measureText(txt).width;
           const boxH  = COUNTDOWN_BOX_H;
-          const boxW  = Math.round(tw + 30);
-          const x     = 2;
+          // PHONE: the countdown sits in the price axis right under the price tag, as a trading
+          // app's does ("price · time left"), instead of a box over the oldest candles at the left
+          // edge (Founder 2026-10-11, true mobile read: it sat on the candles). Desk unchanged.
+          const axisW = (() => {
+            if (W >= 640) return 0;
+            try { const w = chart?.priceScale("right").width(); return Number.isFinite(w) && (w as number) > 0 ? (w as number) : 0; } catch { return 0; }
+          })();
+          const inAxis = axisW > 0 && tw + 20 <= axisW - 2;
+          const boxW  = inAxis ? Math.round(axisW - 2) : Math.round(tw + 30);
+          const x     = inAxis ? Math.round(W - axisW + 1) : 2;
+          const tagHalf = 10;
+          const y     = !inAxis ? yPrice
+            : yPrice + tagHalf + 2 + boxH + 1 <= H ? yPrice + tagHalf + 2 + boxH / 2 : yPrice - tagHalf - 2 - boxH / 2;
           // Price above the camera pinned the countdown to the pane's top edge,
           // over "BTC-USD · 1D" and the D / EFFORT corner (serving BTC-USD 1D,
           // 2026-09-28). Its ceiling is below that corner's rows.
@@ -13823,8 +13834,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.strokeStyle = border; ctx.lineWidth = 1;
             ctx.strokeRect(x + 0.5, boxY + 0.5, boxW - 1, boxH - 1);
           }
+          { const dsT = canvasRef.current?.dataset; if (dsT) dsT.candleTimerPlace = inAxis ? "AXIS_UNDER_PRICE" : W < 640 ? "LEFT_EDGE" : "DESK"; }
           // elapsed-fraction ring (clock)
-          const ringX = x + 10, ringR = 5;
+          const ringX = x + (inAxis ? 8 : 10), ringR = 5;
           ctx.beginPath(); ctx.arc(ringX, cy, ringR, 0, Math.PI * 2);
           ctx.strokeStyle = "rgba(255,255,255,0.25)"; ctx.lineWidth = 1.4; ctx.stroke();
           ctx.beginPath();
@@ -13832,9 +13844,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ctx.strokeStyle = flash ? "#fff" : border; ctx.lineWidth = 1.8; ctx.stroke();
           // countdown text
           ctx.fillStyle = "#fff"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
-          ctx.fillText(txt, x + 19, cy + 0.5);
-          // dashed connector toward the price line so the eye links pill↔price
-          ctx.setLineDash([3, 3]); ctx.lineWidth = 1;
+          ctx.fillText(txt, x + (inAxis ? 16 : 19), cy + 0.5);
+          // dashed connector toward the price line so the eye links pill↔price (in the axis the
+          // pill already hangs from the price tag, so there is nothing to connect)
+          ctx.setLineDash(inAxis ? [] : [3, 3]); ctx.lineWidth = inAxis ? 0 : 1;
           ctx.strokeStyle = flash ? "rgba(255,46,99,0.45)" : (neon ? "rgba(0,255,163,0.35)" : "rgba(47,128,237,0.32)");
           ctx.beginPath(); ctx.moveTo(x + boxW + 1, cy + 0.5); ctx.lineTo(x + boxW + 34, cy + 0.5); ctx.stroke();
           ctx.setLineDash([]);

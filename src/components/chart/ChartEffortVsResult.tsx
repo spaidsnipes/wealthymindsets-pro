@@ -145,7 +145,7 @@ export function ChartEffortVsResult({
           style={{ background: "#131520", borderColor: "#1E2030", color: "#8B8FA8" }}
         >
           <Scale size={10} />
-          EFFORT
+          <span className="wm-reading-anchor-word">EFFORT</span>
         </button>
       </ClearOfOpenDoor>
     );

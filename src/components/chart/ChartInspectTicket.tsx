@@ -1064,7 +1064,7 @@ export function ChartInspectTicket({
         style={{ background: "#131520", borderColor: "#1E2030", color: "#8B8FA8" }}
       >
         <Crosshair size={10} />
-        INSPECT
+        <span className="wm-reading-anchor-word">INSPECT</span>
       </button>
     );
   }

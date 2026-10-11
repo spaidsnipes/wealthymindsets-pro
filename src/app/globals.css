@@ -2804,6 +2804,17 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
     margin-inline: 6px !important; border: 1px solid rgba(212,175,55,0.22) !important; border-radius: 14px !important;
     overflow: hidden !important; box-shadow: 0 10px 30px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,236,170,0.06) !important;
   }
+  /* ONE ROW OF TOP CHROME, not four (true mobile read 2026-10-11: the LIVE TAPE strip, EFFORT and
+     INSPECT stacked and overlapped over the newest highs). EFFORT and INSPECT become icon chips
+     (their words stay for screen readers in the aria-label; the tap slop keeps 44px), and the LIVE
+     TAPE pill sits between them on the same row. */
+  .wm-chart-market-pane[data-market-primary="true"] .wm-reading-anchor-word { display: none; }
+  .wm-chart-market-pane[data-market-primary="true"] .wm-chart-reading-anchor { width: 30px; padding: 0 !important; justify-content: center; }
+  .wm-chart-market-pane[data-market-primary="true"] .wm-live-session-chip {
+    top: 64px !important; left: 52px !important; right: auto !important; transform: none !important;
+    height: 24px; padding: 0 9px !important; border: 1px solid rgba(240,180,41,0.3) !important; border-radius: 12px !important;
+    background: rgba(7,9,15,0.78) !important;
+  }
   /* THE APP BAR replaces the sideways thumb strip; the strip's controls stay in the page for it to press. */
   body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-instrument-context-strip { display: none !important; }
   .wm-mobile-tabbar {
