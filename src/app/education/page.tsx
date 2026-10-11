@@ -826,7 +826,10 @@ export default function EducationPage() {
         {/* Phones: list → lesson. With a lesson open the list steps aside so
             the lesson gets the screen (it was left ~60px under a 45vh list,
             390px proof 2026-10-07); the lesson's ✕ brings the list back. */}
-        <div className={clsx("w-full md:w-80 border-b md:border-b-0 md:border-r border-wm-border flex-col overflow-hidden shrink-0 max-h-[45vh] md:max-h-none md:flex",
+        {/* PHONE (Founder 2026-10-11, "an actual mobile version"): with no lesson open the module list IS
+            the screen (was capped at 45vh above an empty "Select a lesson" pane); a lesson takes the screen
+            when tapped, and the list returns when it closes. From md up, unchanged. */}
+        <div className={clsx("w-full md:w-80 border-b md:border-b-0 md:border-r border-wm-border flex-col overflow-hidden flex-1 md:flex-none md:shrink-0 md:max-h-none md:flex",
           activeLesson ? "hidden" : "flex")}>
           <Link
             href="/proof-lane"
@@ -934,8 +937,8 @@ export default function EducationPage() {
           </div>
         </div>
 
-        {/* Right panel */}
-        <div className="flex-1 overflow-hidden">
+        {/* Right panel — on a phone it shows only while a lesson is open (the list is the screen otherwise). */}
+        <div className={clsx("flex-1 overflow-hidden", !activeLesson && "hidden md:block")}>
           {activeLesson ? (
             <VideoPlayer lesson={activeLesson.lesson} color={activeLesson.color} onClose={() => setActiveLesson(null)} onComplete={markLessonComplete}/>
           ) : (
