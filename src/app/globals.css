@@ -2718,7 +2718,7 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   }
   .wm-mobile-tab {
     flex: 1 1 0; min-width: 44px; min-height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-    background: none; border: 0; color: #a89c80; font: 600 11px/1.1 Inter, system-ui, sans-serif; letter-spacing: 0.02em;
+    background: none; border: 0; color: #a89c80; font: 600 11px/1.1 Inter, system-ui, sans-serif; letter-spacing: 0.02em; text-decoration: none;
   }
   .wm-mobile-tab:active { color: #ede6d3; }
   .wm-mobile-tab--trade {

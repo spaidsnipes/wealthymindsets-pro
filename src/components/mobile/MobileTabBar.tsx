@@ -9,13 +9,16 @@
  * room's existing control (the one TRADE door, Watchlist, Tools, Rooms, the profile menu), so there
  * is still exactly one trade door and one way into each place.
  */
+import Link from "next/link";
 import React from "react";
 
 interface Tab {
   readonly id: string;
   readonly label: string;
   /** The existing control this tab presses. */
-  readonly target: string;
+  readonly target?: string;
+  /** A tab that is a place, not a control on this page (Account → /profile). */
+  readonly href?: string;
   readonly icon: React.ReactNode;
   readonly primary?: boolean;
 }
@@ -31,7 +34,9 @@ export const MOBILE_TABS: readonly Tab[] = [
     icon: <svg width="20" height="20" viewBox="0 0 24 24" {...stroke}><path d="M4 17l5-6 4 3 7-8" /><path d="M15 6h5v5" /></svg> },
   { id: "rooms", label: "Rooms", target: '[data-testid="os-market-rooms"]',
     icon: <svg width="20" height="20" viewBox="0 0 24 24" {...stroke}><rect x="4" y="4" width="7" height="7" rx="1.5" /><rect x="13" y="4" width="7" height="7" rx="1.5" /><rect x="4" y="13" width="7" height="7" rx="1.5" /><rect x="13" y="13" width="7" height="7" rx="1.5" /></svg> },
-  { id: "account", label: "Account", target: 'button[aria-label="Open profile menu"], button[aria-label="Close profile menu"]',
+  // The profile MENU lives in the desk masthead, which a phone's market screen does not show
+  // (measured 2026-10-11: pressing it opened nothing visible) — so Account is the profile screen.
+  { id: "account", label: "Account", href: "/profile",
     icon: <svg width="20" height="20" viewBox="0 0 24 24" {...stroke}><circle cx="12" cy="8" r="4" /><path d="M4 20c1.5-4 4.5-6 8-6s6.5 2 8 6" /></svg> },
 ];
 
@@ -46,10 +51,15 @@ export function pressMobileTab(target: string, doc: Pick<Document, "querySelecto
 export function MobileTabBar(): React.ReactElement {
   return (
     <nav className="wm-mobile-tabbar" aria-label="Market app">
-      {MOBILE_TABS.map(t => (
+      {MOBILE_TABS.map(t => t.href ? (
+        <Link key={t.id} href={t.href} prefetch={false} data-tab={t.id} className="wm-mobile-tab">
+          <span aria-hidden="true" className="wm-mobile-tab-icon">{t.icon}</span>
+          <span className="wm-mobile-tab-label">{t.label}</span>
+        </Link>
+      ) : (
         <button key={t.id} type="button" data-tab={t.id}
           className={t.primary ? "wm-mobile-tab wm-mobile-tab--trade" : "wm-mobile-tab"}
-          onClick={() => { pressMobileTab(t.target); }}>
+          onClick={() => { if (t.target) pressMobileTab(t.target); }}>
           <span aria-hidden="true" className="wm-mobile-tab-icon">{t.icon}</span>
           <span className="wm-mobile-tab-label">{t.label}</span>
         </button>
