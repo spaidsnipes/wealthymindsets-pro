@@ -13799,7 +13799,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ctx.save();
           ctx.font = "bold 12px monospace";
           const tw    = ctx.measureText(txt).width;
-          const boxH  = COUNTDOWN_BOX_H;
+          ctx.restore();
           // PHONE: the countdown sits in the price axis right under the price tag, as a trading
           // app's does ("price · time left"), instead of a box over the oldest candles at the left
           // edge (Founder 2026-10-11, true mobile read: it sat on the candles). Desk unchanged.
@@ -13808,6 +13808,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             try { const w = chart?.priceScale("right").width(); return Number.isFinite(w) && (w as number) > 0 ? (w as number) : 0; } catch { return 0; }
           })();
           const inAxis = axisW > 0 && tw + 20 <= axisW - 2;
+          // The axis column is outside the pane-0 clip: step out of it for the pill alone, and lay
+          // the same clip back right after (AXIS_PILL_RECLIP below), so no later layer is unclipped.
+          if (inAxis) ctx.restore();
+          ctx.save();
+          ctx.font = "bold 12px monospace";
+          const boxH  = COUNTDOWN_BOX_H;
           const boxW  = inAxis ? Math.round(axisW - 2) : Math.round(tw + 30);
           const x     = inAxis ? Math.round(W - axisW + 1) : 2;
           const tagHalf = 10;
@@ -13852,6 +13858,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ctx.beginPath(); ctx.moveTo(x + boxW + 1, cy + 0.5); ctx.lineTo(x + boxW + 34, cy + 0.5); ctx.stroke();
           ctx.setLineDash([]);
           ctx.restore();
+          // AXIS_PILL_RECLIP: the pane-0 clip, exactly as the frame laid it.
+          if (inAxis) { ctx.save(); ctx.beginPath(); ctx.rect(0, 0, plotRight, pane0Bottom); ctx.clip(); }
         }
       } } catch (err) { layerFault("CANDLE_TIMER", err); }
       try {
