@@ -143,7 +143,9 @@ describe("D. the armed pick takes the whole pane", () => {
     expect(MAIN).toContain('data-testid={can ? "draft-line-handle" : "broker-line-tag"}');
   });
   it("chart words treat the order-line handles' pills as occupied (no label cut in half under ENTRY)", () => {
-    expect(MAIN).toContain('document.querySelectorAll(`.wm-chart-reading-anchor, ${ORDER_LINE_HANDLE_SELECTOR.split(", ").map(q => `${q} > span`).join(", ")}`)');
+    // 20:05: the same query also carries the D toggle and the market-standing strip (PANE_DOM_CHIP_SELECTOR).
+    expect(MAIN).toContain('document.querySelectorAll(`.wm-chart-reading-anchor, ${ORDER_LINE_HANDLE_SELECTOR.split(", ").map(q => `${q} > span`).join(", ")}, ${PANE_DOM_CHIP_SELECTOR}`)');
+    expect(MAIN).toContain(`const PANE_DOM_CHIP_SELECTOR = 'button[aria-label="Data window"], .wm-chart-market-standing';`);
   });
   it("the Data Window, which trails the cursor, is hidden while a price is placed", () => {
     expect(MAIN).toContain('data-yields-to-placement="data-window"');

@@ -344,6 +344,8 @@ const DATA_WINDOW_TOGGLE_PX = 22;
 const READING_ANCHOR_ROW_BOTTOM = 64 + 24;
 /** Order-line handles and broker tags. An armed price pick takes a press on them as the pick (Founder P0 2026-10-10). */
 const ORDER_LINE_HANDLE_SELECTOR = '[data-testid="draft-line-handle"], [data-testid="broker-line-tag"]';
+/** DOM chips that sit on the pane and must be a keep-out for canvas words. */
+const PANE_DOM_CHIP_SELECTOR = 'button[aria-label="Data window"], .wm-chart-market-standing';
 /**
  * Derivatives Pressure field, at rest: the Founder plate's region fill
  * (Drive 02-market-sense-hedging-profile.svg — long-gamma 0.11, short-gamma 0.10).
@@ -405,7 +407,7 @@ const ANATOMY_BLOCK_RECEIPTS = [
   "questionLensMark",
   // The scaffolding glass (scaffoldingGlass.ts SCAFFOLDING_GLASS_RECEIPTS — kept equal by its sentinel).
   "scaffoldingScale", "scaffoldingForm", "scaffoldingSilenceBand", "absorptionMassInk", "scaffoldingSwingTags", "scaffoldingDock", "scaffoldingCardCandleHits",
-  "scaffoldingGeometry", "scaffoldingPlaque", "scaffoldingCandlesKept", "scaffoldingSwingMarks",
+  "scaffoldingGeometry", "scaffoldingPlaque", "scaffoldingCandlesKept", "scaffoldingSwingMarks", "scaffoldingCrumb",
   "scaffoldingResistance",
 ] as const;
 
@@ -8091,7 +8093,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const cr = canvas.getBoundingClientRect();
             // ORDER-LINE HANDLES TOO (P0 proof, serving 1e90db0 NQ1! 5m 2026-10-10 18:07: "LIVING VAH 3…"
             // was cut in half under the ENTRY handle). Their visible pill, not the 44 px thumb slop.
-            document.querySelectorAll(`.wm-chart-reading-anchor, ${ORDER_LINE_HANDLE_SELECTOR.split(", ").map(q => `${q} > span`).join(", ")}`).forEach(el => {
+            // …and the D toggle and the market-standing strip (serving 390 all-on, 2026-10-10 20:00: a
+            // canvas word read "HEST" — the rest of it sat under those two DOM chips).
+            document.querySelectorAll(`.wm-chart-reading-anchor, ${ORDER_LINE_HANDLE_SELECTOR.split(", ").map(q => `${q} > span`).join(", ")}, ${PANE_DOM_CHIP_SELECTOR}`).forEach(el => {
               const r = (el as HTMLElement).getBoundingClientRect();
               if (r.width > 0 && r.height > 0 && r.right > cr.left && r.left < cr.right && r.bottom > cr.top && r.top < cr.bottom) {
                 rectsD.push({ x: r.left - cr.left - 2, y: r.top - cr.top - 2, w: r.width + 4, h: r.height + 4 });
@@ -16234,8 +16238,19 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
 
                 // The removal path — where this depth sits. Drawn inside the
                 // card (F/I) or the plaque (PRO), never as a strip of its own.
-                const crumb = (x: number, y: number, px: number) => {
+                // Bounded (serving 390, BTC 5m all-on, 2026-10-10 20:08: the narrow type floor lifted
+                // this trail to 11 px and "… ADVANCED / P" ran out of the plaque and off the pane).
+                // When the whole trail does not fit `maxW`, only the depth in force is said.
+                const crumb = (x: number, y: number, px: number, maxW = Infinity) => {
                   ctx.font = font(700, px);
+                  const full = ["FOUNDATION", "INTERMEDIATE", "ADVANCED / PRO"].reduce((a, t) => a + ctx.measureText(t).width, 0) + 2 * (px * 0.8 + px * 1.3) + px * 0.8;
+                  if (full > maxW) {
+                    ctx.fillStyle = GOLD;
+                    ctx.fillText(depth === "PRO" ? "ADVANCED / PRO" : depth, x, y);
+                    ds.scaffoldingCrumb = "DEPTH_ONLY";
+                    return;
+                  }
+                  ds.scaffoldingCrumb = "TRAIL";
                   let cx = x;
                   for (const d of ["FOUNDATION", "INTERMEDIATE", "PRO"] as const) {
                     const t = d === "PRO" ? "ADVANCED / PRO" : d;
@@ -16513,7 +16528,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   const { x: qx, y: qy, w: qw, h: qh } = plaque;
                   ctx.strokeStyle = HAIR; ctx.lineWidth = 1;
                   ctx.strokeRect(qx + 0.5, qy + 0.5, qw - 1, qh - 1);
-                  crumb(qx + 8, qy + 9, 6.5);
+                  crumb(qx + 8, qy + 9, 6.5, qw - 16);
                   const qc = qx + qw / 2;
                   ctx.textAlign = "center";
                   ctx.font = font(700, 7.5); ctx.fillStyle = GOLD;
@@ -16654,7 +16669,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.fillStyle = panel(yielded ? 0.3 : 0.97);
                   ctx.fillRect(0, 0, w, h);
                   ctx.strokeStyle = HAIR; ctx.lineWidth = 1; ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
-                  crumb(10, 10, depth === "FOUNDATION" && pick.form === "FULL" ? 9 : 7.5);
+                  crumb(10, 10, depth === "FOUNDATION" && pick.form === "FULL" ? 9 : 7.5, w - 20);
                   const top = 21;
                   ctx.strokeStyle = "rgba(201,165,92,0.25)";
                   ctx.beginPath(); ctx.moveTo(6, top - 1.5); ctx.lineTo(w - 6, top - 1.5); ctx.stroke();
