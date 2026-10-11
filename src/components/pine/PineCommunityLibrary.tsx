@@ -324,14 +324,16 @@ bgcolor(isSpike ? color.new(#4FA3E0, 95) : na, title="Spike BG")`,
 ];
 
 /* ── Category colors ────────────────────────────────────── */
+// The house ladder (G19 pass 2026-10-10): categories are told apart by their word; their
+// ink is brass / ivory strength, never a SaaS teal, blue or purple, never the market's green / red.
 const CAT_COLORS: Record<string, string> = {
-  "Smart Money": "#8B5CF6",
-  "Order Flow":  "#FF4D6A",
-  "Trend":       "#00D4AA",
-  "Momentum":    "#F0B429",
-  "Volume":      "#4FA3E0",
+  "Smart Money": "#ffd76a",
+  "Order Flow":  "#d4af37",
+  "Trend":       "#c9a55c",
+  "Momentum":    "#ede6d3",
+  "Volume":      "#c0b8a0",
   "Oscillator":  "#E8EDF3",
-  "Strategy":    "#F97316",
+  "Strategy":    "#b08d57",
 };
 
 const CATS = ["All", "Featured", "Smart Money", "Order Flow", "Trend", "Momentum", "Volume", "Oscillator", "Strategy"];
@@ -577,9 +579,9 @@ export function PineCommunityLibrary({ onClose, onImport }: Props) {
         <div className="flex items-center gap-3 px-4 py-3 border-b border-wm-border bg-wm-dark shrink-0">
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ background: "linear-gradient(135deg, #8B5CF6, #4FA3E0)" }}
+            style={{ background: "linear-gradient(135deg, #d4af37, #8b6a29)" }}
           >
-            <BookOpen size={16} className="text-white" />
+            <BookOpen size={16} style={{ color: "#0b0b0d" }} />
           </div>
           <div>
             <h2 className="text-sm font-black text-wm-text">Pine Script Library — WM curated</h2>
@@ -623,10 +625,11 @@ export function PineCommunityLibrary({ onClose, onImport }: Props) {
                 className={clsx(
                   "px-2.5 py-1 rounded-full text-[10px] font-semibold whitespace-nowrap transition-all border shrink-0",
                   cat === c
-                    ? "text-white border-transparent"
+                    ? "border-transparent"
                     : "bg-wm-surface border-wm-border text-wm-text-muted hover:text-wm-text"
                 )}
-                style={cat === c ? { background: CAT_COLORS[c] ?? "#4FA3E0", borderColor: "transparent" } : {}}
+                // The house selected state (G19 pass 2026-10-10): one brass chip, whatever the category.
+                style={cat === c ? { background: "#d4af37", color: "#0b0b0d", borderColor: "transparent" } : {}}
               >
                 {c === "Featured" ? "⭐ Featured" : c}
               </button>
