@@ -61,12 +61,14 @@ export const LIVING_BODY_CANON = Object.freeze({
   rimAlpha: 0.95,
   rimWidth: 1.4,
   rimGlow: 8,
-  /** Row seams, so the mass still reads as rows (P-110's striations). */
-  seamAlpha: 0.34,
+  /** Row seams, so the mass still reads as rows (P-110's striations). Founder 2026-10-11: at 0.34 /
+   *  0.18 every 3px the seams and their ivory lips out-drew the fill — a "dotted pencil drawing", not
+   *  P-110's solid gold mass. Fine striations under a solid body: fainter and sparser. */
+  seamAlpha: 0.16,
   /** Minimum ridge pitch: thinner rows are ridged every Nth row. */
-  seamMinRowPx: 3,
+  seamMinRowPx: 5,
   /** The lit lip under each seam — what makes the ridge read luminous. */
-  ridgeLipAlpha: 0.18,
+  ridgeLipAlpha: 0.07,
   /** VAH / VAL rules across the plot; the POC rule (dashed) across the plot. */
   edgeRuleAlpha: 0.78,
   pocRuleAlpha: 0.72,
