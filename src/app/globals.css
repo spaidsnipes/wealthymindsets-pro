@@ -2907,6 +2907,9 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
    repeat of the symbol and price steps back — the symbol row says both. TRADE stays the floating pill.
    SENTINEL: phoneIsNotASmallDesk.sentinel.test.ts */
 @media (max-height: 520px) and (max-width: 1023px) {
+  /* As in portrait (the phone copy steps back while the LIVE TAPE chip shows): the standing strip and the
+     chip took the same spot at 812x375 (measured 2026-10-11). */
+  body:has(.wm-live-session-chip) .wm-chart-market-standing { display: none !important; }
   body:has(.wm-chart-market-pane[data-market-primary="true"]):has(.wm-os-feed-standing[data-tone="LIVE"][data-established="true"]) .wm-os-masthead.wm-os-masthead { display: none !important; }
   .wm-chart-market-pane[data-market-primary="true"] :is([data-chart-identity], [data-legend-group="price"]) { display: none !important; }
 }
