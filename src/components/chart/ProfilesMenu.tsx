@@ -41,10 +41,11 @@
  * still prints `silentNote` verbatim.
  */
 
-import { subscribeToolDoor, takePendingToolDoor } from "@/lib/workspace/toolDoor";
+import { CHART_SETTINGS_SECTION_EVENT, subscribeToolDoor, takePendingToolDoor, type ChartSettingsSection } from "@/lib/workspace/toolDoor";
+import { settingsAnchorFor } from "@/lib/workspace/inventionSettingsAnchor";
 import { senseIsQuiet, senseNeedsTradedVolume, SENSE_UNAVAILABLE, SENSE_NOT_ENTITLED, SENSE_BROKEN } from "@/lib/chart/senseEventStates";
 import React from "react";
-import { Layers, Check } from "lucide-react";
+import { Layers, Check, Settings2 } from "lucide-react";
 import {
   selectProfileMenu,
   type ProfileId,
@@ -315,6 +316,21 @@ export function ProfilesMenu({
                     </span>
                   </div>
                 </button>
+                {(() => {
+                  // THE GEAR (Founder 2026-10-11): this invention's own look, one press away — Chart
+                  // Settings opens ON its colour / opacity controls (inventionSettingsAnchor.ts).
+                  const anchor = settingsAnchorFor(entry.id);
+                  if (!anchor) return null;
+                  return (
+                    <button type="button" data-testid={`appearance-gear-${entry.id}`}
+                      aria-label={`${entry.label} appearance — colour and opacity`} title={`${entry.label} · colour and opacity`}
+                      onClick={e => { e.stopPropagation(); window.dispatchEvent(new CustomEvent<{ section: ChartSettingsSection }>(CHART_SETTINGS_SECTION_EVENT, { detail: { section: anchor as ChartSettingsSection } })); }}
+                      className="inline-flex h-11 w-9 shrink-0 items-center justify-center rounded-lg hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold"
+                      style={{ background: "none", border: "none", cursor: "pointer", padding: 0, color: "#c9a55c" }}>
+                      <Settings2 size={15} aria-hidden="true" />
+                    </button>
+                  );
+                })()}
                 <InventionInfoButton scope={testId} id={entry.id} label={entry.label} open={eduId === entry.id}
                   onToggle={() => setEduId(cur => (cur === entry.id ? null : entry.id))} />
                 </div>

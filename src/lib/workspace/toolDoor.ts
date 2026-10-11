@@ -47,7 +47,8 @@ let pending: { readonly id: string; readonly at: number } | null = null;
  * the heatmap presets were three doors deep.
  */
 export const CHART_SETTINGS_SECTION_EVENT = "wm-chart-settings-section";
-export type ChartSettingsSection = "gamma-heat" | "marks";
+/** "gamma-heat" | "marks" | "species:<KEY>" | "inv:<KEY>" (inventionSettingsAnchor.ts). */
+export type ChartSettingsSection = "gamma-heat" | "marks" | `species:${string}` | `inv:${string}`;
 const SETTINGS_SECTION_FOR: Readonly<Record<string, ChartSettingsSection>> = {
   GAMMA_HEATMAP: "gamma-heat", GAMMA_POSITIVE: "gamma-heat", GAMMA_NEGATIVE: "gamma-heat",
   GAMMA_FLIP: "gamma-heat", GAMMA_CONCENTRATION: "gamma-heat",

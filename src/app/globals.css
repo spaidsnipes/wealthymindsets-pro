@@ -2635,6 +2635,9 @@ input[type=range]::-moz-range-track { height: 4px; background: #26262d; border-r
 html[data-capture="true"] [data-owner-private] { display: none !important; }
 
 .wm-mobile-tabbar { display: none; }
+/* An invention's gear lands on its control: the row is lit for a moment (ChartSettingsModal). */
+.wm-settings-anchor { border-radius: 6px; transition: box-shadow 0.4s ease, background 0.4s ease; }
+.wm-settings-anchor[data-settings-focus="1"] { box-shadow: 0 0 0 1px rgba(212,175,55,0.85); background: rgba(212,175,55,0.08); }
 /* THE CHART'S FIRST SECONDS (ChartLoadingVeil): placeholder candles breathing in gold under one plain
    sentence while the camera holds no bars. Every width. Reduced motion: the room's one safety net stills them. */
 .wm-chart-loading-veil {

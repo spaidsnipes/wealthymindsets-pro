@@ -337,8 +337,20 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
     if (!open || !section) return;
     setTab("chart");
     const t = window.setTimeout(() => {
-      const el = dlgRef.current?.querySelector(`[data-settings-section="${section}"]`);
-      if (el instanceof HTMLElement) { el.scrollIntoView({ block: "start" }); el.querySelector<HTMLElement>("button")?.focus({ preventScroll: true }); }
+      // An invention's gear (inventionSettingsAnchor.ts): open the folded group its controls live in,
+      // bring the row forward and light it, so the trader lands ON the control, not near it.
+      const dlg = dlgRef.current;
+      if (dlg && (section.startsWith("species:") || section.startsWith("inv:"))) {
+        const groups = section.startsWith("species:") ? ["[data-profile-species-inks]", "[data-profile-species-dials]"] : ["[data-invention-dials]"];
+        for (const g of groups) { const d = dlg.querySelector(g); if (d instanceof HTMLDetailsElement) d.open = true; }
+      }
+      const el = dlg?.querySelector(`[data-settings-section="${section}"]`);
+      if (el instanceof HTMLElement) {
+        el.scrollIntoView({ block: "center" });
+        (el.querySelector<HTMLElement>("input,button") ?? el).focus({ preventScroll: true });
+        el.dataset.settingsFocus = "1";
+        window.setTimeout(() => { delete el.dataset.settingsFocus; }, 2400);
+      }
     }, 60);
     return () => window.clearTimeout(t);
   }, [open, section]);
@@ -599,16 +611,20 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                   <details data-profile-species-dials style={{ marginTop: 4 }}>
                     <summary style={{ fontSize: 12, color: "#c0b8a0", cursor: "pointer", minHeight: 32, display: "flex", alignItems: "center" }}>Profiles · each species</summary>
                     {PROFILE_SPECIES.map(sp => (
-                      <Dial key={sp} value={s.profileSpeciesOpacity?.[sp]} label={PROFILE_SPECIES_LABEL[sp]}
+                      <div key={sp} data-settings-section={SPECIES_INK_KEYS.includes(sp) ? `species-opacity:${sp}` : `species:${sp}`} className="wm-settings-anchor">
+                      <Dial value={s.profileSpeciesOpacity?.[sp]} label={PROFILE_SPECIES_LABEL[sp]}
                         onChange={v => set({ profileSpeciesOpacity: lawfulSpeciesOpacity({ ...(s.profileSpeciesOpacity ?? {}), [sp]: v }) })} />
+                      </div>
                     ))}
                   </details>
                   <details data-invention-dials style={{ marginTop: 4 }}>
                     <summary style={{ fontSize: 12, color: "#c0b8a0", cursor: "pointer", minHeight: 32, display: "flex", alignItems: "center" }}>Inventions · each one</summary>
                     <div style={{ fontSize: 11, color: "#8a8271", margin: "2px 0 6px" }}>Never below a readable floor. Entry, stop and target lines keep their own look (Order lines, below).</div>
                     {INVENTION_DIALS.map(k => (
-                      <Dial key={k} value={s.inventionOpacity?.[k]} label={INVENTION_DIAL_LABEL[k]}
+                      <div key={k} data-settings-section={`inv:${k}`} className="wm-settings-anchor">
+                      <Dial value={s.inventionOpacity?.[k]} label={INVENTION_DIAL_LABEL[k]}
                         onChange={v => set({ inventionOpacity: lawfulInventionOpacity({ ...(s.inventionOpacity ?? {}), [k]: v }) })} />
+                      </div>
                     ))}
                   </details>
                   <details data-profile-species-inks style={{ marginTop: 4 }}>
@@ -620,7 +636,7 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                       return (
                         <>
                           {SPECIES_INK_KEYS.map(sp => (
-                            <div key={sp} data-species-ink={sp}>
+                            <div key={sp} data-species-ink={sp} data-settings-section={`species:${sp}`} className="wm-settings-anchor">
                               <ColorSwatch value={s.profileSpeciesInk?.[sp] ?? restHex} label={PROFILE_SPECIES_LABEL[sp]}
                                 onChange={v => set({ profileSpeciesInk: { ...(s.profileSpeciesInk ?? {}), [sp]: v } })} />
                               {law.refused[sp] && (
