@@ -2875,6 +2875,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const clarityOnRef = useRef(false);
   clarityOnRef.current = clarityCandleOnChart && candleType === "candles";
   // The ONE owner of the native candle ink while Clarity may be on (clarityInkOwner.ts).
+  /** The live-edge margin (px) the profile lane last asked the time scale for; null = the default 5 bars. */
+  const profileLaneOffsetRef = useRef<number | null>(null);
   const clarityInkRef = useRef<ClarityInkOwner | null>(null);
   if (!clarityInkRef.current) clarityInkRef.current = new ClarityInkOwner();
   // The Clarity watchdog runs on a timer, not on paint frames: when the overlay loop is paused or
@@ -4502,7 +4504,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       });
       // Assign immediately so a rapid second symbol/timeframe change during our
       // async candle fetch REUSES this chart instead of creating a duplicate.
-      if (isNewChart) chartRef.current = chart;
+      if (isNewChart) { chartRef.current = chart; profileLaneOffsetRef.current = null; }
       // Attached HERE — after createChart, so the restore observer is the last
       // one notified and the library's synchronous re-fit has already happened
       // by the time it runs. `barsRef` is read lazily so the keeper always sees
@@ -21542,6 +21544,31 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           profileColumnLeftRef.current.cur = Math.min(profileColumnLeftRef.current.cur, stackPlan.stackLeft);
         }
         else delete ds.profileStackLeft;
+        /*
+          THE PROFILE LANE (Founder 2026-10-11: "a volume profile must not resemble a dotted pencil
+          drawing"). Measured on serving BTC-USD 5m at 1200: the Living body (250px, solid gold) lay over
+          the newest ~26 candles, and the candle cut-out that keeps candles crisp carved it into slivers
+          between them — hairline rows, not a mass. The profiles now get their own lane: the live edge's
+          margin is the stack's reach + 12px, so the newest candle stands just left of the body. Applied
+          only when the reach moves by more than 4px and only while the camera is at the live edge (a
+          trader reading history is never pulled back); with no profile it returns to 5 bars.
+        */
+        try {
+          const want = stackOrder.length > 0 ? Math.round(plotRight - stackPlan.stackLeft + 12) : null;
+          const had = profileLaneOffsetRef.current;
+          if (want !== had && (want == null || had == null || Math.abs(want - had) > 4)) {
+            const tsL = chart.timeScale();
+            const lr = tsL.getVisibleLogicalRange();
+            const nBars = barsRef.current?.length ?? 0;
+            const atEdge = !!lr && nBars > 0 && lr.to >= nBars - 1.5;
+            if (atEdge) {
+              const bsL = Number((tsL.options() as { barSpacing?: number }).barSpacing) || 6;
+              tsL.applyOptions({ rightOffsetPixels: want ?? Math.round(5 * bsL) });
+              profileLaneOffsetRef.current = want;
+            }
+          }
+          ds.profileLane = profileLaneOffsetRef.current == null ? "NONE" : `PX:${profileLaneOffsetRef.current}`;
+        } catch { /* the time scale is rebuilding: next frame */ }
         // Every profile species' geometry receipt is withdrawn here and
         // re-published below only by a layer that actually paints this frame —
         // so an OFF, NO_ROOM or FAR layer cannot leave a receipt describing
