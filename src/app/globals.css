@@ -2405,6 +2405,10 @@ input[type=range]::-moz-range-track { height: 4px; background: #26262d; border-r
   .wm-legend-recency-narrow { display: inline-block !important; max-width: 14ch; }
   [data-legend-group="price"]:has(~ div .wm-legend-status [data-recency-narrow]) { flex-shrink: 1; min-width: min-content; }
   [data-legend-group="price"]:has(~ div .wm-legend-status [data-recency-narrow]) .wm-legend-words-short:has([data-change-scope]) { display: inline-block; white-space: normal; line-height: 1.1; vertical-align: middle; }
+  /* Serving /desk 4-up 1180 (879dbb2, 2026-10-10 20:15, a closed weekend): the fidelity chip
+     "SESSION CLOSED — LAST VERIFIED" ran out of the TSLA / NQ1! / SPY panes ("— LAST V…").
+     In a narrow band the chip keeps every word and wraps once, inside its frame. */
+  .wm-fidelity-badge--chrome { height: auto !important; white-space: normal; max-width: 15ch; line-height: 1.1; padding: 2px 6px !important; text-align: left; }
 }
 .wm-legend-recency-narrow { display: none; }
 
