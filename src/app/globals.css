@@ -868,6 +868,11 @@
   outline-offset: -2px;
 }
 
+/* A tablet's header squeezes the ticker to a ~50px slit (measured 768: 52px — a sliver of a marquee,
+   "SESSION CLOSED — LAST VERI…"). Below the desk it steps back; the rooms carry their own prices. */
+@media (max-width: 1023px) {
+  .wm-shell-ticker { display: none !important; }
+}
 @media (max-width: 639px) {
   .wm-shell-ticker,
   .wm-mobile-hide {
