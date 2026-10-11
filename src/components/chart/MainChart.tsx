@@ -20616,7 +20616,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 else {
                   const flipW = sel.GAMMA_FLIP && !composed.yielded.GAMMA_FLIP && gex.flip.kind === "NONE" ? ` · FLIP: ${gex.flip.reason.replace(/_/g, " ").toLowerCase()}` : "";
                   const scopeW = gexScopeWords(gex);
-                  parts.push(`GAMMA · ${gex.grade} · ${src!.name} · ${src!.oi}${asOfW ? ` · as of ${asOfW}` : ""}${scopeW ? ` · ${scopeW}` : ""} · MODEL, ASSUMED DEALER SIDE${flipW}`);
+                  // THE MODEL WORDS FIRST (serving 834 all-on, 2026-10-11 04:05: the desk-width line was
+                  // fitted to "… MODEL, ASSUMED D…" — the disclosure is what may never be cut; provenance follows).
+                  parts.push(`GAMMA · ${gex.grade} · MODEL, ASSUMED DEALER SIDE · ${src!.name} · ${src!.oi}${asOfW ? ` · as of ${asOfW}` : ""}${scopeW ? ` · ${scopeW}` : ""}${flipW}`);
                 }
                 if (composed.yielded.GAMMA_FLIP || composed.yielded.GAMMA_POSITIVE || composed.yielded.GAMMA_NEGATIVE) parts.push("flip / regions shown by Derivatives Pressure");
               }

@@ -24,3 +24,10 @@ describe("weather lens yields to the truth rows", () => {
     expect(MC).toContain("delete ds.weatherLensDragChip;");
   });
 });
+
+describe("the gamma truth line says MODEL before its provenance", () => {
+  it("a fitted line can only lose the trailing source / scope detail, never the model disclosure", () => {
+    expect(MC).toContain("parts.push(`GAMMA · ${gex.grade} · MODEL, ASSUMED DEALER SIDE · ${src!.name}");
+  });
+});
+
