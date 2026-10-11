@@ -353,6 +353,8 @@ const PANE_DOM_CHIP_SELECTOR = 'button[aria-label="Data window"], .wm-chart-mark
 const DP_FIELD_FLOOR_ALPHA = 0.1;
 /** A Weather cell sprite larger than this (device px²) is drawn straight onto the heat layer, not cached. */
 const HEAT_SPRITE_MAX_PX = 4_000_000;
+/** Brick Walls masonry sprites kept at most (a camera holds a handful of walls). */
+const BRICK_SPRITE_CACHE_MAX = 48;
 /**
  * G06 FOUNDER BODIES — the plate's own figures (WM_GuestTour_G06_Academy_
  * Anatomy_Teach), keyed off the plate so the chart carries THE Founder's
@@ -2514,6 +2516,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   /** A cell sprite is composited whole — its pixels already carry the regulated alpha. */
   const HEAT_SPRITE_WHOLE = 1;
   const heatCellSpritesRef = useRef<Map<string, { canvas: HTMLCanvasElement; x: number; y: number; contours: number }>>(new Map());
+  /** Brick Walls' masonry, one sprite per wall shape (see MASONRY SPRITE). */
+  const brickSpritesRef = useRef<Map<string, { canvas: HTMLCanvasElement; x: number; y: number; holes: number; chipped: number }>>(new Map());
   /** F08B storm texture cache (weatherStorm.ts) — rebuilt only when its key changes; STILL holds the frozen phase. */
   const stormCacheRef = useRef<{ key: string; canvas: HTMLCanvasElement } | null>(null);
   /** A storm rebuild in progress: half the rows per frame, swapped in when whole (performance pass). */
@@ -19496,6 +19500,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 const y1 = yOfD(dp.spot), y2 = yOfD(dp.spot * 1.0125);
                 return y1 != null && y2 != null ? Math.abs(y1 - y2) : 12;
               })();
+              let brickSpritesReused = 0, brickSpritesDrawn = 0;
+              delete ds.brickWallSprites;
               for (const w of wallsOn ? dp.walls : []) {
                 const yc = yOfD(w.strike);
                 if (yc == null) continue;
@@ -19637,6 +19643,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.fillRect(x0, top, len, wallH);
                 }
                 let holes = 0, chipped = 0;
+                /* MASONRY SPRITE (perf, serving 196b696 BTC-USD 5m, 2026-10-11: Brick Walls alone
+                   +8 ms a frame — a fresh gradient, arris lines and pits for every brick of every
+                   wall, every frame). The courses depend only on the wall's SHAPE (length, courses,
+                   brick size, life, breach and cracks measured from its right end, strike seed,
+                   alpha and face ink): they are rendered once and laid on at the right end's device
+                   pixel. Holes and chips ride with the sprite, so the receipts are unchanged. */
+                const paintCourses = (bctx: CanvasRenderingContext2D) => {
                 for (let c = 0; c < courses; c++) {
                   const yb = top + c * courseH;
                   const off = c % 2 === 0 ? 0 : brickW / 2;
@@ -19649,8 +19662,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     if (scarred) continue; // no bricks: the outline below is all that is left
                     if (weak && r < 0.2) {
                       // A knocked-out brick: a dark socket, not just absence.
-                      ctx.fillStyle = `rgba(6,5,4,${0.8 * baseA})`;
-                      ctx.fillRect(bx0 + 1, yb + 1, bw - 2, courseH - 3);
+                      bctx.fillStyle = `rgba(6,5,4,${0.8 * baseA})`;
+                      bctx.fillRect(bx0 + 1, yb + 1, bw - 2, courseH - 3);
                       holes++;
                       continue;
                     }
@@ -19661,43 +19674,82 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                       // fired-clay fill, a firmer broken outline, and every third
                       // brick missing — the wall that was, not the wall that is.
                       if (r < 0.33) continue;
-                      ctx.fillStyle = `rgba(150,112,64,${0.13 * baseA})`;
-                      ctx.fillRect(bx0 + 1, yb + 1, bw - 2, courseH - 3);
-                      ctx.strokeStyle = `rgba(200,172,120,${0.42 * baseA})`;
-                      ctx.setLineDash([2, 3]);
-                      ctx.strokeRect(bx0 + 0.5, yb + 0.5, bw - 1, courseH - 2);
-                      ctx.setLineDash([]);
+                      bctx.fillStyle = `rgba(150,112,64,${0.13 * baseA})`;
+                      bctx.fillRect(bx0 + 1, yb + 1, bw - 2, courseH - 3);
+                      bctx.strokeStyle = `rgba(200,172,120,${0.42 * baseA})`;
+                      bctx.setLineDash([2, 3]);
+                      bctx.strokeRect(bx0 + 0.5, yb + 0.5, bw - 1, courseH - 2);
+                      bctx.setLineDash([]);
                       continue;
                     }
                     // Fired clay: each brick its own tone, lit from the upper left.
                     const tone = 0.72 + 0.28 * r;
-                    const face = ctx.createLinearGradient(bx0, yb, bx0 + bw * 0.4, yb + courseH);
+                    const face = bctx.createLinearGradient(bx0, yb, bx0 + bw * 0.4, yb + courseH);
                     // The trader's brick ink (Chart Settings) is the lit face; the shaded face keeps the
                     // room's clay ratios (146/214, 110/176, 62/112), so the brick stays a brick.
                     const [fr, fg, fb] = brickFaceRef.current;
                     face.addColorStop(0, `rgba(${Math.round(fr * tone)},${Math.round(fg * tone)},${Math.round(fb * tone)},${0.78 * baseA})`);
                     face.addColorStop(1, `rgba(${Math.round(fr * 0.682 * tone)},${Math.round(fg * 0.625 * tone)},${Math.round(fb * 0.554 * tone)},${0.78 * baseA})`);
-                    ctx.fillStyle = face;
-                    ctx.fillRect(bx0, yb, bw, courseH - 2);
+                    bctx.fillStyle = face;
+                    bctx.fillRect(bx0, yb, bw, courseH - 2);
                     // Arris light on the top edge, shade on the bottom edge.
-                    ctx.fillStyle = `rgba(255,238,196,${0.28 * baseA})`;
-                    ctx.fillRect(bx0, yb, bw, 1);
-                    ctx.fillStyle = `rgba(20,14,8,${0.45 * baseA})`;
-                    ctx.fillRect(bx0, yb + courseH - 3, bw, 1);
+                    bctx.fillStyle = `rgba(255,238,196,${0.28 * baseA})`;
+                    bctx.fillRect(bx0, yb, bw, 1);
+                    bctx.fillStyle = `rgba(20,14,8,${0.45 * baseA})`;
+                    bctx.fillRect(bx0, yb + courseH - 3, bw, 1);
                     // Surface pits (deterministic) — clay, not a flat swatch.
-                    ctx.fillStyle = `rgba(40,28,14,${0.35 * baseA})`;
-                    for (let k = 0; k < 3; k++) ctx.fillRect(bx0 + 2 + hash(c * 7 + k, n) * (bw - 5), yb + 2 + hash(n * 5 + k, c) * (courseH - 6), 1.4, 1.2);
+                    bctx.fillStyle = `rgba(40,28,14,${0.35 * baseA})`;
+                    for (let k = 0; k < 3; k++) bctx.fillRect(bx0 + 2 + hash(c * 7 + k, n) * (bw - 5), yb + 2 + hash(n * 5 + k, c) * (courseH - 6), 1.4, 1.2);
                     // A crack through this brick chips its corner.
                     if (crackXs.some(cx => cx >= bx0 && cx <= bx0 + bw)) {
-                      ctx.fillStyle = `rgba(10,8,5,${0.7 * baseA})`;
-                      ctx.beginPath();
+                      bctx.fillStyle = `rgba(10,8,5,${0.7 * baseA})`;
+                      bctx.beginPath();
                       const right = r > 0.5;
                       const ex = right ? bx0 + bw : bx0;
-                      ctx.moveTo(ex, yb); ctx.lineTo(ex + (right ? -6 : 6), yb); ctx.lineTo(ex, yb + 5); ctx.closePath();
-                      ctx.fill();
+                      bctx.moveTo(ex, yb); bctx.lineTo(ex + (right ? -6 : 6), yb); bctx.lineTo(ex, yb + 5); bctx.closePath();
+                      bctx.fill();
                       chipped++;
                     }
                   }
+                }
+                };
+                {
+                  const T = ctx.getTransform();
+                  const ox = x1, oy = top;
+                  const lx0 = Math.floor(T.a * (x0 - 2 - ox)), lx1 = Math.ceil(T.a * 3);
+                  const ly0 = Math.floor(T.d * -2), ly1 = Math.ceil(T.d * (wallH + 2));
+                  const sw = lx1 - lx0, sh = ly1 - ly0;
+                  if (T.b !== 0 || T.c !== 0 || !(T.a > 0) || !(T.d > 0) || sw <= 0 || sh <= 0 || sw * sh > HEAT_SPRITE_MAX_PX) {
+                    paintCourses(ctx);
+                    brickSpritesDrawn++;
+                  } else {
+                    const keyB = `${T.a},${T.d}|${Math.round(len)}|${courses}|${courseH}|${w.life}|${Math.round(w.strike * 100)}|${baseA.toFixed(2)}|${brickFaceRef.current.join(",")}|${breaking ? Math.round(gapMid - x1) : ""}|${crackXs.map(cx => Math.round(cx - x1)).join(",")}`;
+                    const cache = brickSpritesRef.current;
+                    let sp = cache.get(keyB);
+                    if (sp) { holes += sp.holes; chipped += sp.chipped; brickSpritesReused++; }
+                    else {
+                      const sc = document.createElement("canvas");
+                      sc.width = sw; sc.height = sh;
+                      const sctx = sc.getContext("2d");
+                      if (!sctx) { paintCourses(ctx); brickSpritesDrawn++; }
+                      else {
+                        sctx.setTransform(T.a, 0, 0, T.d, -lx0 - T.a * ox, -ly0 - T.d * oy);
+                        const h0 = holes, c0 = chipped;
+                        paintCourses(sctx);
+                        sp = { canvas: sc, x: lx0, y: ly0, holes: holes - h0, chipped: chipped - c0 };
+                        if (cache.size >= BRICK_SPRITE_CACHE_MAX) cache.clear();
+                        cache.set(keyB, sp);
+                        brickSpritesDrawn++;
+                      }
+                    }
+                    if (sp) {
+                      ctx.save();
+                      ctx.setTransform(1, 0, 0, 1, 0, 0);
+                      ctx.drawImage(sp.canvas, Math.round(T.a * ox + T.e) + sp.x, Math.round(T.d * oy + T.f) + sp.y);
+                      ctx.restore();
+                    }
+                  }
+                  ds.brickWallSprites = `REUSED:${brickSpritesReused}|DRAWN:${brickSpritesDrawn}`;
                 }
                 pressureWallHitRef.current.push({ strike: w.strike, x: x0, y: top - depth - 2, w: len, h: wallH + depth + 6 });
                 if (selectedPressureWallStrikeRef.current === w.strike) {
