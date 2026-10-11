@@ -42,7 +42,7 @@ export const MOBILE_TABS: readonly Tab[] = [
     icon: <svg width="20" height="20" viewBox="0 0 24 24" {...stroke}><path d="M6 4h10a2 2 0 0 1 2 2v14H8a2 2 0 0 1-2-2z" /><path d="M9 8h6M9 12h6" /></svg> },
   // More = the room rail (Tools, Rooms, Profile, every destination): the masthead's doors, which a
   // phone's market screen does not show, open the same rail.
-  { id: "more", label: "More", target: '[data-testid="os-market-rooms"]',
+  { id: "more", label: "More", target: '[data-testid="os-market-rooms"]', fallbackHref: `${INSTRUMENT_VIEW_ROUTE}?open=rooms`,
     icon: <svg width="20" height="20" viewBox="0 0 24 24" {...stroke}><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></svg> },
 ];
 

@@ -730,8 +730,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     if (typeof window === "undefined") return;
     const want = new URLSearchParams(window.location.search).get(MOBILE_OPEN_PARAM);
     if (want === "trade") setTradeOpen(true);
-    else if (want === "watchlist") {
-      const t = window.setTimeout(() => { pressMobileTab('[data-testid="context-watchlist"]'); }, 400);
+    else if (want === "watchlist" || want === "rooms") {
+      const target = want === "watchlist" ? '[data-testid="context-watchlist"]' : '[data-testid="os-market-rooms"]';
+      const t = window.setTimeout(() => { pressMobileTab(target); }, 400);
       return () => window.clearTimeout(t);
     }
   }, []);

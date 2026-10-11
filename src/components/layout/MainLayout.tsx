@@ -43,6 +43,7 @@ import { selectNavEmphasis } from "@/lib/experience/selectNavEmphasis";
 import { matchCuratedSymbols } from "@/lib/marketData/curatedSymbolCatalog";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 import { wmConfirm } from "@/components/ui/wmConfirm";
+import { MobileTabBar } from "@/components/mobile/MobileTabBar";
 
 /**
  * The shell PANELS — search, notifications, settings, sign-out — are no longer
@@ -797,6 +798,9 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         </main>
       </div>
 
+      {/* THE ONE PHONE APP BAR (Founder 2026-10-11) — the same bar as every OS room on a portrait phone;
+          this four-door nav steps back there (globals.css). */}
+      <MobileTabBar />
       <nav className="wm-mobile-nav" aria-label="Primary navigation">
         {MOBILE_NAV_ITEMS.map(({ href, icon: Icon, label }) => {
           const active = pathname.startsWith(href);

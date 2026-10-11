@@ -2783,7 +2783,7 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   }
   .wm-mobile-tab:active { color: #ede6d3; }
   /* One bar in every room: where the app bar stands, the four-door strip steps back. */
-  body:has(.wm-mobile-tabbar) .wm-os-phone-nav { display: none !important; }
+  body:has(.wm-mobile-tabbar) :is(.wm-os-phone-nav, .wm-mobile-nav) { display: none !important; }
   .wm-mobile-tab--current { color: #d4af37; }
   .wm-mobile-tab--trade {
     flex: 1.3 1 0; margin: 5px 4px; border-radius: 12px; color: #0b0b0d;

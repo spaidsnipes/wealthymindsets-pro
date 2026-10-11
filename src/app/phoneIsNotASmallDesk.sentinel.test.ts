@@ -92,11 +92,11 @@ describe("one app bar in every room", () => {
   it("the OS shell mounts the same bar; the four-door strip steps back where it stands", () => {
     expect(OS.length).toBeGreaterThan(20_000);
     expect(OS).toContain("{phoneDoorOnly ? null : <MobileTabBar />}");
-    expect(block).toContain("body:has(.wm-mobile-tabbar) .wm-os-phone-nav { display: none !important; }");
+    expect(block).toContain("body:has(.wm-mobile-tabbar) :is(.wm-os-phone-nav, .wm-mobile-nav) { display: none !important; }");
   });
   it("from another room, TRADE / Watchlist arrive at the chart and open once; opening sends nothing", () => {
     expect(DASH).toContain('if (want === "trade") setTradeOpen(true);');
-    expect(DASH).toContain("pressMobileTab('[data-testid=\"context-watchlist\"]')");
+    expect(DASH).toContain(`const target = want === "watchlist" ? '[data-testid="context-watchlist"]' : '[data-testid="os-market-rooms"]';`);
   });
 });
 
