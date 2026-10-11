@@ -1152,21 +1152,32 @@
   display: block;
 }
 
-/* Custom range slider */
+/* Custom range slider — the house's brass thumb on an obsidian track (G19 cinematic pass
+   2026-10-10: every dial in the product wore a SaaS teal #00D4AA thumb, including the
+   Chart Settings opacity dials). Firefox gets the same thumb. */
 input[type=range] { -webkit-appearance: none; appearance: none; background: transparent; }
 input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 12px; height: 12px;
   border-radius: 50%;
-  background: #00D4AA;
+  background: #d4af37;
+  box-shadow: 0 0 0 2px #0b0b0d;
   cursor: pointer;
   margin-top: -4px;
 }
+input[type=range]::-moz-range-thumb {
+  width: 12px; height: 12px; border: 0;
+  border-radius: 50%;
+  background: #d4af37;
+  box-shadow: 0 0 0 2px #0b0b0d;
+  cursor: pointer;
+}
 input[type=range]::-webkit-slider-runnable-track {
   height: 4px;
-  background: #252D38;
+  background: #26262d;
   border-radius: 2px;
 }
+input[type=range]::-moz-range-track { height: 4px; background: #26262d; border-radius: 2px; }
 
 /* Music wave animation */
 @keyframes wave {
@@ -1176,7 +1187,7 @@ input[type=range]::-webkit-slider-runnable-track {
 .music-wave span {
   display: inline-block;
   width: 3px;
-  background: #00D4AA;
+  background: #c9a55c;
   border-radius: 2px;
   animation: wave 0.8s ease-in-out infinite;
 }
