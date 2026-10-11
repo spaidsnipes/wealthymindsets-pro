@@ -6929,9 +6929,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 onClick={() => setPaperTradesOn(o => !o)}
                 className={`flex items-center gap-1 px-2 h-6 rounded text-[12px] font-semibold border transition-all`}
                 style={{
-                  background: paperTradesOn ? "rgba(0,212,170,0.15)" : "#131520",
-                  borderColor: paperTradesOn ? "rgba(0,212,170,0.45)" : "#1E2030",
-                  color: paperTradesOn ? "#00D4AA" : "#8B8FA8",
+                  // House selected state (G19 pass 2026-10-10), not a SaaS teal.
+                  background: paperTradesOn ? "rgba(212,175,55,0.16)" : "#131317",
+                  borderColor: paperTradesOn ? "rgba(212,175,55,0.55)" : "rgba(139,106,41,0.35)",
+                  color: paperTradesOn ? "#d4af37" : "#8a8271",
                 }}
                 title="Show open paper positions on chart (entry line + live P&L)"
               >
@@ -6952,7 +6953,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 <button
                   onClick={() => setPineBuilderOpen(true)}
                   className="flex items-center gap-1 px-2 h-6 rounded text-[12px] font-semibold border"
-                  style={{ background:"rgba(139,92,246,0.12)", color:"#8B5CF6", borderColor:"rgba(139,92,246,0.4)" }}
+                  style={{ background:"rgba(237,230,211,0.06)", color:"#ede6d3", borderColor:"rgba(139,106,41,0.45)" }}
                 >
                   ƒ {pineOutput.shortTitle || pineOutput.title || "Custom Script"}
                   <span style={{ marginLeft:4, color:"#8b8fa8" }}
@@ -8193,8 +8194,8 @@ function FundamentalsTabPanel({ symbol, tab }: { symbol: string; tab: string }) 
       return (
         <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
           {items.map((a, i) => (
-            <div key={i} style={{ background:"#141824", border:"1px solid #1E2030", borderRadius:6, padding:"10px 14px", display:"flex", alignItems:"center", gap:16 }}>
-              <span style={{ background:"rgba(79,163,224,0.15)", color:"#4FA3E0", padding:"2px 8px", borderRadius:4, fontSize:10, fontWeight:600, minWidth:90, textAlign:"center" }}>{a.type}</span>
+            <div key={i} style={{ background:"#131317", border:"1px solid rgba(139,106,41,0.35)", borderRadius:6, padding:"10px 14px", display:"flex", alignItems:"center", gap:16 }}>
+              <span style={{ background:"rgba(201,165,92,0.14)", color:"#c9a55c", padding:"2px 8px", borderRadius:4, fontSize:10, fontWeight:600, minWidth:90, textAlign:"center" }}>{a.type}</span>
               <span style={{ color:"#B0B8D0", fontSize:12, minWidth:90 }}>{a.date}</span>
               <span style={{ color:"#E2E8F0", fontSize:12, flex:1 }}>{a.amount}</span>
               <span style={{ color:"#8b8fa8", fontSize:11 }}>{a.status}</span>
