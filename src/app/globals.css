@@ -2781,6 +2781,7 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-chart-market-summary .wm-fidelity-badge--chrome { margin-left: auto !important; }
   body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-chart-market-summary .wm-chart-header-price { order: 9; flex: 1 0 100%; font-size: 26px !important; line-height: 1.2 !important; letter-spacing: -0.01em; white-space: normal !important; }
   body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-chart-market-summary .wm-chart-header-change { display: inline !important; font-size: 13px !important; }
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-chart-market-summary .wm-chart-header-price-note { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; opacity: 0.8; }
   /* …so the legend's copy of the symbol and price steps back (its status words stay). */
   .wm-chart-market-pane[data-market-primary="true"] :is([data-chart-identity], [data-legend-group="price"]) { display: none !important; }
   /* THE APP BAR replaces the sideways thumb strip; the strip's controls stay in the page for it to press. */

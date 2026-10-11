@@ -6272,7 +6272,13 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   title={headerPriceFact.reason}
                   aria-label={`${symbol} price: ${headerPriceFact.text}. ${headerPriceFact.reason}`}
                 >
-                  {headerPriceFact.text}
+                  {(() => {
+                    // The number and its qualifier ("LAST 5m BAR CLOSE", "SOURCE UNCERTIFIED") stay in one
+                    // element, so the number is never alone; the phone sets the qualifier small beside it.
+                    const cut = headerPriceFact.text.indexOf(" ");
+                    if (cut < 0 || !/^[\d.,-]+$/.test(headerPriceFact.text.slice(0, cut))) return headerPriceFact.text;
+                    return <>{headerPriceFact.text.slice(0, cut)}<span className="wm-chart-header-price-note">{headerPriceFact.text.slice(cut)}</span></>;
+                  })()}
                 </span>
                 )}
                 {headerChangeFact.kind === "AWAITING" ? null : (
