@@ -35,6 +35,14 @@ describe("More screen", () => {
     expect(src).not.toContain('{ id: "more", label: "More", target:');
   });
 
+  it("both shells answer the open-settings event, so More → Settings opens in every room", () => {
+    const july = readFileSync(path.join(process.cwd(), "src/components/layout/MainLayout.tsx"), "utf8");
+    const os = readFileSync(path.join(process.cwd(), "src/components/layout/ShellAccessChrome.tsx"), "utf8");
+    expect(july.length).toBeGreaterThan(10_000);
+    expect(july).toContain("window.addEventListener(OPEN_SETTINGS_EVENT, onOpen);");
+    expect(os).toContain("window.addEventListener(OPEN_SETTINGS_EVENT, onOpen);");
+  });
+
   it("the sheet stops at the app bar and clears the clock", () => {
     const css = readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
     expect(css).toContain(".wm-mobile-more { display: none; }");

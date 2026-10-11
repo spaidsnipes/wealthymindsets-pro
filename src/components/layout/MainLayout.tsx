@@ -62,7 +62,7 @@ const loadShellPanels = (): Promise<typeof ShellPanels> => import("@/components/
 const SearchPanel = dynamic(() => loadShellPanels().then(m => m.SearchPanel), { ssr: false });
 const NotificationsPanel = dynamic(() => loadShellPanels().then(m => m.NotificationsPanel), { ssr: false });
 const SettingsPanel = dynamic(() => loadShellPanels().then(m => m.SettingsPanel), { ssr: false });
-import { initialUnreadNotificationCount, warmShellPanels } from "@/components/layout/shellPanelDoors";
+import { initialUnreadNotificationCount, OPEN_SETTINGS_EVENT, warmShellPanels } from "@/components/layout/shellPanelDoors";
 
 /* ── Nav items ──────────────────────────────────────────────
    THESE ARE NO LONGER TYPED HERE.
@@ -237,6 +237,13 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   }, []);
 
   React.useEffect(() => { setMounted(true); }, []);
+  // Any surface opens Settings without a page load (the phone's More → Settings, the ticket's
+  // ARMED chip): the OS shell answers this event in ShellAccessChrome, and this shell answers it here.
+  React.useEffect(() => {
+    const onOpen = () => { setNotifsOpen(false); setProfileOpen(false); setSearchOpen(false); setSettingsOpen(true); };
+    window.addEventListener(OPEN_SETTINGS_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_SETTINGS_EVENT, onOpen);
+  }, []);
   // Warm the drawer panels on idle once a signed-in shell is standing, so the
   // first open of Search / Settings does not wait on a cellular round trip.
   // Never on the public doors: that is the weight this split took off them.
