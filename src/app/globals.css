@@ -2694,6 +2694,12 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   /* "⋯" (the whole ladder) is pinned at the row's right edge, so it is never scrolled away. */
   .wm-chart-market-pane[data-market-primary="true"] .wm-tf-quick--more { position: sticky; right: 0; }
   .wm-chart-market-pane[data-market-primary="true"] .wm-tf-quick--on { color: #0b0b0d; background: #d4af37; border-color: #d4af37; }
+  /* A 360px phone leaves the row 180px: 28px chips with 2px gaps keep all five rungs and ⋯ in view
+     (measured at 360: "1m" had scrolled out of sight). The tap slop still gives each one 44px. */
+  @media (max-width: 379px) {
+    .wm-chart-market-pane[data-market-primary="true"] .wm-tf-quickrow { gap: 2px; }
+    .wm-chart-market-pane[data-market-primary="true"] .wm-tf-quick { min-width: 28px; padding: 0 3px; }
+  }
   /* EVERY OTHER ROOM ON A PHONE (Journal, News, Scanner…): measured 239px of masthead at 393 — the
      word mark with its tagline, the doors, the room name, the P&L row and the lifecycle strip each on a
      row of their own. Now: the monogram, the doors and the room name share one row, and the lifecycle
