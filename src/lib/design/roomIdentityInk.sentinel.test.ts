@@ -53,3 +53,15 @@ describe("chart chrome's selected state is the house brass (drawing tools, rail,
   });
 });
 
+describe("Chart Settings is a house room, not a charting-package navy", () => {
+  it("no legacy navy / blue literal outside the defaults block; Done is the house primary", () => {
+    const src = read("src/components/chart/ChartSettingsModal.tsx");
+    expect(src.length).toBeGreaterThan(10_000);
+    const start = src.indexOf("export const DEFAULT_CHART_SETTINGS");
+    const end = src.indexOf("\n};", start);
+    const ui = src.slice(0, start) + src.slice(end);
+    expect(ui.match(/#(263050|8896BE|8b8fa8|141824|2F80ED|E2E8FF|4A5580|C7D0E8|0B0E1A)\b|rgba\(47,128,237/gi) ?? []).toEqual([]);
+    expect(src).toMatch(/<button onClick=\{onClose\} style=\{\{\s*\.\.\.WM_PRIMARY_ACTION,/);
+  });
+});
+

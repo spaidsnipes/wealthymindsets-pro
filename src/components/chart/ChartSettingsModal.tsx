@@ -1,5 +1,6 @@
 "use client";
 
+import { WM_PRIMARY_ACTION } from "@/lib/design/wmTokens";
 import React, { useState, useRef } from "react";
 import { GAMMA_HEAT_PRESET_EVENT, GAMMA_HEAT_PRESETS, gammaHeatPreset, gammaHeatStores, readGammaHeatPreset } from "@/lib/chart/gammaHeatAppearance";
 import { proofSceneHoldsWrites } from "@/lib/chart/proofScene";
@@ -185,16 +186,16 @@ interface Props {
 function ColorSwatch({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0" }}>
-      <span style={{ fontSize: 12, color: "#8896BE" }}>{label}</span>
+      <span style={{ fontSize: 12, color: "#c0b8a0" }}>{label}</span>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontSize: 11, color: "#8b8fa8", fontFamily: "monospace" }}>{value}</span>
+        <span style={{ fontSize: 11, color: "#8a8271", fontFamily: "monospace" }}>{value}</span>
         <input
           type="color"
           value={value}
           aria-label={label}
           className="wm-settings-control"
           onChange={e => onChange(e.target.value)}
-          style={{ width: 28, height: 20, borderRadius: 4, border: "1px solid #263050", background: "none", cursor: "pointer", padding: 0 }}
+          style={{ width: 28, height: 20, borderRadius: 4, border: "1px solid rgba(139,106,41,0.35)", background: "none", cursor: "pointer", padding: 0 }}
         />
       </div>
     </div>
@@ -206,13 +207,13 @@ function Dial({ value, onChange, label }: { value: number | undefined; onChange:
   const v = typeof value === "number" && Number.isFinite(value) ? value : 1;
   return (
     <label className="wm-settings-dial" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "6px 0", minHeight: 32 }}>
-      <span style={{ fontSize: 12, color: "#8896BE" }}>{label}</span>
+      <span style={{ fontSize: 12, color: "#c0b8a0" }}>{label}</span>
       <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <input type="range" min={0.4} max={1.6} step={0.1} value={v} aria-label={label}
           aria-valuetext={`${Math.round(v * 100)} percent`}
           onChange={e => onChange(Number(e.target.value))}
           className="wm-settings-control" style={{ width: 120, accentColor: "#C9A55C" }} />
-        <span style={{ fontSize: 11, color: "#8b8fa8", fontFamily: "monospace", minWidth: 36, textAlign: "right" }}>{Math.round(v * 100)}%</span>
+        <span style={{ fontSize: 11, color: "#8a8271", fontFamily: "monospace", minWidth: 36, textAlign: "right" }}>{Math.round(v * 100)}%</span>
       </span>
     </label>
   );
@@ -240,7 +241,7 @@ function GammaHeatSettings() {
         {presets.map(p => (
           <button key={p.id} type="button" aria-pressed={cur.id === p.id} className="wm-settings-control"
             onClick={() => write(p.id, p.id === "CUSTOM" ? { posRgb: cur.posRgb, negRgb: cur.negRgb, maxAlpha: cur.maxAlpha } : null)}
-            style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, cursor: "pointer", background: cur.id === p.id ? "#263050" : "#141824", border: `1px solid ${cur.id === p.id ? "#d4af37" : "#263050"}`, color: cur.id === p.id ? "#d4af37" : "#8896BE" }}>
+            style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, cursor: "pointer", background: cur.id === p.id ? "rgba(139,106,41,0.35)" : "#131317", border: `1px solid ${cur.id === p.id ? "#d4af37" : "rgba(139,106,41,0.35)"}`, color: cur.id === p.id ? "#d4af37" : "#c0b8a0" }}>
             {p.label}
           </button>
         ))}
@@ -253,7 +254,7 @@ function GammaHeatSettings() {
             options={[{ v: 0.12, label: "Faint" }, { v: 0.24, label: "Medium" }, { v: 0.36, label: "Strong" }, { v: 0.5, label: "Max" }]} />
         </>
       ) : null}
-      <div style={{ fontSize: 10, color: "#8b8fa8", marginTop: 4 }}>Positive is solid, negative is hatched in every preset. Two inks you make alike go back to the room's pair; heat never goes above 50% so candles stay readable.</div>
+      <div style={{ fontSize: 10, color: "#8a8271", marginTop: 4 }}>Positive is solid, negative is hatched in every preset. Two inks you make alike go back to the room's pair; heat never goes above 50% so candles stay readable.</div>
     </div>
   );
 }
@@ -261,12 +262,12 @@ function GammaHeatSettings() {
 function Choice<T extends string | number>({ value, options, onChange, label }: { value: T; options: readonly { v: T; label: string }[]; onChange: (v: T) => void; label: string }) {
   return (
     <div role="group" aria-label={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "6px 0" }}>
-      <span style={{ fontSize: 12, color: "#8896BE" }}>{label}</span>
+      <span style={{ fontSize: 12, color: "#c0b8a0" }}>{label}</span>
       <span style={{ display: "flex", gap: 4 }}>
         {options.map(o => (
           <button key={String(o.v)} type="button" aria-pressed={o.v === value} onClick={() => onChange(o.v)} className="wm-settings-control"
             style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, cursor: "pointer",
-              background: o.v === value ? "rgba(201,165,92,0.22)" : "#141824", border: `1px solid ${o.v === value ? "#C9A55C" : "#263050"}`, color: o.v === value ? "#ead9ad" : "#8896BE" }}>
+              background: o.v === value ? "rgba(201,165,92,0.22)" : "#131317", border: `1px solid ${o.v === value ? "#C9A55C" : "rgba(139,106,41,0.35)"}`, color: o.v === value ? "#ead9ad" : "#c0b8a0" }}>
             {o.label}
           </button>
         ))}
@@ -278,7 +279,7 @@ function Choice<T extends string | number>({ value, options, onChange, label }: 
 function Toggle({ value, onChange, label }: { value: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0" }}>
-      <span style={{ fontSize: 12, color: "#8896BE" }}>{label}</span>
+      <span style={{ fontSize: 12, color: "#c0b8a0" }}>{label}</span>
       <button
         type="button"
         role="switch"
@@ -288,13 +289,13 @@ function Toggle({ value, onChange, label }: { value: boolean; onChange: (v: bool
         onClick={() => onChange(!value)}
         style={{
           width: 36, height: 18, borderRadius: 9, cursor: "pointer", border: "none",
-          background: value ? "rgba(47,128,237,0.3)" : "#263050",
+          background: value ? "rgba(212,175,55,0.3)" : "rgba(139,106,41,0.35)",
           position: "relative", transition: "background 0.2s",
         }}
       >
         <div style={{
           position: "absolute", top: 3, left: value ? 18 : 3, width: 12, height: 12,
-          borderRadius: "50%", background: value ? "#2F80ED" : "#4A5580",
+          borderRadius: "50%", background: value ? "#d4af37" : "#26262d",
           transition: "left 0.2s, background 0.2s",
         }} />
       </button>
@@ -385,8 +386,8 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
               position: "fixed", top: 64,
               left: "max(12px, calc(50% - 260px))",
               width: "min(520px, calc(100vw - 24px))", maxHeight: "80vh",
-              background: "#0B0E1A",
-              border: "1px solid #263050",
+              background: "#0b0b0d",
+              border: "1px solid rgba(139,106,41,0.35)",
               borderRadius: 12,
               zIndex: 801,
               display: "flex", flexDirection: "column",
@@ -402,22 +403,22 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
               style={{
               cursor: "move", userSelect: "none",
               display: "flex", alignItems: "center", justifyContent: "space-between",
-              padding: "14px 18px", borderBottom: "1px solid #263050", flexShrink: 0,
+              padding: "14px 18px", borderBottom: "1px solid rgba(139,106,41,0.35)", flexShrink: 0,
             }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <Settings size={16} color="#2F80ED" />
-                <span style={{ fontSize: 14, fontWeight: 700, color: "#E2E8FF" }}>Chart Settings</span>
-                <span style={{ fontSize: 11, color: "#8896BE", background: "#141824", border: "1px solid #263050", borderRadius: 4, padding: "2px 7px" }}>
+                <Settings size={16} color="#d4af37" />
+                <span style={{ fontSize: 14, fontWeight: 700, color: "#ede6d3" }}>Chart Settings</span>
+                <span style={{ fontSize: 11, color: "#c0b8a0", background: "#131317", border: "1px solid rgba(139,106,41,0.35)", borderRadius: 4, padding: "2px 7px" }}>
                   {symbol}
                 </span>
               </div>
-              <button aria-label="Close chart settings" onClick={onClose} style={{ color: "#8896BE", background: "none", border: "none", cursor: "pointer" }}>
+              <button aria-label="Close chart settings" onClick={onClose} style={{ color: "#c0b8a0", background: "none", border: "none", cursor: "pointer" }}>
                 <X size={16} />
               </button>
             </div>
 
             {/* Tabs */}
-            <div style={{ display: "flex", borderBottom: "1px solid #263050", flexShrink: 0 }}>
+            <div style={{ display: "flex", borderBottom: "1px solid rgba(139,106,41,0.35)", flexShrink: 0 }}>
               {TABS.map(t => (
                 <button
                   key={t.id}
@@ -426,8 +427,8 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                     flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
                     gap: 5, padding: "9px 0", fontSize: 11, fontWeight: 600,
                     cursor: "pointer", background: "none", border: "none",
-                    color: tab === t.id ? "#2F80ED" : "#8896BE",
-                    borderBottom: tab === t.id ? "2px solid #2F80ED" : "2px solid transparent",
+                    color: tab === t.id ? "#d4af37" : "#c0b8a0",
+                    borderBottom: tab === t.id ? "2px solid #d4af37" : "2px solid transparent",
                     transition: "color 0.15s, border-color 0.15s",
                   }}
                 >
@@ -442,10 +443,10 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
               {/* SYMBOL TAB */}
               {tab === "symbol" && (
                 <div>
-                  <div style={{ background: "#141824", border: "1px solid #263050", borderRadius: 8, padding: "14px 16px", marginBottom: 12 }}>
-                    <div style={{ fontSize: 18, fontWeight: 700, color: "#E2E8FF", marginBottom: 4 }}>{symbol}</div>
-                    <div style={{ fontSize: 13, color: "#8896BE", marginBottom: 10 }}>{info.name}</div>
-                    <div style={{ fontSize: 11, color: "#8b8fa8", lineHeight: 1.6 }}>{info.description}</div>
+                  <div style={{ background: "#131317", border: "1px solid rgba(139,106,41,0.35)", borderRadius: 8, padding: "14px 16px", marginBottom: 12 }}>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: "#ede6d3", marginBottom: 4 }}>{symbol}</div>
+                    <div style={{ fontSize: 13, color: "#c0b8a0", marginBottom: 10 }}>{info.name}</div>
+                    <div style={{ fontSize: 11, color: "#8a8271", lineHeight: 1.6 }}>{info.description}</div>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                     {[
@@ -454,8 +455,8 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                       { label: "Symbol", value: symbol },
                     ].map(row => (
                       <div key={row.label} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid rgba(38,48,80,0.5)" }}>
-                        <span style={{ fontSize: 12, color: "#8896BE" }}>{row.label}</span>
-                        <span style={{ fontSize: 12, color: "#E2E8FF", fontWeight: 600 }}>{row.value}</span>
+                        <span style={{ fontSize: 12, color: "#c0b8a0" }}>{row.label}</span>
+                        <span style={{ fontSize: 12, color: "#ede6d3", fontWeight: 600 }}>{row.value}</span>
                       </div>
                     ))}
                   </div>
@@ -465,36 +466,36 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
               {/* CHART TAB */}
               {tab === "chart" && (
                 <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8b8fa8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Background</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8a8271", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Background</div>
                   <ColorSwatch value={s.background} onChange={v => set({ background: v })} label="Background color" />
 
-                  <div style={{ height: 1, background: "#263050", margin: "12px 0" }} />
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8b8fa8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Grid</div>
+                  <div style={{ height: 1, background: "rgba(139,106,41,0.35)", margin: "12px 0" }} />
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8a8271", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Grid</div>
                   <Toggle value={s.gridVisible} onChange={v => set({ gridVisible: v })} label="Show gridlines" />
                   {s.gridVisible && <ColorSwatch value={s.gridColor} onChange={v => set({ gridColor: v })} label="Grid color" />}
 
-                  <div style={{ height: 1, background: "#263050", margin: "12px 0" }} />
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8b8fa8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Candle Timer</div>
+                  <div style={{ height: 1, background: "rgba(139,106,41,0.35)", margin: "12px 0" }} />
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8a8271", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Candle Timer</div>
                   <Toggle value={s.candleTimer} onChange={v => set({ candleTimer: v })} label="Show candlestick timer" />
-                  <p style={{ fontSize: 11, color: "#8896BE", margin: "4px 0 0", lineHeight: 1.5 }}>
+                  <p style={{ fontSize: 11, color: "#c0b8a0", margin: "4px 0 0", lineHeight: 1.5 }}>
                     Live countdown to the current candle&apos;s close, pinned to the price line on the left edge. Flashes red in the final 5 seconds.
                   </p>
 
-                  <div style={{ height: 1, background: "#263050", margin: "12px 0" }} />
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8b8fa8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Crosshair</div>
+                  <div style={{ height: 1, background: "rgba(139,106,41,0.35)", margin: "12px 0" }} />
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8a8271", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Crosshair</div>
                   <Toggle value={s.crosshairVisible} onChange={v => set({ crosshairVisible: v })} label="Show crosshair" />
                   {s.crosshairVisible && (
                     <>
                       <ColorSwatch value={s.crosshairColor} onChange={v => set({ crosshairColor: v })} label="Crosshair color" />
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0" }}>
-                        <span style={{ fontSize: 12, color: "#8896BE" }}>Line style</span>
+                        <span style={{ fontSize: 12, color: "#c0b8a0" }}>Line style</span>
                         <div style={{ display: "flex", gap: 4 }}>
                           {(["solid", "dashed", "dotted"] as const).map(style => (
                             <button key={style} onClick={() => set({ crosshairStyle: style })} style={{
                               fontSize: 10, padding: "3px 8px", borderRadius: 4, cursor: "pointer",
-                              background: s.crosshairStyle === style ? "rgba(47,128,237,0.2)" : "#141824",
-                              border: `1px solid ${s.crosshairStyle === style ? "rgba(47,128,237,0.5)" : "#263050"}`,
-                              color: s.crosshairStyle === style ? "#2F80ED" : "#8896BE",
+                              background: s.crosshairStyle === style ? "rgba(212,175,55,0.16)" : "#131317",
+                              border: `1px solid ${s.crosshairStyle === style ? "rgba(212,175,55,0.55)" : "rgba(139,106,41,0.35)"}`,
+                              color: s.crosshairStyle === style ? "#d4af37" : "#c0b8a0",
                             }}>
                               {style}
                             </button>
@@ -504,22 +505,22 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                     </>
                   )}
 
-                  <div style={{ height: 1, background: "#263050", margin: "12px 0" }} />
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8b8fa8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Scales</div>
+                  <div style={{ height: 1, background: "rgba(139,106,41,0.35)", margin: "12px 0" }} />
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8a8271", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Scales</div>
                   <Toggle value={s.priceScaleVisible} onChange={v => set({ priceScaleVisible: v })} label="Show price scale" />
                   <Toggle value={s.timeScaleVisible} onChange={v => set({ timeScaleVisible: v })} label="Show time scale" />
 
                   {/* ── Timezone + clock format ───────────────────────────── */}
-                  <div style={{ height: 1, background: "#263050", margin: "12px 0" }} />
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8b8fa8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Time Zone &amp; Clock</div>
+                  <div style={{ height: 1, background: "rgba(139,106,41,0.35)", margin: "12px 0" }} />
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8a8271", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Time Zone &amp; Clock</div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0" }}>
-                    <span style={{ fontSize: 12, color: "#8896BE" }}>Time zone</span>
+                    <span style={{ fontSize: 12, color: "#c0b8a0" }}>Time zone</span>
                     <select aria-label="Time zone"
                       value={s.displayTimeZone}
                       onChange={e => set({ displayTimeZone: e.target.value })}
                       style={{
                         fontSize: 11, padding: "4px 8px", borderRadius: 4, cursor: "pointer",
-                        background: "#141824", border: "1px solid #263050", color: "#C7D0E8", maxWidth: 180,
+                        background: "#131317", border: "1px solid rgba(139,106,41,0.35)", color: "#c0b8a0", maxWidth: 180,
                       }}
                     >
                       {TIMEZONE_OPTIONS.map(tz => (
@@ -528,14 +529,14 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                     </select>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0" }}>
-                    <span style={{ fontSize: 12, color: "#8896BE" }}>Clock format</span>
+                    <span style={{ fontSize: 12, color: "#c0b8a0" }}>Clock format</span>
                     <div style={{ display: "flex", gap: 4 }}>
                       {([["12-hour", false], ["24-hour", true]] as const).map(([lbl, val]) => (
                         <button key={lbl} onClick={() => set({ clock24h: val })} style={{
                           fontSize: 10, padding: "3px 10px", borderRadius: 4, cursor: "pointer",
-                          background: s.clock24h === val ? "rgba(47,128,237,0.2)" : "#141824",
-                          border: `1px solid ${s.clock24h === val ? "rgba(47,128,237,0.5)" : "#263050"}`,
-                          color: s.clock24h === val ? "#2F80ED" : "#8896BE",
+                          background: s.clock24h === val ? "rgba(212,175,55,0.16)" : "#131317",
+                          border: `1px solid ${s.clock24h === val ? "rgba(212,175,55,0.55)" : "rgba(139,106,41,0.35)"}`,
+                          color: s.clock24h === val ? "#d4af37" : "#c0b8a0",
                         }}>
                           {lbl}
                         </button>
@@ -545,14 +546,14 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
 
                   {s.priceScaleVisible && (
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0" }}>
-                      <span style={{ fontSize: 12, color: "#8896BE" }}>Price scale position</span>
+                      <span style={{ fontSize: 12, color: "#c0b8a0" }}>Price scale position</span>
                       <div style={{ display: "flex", gap: 4 }}>
                         {(["right", "left"] as const).map(pos => (
                           <button key={pos} onClick={() => set({ priceScalePosition: pos })} style={{
                             fontSize: 10, padding: "3px 10px", borderRadius: 4, cursor: "pointer",
-                            background: s.priceScalePosition === pos ? "rgba(47,128,237,0.2)" : "#141824",
-                            border: `1px solid ${s.priceScalePosition === pos ? "rgba(47,128,237,0.5)" : "#263050"}`,
-                            color: s.priceScalePosition === pos ? "#2F80ED" : "#8896BE",
+                            background: s.priceScalePosition === pos ? "rgba(212,175,55,0.16)" : "#131317",
+                            border: `1px solid ${s.priceScalePosition === pos ? "rgba(212,175,55,0.55)" : "rgba(139,106,41,0.35)"}`,
+                            color: s.priceScalePosition === pos ? "#d4af37" : "#c0b8a0",
                           }}>
                             {pos}
                           </button>
@@ -561,8 +562,8 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                     </div>
                   )}
 
-                  <div style={{ height: 1, background: "#263050", margin: "12px 0" }} />
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8b8fa8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Candle Colors</div>
+                  <div style={{ height: 1, background: "rgba(139,106,41,0.35)", margin: "12px 0" }} />
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8a8271", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Candle Colors</div>
                   <ColorSwatch value={s.candleUp}   onChange={v => set({ candleUp: v })}   label="Bull candle body" />
                   <ColorSwatch value={s.candleDown} onChange={v => set({ candleDown: v })} label="Bear candle body" />
                   <ColorSwatch value={s.wickUp}     onChange={v => set({ wickUp: v })}     label="Bull wick" />
@@ -570,8 +571,8 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                   <ColorSwatch value={s.borderUp}   onChange={v => set({ borderUp: v })}   label="Bull border" />
                   <ColorSwatch value={s.borderDown} onChange={v => set({ borderDown: v })} label="Bear border" />
 
-                  <div style={{ height: 1, background: "#263050", margin: "12px 0" }} />
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8b8fa8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Order Flow Colors</div>
+                  <div style={{ height: 1, background: "rgba(139,106,41,0.35)", margin: "12px 0" }} />
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8a8271", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Order Flow Colors</div>
                   <ColorSwatch value={s.bigTradeBuy ?? FLOW_COLOR_DEFAULTS.bigTradeBuy}   onChange={v => set({ bigTradeBuy: v })}   label="Big trade · buy" />
                   <ColorSwatch value={s.bigTradeSell ?? FLOW_COLOR_DEFAULTS.bigTradeSell} onChange={v => set({ bigTradeSell: v })} label="Big trade · sell" />
                   <ColorSwatch value={s.deltaBuy ?? FLOW_COLOR_DEFAULTS.deltaBuy}         onChange={v => set({ deltaBuy: v })}       label="Delta bubble · net buy" />
@@ -583,35 +584,35 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                   <ColorSwatch value={s.callWallInk ?? FLOW_COLOR_DEFAULTS.callWallInk} onChange={v => set({ callWallInk: v })} label="Call Wall (solid)" />
                   <ColorSwatch value={s.putWallInk ?? FLOW_COLOR_DEFAULTS.putWallInk}   onChange={v => set({ putWallInk: v })}   label="Put Wall (dashed)" />
                   <ColorSwatch value={s.brickWallInk ?? FLOW_COLOR_DEFAULTS.brickWallInk} onChange={v => set({ brickWallInk: v })} label="Brick Wall · brick face" />
-                  <div style={{ fontSize: 11, color: "#8b8fa8", margin: "2px 0 4px" }}>A pair you make identical goes back to the room&apos;s pair.</div>
+                  <div style={{ fontSize: 11, color: "#8a8271", margin: "2px 0 4px" }}>A pair you make identical goes back to the room&apos;s pair.</div>
 
-                  <div style={{ height: 1, background: "#263050", margin: "12px 0" }} />
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8b8fa8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Volume Colors</div>
+                  <div style={{ height: 1, background: "rgba(139,106,41,0.35)", margin: "12px 0" }} />
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8a8271", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Volume Colors</div>
                   <ColorSwatch value={s.volumeUp ?? VOLUME_COLOR_PICKER_DEFAULTS.volumeUp}     onChange={v => set({ volumeUp: v })}   label="Volume · up bar" />
                   <ColorSwatch value={s.volumeDown ?? VOLUME_COLOR_PICKER_DEFAULTS.volumeDown} onChange={v => set({ volumeDown: v })} label="Volume · down bar" />
 
-                  <div style={{ height: 1, background: "#263050", margin: "12px 0" }} />
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8b8fa8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Layer Opacity</div>
+                  <div style={{ height: 1, background: "rgba(139,106,41,0.35)", margin: "12px 0" }} />
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8a8271", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Layer Opacity</div>
                   <Dial value={s.profileOpacity} onChange={v => set({ profileOpacity: v })} label="Profiles" />
                   <Dial value={s.wallOpacity}    onChange={v => set({ wallOpacity: v })}    label="Walls & options" />
                   <Dial value={s.memoryOpacity}  onChange={v => set({ memoryOpacity: v })}  label="Memory (fade)" />
                   <details data-profile-species-dials style={{ marginTop: 4 }}>
-                    <summary style={{ fontSize: 12, color: "#8896BE", cursor: "pointer", minHeight: 32, display: "flex", alignItems: "center" }}>Profiles · each species</summary>
+                    <summary style={{ fontSize: 12, color: "#c0b8a0", cursor: "pointer", minHeight: 32, display: "flex", alignItems: "center" }}>Profiles · each species</summary>
                     {PROFILE_SPECIES.map(sp => (
                       <Dial key={sp} value={s.profileSpeciesOpacity?.[sp]} label={PROFILE_SPECIES_LABEL[sp]}
                         onChange={v => set({ profileSpeciesOpacity: lawfulSpeciesOpacity({ ...(s.profileSpeciesOpacity ?? {}), [sp]: v }) })} />
                     ))}
                   </details>
                   <details data-invention-dials style={{ marginTop: 4 }}>
-                    <summary style={{ fontSize: 12, color: "#8896BE", cursor: "pointer", minHeight: 32, display: "flex", alignItems: "center" }}>Inventions · each one</summary>
-                    <div style={{ fontSize: 11, color: "#8b8fa8", margin: "2px 0 6px" }}>Never below a readable floor. Entry, stop and target lines keep their own look (Order lines, below).</div>
+                    <summary style={{ fontSize: 12, color: "#c0b8a0", cursor: "pointer", minHeight: 32, display: "flex", alignItems: "center" }}>Inventions · each one</summary>
+                    <div style={{ fontSize: 11, color: "#8a8271", margin: "2px 0 6px" }}>Never below a readable floor. Entry, stop and target lines keep their own look (Order lines, below).</div>
                     {INVENTION_DIALS.map(k => (
                       <Dial key={k} value={s.inventionOpacity?.[k]} label={INVENTION_DIAL_LABEL[k]}
                         onChange={v => set({ inventionOpacity: lawfulInventionOpacity({ ...(s.inventionOpacity ?? {}), [k]: v }) })} />
                     ))}
                   </details>
                   <details data-profile-species-inks style={{ marginTop: 4 }}>
-                    <summary style={{ fontSize: 12, color: "#8896BE", cursor: "pointer", minHeight: 32, display: "flex", alignItems: "center" }}>Profile colour · each species</summary>
+                    <summary style={{ fontSize: 12, color: "#c0b8a0", cursor: "pointer", minHeight: 32, display: "flex", alignItems: "center" }}>Profile colour · each species</summary>
                     {(() => {
                       const law = lawfulSpeciesInks(s.profileSpeciesInk, { field: s.background, poc: `rgb(${PROFILE_INK_AT_REST.rgb("POC")})` });
                       const why = { INVALID: "not a colour", FIELD: "too close to the chart background", POC: "too close to the POC", TWIN: "too close to another species" } as const;
@@ -630,7 +631,7 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                             </div>
                           ))}
                           <button type="button" className="wm-settings-control" onClick={() => set({ profileSpeciesInk: undefined })}
-                            style={{ fontSize: 11, padding: "3px 8px", marginTop: 4, borderRadius: 4, cursor: "pointer", background: "#141824", border: "1px solid #263050", color: "#8896BE" }}>
+                            style={{ fontSize: 11, padding: "3px 8px", marginTop: 4, borderRadius: 4, cursor: "pointer", background: "#131317", border: "1px solid rgba(139,106,41,0.35)", color: "#c0b8a0" }}>
                             Family ink for every species
                           </button>
                         </>
@@ -638,8 +639,8 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                     })()}
                   </details>
 
-                  <div style={{ height: 1, background: "#263050", margin: "12px 0" }} />
-                  <div data-settings-section="marks" style={{ fontSize: 10, fontWeight: 700, color: "#8b8fa8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Marks</div>
+                  <div style={{ height: 1, background: "rgba(139,106,41,0.35)", margin: "12px 0" }} />
+                  <div data-settings-section="marks" style={{ fontSize: 10, fontWeight: 700, color: "#8a8271", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Marks</div>
                   <Choice label="Big-trade bubbles" value={s.bubbleScale ?? 1} onChange={v => set({ bubbleScale: v })}
                     options={[{ v: 0.7, label: "Small" }, { v: 1, label: "As shipped" }, { v: 1.3, label: "Large" }]} />
                   <Choice label="Footprint numbers" value={s.footprintNumberStep ?? 0} onChange={v => set({ footprintNumberStep: v })}
@@ -647,25 +648,25 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                   <Choice label="Wall thickness" value={s.wallThickness ?? 1} onChange={v => set({ wallThickness: v })}
                     options={[{ v: 1, label: "Thin" }, { v: 1.5, label: "Medium" }, { v: 2, label: "Thick" }]} />
                   <div role="group" aria-label="Profile colours" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "6px 0" }}>
-                    <span style={{ fontSize: 12, color: "#8896BE" }}>Profile colours</span>
+                    <span style={{ fontSize: 12, color: "#c0b8a0" }}>Profile colours</span>
                     <span style={{ display: "flex", gap: 4 }}>
                       {([["Room brass", null], ["Red / Green", PROFILE_PRESET_RED_GREEN]] as const).map(([lbl, preset]) => (
                         <button key={lbl} type="button" className="wm-settings-control"
                           onClick={() => { try { applyProfilePreset(localStorage, preset, () => window.dispatchEvent(new Event("wm-vp-colors"))); } catch { /* private mode */ } }}
-                          style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, cursor: "pointer", background: "#141824", border: "1px solid #263050", color: "#8896BE" }}>
+                          style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, cursor: "pointer", background: "#131317", border: "1px solid rgba(139,106,41,0.35)", color: "#c0b8a0" }}>
                           {lbl}
                         </button>
                       ))}
                     </span>
                   </div>
-                  <div style={{ fontSize: 10, color: "#8b8fa8", marginTop: 4 }}>Nothing you turn on can be dialled below readable.</div>
+                  <div style={{ fontSize: 10, color: "#8a8271", marginTop: 4 }}>Nothing you turn on can be dialled below readable.</div>
 
-                  <div style={{ height: 1, background: "#263050", margin: "12px 0" }} />
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8b8fa8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Gamma Heatmap</div>
+                  <div style={{ height: 1, background: "rgba(139,106,41,0.35)", margin: "12px 0" }} />
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8a8271", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Gamma Heatmap</div>
                   <GammaHeatSettings />
 
-                  <div style={{ height: 1, background: "#263050", margin: "12px 0" }} />
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8b8fa8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Order Lines</div>
+                  <div style={{ height: 1, background: "rgba(139,106,41,0.35)", margin: "12px 0" }} />
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8a8271", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Order Lines</div>
                   {(() => {
                     // The swatches show what will PAINT (the lawful look), so a choice the law refused reads back as refused.
                     const looks = lawfulOrderLineLooks(s, s.background);
@@ -680,7 +681,7 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                           options={[{ v: 1, label: "1px" }, { v: 2, label: "2px" }, { v: 3, label: "3px" }, { v: 4, label: "4px" }]} />
                         <Choice label="Line style (staged)" value={looks.STOP.dash} onChange={v => set({ orderLineStyle: v })}
                           options={[{ v: "solid", label: "Solid" }, { v: "dashed", label: "Dashed" }, { v: "dotted", label: "Dotted" }]} />
-                        <div style={{ fontSize: 10, color: "#8b8fa8", marginTop: 4 }}>
+                        <div style={{ fontSize: 10, color: "#8a8271", marginTop: 4 }}>
                           Never fainter than {Math.round(ORDER_LINE_ALPHA_FLOOR * 100)}%. A stop and a target you make alike go back to red and green; an entry alike to either goes back to ivory. A working order is always solid.
                         </div>
                       </div>
@@ -692,16 +693,16 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
             </div>
 
             {/* Footer */}
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "12px 18px", borderTop: "1px solid #263050", flexShrink: 0 }}>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "12px 18px", borderTop: "1px solid rgba(139,106,41,0.35)", flexShrink: 0 }}>
               <button onClick={() => onSettingsChange(DEFAULT_CHART_SETTINGS)} style={{
                 fontSize: 12, padding: "6px 14px", borderRadius: 5, cursor: "pointer",
-                background: "#141824", border: "1px solid #263050", color: "#8896BE",
+                background: "#131317", border: "1px solid rgba(139,106,41,0.35)", color: "#c0b8a0",
               }}>
                 Reset defaults
               </button>
               <button onClick={onClose} style={{
-                fontSize: 12, padding: "6px 14px", borderRadius: 5, cursor: "pointer",
-                background: "rgba(47,128,237,0.2)", border: "1px solid rgba(47,128,237,0.4)", color: "#2F80ED", fontWeight: 700,
+                ...WM_PRIMARY_ACTION,
+                fontSize: 12, padding: "6px 14px", borderRadius: 5, cursor: "pointer", fontWeight: 700,
               }}>
                 Done
               </button>
