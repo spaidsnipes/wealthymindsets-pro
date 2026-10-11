@@ -2706,6 +2706,11 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   body:not(:has(.wm-chart-market-pane[data-market-primary="true"])) [data-testid="os-identity"] > :not(.wm-wordmark),
   body:not(:has(.wm-chart-market-pane[data-market-primary="true"])) [data-testid="os-identity"] .wm-wordmark > div + div { display: none !important; }
   body:not(:has(.wm-chart-market-pane[data-market-primary="true"])) [data-testid="os-identity"] .wm-wordmark img { width: 22px !important; height: 22px !important; }
+  /* The room's own title stands right below (Paper Trading, Scanner, Morning Prep…); the masthead's
+     copy of the room name steps back on a phone so the utilities keep the first row (measured: the
+     longer names wrapped them — Paper / Scanner 131px, Morning Prep 153px). */
+  body:not(:has(.wm-chart-market-pane[data-market-primary="true"])) .wm-os-masthead [data-testid="os-surface"],
+  body:not(:has(.wm-chart-market-pane[data-market-primary="true"])) .wm-os-masthead [data-testid="os-surface"] + *:empty { display: none !important; }
   body:not(:has(.wm-chart-market-pane[data-market-primary="true"])) .wm-os-masthead-center {
     order: 9; flex: 1 0 100% !important; overflow-x: auto !important; flex-wrap: nowrap !important; scrollbar-width: none; max-height: 44px;
   }
