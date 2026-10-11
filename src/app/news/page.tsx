@@ -948,7 +948,8 @@ export default function NewsPage() {
             className={clsx(
               "flex items-center gap-1 px-2 h-6 rounded text-[10px] font-semibold border transition-all",
               liveMode
-                ? "bg-wm-green/15 text-wm-green border-wm-green/40"
+                // The house "on" state (G19 pass 2026-10-10) — green is the market's word, not a switch's.
+                ? "bg-wm-brass-mark/15 text-wm-brass-mark border-wm-brass-mark/40"
                 : "bg-wm-surface border-wm-border text-wm-text-muted"
             )}
           >

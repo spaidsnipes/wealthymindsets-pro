@@ -71,3 +71,11 @@ describe("Chart Settings is a house room, not a charting-package navy", () => {
   });
 });
 
+
+describe("the Settings drawer speaks brass, not the Tailwind blue / green / purple scale", () => {
+  it("shellPanels.tsx carries no wm-blue / wm-green / wm-purple class", () => {
+    const src = read("src/components/layout/shellPanels.tsx");
+    expect(src.length).toBeGreaterThan(10_000);
+    expect(src.match(/\bwm-(blue|green|purple)\b/g) ?? []).toEqual([]);
+  });
+});

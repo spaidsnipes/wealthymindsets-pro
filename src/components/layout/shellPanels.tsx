@@ -71,9 +71,10 @@ import { readJournalRaw } from "@/lib/traderMemory/adapters/journalStorage";
 export { initialUnreadNotificationCount, SETTINGS_TAB_IDS, OPEN_SETTINGS_EVENT, openSettings, type SettingsTabId } from "@/components/layout/shellPanelDoors";
 
 const CAT_COLOR: Record<string,string> = {
-  Futures:"text-wm-gold",  Stock:"text-wm-blue",
-  ETF:"text-wm-green",     Crypto:"text-wm-purple",
-  Forex:"text-wm-text-muted", Index:"text-wm-gold", Fund:"text-wm-green",
+  // House ladder (G19 pass 2026-10-10): the asset type is its WORD; ink is brass / ivory strength.
+  Futures:"text-wm-gold",  Stock:"text-wm-ivory",
+  ETF:"text-wm-brass-mark", Crypto:"text-wm-ivory-body",
+  Forex:"text-wm-text-muted", Index:"text-wm-gold", Fund:"text-wm-brass-mark",
 };
 
 /** The palette's category filter (Founder, 2026-09-28: "it used to also say crypto forex futures stocks"). */
@@ -176,7 +177,7 @@ export function SearchPanel({
             placeholder="Search any symbol — NQ1!, AAPL, RIVN, BTC, EUR/USD…"
             className="flex-1 bg-transparent text-sm text-wm-text outline-none placeholder-wm-text-dim"
           />
-          {searching && <div aria-hidden="true" className="w-3 h-3 rounded-full border-2 border-wm-blue border-t-transparent animate-spin shrink-0" />}
+          {searching && <div aria-hidden="true" className="w-3 h-3 rounded-full border-2 border-wm-brass-mark border-t-transparent animate-spin shrink-0" />}
           {query && !searching && (
             <button type="button" aria-label="Clear symbol search" onClick={() => { setQuery(""); }} className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-wm-text-dim hover:bg-wm-surface hover:text-wm-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold">
               <X size={14} aria-hidden="true" />
@@ -234,7 +235,7 @@ export function SearchPanel({
             <button
               onClick={() => pick(query.trim().toUpperCase())}
               aria-label={`Open ${query.trim().toUpperCase()} as entered`}
-              className="mt-1 inline-flex min-h-11 items-center rounded-lg px-3 text-xs text-wm-blue hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold"
+              className="mt-1 inline-flex min-h-11 items-center rounded-lg px-3 text-xs text-wm-brass-mark hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold"
             >
               Open &ldquo;{query.trim().toUpperCase()}&rdquo; anyway →
             </button>
@@ -247,7 +248,7 @@ export function SearchPanel({
               <div className="text-[10px] text-wm-text-dim uppercase tracking-wider">Quick access</div>
               <button type="button" onClick={() => setEditingQuick(v => !v)}
                 aria-label={editingQuick ? "Finish editing quick access" : "Edit quick access"}
-                className="inline-flex min-h-11 items-center rounded-lg px-2 text-[10px] text-wm-blue transition-colors hover:text-wm-blue/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold">
+                className="inline-flex min-h-11 items-center rounded-lg px-2 text-[10px] text-wm-brass-mark transition-colors hover:text-wm-brass-mark/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold">
                 {editingQuick ? "Done" : "✎ Edit"}
               </button>
             </div>
@@ -259,7 +260,7 @@ export function SearchPanel({
                     className={`min-h-11 px-2.5 py-1 rounded-lg bg-wm-surface border text-xs font-bold transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold ${
                       editingQuick
                         ? "border-wm-red/50 text-wm-red hover:bg-wm-red/10"
-                        : "border-wm-border text-wm-text hover:border-wm-green/50 hover:text-wm-green"
+                        : "border-wm-border text-wm-text hover:border-wm-brass-mark/50 hover:text-wm-brass-mark"
                     }`}>
                     {editingQuick ? "✕ " : ""}{s}
                   </button>
@@ -273,12 +274,12 @@ export function SearchPanel({
                     onChange={e => setNewQuickInput(e.target.value.toUpperCase())}
                     onKeyDown={e => { if (e.key === "Enter") addQuick(newQuickInput); }}
                     placeholder="+ Add…"
-                    className="h-11 w-24 px-2 py-0.5 rounded-lg bg-wm-surface border border-wm-border text-xs text-wm-text outline-none focus:border-wm-blue/50 placeholder-wm-text-dim"
+                    className="h-11 w-24 px-2 py-0.5 rounded-lg bg-wm-surface border border-wm-border text-xs text-wm-text outline-none focus:border-wm-brass-mark/50 placeholder-wm-text-dim"
                   />
                   <button type="button" onClick={() => addQuick(newQuickInput)}
                     disabled={!newQuickInput.trim() || quickSyms.includes(newQuickInput.trim().toUpperCase())}
                     aria-label="Add quick access symbol"
-                    className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-xs font-bold text-wm-green hover:text-wm-green/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold disabled:cursor-not-allowed disabled:opacity-40">
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-xs font-bold text-wm-brass-mark hover:text-wm-brass-mark/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold disabled:cursor-not-allowed disabled:opacity-40">
                     ✓
                   </button>
                 </div>
@@ -330,7 +331,7 @@ export function NotificationsPanel({
         <button
           type="button"
           onClick={markAll}
-          className="inline-flex min-h-11 items-center justify-center rounded px-2 text-[10px] text-wm-blue transition-colors hover:bg-wm-surface hover:text-wm-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
+          className="inline-flex min-h-11 items-center justify-center rounded px-2 text-[10px] text-wm-brass-mark transition-colors hover:bg-wm-surface hover:text-wm-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
         >
           Mark all read
         </button>
@@ -364,7 +365,7 @@ export function NotificationsPanel({
               <span className="min-w-0 flex-1">
                 <span className="mb-0.5 flex items-center gap-1.5">
                   <span className={clsx("text-xs font-bold", n.read ? "text-wm-text-muted" : "text-wm-text")}>{n.title}</span>
-                  {!n.read && <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-wm-blue" />}
+                  {!n.read && <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-wm-brass-mark" />}
                   <span className="sr-only">{n.read ? "Read" : "Unread"}</span>
                 </span>
                 <span className="block text-[11px] leading-relaxed text-wm-text-dim">{n.body}</span>
@@ -537,7 +538,7 @@ export function SettingsPanel({
       width={420}
       onClose={onClose}
       fallbackTriggerRef={fallbackTriggerRef}
-      titleIcon={<Settings size={15} className="text-wm-blue" aria-hidden="true" />}
+      titleIcon={<Settings size={15} className="text-wm-brass-mark" aria-hidden="true" />}
       footer={(
         <div className="space-y-2">
           <button
@@ -595,7 +596,7 @@ export function SettingsPanel({
               onKeyDown={event => onTabKeyDown(event, t.id)}
               className={clsx(
                 "flex min-h-11 basis-1/3 flex-col items-center justify-center gap-1 py-2 text-[10px] font-semibold transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-wm-gold",
-                tab === t.id ? "text-wm-blue border-b-2 border-wm-blue" : "text-wm-text-muted hover:text-wm-text"
+                tab === t.id ? "text-wm-brass-mark border-b-2 border-wm-brass-mark" : "text-wm-text-muted hover:text-wm-text"
               )}>
               <t.icon size={13} aria-hidden="true" />
               {t.label}
@@ -671,7 +672,7 @@ export function SettingsPanel({
                     value={defSym}
                     onChange={e => setDefSym(e.target.value.toUpperCase())}
                     placeholder="Search symbol…"
-                    className="min-h-11 w-28 rounded-lg border border-wm-border bg-wm-surface px-2 py-1 text-xs uppercase text-wm-text outline-none focus:border-wm-blue focus-visible:ring-2 focus-visible:ring-wm-gold" />
+                    className="min-h-11 w-28 rounded-lg border border-wm-border bg-wm-surface px-2 py-1 text-xs uppercase text-wm-text outline-none focus:border-wm-brass-mark focus-visible:ring-2 focus-visible:ring-wm-gold" />
                   <datalist id="wm-defsym-list">
                     {["NQ1!","ES1!","BTC","ETH","AAPL","SPY","GC1!","TSLA","NVDA","MSFT","QQQ","EUR/USD","XAU/USD"].map(s => <option key={s} value={s} />)}
                   </datalist>
@@ -733,7 +734,7 @@ export function SettingsPanel({
                 {/* WM-CHART-PROV-EMERG-01 (2026-08-09): vendor identity removed
                     from user-visible chrome per Founder directive. Provenance
                     kept internal for the diagnostics inspector. */}
-                <span className="text-xs text-wm-blue font-semibold">See contextual data health</span>
+                <span className="text-xs text-wm-brass-mark font-semibold">See contextual data health</span>
               </Row>
               {/* Garden 16 §46: the "Two-Factor Auth" switch changed nothing —
                   a security control that does not secure is withdrawn. */}
