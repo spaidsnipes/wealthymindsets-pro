@@ -72,7 +72,8 @@ describe("the doors listen; Configure uses the owner", () => {
   });
   it("Active Tools' Configure opens the door, falling back to the card only when none holds the tool", () => {
     const src = readFileSync("src/components/chart/ActiveToolsPanel.tsx", "utf8");
-    expect(src).toContain("onClick={() => { if (!openDoor(id)) onConfigure(id); }}");
+    expect(src).toContain("if (anchor) { window.dispatchEvent(new CustomEvent<{ section: ChartSettingsSection }>(CHART_SETTINGS_SECTION_EVENT, { detail: { section: anchor as ChartSettingsSection } })); return; }");
+    expect(src).toContain("if (!openDoor(id)) onConfigure(id);");
     expect(src).toContain("openDoor = openToolDoor");
   });
 });

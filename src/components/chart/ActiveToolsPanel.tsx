@@ -20,7 +20,8 @@ import React from "react";
 
 import type { ProfileId, ProfileMenuEntry } from "@/lib/marketData/viewModels/selectProfileMenu";
 import { autoCompose, nextRole, ROLE_LAYERS, writeStoredRoles, type VisualRole, type VisualRoles } from "@/lib/workspace/visualRoles";
-import { familyDoorFor, openToolDoor } from "@/lib/workspace/toolDoor";
+import { CHART_SETTINGS_SECTION_EVENT, familyDoorFor, openToolDoor, type ChartSettingsSection } from "@/lib/workspace/toolDoor";
+import { settingsAnchorFor } from "@/lib/workspace/inventionSettingsAnchor";
 import { clearFocus, focusTool, selectActiveTools, toggleHidden, toolFocused, type ActiveToolPaint } from "@/lib/workspace/activeTools";
 
 const GOLD = "#d4af37";
@@ -100,11 +101,17 @@ export function ActiveToolsPanel({ entries, instruments = [], receipts, roles, o
       type="button"
       ref={el => { if (el) configButtons.current.set(id, el); else configButtons.current.delete(id); }}
       data-testid={`active-tool-configure-${id}`}
-      data-tool-door={familyDoorFor(id) ?? "CARD"}
-      aria-label={familyDoorFor(id) ? `Configure ${label} — opens its tools door` : `Configure ${label}`}
-      aria-expanded={familyDoorFor(id) ? undefined : configureOpenId === id}
-      title={familyDoorFor(id) ? "Configure — open its tools door" : "Configure — its card"}
-      onClick={() => { if (!openDoor(id)) onConfigure(id); }}
+      data-tool-door={settingsAnchorFor(id) ? "APPEARANCE" : familyDoorFor(id) ?? "CARD"}
+      aria-label={settingsAnchorFor(id) ? `${label} appearance — colour and opacity` : familyDoorFor(id) ? `Configure ${label} — opens its tools door` : `Configure ${label}`}
+      aria-expanded={settingsAnchorFor(id) || familyDoorFor(id) ? undefined : configureOpenId === id}
+      title={settingsAnchorFor(id) ? "Appearance — its colour and opacity" : familyDoorFor(id) ? "Configure — open its tools door" : "Configure — its card"}
+      // A tool with a look of its own opens ON its appearance controls (Founder 2026-10-11: "no hunting
+      // through unrelated menus"); others keep their family door or card.
+      onClick={() => {
+        const anchor = settingsAnchorFor(id);
+        if (anchor) { window.dispatchEvent(new CustomEvent<{ section: ChartSettingsSection }>(CHART_SETTINGS_SECTION_EVENT, { detail: { section: anchor as ChartSettingsSection } })); return; }
+        if (!openDoor(id)) onConfigure(id);
+      }}
       style={{ ...BTN, color: configureOpenId === id ? GOLD : MUTED }}
     >
       <span aria-hidden>⚙</span>

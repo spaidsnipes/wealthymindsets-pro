@@ -82,8 +82,10 @@ describe("the panel", () => {
     expect(html).toContain("ON — nothing on this camera");
     for (const id of ["focus", "configure", "hide", "off"]) expect(html).toContain(`data-testid="active-tool-${id}-ABSORPTION"`);
     expect(html).toContain('data-testid="active-tool-off-FP_volume"');
-    // Configure deep-links to the family door (toolDoor.ts).
-    expect(html).toMatch(/data-testid="active-tool-configure-ABSORPTION" data-tool-door="order-flow"/);
+    // Configure opens the tool's own appearance controls when it has a look of its own (2026-10-11);
+    // otherwise it deep-links to the family door (toolDoor.ts).
+    expect(html).toMatch(/data-testid="active-tool-configure-ABSORPTION" data-tool-door="APPEARANCE"/);
+    expect(html).toMatch(/data-testid="active-tool-configure-FP_volume" data-tool-door="order-flow"/);
     expect(html).toContain('aria-label="Turn off Footprint · Volume"');
     expect(html).not.toMatch(/min-width:(?:[0-3]\d|4[0-3])px/);
     // Narrow Tools sheet (live 47a4c37, 2026-10-07): the name takes its own line, the controls wrap below it.
