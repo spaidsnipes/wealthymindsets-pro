@@ -13810,7 +13810,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // app's does ("price · time left"), instead of a box over the oldest candles at the left
           // edge (Founder 2026-10-11, true mobile read: it sat on the candles). Desk unchanged.
           const axisW = (() => {
-            if (W >= 640) return 0;
+            // Narrow glass too (a phone on its side: wide but short), where the left-edge box sat on the oldest candles.
+            if (W >= 640 && !narrowGlass) return 0;
             try { const w = chart?.priceScale("right").width(); return Number.isFinite(w) && (w as number) > 0 ? (w as number) : 0; } catch { return 0; }
           })();
           const inAxis = axisW > 0 && tw + 20 <= axisW - 2;
@@ -13846,7 +13847,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.strokeStyle = border; ctx.lineWidth = 1;
             ctx.strokeRect(x + 0.5, boxY + 0.5, boxW - 1, boxH - 1);
           }
-          { const dsT = canvasRef.current?.dataset; if (dsT) dsT.candleTimerPlace = inAxis ? "AXIS_UNDER_PRICE" : W < 640 ? "LEFT_EDGE" : "DESK"; }
+          { const dsT = canvasRef.current?.dataset; if (dsT) dsT.candleTimerPlace = inAxis ? "AXIS_UNDER_PRICE" : W < 640 || narrowGlass ? "LEFT_EDGE" : "DESK"; }
           // elapsed-fraction ring (clock)
           const ringX = x + (inAxis ? 8 : 10), ringR = 5;
           ctx.beginPath(); ctx.arc(ringX, cy, ringR, 0, Math.PI * 2);
