@@ -13,6 +13,12 @@ const read = (f: string) => readFileSync(path.join(process.cwd(), f), "utf8");
 const SAAS = /#(00D4AA|4FA3E0|8B5CF6|00B4D8|06D6A0|00FFC2|FF6B9D)\b/gi;
 
 describe("Lounge and Academy carry no third-party identity colours", () => {
+  it("Creator programme: none at all", () => {
+    const src = read("src/app/creator/page.tsx");
+    expect(src.length).toBeGreaterThan(5_000);
+    expect(src.match(SAAS) ?? []).toEqual([]);
+    expect(src).not.toMatch(/79,163,224|0,212,170/);
+  });
   it("Academy: none at all", () => {
     const src = read("src/app/education/page.tsx");
     expect(src.length).toBeGreaterThan(20_000);

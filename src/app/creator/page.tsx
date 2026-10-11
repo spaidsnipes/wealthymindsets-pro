@@ -61,9 +61,9 @@ const TIERS: Tier[] = [
     label: "Creator PRO",
     price: 50,
     period: "per month",
-    color: "#4FA3E0",
-    border: "rgba(79,163,224,0.5)",
-    bg:    "rgba(79,163,224,0.06)",
+    color: "#ede6d3",
+    border: "rgba(237,230,211,0.35)",
+    bg:    "rgba(237,230,211,0.04)",
     icon:  <Zap size={18} />,
     badge: "PROPOSED", // was POPULAR: no tier has members yet (2026-10-04)
     description: "Serious creators who want higher commissions, co-branded content, and direct promotion.",
@@ -249,8 +249,8 @@ export default function CreatorPage() {
           </div>
 
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border bg-wm-dark/60 text-xs font-mono"
-               style={{ borderColor:"rgba(79,163,224,0.3)" }}>
-            <Globe size={11} className="text-wm-blue shrink-0"/>
+               style={{ borderColor:"rgba(139,106,41,0.45)" }}>
+            <Globe size={11} className="shrink-0" style={{ color: "#c9a55c" }}/>
             <span className="text-wm-text-muted">Referral links appear only after a real tracking service is connected.</span>
           </div>
         </div>
@@ -386,8 +386,8 @@ export default function CreatorPage() {
                 </div>
                 <div>
                   <span className="text-[10px] font-black px-1.5 py-0.5 rounded"
-                        style={{ background: c.tier === "ELITE" ? "rgba(240,180,41,0.15)" : "rgba(79,163,224,0.12)",
-                                 color: c.tier === "ELITE" ? "#F0B429" : "#4FA3E0" }}>
+                        style={{ background: c.tier === "ELITE" ? "rgba(212,175,55,0.16)" : "rgba(237,230,211,0.06)",
+                                 color: c.tier === "ELITE" ? "#d4af37" : "#ede6d3" }}>
                     {c.tier}
                   </span>
                 </div>
@@ -408,9 +408,9 @@ export default function CreatorPage() {
           <h2 className="text-base font-black text-wm-text mb-5 text-center">How It Works</h2>
           <div className="grid grid-cols-4 gap-4">
             {[
-              { step:"01", title:"Save Interest",    desc:"Save a program preference on this device while enrollment is being built.", color:"#8896BE" },
-              { step:"02", title:"Get Verified",     desc:"Future enrollment will require a real account and referral-tracking service.", color:"#4FA3E0" },
-              { step:"03", title:"Share & Promote",  desc:"Post on social, YouTube, Discord, or your community.", color:"#00D4AA" },
+              { step:"01", title:"Save Interest",    desc:"Save a program preference on this device while enrollment is being built.", color:"#c0b8a0" },
+              { step:"02", title:"Get Verified",     desc:"Future enrollment will require a real account and referral-tracking service.", color:"#ede6d3" },
+              { step:"03", title:"Share & Promote",  desc:"Post on social, YouTube, Discord, or your community.", color:"#c9a55c" },
               { step:"04", title:"Track Honestly",   desc:"Commissions will display only after verified subscription and payout events exist.", color:"#F0B429" },
             ].map(s => (
               <div key={s.step} className="rounded-xl border border-wm-border p-4 text-center bg-wm-dark/40">
@@ -450,7 +450,7 @@ export default function CreatorPage() {
 
         {/* ── CTA ────────────────────────────────────────────── */}
         <div className="rounded-2xl border text-center p-8 mb-6"
-             style={{ borderColor:"rgba(240,180,41,0.3)", background:"linear-gradient(135deg, rgba(240,180,41,0.06) 0%, rgba(0,212,170,0.04) 100%)" }}>
+             style={{ borderColor:"rgba(240,180,41,0.3)", background:"linear-gradient(135deg, rgba(212,175,55,0.07) 0%, rgba(11,11,13,0) 100%)" }}>
           <Crown size={28} className="text-wm-gold mx-auto mb-3"/>
           <h2 className="text-xl font-black text-wm-text mb-2">Ready to Build Your Empire?</h2>
           <p className="text-xs text-wm-text-muted mb-5 max-w-md mx-auto">
