@@ -2629,6 +2629,52 @@ input[type=range]::-moz-range-track { height: 4px; background: #26262d; border-r
    `data-owner-private`; under capture the page withholds all of them. */
 html[data-capture="true"] [data-owner-private] { display: none !important; }
 
+/* ══ A PHONE IS NOT A SMALL DESK (Founder, 2026-10-11 04:25: "make an actual mobile
+   version, not a quarter of the computer version") ════════════════════════════
+   MEASURED BEFORE (393x852, market room): the masthead spent 133px on three desk
+   rows — the word mark, the WORKSPACE / TOOLS / ROOMS plates, the utility box and
+   a two-line feed reading — before a single candle. On a phone portrait the
+   masthead is ONE row: the monogram, the three doors as compact words, the four
+   utilities. The feed reading stands down only while it is LIVE and established
+   (the symbol row's chip says the same thing beside the price); any other tone
+   keeps its full words on a row of their own. Hover-only desk chips leave the glass:
+   the "D" data window (a cursor tool — a finger has no hover) and the evidence-vault
+   count. MEASURED AFTER (same frame, CSS injected on serving 53f69c3): masthead 133 → 53px,
+   the market pane starts at y 98 (was 178) and stands 654px tall (was 574), no sideways
+   scroll. SENTINEL: phoneIsNotASmallDesk.sentinel.test.ts */
+@media (max-width: 639px) and (min-height: 521px) {
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-os-masthead.wm-os-masthead {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    column-gap: 2px !important;
+    row-gap: 2px !important;
+    padding: 4px 4px 4px 8px !important;
+  }
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) [data-testid="os-identity"] { order: 0; flex: 0 0 auto !important; width: auto !important; margin: 0 4px 0 0 !important; }
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) [data-testid="os-identity"] .wm-wordmark span { display: none !important; }
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) [data-testid="os-identity"] .wm-wordmark img { width: 22px !important; height: 22px !important; }
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-os-equipment-plates { order: 1; flex: 0 1 auto !important; gap: 2px !important; margin: 0 !important; }
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-os-equipment-plates .wm-os-equipment-plate-mark { display: none !important; }
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-os-equipment-plates :is(.wm-os-equipment-plate, .wm-os-market-rooms) {
+    padding: 0 4px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    letter-spacing: 0.01em !important;
+    font-size: 11px !important;
+    gap: 0 !important;
+  }
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-os-equipment-plates .wm-os-equipment-plate-word { font-size: 11px !important; letter-spacing: 0.01em !important; }
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-os-masthead > div:has(> .wm-shell-access) { order: 2; margin-left: auto !important; flex: 0 0 auto !important; }
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-shell-access { border: none !important; background: transparent !important; padding: 0 !important; gap: 0 !important; }
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-shell-access button { width: 40px !important; min-width: 40px !important; }
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-os-feed-standing.wm-os-feed-standing { order: 3; flex: 1 0 100% !important; min-width: 0 !important; }
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-os-feed-standing[data-tone="LIVE"][data-established="true"] { display: none !important; }
+
+  .wm-chart-market-pane[data-market-primary="true"] button[aria-label="Data window"],
+  .wm-chart-market-pane[data-market-primary="true"] .wm-nectar-vault-chip { display: none !important; }
+}
+
 /* ── PHONE GLASS: THE DOM TYPE FLOOR IS 11px (ruling 2026-10-09) ──────────
    MEASURED on serving f9f61fe, /charts NQ1! 5m at 390x844: 71 text nodes
    under 11px (9, 9.5, 10 and 10.5px) — the fidelity badge, the standing
