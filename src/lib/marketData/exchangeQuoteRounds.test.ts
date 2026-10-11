@@ -171,3 +171,20 @@ describe("the exchange quote round has exactly one owner", () => {
     expect(await socket).toEqual({ price: 63120 });
   });
 });
+
+import { describe as describeB, expect as expectB, it as itB, vi as viB } from "vitest";
+describeB("the base coin is what the route is asked for (2026-10-11: 'BTC-USD' was a 400 every round)", () => {
+  itB("BTC-USD and ETH/USDT are asked as BTC and ETH", async () => {
+    const { fetchExchangeQuoteBody } = await import("./exchangeQuoteRounds");
+    const urls: string[] = [];
+    const orig = globalThis.fetch;
+    globalThis.fetch = viB.fn(async (u: RequestInfo | URL) => { urls.push(String(u)); return new Response(JSON.stringify({ price: 1 }), { status: 200, headers: { "content-type": "application/json" } }); }) as typeof fetch;
+    try {
+      await fetchExchangeQuoteBody("coinbase", "BTC-USD");
+      await fetchExchangeQuoteBody("coinbase", "eth/usdt");
+    } finally { globalThis.fetch = orig; }
+    expectB(urls.some(u => u.includes("coin=BTC&"))).toBe(true);
+    expectB(urls.some(u => u.includes("coin=ETH&"))).toBe(true);
+    expectB(urls.some(u => /coin=[A-Z]+-USD/.test(u))).toBe(false);
+  });
+});

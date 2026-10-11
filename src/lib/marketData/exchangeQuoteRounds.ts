@@ -55,7 +55,10 @@ const exchangeQuoteRounds = new InFlightRounds();
  */
 export function fetchExchangeQuoteBody(exchange: string, coin: string): Promise<unknown> {
   const ex = exchange.toLowerCase();
-  const up = coin.toUpperCase();
+  // The route takes the BASE coin ("BTC"); a caller holding the chart symbol ("BTC-USD", "ETH/USDT")
+  // was answered 400 "Unknown coin" on every round (measured on serving 2026-10-11: one 400 per cycle,
+  // so this venue's quote never reached the chart). The suffix is the route's own pairing to add.
+  const up = coin.toUpperCase().replace(/[-/]USDT?$/, "");
   return exchangeQuoteRounds.run(`exchange:quote:${ex}:${up}`, async () => {
     // Bound the complete shared response; no individual joiner owns its abort.
     const response = await readClassifiedJsonReceipt<unknown>(fetch,
