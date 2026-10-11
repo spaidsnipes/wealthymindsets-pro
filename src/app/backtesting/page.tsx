@@ -461,10 +461,12 @@ export default function BacktestingPage() {
         </div>
       )}
 
-      {mainTab === "backtest" && <div style={{ flex:1, display:"flex", overflow:"hidden", minHeight:0 }}>
+      {/* A phone stacks the setup above the results (one scrolling column); the 288px sidebar beside
+          the results left them a ~30px column there, one word per line (2026-10-11). */}
+      {mainTab === "backtest" && <div className="flex-1 min-h-0 flex flex-col overflow-y-auto md:flex-row md:overflow-hidden">
 
         {/* ── Config sidebar ──────────────────────────────── */}
-        <div className="w-72 border-r border-wm-border flex flex-col shrink-0 p-4 gap-4 overflow-y-auto">
+        <div className="w-full md:w-72 border-b md:border-b-0 md:border-r border-wm-border flex flex-col shrink-0 p-4 gap-4 md:overflow-y-auto">
           {/* Symbol */}
           <div>
             <label className="text-[10px] text-wm-text-dim uppercase tracking-wider mb-1.5 block">Symbol</label>
@@ -544,7 +546,7 @@ export default function BacktestingPage() {
         </div>
 
         {/* ── Results panel ───────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="md:flex-1 md:overflow-y-auto p-4">
 
           {/* Progress bar */}
           {error && !running && (

@@ -54,6 +54,12 @@ describe("one price on the phone screen — the quote header owns it, big, with 
     expect(block).toContain(".wm-chart-market-summary .wm-chart-header-price { order: 9; flex: 1 0 100%; font-size: 26px !important;");
     expect(block).toContain(':is([data-chart-identity], [data-legend-group="price"]) { display: none !important; }');
   });
+  it("Backtest stacks setup above results on a phone (results were a ~30px column)", () => {
+    const bt = readFileSync(path.join(process.cwd(), "src/app/backtesting/page.tsx"), "utf8");
+    expect(bt.length).toBeGreaterThan(10_000);
+    expect(bt).toContain('{mainTab === "backtest" && <div className="flex-1 min-h-0 flex flex-col overflow-y-auto md:flex-row md:overflow-hidden">');
+    expect(bt).toContain('<div className="w-full md:w-72 border-b md:border-b-0 md:border-r border-wm-border');
+  });
   it("a 360px phone keeps every timeframe rung in view", () => {
     expect(block).toContain('@media (max-width: 379px) {\n    .wm-chart-market-pane[data-market-primary="true"] .wm-tf-quickrow { gap: 2px; }');
   });

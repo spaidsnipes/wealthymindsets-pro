@@ -5,9 +5,9 @@
  * like Webull, moomoo, Robinhood mobile — not half a computer screen smushed").
  *
  * Shown only on a phone held portrait (globals.css `.wm-mobile-tabbar`, A PHONE IS NOT A SMALL DESK);
- * the desk and the tablet never see it. It owns NO behaviour of its own: every tab presses the
- * room's existing control (the one TRADE door, Watchlist, the room rail) or is a plain link (Chart,
- * Journal), so there is still exactly one trade door and one way into each place.
+ * the desk and the tablet never see it. It owns NO trading behaviour: TRADE and Watchlist press the
+ * room's existing controls (one trade door), Chart and Journal are plain links, and More is a list of
+ * links read from the one destination registry (wmDestinations.ts) — so each place has one way in.
  */
 import Link from "next/link";
 import { usePathname } from "next/navigation";
