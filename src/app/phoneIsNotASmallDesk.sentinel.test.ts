@@ -66,6 +66,9 @@ describe("one price on the phone screen — the quote header owns it, big, with 
     expect(tv).toContain('<div className="flex flex-col md:flex-row h-full overflow-hidden">');
     expect(creator).toContain('<div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-12">');
   });
+  it("the app bar steps aside while the keyboard is up", () => {
+    expect(block).toContain('textarea, [contenteditable="true"]):focus) .wm-mobile-tabbar { display: none !important; }');
+  });
   it("a 360px phone keeps every timeframe rung in view", () => {
     expect(block).toContain('@media (max-width: 379px) {\n    .wm-chart-market-pane[data-market-primary="true"] .wm-tf-quickrow { gap: 2px; }');
   });
