@@ -2692,6 +2692,23 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   /* "⋯" (the whole ladder) is pinned at the row's right edge, so it is never scrolled away. */
   .wm-chart-market-pane[data-market-primary="true"] .wm-tf-quick--more { position: sticky; right: 0; }
   .wm-chart-market-pane[data-market-primary="true"] .wm-tf-quick--on { color: #0b0b0d; background: #d4af37; border-color: #d4af37; }
+  /* EVERY OTHER ROOM ON A PHONE (Journal, News, Scanner…): measured 239px of masthead at 393 — the
+     word mark with its tagline, the doors, the room name, the P&L row and the lifecycle strip each on a
+     row of their own. Now: the monogram, the doors and the room name share one row, and the lifecycle
+     steps are ONE sideways row (153px total; the content begins ~90px higher). */
+  body:not(:has(.wm-chart-market-pane[data-market-primary="true"])) .wm-os-masthead.wm-os-masthead {
+    display: flex !important; flex-wrap: wrap !important; align-items: center !important;
+    column-gap: 6px !important; row-gap: 4px !important; padding: 6px 8px !important;
+  }
+  body:not(:has(.wm-chart-market-pane[data-market-primary="true"])) [data-testid="os-identity"] { flex: 0 0 auto !important; width: auto !important; margin: 0 !important; }
+  body:not(:has(.wm-chart-market-pane[data-market-primary="true"])) [data-testid="os-identity"] .wm-wordmark span,
+  body:not(:has(.wm-chart-market-pane[data-market-primary="true"])) [data-testid="os-identity"] > :not(.wm-wordmark),
+  body:not(:has(.wm-chart-market-pane[data-market-primary="true"])) [data-testid="os-identity"] .wm-wordmark > div + div { display: none !important; }
+  body:not(:has(.wm-chart-market-pane[data-market-primary="true"])) [data-testid="os-identity"] .wm-wordmark img { width: 22px !important; height: 22px !important; }
+  body:not(:has(.wm-chart-market-pane[data-market-primary="true"])) .wm-os-masthead-center {
+    order: 9; flex: 1 0 100% !important; overflow-x: auto !important; flex-wrap: nowrap !important; scrollbar-width: none; max-height: 44px;
+  }
+
   /* THE PHONE APP (Founder 2026-10-11: "like Webull, moomoo, Robinhood mobile"). The desk masthead
      leaves the market screen while the feed reading is LIVE and established; any other reading keeps
      the masthead as that one reading alone (a DELAYED / STALE word is the truth, never hidden). */

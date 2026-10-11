@@ -70,3 +70,10 @@ describe("the phone app bar", () => {
   });
 });
 
+describe("every other room on a phone gets the compact header too", () => {
+  it("monogram + doors + room name share a row; the lifecycle steps are one sideways row", () => {
+    expect(block).toContain('body:not(:has(.wm-chart-market-pane[data-market-primary="true"])) .wm-os-masthead.wm-os-masthead {');
+    expect(block).toContain('body:not(:has(.wm-chart-market-pane[data-market-primary="true"])) .wm-os-masthead-center {');
+  });
+});
+
