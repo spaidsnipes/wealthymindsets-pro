@@ -2671,7 +2671,9 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   .wm-os-masthead > div:has(> .wm-shell-access) { order: 2; margin-left: auto !important; flex: 0 0 auto !important; }
   .wm-shell-access { border: none !important; background: transparent !important; padding: 0 !important; gap: 0 !important; }
   .wm-shell-access button { width: 40px !important; min-width: 40px !important; }
-  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-os-feed-standing.wm-os-feed-standing { order: 3; flex: 1 0 100% !important; min-width: 0 !important; }
+  /* Every room: a feed reading that is not LIVE-and-established takes its own full row under the doors
+     (measured /journal 393: "FEED UNKNOWN · no observation yet" on row one pushed MARKET to x 412). */
+  .wm-os-feed-standing.wm-os-feed-standing { order: 3; flex: 1 0 100% !important; min-width: 0 !important; }
   body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-os-feed-standing[data-tone="LIVE"][data-established="true"] { display: none !important; }
 
   /* TIMEFRAME AS A ROW OF ONE-TAP RUNGS (TimeframeGlassChip PHONE_QUICK_TF): it spans the
