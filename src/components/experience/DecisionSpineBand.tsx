@@ -1447,9 +1447,12 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
             overflow-x: auto;
             overflow-y: hidden;
             scrollbar-width: none;
+            /* A swipe lands on a card's edge, like an app's card row (2026-10-11). */
+            scroll-snap-type: x proximity;
           }
           .wm-decision-spine::-webkit-scrollbar { display: none; }
           .wm-decision-spine > div {
+            scroll-snap-align: start;
             flex: 0 0 180px !important;
             min-width: 180px !important;
             max-width: 180px !important;
