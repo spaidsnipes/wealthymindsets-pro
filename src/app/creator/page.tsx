@@ -367,7 +367,9 @@ export default function CreatorPage() {
             <Award size={16} className="text-wm-gold"/>
             <h2 className="text-base font-black text-wm-text">Top Creators This Month</h2>
           </div>
-          <div className="rounded-2xl border border-wm-border overflow-hidden">
+          {/* A phone scrolls the board sideways inside its card (five fixed columns cut "Monthly Earn"). */}
+          <div className="rounded-2xl border border-wm-border overflow-x-auto">
+            <div style={{ minWidth: 440 }}>
             <div className="grid text-[9px] font-black uppercase tracking-wider text-wm-text-dim border-b border-wm-border px-4 py-2 bg-wm-dark"
                  style={{ gridTemplateColumns:"40px 1fr 80px 80px 80px" }}>
               <span>#</span><span>Creator</span><span>Tier</span><span>Subscribers</span><span>Monthly Earn</span>
@@ -400,6 +402,7 @@ export default function CreatorPage() {
                 No creator earnings have been verified and published yet.
               </div>
             )}
+            </div>
           </div>
         </div>
 

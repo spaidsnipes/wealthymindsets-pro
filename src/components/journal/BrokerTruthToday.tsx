@@ -374,7 +374,7 @@ export function BrokerTruthToday() {
             const feesKnown = st.fills.every(f => f.feesReported !== false);
             const cashKnown = st.fills.every(f => f.value != null);
             return (
-              <article key={st.key} data-decision={st.decisionId ?? "outside"} style={{ border: `1px solid ${LINE}`, borderRadius: 4, padding: 10 }}>
+              <article key={st.key} data-decision={st.decisionId ?? "outside"} style={{ border: `1px solid ${LINE}`, borderRadius: 4, padding: 10, minWidth: 0 }}>
                 <header style={{ display: "flex", gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
                   <strong style={{ color: st.decisionId ? GOLD : MUTED, fontSize: 12 }}>
                     {st.decisionId ? `Decision ${st.decisionId}` : "Placed outside WM"}
