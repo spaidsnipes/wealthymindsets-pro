@@ -86,7 +86,7 @@ describe("source: one poll, read routes only, nothing blanked", () => {
     expect(hook).toContain("useBrokerReadback(enabled && !!contract, opts.fast ?? true)");
   });
   it("paused when hidden; the last answer survives an unmount", () => {
-    expect(store).toContain('document.addEventListener("visibilitychange", () => schedule(!hidden()));');
+    expect(store).toContain('document.addEventListener("visibilitychange", () => schedule(!hidden() && readNowAllowed(lastAttemptMs, Date.now())));');
     expect(store).toContain("return () => { readers.delete(id); schedule(false); };");
     // Unmounting a reader never resets the stored readback.
     expect(store.match(/state = \{ rb: EMPTY/g)).toHaveLength(1);       // only the test seam
@@ -100,4 +100,9 @@ describe("a reader's arrival never reads sooner than the fast cadence (phone sto
     expect(readNowAllowed(10_000, 10_000 + READBACK_FAST_MS - 1)).toBe(false);
     expect(readNowAllowed(10_000, 10_000 + READBACK_FAST_MS)).toBe(true);
   });
+});
+
+it("a visibility flap respects the same floor", () => {
+  const src = readFileSync(path.join(process.cwd(), "src/lib/execution/brokerReadbackStore.ts"), "utf8");
+  expect(src).toContain('document.addEventListener("visibilitychange", () => schedule(!hidden() && readNowAllowed(lastAttemptMs, Date.now())));');
 });

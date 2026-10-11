@@ -100,7 +100,9 @@ function schedule(immediate: boolean): void {
 function bindVisibility(): void {
   if (visibilityBound || typeof document === "undefined") return;
   visibilityBound = true;
-  document.addEventListener("visibilitychange", () => schedule(!hidden()));
+  // Coming back into view reads at once — but no sooner than the fast cadence: a host that flaps the
+  // visibility (measured: every 2 s in an embedded browser) must not turn into a request pair per flap.
+  document.addEventListener("visibilitychange", () => schedule(!hidden() && readNowAllowed(lastAttemptMs, Date.now())));
 }
 
 function addReader(fast: boolean): () => void {
