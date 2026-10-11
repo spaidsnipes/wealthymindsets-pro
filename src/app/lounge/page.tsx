@@ -642,7 +642,7 @@ function LoungeVibeHeader({ name, handle, avatar, color, ceo, postCount, stories
         }}>
           <div className="absolute inset-x-0 top-4 md:top-9 flex flex-col items-center pointer-events-none z-[1]">
             <span className="font-black text-white leading-none" style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 34, letterSpacing: 1.2, textTransform: "uppercase", textShadow: "0 3px 22px rgba(0,0,0,0.9)" }}>{theme.name}</span>
-            <span className="mt-3 text-[9px] font-black uppercase tracking-[0.3em]" style={{ color: theme.accent }}>{theme.tagline}</span>
+            <span className="mt-3 hidden md:block text-[9px] font-black uppercase tracking-[0.3em]" style={{ color: theme.accent }}>{theme.tagline}</span>
           </div>
           {/* faint trading chart line */}
           <svg className="absolute inset-0 w-full h-full opacity-[0.18] pointer-events-none" preserveAspectRatio="none" viewBox="0 0 400 120">
