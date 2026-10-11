@@ -81,7 +81,9 @@ export function planProfileStack(input: ProfileStackInput): ProfileStackPlan {
   const lv = lanes.LIVING;
   if (lv?.fits) {
     const target = input.livingBodyTarget ?? lv.width;
-    livingBodyWidth = Math.max(lv.width, Math.min(target, Math.max(0, lv.right - 140)));
+    // A young session may ask for LESS than its lane (input.livingBodyTarget shrinks with maturity);
+    // never under a 48px body that still reads as a shape.
+    livingBodyWidth = Math.max(Math.min(lv.width, Math.max(48, target)), Math.min(target, Math.max(0, lv.right - 140)));
     const extra = livingBodyWidth - lv.width;
     if (extra > 0) {
       for (const sp of order.slice(order.indexOf("LIVING") + 1)) {

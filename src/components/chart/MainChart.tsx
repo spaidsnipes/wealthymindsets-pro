@@ -21527,6 +21527,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // object stands, its two parents keep drawing — alive, inspectable —
         // but step back so the derived object reads as the subject. The fade
         // is the attention governor's (`fusedParents`), applied per lane.
+        const livingMaturity = (): number => {
+          try {
+            const rows = livingProfileRef.current?.bars ?? [];
+            if (rows.length < 2) return 1;
+            let lo = Infinity, hi = -Infinity;
+            for (const b of rows) { if (b.price < lo) lo = b.price; if (b.price > hi) hi = b.price; }
+            const yA = srs.priceToCoordinate(hi), yB = srs.priceToCoordinate(lo);
+            if (yA == null || yB == null) return 1;
+            return Math.min(1, Math.max(0.3, Math.abs(+yB - +yA) / Math.max(1, pane0Bottom * 0.35)));
+          } catch { return 1; }
+        };
         const stackPlan = planProfileStack({
           canvasWidth: W,
           axisWidth: stackAxisW,
@@ -21537,7 +21548,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // Narrow glass (2026-10-04): 28% of a 330px phone plot was ~92px of
           // body over the newest nine candles — the profile read as a wall on
           // the market. 18% keeps the shape and gives the candles their edge.
-          livingBodyTarget: Math.min(Math.round(plotRight * (narrowGlass ? 0.18 : 0.28) * stackWidth("LIVING", stackPrefsRef.current)), 360),
+          // SESSION MATURITY (2026-10-11): a session minutes old is a POC row and a few short rows ~20px
+          // tall; at full reach its lane was ~180px of empty glass beside the candles. The reach grows with
+          // the body's own height on the glass (30% while it is a sliver → full once it spans 35% of the
+          // plot); the shape stays the profile's own.
+          livingBodyTarget: Math.min(Math.round(plotRight * (narrowGlass ? 0.18 : 0.28) * stackWidth("LIVING", stackPrefsRef.current)
+            * livingMaturity()), 360),
         });
         if (stackOrder.length > 0) {
           ds.profileStackLeft = String(stackPlan.stackLeft);

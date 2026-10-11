@@ -64,9 +64,11 @@ describe("planProfileStack", () => {
     }
   });
 
-  it("the body is never narrower than its lane, never into the left 140px, null without Living", () => {
+  it("a young session's body may be narrower than its lane but never under 48px; never into the left 140px; null without Living", () => {
     const small = planProfileStack({ canvasWidth: W, axisWidth: AX, fixedLanes: 0, order: ["LIVING"], livingBodyTarget: 10 });
-    expect(small.livingBodyWidth).toBe(small.lanes.LIVING!.width);
+    expect(small.livingBodyWidth).toBe(48);
+    const mid = planProfileStack({ canvasWidth: W, axisWidth: AX, fixedLanes: 0, order: ["LIVING"], livingBodyTarget: 90 });
+    expect(mid.livingBodyWidth).toBe(90);
     const huge = planProfileStack({ canvasWidth: W, axisWidth: AX, fixedLanes: 0, order: ["LIVING"], livingBodyTarget: 5000 });
     expect(huge.lanes.LIVING!.right - huge.livingBodyWidth!).toBeGreaterThanOrEqual(140);
     const none = planProfileStack({ canvasWidth: W, axisWidth: AX, fixedLanes: 0, order: ["COMPOSITE"] });
