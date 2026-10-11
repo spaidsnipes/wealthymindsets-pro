@@ -30,7 +30,7 @@ describe("More screen", () => {
     const src = readFileSync(path.join(process.cwd(), "src/components/mobile/MobileTabBar.tsx"), "utf8");
     expect(src.length).toBeGreaterThan(3_000);
     expect(src).toContain('{d.authority === "legacy" ? <span className="wm-mobile-more-legacy">LEGACY</span> : null}');
-    expect(src).toContain('<Link href="/settings" prefetch={false} className="wm-mobile-more-row" onClick={onClose}>');
+    expect(src).toContain('<button type="button" className="wm-mobile-more-row" onClick={() => { onClose(); openSettings(); }}>');
     expect(src).toContain('aria-label="Close More"');
     expect(src).not.toContain('{ id: "more", label: "More", target:');
   });

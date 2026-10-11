@@ -15,6 +15,7 @@ import React from "react";
 import { Settings as SettingsIcon } from "lucide-react";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 import { WM_DESTINATIONS, type WmDestination } from "@/lib/routing/wmDestinations";
+import { openSettings } from "@/components/layout/shellPanelDoors";
 
 interface Tab {
   readonly id: string;
@@ -108,11 +109,13 @@ function MobileMoreSheet({ onClose }: { onClose: () => void }): React.ReactEleme
               );
             })}
             {sec.title === "Account" ? (
-              <Link href="/settings" prefetch={false} className="wm-mobile-more-row" onClick={onClose}>
+              // Settings is the shell's drawer, opened where the trader stands (a link to
+              // /settings → /charts?settings=open is read only when the shell first mounts).
+              <button type="button" className="wm-mobile-more-row" onClick={() => { onClose(); openSettings(); }}>
                 <SettingsIcon aria-hidden="true" size={20} strokeWidth={1.7} />
                 <span className="wm-mobile-more-label">Settings</span>
                 <span aria-hidden="true" className="wm-mobile-more-chev">›</span>
-              </Link>
+              </button>
             ) : null}
           </section>
         ))}

@@ -2826,6 +2826,7 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   .wm-mobile-more-row {
     display: flex; align-items: center; gap: 14px; min-height: 52px; padding: 0 16px; color: #ede6d3; text-decoration: none;
     font: 500 15px Inter, system-ui, sans-serif; border-bottom: 1px solid rgba(255,255,255,0.05);
+    width: 100%; background: none; border-inline: 0; border-top: 0; text-align: left;
   }
   .wm-mobile-more-row svg { color: #d4af37; flex: 0 0 auto; }
   .wm-mobile-more-row:active { background: rgba(212,175,55,0.08); }
