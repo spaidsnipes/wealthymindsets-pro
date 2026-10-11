@@ -77,3 +77,12 @@ describe("every other room on a phone gets the compact header too", () => {
   });
 });
 
+describe("phone landscape is the chart", () => {
+  it("the masthead leaves while LIVE and established; the legend's repeat steps back", () => {
+    const land = CSS.slice(CSS.indexOf("/* PHONE LANDSCAPE IS THE CHART"));
+    expect(land.length).toBeGreaterThan(200);
+    expect(land).toContain("@media (max-height: 520px) and (max-width: 1023px) {");
+    expect(land).toContain(':has(.wm-os-feed-standing[data-tone="LIVE"][data-established="true"]) .wm-os-masthead.wm-os-masthead { display: none !important; }');
+  });
+});
+
