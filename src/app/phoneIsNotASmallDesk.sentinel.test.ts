@@ -90,6 +90,11 @@ describe("one price on the phone screen — the quote header owns it, big, with 
     const css = readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
     expect(css).toContain("@media (min-width: 640px) and (max-width: 1279px) and (min-height: 521px) {\n  .wm-chart-market-pane[data-market-primary=\"true\"] .wm-live-session-chip {\n    top: 62px !important;");
   });
+  it("an axis tag for a truth level is never dropped for want of room", () => {
+    const chart = readFileSync(path.join(process.cwd(), "src/components/chart/MainChart.tsx"), "utf8");
+    expect(chart).toContain("if (!free(ty)) { ty = Math.max(tagH / 2, Math.min(pane0Bottom - tagH / 2, t.y)); overlapTags++; }");
+    expect(chart).not.toContain("if (!free(ty)) continue;");
+  });
   it("a 360px phone keeps every timeframe rung in view", () => {
     expect(block).toContain('@media (max-width: 379px) {\n    .wm-chart-market-pane[data-market-primary="true"] .wm-tf-quickrow { gap: 2px; }');
   });

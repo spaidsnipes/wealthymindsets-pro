@@ -27697,6 +27697,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           if (candleTimerRect) taken.push({ y0: candleTimerRect.y, y1: candleTimerRect.y + candleTimerRect.h });
           const free = (y: number) => !taken.some(t => y - tagH / 2 < t.y1 && y + tagH / 2 > t.y0) && y - tagH / 2 >= 0 && y + tagH / 2 <= pane0Bottom;
           let placedTags = 0;
+          let overlapTags = 0;
           for (const t of [...axisLevelTags].sort((a, b) => a.y - b.y)) {
             let ty = t.y;
             for (let k = 1; !free(ty) && k < 12; k++) {
@@ -27704,7 +27705,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               if (free(dn)) { ty = dn; break; }
               if (free(up)) { ty = up; break; }
             }
-            if (!free(ty)) continue;
+            // No free row: the truth level's name still paints, on its own row (a truth name is never
+            // dropped — coordinator ruling 2026-10-10); the receipt counts the overlap.
+            if (!free(ty)) { ty = Math.max(tagH / 2, Math.min(pane0Bottom - tagH / 2, t.y)); overlapTags++; }
             const tw = Math.ceil(ctx.measureText(t.text).width);
             const w = tw + 8;
             const x = W - w - 1;
@@ -27718,7 +27721,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             placedTags++;
           }
           ctx.restore();
-          canvas.dataset.levelAxisTags = `${placedTags}/${axisLevelTags.length}`;
+          canvas.dataset.levelAxisTags = `${placedTags}/${axisLevelTags.length}${overlapTags ? `|OVERLAP:${overlapTags}` : ""}`;
         } else delete canvas.dataset.levelAxisTags;
       } catch (err) { layerFault("LEVEL_AXIS_TAGS", err); }
 
