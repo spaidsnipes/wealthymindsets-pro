@@ -875,7 +875,7 @@ export default function OpportunityMapPage() {
             reaches the map. Provenance and receipt chronology remain one
             deliberate disclosure away; receipt time never masquerades as
             market-observation freshness. */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", minWidth: 0 }}>
           <QualityBadge
             state={shownQuality}
           />
