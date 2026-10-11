@@ -38,6 +38,8 @@ const readers = new Map<symbol, { fast: boolean }>();
 let timer: ReturnType<typeof setTimeout> | null = null;
 let reading = false;
 let visibilityBound = false;
+/** When the last read STARTED, answered or not: the floor every "read now" respects. */
+let lastAttemptMs = 0;
 
 const emit = () => { for (const l of listeners) l(); };
 const hidden = () => typeof document !== "undefined" && document.visibilityState === "hidden";
@@ -45,6 +47,11 @@ const hidden = () => typeof document !== "undefined" && document.visibilityState
 export function readbackIntervalMs(readerFast: readonly boolean[], isHidden: boolean): number | null {
   if (!readerFast.length || isHidden) return null;
   return readerFast.some(Boolean) ? READBACK_FAST_MS : READBACK_SLOW_MS;
+}
+
+/** May a reader's arrival read at once? Only if the last attempt is at least READBACK_FAST_MS old. PURE. */
+export function readNowAllowed(lastAttemptAtMs: number, nowMs: number): boolean {
+  return nowMs - lastAttemptAtMs >= READBACK_FAST_MS;
 }
 
 /** Orders + positions answers → one readback. PURE; null when either answer is not OK. */
@@ -66,6 +73,7 @@ export function readbackFromAnswers(o: unknown, p: unknown, nowMs: number): Brok
 async function readOnce(): Promise<void> {
   if (reading) return;                    // one request pair at a time, however many readers
   reading = true;
+  lastAttemptMs = Date.now();
   try {
     const [o, p] = await Promise.all([
       fetch("/api/broker/tastytrade/orders", { cache: "no-store" }).then(r => r.json().catch(() => null)),
@@ -102,7 +110,10 @@ function addReader(fast: boolean): () => void {
   readers.set(id, { fast });
   bindVisibility();
   // The first reader reads at once; a new FAST reader pulls the next read forward; otherwise the running clock stands.
-  if (first || (fast && !wasFast)) schedule(first || state.rb.asOfMs === null || Date.now() - (state.rb.asOfMs ?? 0) > READBACK_FAST_MS);
+  // "At once" never comes sooner than READBACK_FAST_MS after the last attempt: a reader that mounts and
+  // unmounts on every render was turning that into a request pair per round trip (measured on the phone,
+  // 2026-10-11: orders + positions about twice a second, 6,000+ requests in a few minutes).
+  if (first || (fast && !wasFast)) schedule(readNowAllowed(lastAttemptMs, Date.now()));
   return () => { readers.delete(id); schedule(false); };   // the last answer is kept — nothing is blanked
 }
 

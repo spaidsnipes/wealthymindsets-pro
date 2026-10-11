@@ -92,3 +92,12 @@ describe("source: one poll, read routes only, nothing blanked", () => {
     expect(store.match(/state = \{ rb: EMPTY/g)).toHaveLength(1);       // only the test seam
   });
 });
+
+describe("a reader's arrival never reads sooner than the fast cadence (phone storm, 2026-10-11)", () => {
+  it("reads at once only when the last attempt is at least READBACK_FAST_MS old", async () => {
+    const { readNowAllowed, READBACK_FAST_MS } = await import("./brokerReadbackStore");
+    expect(readNowAllowed(0, 10_000)).toBe(true);
+    expect(readNowAllowed(10_000, 10_000 + READBACK_FAST_MS - 1)).toBe(false);
+    expect(readNowAllowed(10_000, 10_000 + READBACK_FAST_MS)).toBe(true);
+  });
+});
