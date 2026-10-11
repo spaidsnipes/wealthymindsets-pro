@@ -6237,7 +6237,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             );
             const changeStyle = HEADER_CHANGE_STYLE[headerChangeFact.kind];
             return (
-              <span style={{
+              // `wm-chart-header-price`: on a phone portrait the chart legend directly below carries the
+              // price with its change, so this copy steps back (globals.css, A PHONE IS NOT A SMALL DESK).
+              <span className="wm-chart-header-price" style={{
                 color: hasReal ? (up ? "#00C076" : "#FF4D67") : "#8B92AC",
                 fontWeight: 700, fontSize: 13, fontFamily: "monospace",
               }}>

@@ -2691,6 +2691,9 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   /* "⋯" (the whole ladder) is pinned at the row's right edge, so it is never scrolled away. */
   .wm-chart-market-pane[data-market-primary="true"] .wm-tf-quick--more { position: sticky; right: 0; }
   .wm-chart-market-pane[data-market-primary="true"] .wm-tf-quick--on { color: #0b0b0d; background: #d4af37; border-color: #d4af37; }
+  /* ONE PRICE ON THE SCREEN: the legend under the symbol row says the price with its change, so the
+     symbol row keeps the picker, the symbol and the fidelity chip — on one line. */
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-chart-market-summary .wm-chart-header-price { display: none !important; }
   .wm-chart-market-pane[data-market-primary="true"] button[aria-label="Data window"],
   .wm-chart-market-pane[data-market-primary="true"] .wm-nectar-vault-chip { display: none !important; }
 }

@@ -45,3 +45,12 @@ describe("the phone's timeframe is a row of one-tap rungs", () => {
     expect(block).toContain('.wm-tf-quick--more { position: sticky; right: 0; }');
   });
 });
+
+describe("one price on the phone screen", () => {
+  const DASH = readFileSync(path.join(process.cwd(), "src/components/chart/ChartsDashboard.tsx"), "utf8");
+  it("the symbol row's price copy steps back on a phone; the legend carries price + change", () => {
+    expect(DASH.length).toBeGreaterThan(50_000);
+    expect(DASH).toContain('<span className="wm-chart-header-price" style={{');
+    expect(block).toContain('.wm-chart-market-summary .wm-chart-header-price { display: none !important; }');
+  });
+});
