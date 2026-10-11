@@ -2728,11 +2728,14 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   /* SHEETS ARE FULL SCREEN ON A PHONE (Watchlist, Tools, Settings…): a ShellModalDrawer floated as a
      card 12px in from the edges with the chart behind it; an app presents the sheet edge to edge. */
   [data-placement] > [role="dialog"][data-touch-floor] {
-    width: 100vw !important; margin: 0 !important; height: 100svh !important; max-height: 100svh !important;
+    width: 100vw !important; margin: 0 !important; height: 100% !important; max-height: 100% !important;
     border-radius: 0 !important; border: 0 !important; background: #0b0b0d !important;
     /* Opened from the Home Screen the glass runs under the clock: the sheet's title and Close start below it. */
     box-sizing: border-box !important; padding-top: env(safe-area-inset-top, 0px) !important;
   }
+  /* …and stops at the app bar, which stays in view over it as an app's tab bar does (a tab press closes
+     the sheet first — MobileTabBar closeOpenSheet). */
+  body:has(.wm-mobile-tabbar) [data-placement]:has(> [role="dialog"][data-touch-floor]) { bottom: calc(52px + env(safe-area-inset-bottom)) !important; }
   /* WATCHLIST ROWS READ LIKE AN APP'S: the price at 14px, the day's change as a coloured pill. */
   .wm-wl-price { font-size: 14px !important; }
   .wm-wl-change { font-size: 12px !important; font-weight: 700 !important; padding: 2px 6px; border-radius: 6px; margin-top: 2px; }

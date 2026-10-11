@@ -43,6 +43,14 @@ describe("More screen", () => {
     expect(os).toContain("window.addEventListener(OPEN_SETTINGS_EVENT, onOpen);");
   });
 
+  it("shell sheets stop at the app bar, and a tab closes the open sheet first", () => {
+    const css = readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
+    const src = readFileSync(path.join(process.cwd(), "src/components/mobile/MobileTabBar.tsx"), "utf8");
+    expect(css).toContain('body:has(.wm-mobile-tabbar) [data-placement]:has(> [role="dialog"][data-touch-floor]) { bottom: calc(52px + env(safe-area-inset-bottom)) !important; }');
+    expect(src).toContain('backdrop.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));');
+    expect(src).toContain('if (t.id === "watchlist" && closed != null && /watchlist/i.test(closed)) return;');
+  });
+
   it("the sheet stops at the app bar and clears the clock", () => {
     const css = readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
     expect(css).toContain(".wm-mobile-more { display: none; }");

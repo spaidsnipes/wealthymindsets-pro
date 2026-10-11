@@ -57,6 +57,25 @@ export function pressMobileTab(target: string, doc: Pick<Document, "querySelecto
   return true;
 }
 
+/** The open shell sheet's panel (Watchlist, Tools, Settings… — ShellModalDrawer), if any. */
+function openSheet(doc: Document): HTMLElement | null {
+  return doc.querySelector('[data-placement] > [role="dialog"][data-touch-floor]') as HTMLElement | null;
+}
+
+/**
+ * Close the open shell sheet the way a tap on its backdrop does (ShellModalDrawer closes on a press
+ * whose target is the backdrop itself). Returns the closed sheet's title, or null when none was open.
+ */
+export function closeOpenSheet(doc: Document = document): string | null {
+  const panel = openSheet(doc);
+  const backdrop = panel?.parentElement;
+  if (!panel || !backdrop) return null;
+  const titleId = panel.getAttribute("aria-labelledby");
+  const title = (titleId ? doc.getElementById(titleId)?.textContent : null) ?? "";
+  backdrop.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+  return title;
+}
+
 /** The chart room opens what a tab from another room asked for, once (`?open=trade|watchlist`). */
 export const MOBILE_OPEN_PARAM = "open";
 
@@ -135,6 +154,7 @@ export function MobileTabBar(): React.ReactElement {
     <nav className="wm-mobile-tabbar" aria-label="Market app">
       {MOBILE_TABS.map(t => t.href ? (
         <Link key={t.id} href={t.href} prefetch={false} data-tab={t.id} aria-current={isCurrent(t) ? "page" : undefined}
+          onClick={() => { closeOpenSheet(); setMoreOpen(false); }}
           className={isCurrent(t) ? "wm-mobile-tab wm-mobile-tab--current" : "wm-mobile-tab"}>
           <span aria-hidden="true" className="wm-mobile-tab-icon">{t.icon}</span>
           <span className="wm-mobile-tab-label">{t.label}</span>
@@ -144,8 +164,12 @@ export function MobileTabBar(): React.ReactElement {
           aria-expanded={t.id === "more" ? moreOpen : undefined}
           className={t.primary ? "wm-mobile-tab wm-mobile-tab--trade" : t.id === "more" && moreOpen ? "wm-mobile-tab wm-mobile-tab--current" : "wm-mobile-tab"}
           onClick={() => {
+            // The bar stays in view over a sheet, so a tab first closes the sheet that is open;
+            // Watchlist pressed while the watchlist is the open sheet only closes it.
+            const closed = closeOpenSheet();
             if (t.id === "more") { setMoreOpen(o => !o); return; }
             setMoreOpen(false);
+            if (t.id === "watchlist" && closed != null && /watchlist/i.test(closed)) return;
             // This room's own control when it is here; from another room, the chart told what to open.
             if (t.target && pressMobileTab(t.target)) return;
             if (t.fallbackHref) window.location.assign(t.fallbackHref);
