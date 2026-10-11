@@ -24879,8 +24879,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // it with no affordance saying so — the handle began at 1024).
           dragHandle.style.display = on && weatherLens && window.innerWidth >= LENS_DRAG_MIN_WIDTH ? "block" : "none";
           if (weatherLens) {
-            dragHandle.style.left = `${Math.max(0, Math.min(weatherPlotRight - 108, weatherLens.cx - 54))}px`;
-            dragHandle.style.top = `${Math.max(HEADER_FLOOR_Y, Math.min(pane0Bottom - 28, weatherLens.cy + weatherLens.ry + 18))}px`;
+            // Below the lens, unless that would lie across a silence / truth row (serving 834
+            // all-on, 2026-10-10 20:30: the chip sat on "… MODEL, ASSUMED DEALER SIDE"); then above it.
+            const dhLeft = Math.max(0, Math.min(weatherPlotRight - 108, weatherLens.cx - 54));
+            const dhBelow = Math.max(HEADER_FLOOR_Y, Math.min(pane0Bottom - 28, weatherLens.cy + weatherLens.ry + 18));
+            const dhAbove = Math.max(HEADER_FLOOR_Y, weatherLens.cy - weatherLens.ry - 18 - 24);
+            const dhOnTruth = (top: number) => floatingChips.some(c => c.x === silenceX && c.x < dhLeft + 112 && c.x + c.w > dhLeft - 2 && c.y < top + 26 && c.y + c.h > top - 2);
+            const dhTop = dhOnTruth(dhBelow) && !dhOnTruth(dhAbove) ? dhAbove : dhBelow;
+            ds.weatherLensDragChip = dhTop === dhBelow ? (dhOnTruth(dhBelow) ? "BELOW:ON_TRUTH" : "BELOW") : "ABOVE:TRUTH_BELOW";
+            dragHandle.style.left = `${dhLeft}px`;
+            dragHandle.style.top = `${dhTop}px`;
             dragHandle.textContent = aperture ? "DRAG · CANDLE EST." : "DRAG LENS";
             // The handle is a DOM chip over the glass: the readout and later
             // chips step around it (serving BTC 1m: it sat on "LENS STATUS").
@@ -25555,9 +25563,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               for (const t of [Math.PI / 4, (3 * Math.PI) / 4]) {
                 const s0 = ringPoint(L, t, BZ - 2);
                 const dx = Math.cos(t), dy = Math.sin(t);
+                // The handle is material, a truth line is a fact: it never lies across the
+                // silence / truth rows (serving 834 all-on, 2026-10-10 20:30: the grip covered
+                // "… MODEL, ASSUMED DEALER SIDE" and the options-flow scope).
+                const onTruthRow = (ex: number, ey: number) => {
+                  const bx0 = Math.min(s0.x, ex) - hw, bx1 = Math.max(s0.x, ex) + hw, by0 = Math.min(s0.y, ey) - hw, by1 = Math.max(s0.y, ey) + hw;
+                  return floatingChips.some(c => c.x === silenceX && c.x < bx1 && c.x + c.w > bx0 && c.y < by1 && c.y + c.h > by0);
+                };
                 const fits = (l: number) => {
                   const ex = s0.x + dx * l, ey = s0.y + dy * l;
-                  return ex + hw <= plotR && ex - hw >= 0 && ey + hw <= plotB;
+                  return ex + hw <= plotR && ex - hw >= 0 && ey + hw <= plotB && !onTruthRow(ex, ey);
                 };
                 let len = rr * 0.6;
                 while (len >= rr * 0.33 && !fits(len)) len -= 4;
@@ -25874,6 +25889,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             delete ds.liquidityWeatherLens;
             delete ds.liquidityWeatherLiveEdge;
             delete ds.weatherLensHandle;
+            delete ds.weatherLensDragChip;
             delete ds.liquidityWeatherRing;
             delete ds.liquidityWeatherReadout;
             // GATHERING — too little tape for a lens to be read. No mini lens;
