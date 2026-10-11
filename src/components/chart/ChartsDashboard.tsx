@@ -35,6 +35,7 @@ import { MainChart, type VpDrawnLevels } from "./MainChart";
 import { WatchlistGrid } from "./WatchlistGrid";
 import { AssetClassSwitcher } from "./AssetClassSwitcher";
 import { MOBILE_OPEN_PARAM, MobileTabBar, pressMobileTab } from "@/components/mobile/MobileTabBar";
+import { ChartLoadingVeil } from "@/components/chart/ChartLoadingVeil";
 import { isConfigurable, type IndicatorSettings, type IndicatorParams } from "./indicatorConfig";
 
 import { BROKER_CONNECT_EVENT, BROKER_CONNECT_PARAM, BROKER_CONNECT_VALUE } from "@/lib/broker/brokerConnectDoor";
@@ -7335,6 +7336,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   <div style={{ flex: 1, display:"flex", overflow:"hidden", minWidth:0, minHeight:0, position:"relative",
                     ...(chartLayout === "4" ? { width: "50%", flexShrink: 0 } : {}),
                   }}>
+                    {chartBars.length === 0 && !gridView && activeTab === "Chart" ? (
+                      <ChartLoadingVeil symbol={symbol} timeframe={timeframe} />
+                    ) : null}
                     {lensFixture || attentionFixture ? (
                       <div data-testid="lens-fixture-banner" role="status"
                         className="pointer-events-none absolute left-1/2 top-2 z-[80] -translate-x-1/2 rounded-md border border-amber-400/60 bg-black/80 px-3 py-1 text-[11px] font-bold tracking-wide text-amber-200">

@@ -2630,6 +2630,21 @@ input[type=range]::-moz-range-track { height: 4px; background: #26262d; border-r
 html[data-capture="true"] [data-owner-private] { display: none !important; }
 
 .wm-mobile-tabbar { display: none; }
+/* THE CHART'S FIRST SECONDS (ChartLoadingVeil): placeholder candles breathing in gold under one plain
+   sentence while the camera holds no bars. Every width. Reduced motion: the room's one safety net stills them. */
+.wm-chart-loading-veil {
+  position: absolute; inset: 0; z-index: 30; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  background: radial-gradient(ellipse at 50% 45%, rgba(212,175,55,0.06), transparent 65%);
+}
+.wm-chart-loading-silhouette { display: flex; align-items: flex-end; gap: 7px; height: 120px; width: min(260px, 70%); }
+.wm-chart-loading-silhouette > span {
+  flex: 1 1 0; min-width: 4px; border-radius: 2px;
+  background: linear-gradient(180deg, rgba(212,175,55,0.38), rgba(139,106,41,0.10));
+  animation: wm-veil-breathe 1.6s ease-in-out infinite;
+}
+.wm-chart-loading-words { font: 600 12px Inter, system-ui, sans-serif; letter-spacing: 0.06em; color: #b9a77a; text-align: center; padding: 0 16px; }
+@keyframes wm-veil-breathe { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
 .wm-mobile-more { display: none; }
 .wm-tf-quickrow { display: none; }
 
