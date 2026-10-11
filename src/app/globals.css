@@ -2630,6 +2630,7 @@ input[type=range]::-moz-range-track { height: 4px; background: #26262d; border-r
 html[data-capture="true"] [data-owner-private] { display: none !important; }
 
 .wm-mobile-tabbar { display: none; }
+.wm-mobile-more { display: none; }
 .wm-tf-quickrow { display: none; }
 
 /* ══ A PHONE IS NOT A SMALL DESK (Founder, 2026-10-11 04:25: "make an actual mobile
@@ -2811,6 +2812,26 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
      at its end so the launcher never sits on a tab (measured /profile 393: it covered More). */
   body:not(:has(.wm-spaidbot-chart-context)):has(.wm-spaidbot-launcher) .wm-mobile-tabbar { padding-inline-end: calc(56px + env(safe-area-inset-right)) !important; }
   .wm-mobile-tab--current { color: #d4af37; }
+  /* THE MORE SCREEN (MobileTabBar MobileMoreSheet): every other place, as an app's list — 52px rows,
+     icon · name · chevron, under section titles; it stands above the chart and stops at the app bar. */
+  .wm-mobile-more {
+    position: fixed; left: 0; right: 0; top: 0; bottom: calc(52px + env(safe-area-inset-bottom)); z-index: 45;
+    display: flex; flex-direction: column; background: #0b0b0d; padding-top: env(safe-area-inset-top, 0px);
+  }
+  .wm-mobile-more-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid rgba(139,106,41,0.25); }
+  .wm-mobile-more-title { font: 600 20px/1.2 Georgia, "Times New Roman", serif; color: #ede6d3; }
+  .wm-mobile-more-close { min-height: 44px; padding: 0 12px; background: none; border: 0; color: #d4af37; font: 600 14px Inter, system-ui, sans-serif; }
+  .wm-mobile-more-body { flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain; padding: 4px 0 16px; }
+  .wm-mobile-more-section-title { margin: 14px 16px 4px; font: 700 11px Inter, system-ui, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; color: #8b7a55; }
+  .wm-mobile-more-row {
+    display: flex; align-items: center; gap: 14px; min-height: 52px; padding: 0 16px; color: #ede6d3; text-decoration: none;
+    font: 500 15px Inter, system-ui, sans-serif; border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .wm-mobile-more-row svg { color: #d4af37; flex: 0 0 auto; }
+  .wm-mobile-more-row:active { background: rgba(212,175,55,0.08); }
+  .wm-mobile-more-label { flex: 1 1 auto; min-width: 0; }
+  .wm-mobile-more-legacy { font: 700 11px Inter, system-ui, sans-serif; letter-spacing: 0.08em; color: #a89c80; border: 1px solid rgba(168,156,128,0.4); border-radius: 4px; padding: 1px 5px; }
+  .wm-mobile-more-chev { color: #6f6650; font-size: 20px; }
   .wm-mobile-tab--trade {
     flex: 1.3 1 0; margin: 5px 4px; border-radius: 12px; color: #0b0b0d;
     background: linear-gradient(135deg, #d4af37, #8b6a29); font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;

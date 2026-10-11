@@ -1,0 +1,43 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { describe, expect, it } from "vitest";
+import { moreSections } from "./MobileTabBar";
+import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
+import { WM_DESTINATIONS } from "@/lib/routing/wmDestinations";
+
+/**
+ * THE PHONE'S MORE SCREEN (Founder 2026-10-11: "like Webull, moomoo, Robinhood mobile"): every place
+ * the product has, read from the one destination registry. It used to press the rooms rail, which
+ * listed four "changed-job" rooms and none of News, Academy, Paper Trade or Profile.
+ */
+describe("More screen", () => {
+  const hrefs = moreSections().flatMap(s => s.items.map(d => d.href));
+
+  it("lists every destination except the two the bar already holds", () => {
+    const expected = WM_DESTINATIONS.map(d => d.href).filter(h => h !== INSTRUMENT_VIEW_ROUTE && h !== "/journal");
+    expect([...hrefs].sort()).toEqual([...expected].sort());
+    for (const h of ["/news", "/education", "/paper", "/morning-prep", "/scanner", "/lounge", "/profile"]) expect(hrefs).toContain(h);
+    expect(hrefs).not.toContain(INSTRUMENT_VIEW_ROUTE);
+    expect(hrefs).not.toContain("/journal");
+  });
+
+  it("files Profile under Account", () => {
+    const account = moreSections().find(s => s.title === "Account");
+    expect(account?.items.map(d => d.href)).toEqual(["/profile"]);
+  });
+
+  it("a legacy room says the word; Settings and Close are on the screen; the tab no longer presses the rail", () => {
+    const src = readFileSync(path.join(process.cwd(), "src/components/mobile/MobileTabBar.tsx"), "utf8");
+    expect(src.length).toBeGreaterThan(3_000);
+    expect(src).toContain('{d.authority === "legacy" ? <span className="wm-mobile-more-legacy">LEGACY</span> : null}');
+    expect(src).toContain('<Link href="/settings" prefetch={false} className="wm-mobile-more-row" onClick={onClose}>');
+    expect(src).toContain('aria-label="Close More"');
+    expect(src).not.toContain('{ id: "more", label: "More", target:');
+  });
+
+  it("the sheet stops at the app bar and clears the clock", () => {
+    const css = readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
+    expect(css).toContain(".wm-mobile-more { display: none; }");
+    expect(css).toContain("bottom: calc(52px + env(safe-area-inset-bottom)); z-index: 45;");
+  });
+});

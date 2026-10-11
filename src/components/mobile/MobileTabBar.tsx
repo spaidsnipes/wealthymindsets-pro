@@ -12,7 +12,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React from "react";
+import { Settings as SettingsIcon } from "lucide-react";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
+import { WM_DESTINATIONS, type WmDestination } from "@/lib/routing/wmDestinations";
 
 interface Tab {
   readonly id: string;
@@ -40,9 +42,9 @@ export const MOBILE_TABS: readonly Tab[] = [
     icon: <svg width="20" height="20" viewBox="0 0 24 24" {...stroke}><path d="M4 17l5-6 4 3 7-8" /><path d="M15 6h5v5" /></svg> },
   { id: "journal", label: "Journal", href: "/journal",
     icon: <svg width="20" height="20" viewBox="0 0 24 24" {...stroke}><path d="M6 4h10a2 2 0 0 1 2 2v14H8a2 2 0 0 1-2-2z" /><path d="M9 8h6M9 12h6" /></svg> },
-  // More = the room rail (Tools, Rooms, Profile, every destination): the masthead's doors, which a
-  // phone's market screen does not show, open the same rail.
-  { id: "more", label: "More", target: '[data-testid="os-market-rooms"]', fallbackHref: `${INSTRUMENT_VIEW_ROUTE}?open=rooms`,
+  // More = every other place in the product, as an app's More screen (MobileMoreSheet): the rooms
+  // rail it used to press listed four "changed-job" rooms and none of News, Academy, Paper, Profile.
+  { id: "more", label: "More",
     icon: <svg width="20" height="20" viewBox="0 0 24 24" {...stroke}><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></svg> },
 ];
 
@@ -57,10 +59,76 @@ export function pressMobileTab(target: string, doc: Pick<Document, "querySelecto
 /** The chart room opens what a tab from another room asked for, once (`?open=trade|watchlist`). */
 export const MOBILE_OPEN_PARAM = "open";
 
+/** The bar's own places (Chart, Journal) are not repeated on the More screen. */
+const IN_BAR = new Set<string>([INSTRUMENT_VIEW_ROUTE, "/journal"]);
+
+export interface MoreSection { readonly title: string; readonly items: readonly WmDestination[] }
+
+/**
+ * The More screen's sections, read from the ONE destination registry (wmDestinations.ts) — no
+ * private list. Profile moves to Account beside Settings, as an app files them.
+ */
+export function moreSections(all: readonly WmDestination[] = WM_DESTINATIONS): readonly MoreSection[] {
+  const rest = all.filter(d => !IN_BAR.has(d.href));
+  const isAccount = (d: WmDestination) => d.href === "/profile";
+  return [
+    { title: "Rooms", items: rest.filter(d => d.group === "ROOM") },
+    { title: "Tools", items: rest.filter(d => d.group === "TOOL") },
+    { title: "Community", items: rest.filter(d => d.group === "COMMUNITY" && !isAccount(d)) },
+    { title: "Account", items: rest.filter(isAccount) },
+  ].filter(sec => sec.items.length > 0);
+}
+
+function MobileMoreSheet({ onClose }: { onClose: () => void }): React.ReactElement {
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return (
+    <div className="wm-mobile-more" role="dialog" aria-modal="true" aria-label="More" data-testid="mobile-more">
+      <div className="wm-mobile-more-head">
+        <span className="wm-mobile-more-title">More</span>
+        <button type="button" className="wm-mobile-more-close" onClick={onClose} aria-label="Close More">Close</button>
+      </div>
+      <div className="wm-mobile-more-body">
+        {moreSections().map(sec => (
+          <section key={sec.title} className="wm-mobile-more-section">
+            <h2 className="wm-mobile-more-section-title">{sec.title}</h2>
+            {sec.items.map(d => {
+              const Icon = d.icon;
+              return (
+                <Link key={d.href} href={d.href} prefetch={false} className="wm-mobile-more-row" onClick={onClose}>
+                  <Icon aria-hidden="true" size={20} strokeWidth={1.7} />
+                  <span className="wm-mobile-more-label">{d.label}</span>
+                  {/* A room under legacy authority says the word on every door drawn to it. */}
+                  {d.authority === "legacy" ? <span className="wm-mobile-more-legacy">LEGACY</span> : null}
+                  <span aria-hidden="true" className="wm-mobile-more-chev">›</span>
+                </Link>
+              );
+            })}
+            {sec.title === "Account" ? (
+              <Link href="/settings" prefetch={false} className="wm-mobile-more-row" onClick={onClose}>
+                <SettingsIcon aria-hidden="true" size={20} strokeWidth={1.7} />
+                <span className="wm-mobile-more-label">Settings</span>
+                <span aria-hidden="true" className="wm-mobile-more-chev">›</span>
+              </Link>
+            ) : null}
+          </section>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function MobileTabBar(): React.ReactElement {
   const path = usePathname() ?? "";
+  const [moreOpen, setMoreOpen] = React.useState(false);
+  const closeMore = React.useCallback(() => setMoreOpen(false), []);
+  React.useEffect(() => { setMoreOpen(false); }, [path]);
   const isCurrent = (t: Tab) => !!t.href && (path === t.href || path.startsWith(`${t.href}/`));
   return (
+    <>
     <nav className="wm-mobile-tabbar" aria-label="Market app">
       {MOBILE_TABS.map(t => t.href ? (
         <Link key={t.id} href={t.href} prefetch={false} data-tab={t.id} aria-current={isCurrent(t) ? "page" : undefined}
@@ -70,8 +138,11 @@ export function MobileTabBar(): React.ReactElement {
         </Link>
       ) : (
         <button key={t.id} type="button" data-tab={t.id}
-          className={t.primary ? "wm-mobile-tab wm-mobile-tab--trade" : "wm-mobile-tab"}
+          aria-expanded={t.id === "more" ? moreOpen : undefined}
+          className={t.primary ? "wm-mobile-tab wm-mobile-tab--trade" : t.id === "more" && moreOpen ? "wm-mobile-tab wm-mobile-tab--current" : "wm-mobile-tab"}
           onClick={() => {
+            if (t.id === "more") { setMoreOpen(o => !o); return; }
+            setMoreOpen(false);
             // This room's own control when it is here; from another room, the chart told what to open.
             if (t.target && pressMobileTab(t.target)) return;
             if (t.fallbackHref) window.location.assign(t.fallbackHref);
@@ -81,6 +152,8 @@ export function MobileTabBar(): React.ReactElement {
         </button>
       ))}
     </nav>
+    {moreOpen ? <MobileMoreSheet onClose={closeMore} /> : null}
+    </>
   );
 }
 
