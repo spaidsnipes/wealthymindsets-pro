@@ -2753,6 +2753,17 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   }
   [data-testid="trade-family"] [role="radiogroup"] > button { flex: 0 0 auto !important; min-width: 104px !important; min-height: 44px !important; }
 
+  /* SCANNER ROWS ARE TWO-LINE ROWS, like an app's scan list (measured 393: a four-column table with the
+     star column cut at the edge and names wrapping three lines). Line 1: star · symbol (name, status) ·
+     price · change. Line 2: the signal under the symbol. The header keeps its sortable labels. */
+  .wm-scanner-row { grid-template-columns: 28px minmax(0, 1fr) auto auto !important; column-gap: 6px; padding-right: 8px; }
+  .wm-scanner-row > :nth-child(1) { grid-column: 1; grid-row: 1 / span 2; }
+  .wm-scanner-row > :nth-child(2) { grid-column: 2; grid-row: 1; min-width: 0; }
+  .wm-scanner-row > :nth-child(4) { grid-column: 3; grid-row: 1; text-align: right; }
+  .wm-scanner-row > :nth-child(5) { grid-column: 4; grid-row: 1; text-align: right; }
+  .wm-scanner-row.cursor-pointer > :nth-child(3) { grid-column: 2 / span 3; grid-row: 2; padding-bottom: 6px; }
+  .wm-scanner-row:not(.cursor-pointer) > :nth-child(3) { display: none !important; }
+
   /* THE PHONE APP (Founder 2026-10-11: "like Webull, moomoo, Robinhood mobile"). The desk masthead
      leaves the market screen while the feed reading is LIVE and established; any other reading keeps
      the masthead as that one reading alone (a DELAYED / STALE word is the truth, never hidden). */
