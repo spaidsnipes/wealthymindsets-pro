@@ -25,3 +25,11 @@ describe("scaffolding crumb is bounded", () => {
     expect(MC.match(/\bcrumb\(/g)?.length).toBe(2);
   });
 });
+
+describe("scaffolding pressure-arrow words stay inside the plot (serving 390: \"↑ RESU…\" under the axis)", () => {
+  it("tries the left side when the right overflows, and never draws a word across the plot edge", () => {
+    expect(MC).toContain("const fitsRight = rightOf.x + rightOf.w <= plotRight - 2;");
+    expect(MC).toContain('if ((placed.mode === "CLEAR" || placed.mode === "MOVED") && placed.rect.x + placed.rect.w <= plotRight - 2) {');
+  });
+});
+

@@ -16402,13 +16402,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                       arrow(r.yA, r.yB, r.trend);
                       const mid = (r.yA + r.yB) / 2;
                       const tw = ctx.measureText(r.word).width + 2;
-                      const pref = { x: ax + 7, y: mid - 6, w: tw, h: 12 };
-                      const placed = placeClearOfKeepOut(pref, [...keepOut(), ...rowBodiesAt(mid - 6, mid + 6)], {
+                      // Right of the arrow when the word fits inside the plot, else left of it
+                      // (serving 390 all-on, 2026-10-10 20:10: "↑ RESU…" / "↑ SELL…" ran under the price axis).
+                      const rightOf = { x: ax + 7, y: mid - 6, w: tw, h: 12 };
+                      const leftOf = { x: ax - 7 - tw, y: mid - 6, w: tw, h: 12 };
+                      const fitsRight = rightOf.x + rightOf.w <= plotRight - 2;
+                      const placed = placeClearOfKeepOut(fitsRight ? rightOf : leftOf, [...keepOut(), ...rowBodiesAt(mid - 6, mid + 6)], {
                         minX, blockers: floatingChips, strict: true,
-                        alternates: [{ x: ax - 7 - tw, y: mid - 6, w: tw, h: 12 }],
+                        alternates: fitsRight ? [leftOf] : [],
                       });
-                      // A word goes only where it reads beside its arrow.
-                      if (placed.mode === "CLEAR" || placed.mode === "MOVED") {
+                      // A word goes only where it reads beside its arrow, wholly inside the plot.
+                      if ((placed.mode === "CLEAR" || placed.mode === "MOVED") && placed.rect.x + placed.rect.w <= plotRight - 2) {
                         ctx.fillStyle = DIM;
                         ctx.fillText(r.word, placed.rect.x + 1, mid);
                         floatingChips.push(placed.rect);
