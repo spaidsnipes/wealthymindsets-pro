@@ -2657,9 +2657,9 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   body:has(.wm-chart-market-pane[data-market-primary="true"]) [data-testid="os-identity"] { order: 0; flex: 0 0 auto !important; width: auto !important; margin: 0 4px 0 0 !important; }
   body:has(.wm-chart-market-pane[data-market-primary="true"]) [data-testid="os-identity"] .wm-wordmark span { display: none !important; }
   body:has(.wm-chart-market-pane[data-market-primary="true"]) [data-testid="os-identity"] .wm-wordmark img { width: 22px !important; height: 22px !important; }
-  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-os-equipment-plates { order: 1; flex: 0 1 auto !important; gap: 2px !important; margin: 0 !important; }
-  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-os-equipment-plates .wm-os-equipment-plate-mark { display: none !important; }
-  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-os-equipment-plates :is(.wm-os-equipment-plate, .wm-os-market-rooms) {
+  .wm-os-equipment-plates { order: 1; flex: 0 1 auto !important; gap: 2px !important; margin: 0 !important; }
+  .wm-os-equipment-plates .wm-os-equipment-plate-mark { display: none !important; }
+  .wm-os-equipment-plates :is(.wm-os-equipment-plate, .wm-os-market-rooms) {
     padding: 0 4px !important;
     min-width: 44px !important;
     min-height: 44px !important;
@@ -2667,10 +2667,10 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
     font-size: 11px !important;
     gap: 0 !important;
   }
-  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-os-equipment-plates .wm-os-equipment-plate-word { font-size: 11px !important; letter-spacing: 0.01em !important; }
-  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-os-masthead > div:has(> .wm-shell-access) { order: 2; margin-left: auto !important; flex: 0 0 auto !important; }
-  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-shell-access { border: none !important; background: transparent !important; padding: 0 !important; gap: 0 !important; }
-  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-shell-access button { width: 40px !important; min-width: 40px !important; }
+  .wm-os-equipment-plates .wm-os-equipment-plate-word { font-size: 11px !important; letter-spacing: 0.01em !important; }
+  .wm-os-masthead > div:has(> .wm-shell-access) { order: 2; margin-left: auto !important; flex: 0 0 auto !important; }
+  .wm-shell-access { border: none !important; background: transparent !important; padding: 0 !important; gap: 0 !important; }
+  .wm-shell-access button { width: 40px !important; min-width: 40px !important; }
   body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-os-feed-standing.wm-os-feed-standing { order: 3; flex: 1 0 100% !important; min-width: 0 !important; }
   body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-os-feed-standing[data-tone="LIVE"][data-established="true"] { display: none !important; }
 
@@ -2695,10 +2695,11 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   /* EVERY OTHER ROOM ON A PHONE (Journal, News, Scanner…): measured 239px of masthead at 393 — the
      word mark with its tagline, the doors, the room name, the P&L row and the lifecycle strip each on a
      row of their own. Now: the monogram, the doors and the room name share one row, and the lifecycle
-     steps are ONE sideways row (153px total; the content begins ~90px higher). */
+     steps are ONE sideways row, and the doors + utilities share the first row (239 → 105px measured on
+     /news; the first headline y 549 → 482). */
   body:not(:has(.wm-chart-market-pane[data-market-primary="true"])) .wm-os-masthead.wm-os-masthead {
     display: flex !important; flex-wrap: wrap !important; align-items: center !important;
-    column-gap: 6px !important; row-gap: 4px !important; padding: 6px 8px !important;
+    column-gap: 2px !important; row-gap: 4px !important; padding: 6px 8px !important;
   }
   body:not(:has(.wm-chart-market-pane[data-market-primary="true"])) [data-testid="os-identity"] { flex: 0 0 auto !important; width: auto !important; margin: 0 !important; }
   body:not(:has(.wm-chart-market-pane[data-market-primary="true"])) [data-testid="os-identity"] .wm-wordmark span,
@@ -2733,6 +2734,12 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   [data-testid="trade-panel"]:has([data-testid="trade-buy"][aria-pressed="true"]) [data-testid="trade-sell"],
   [data-testid="trade-panel"]:has([data-testid="trade-sell"][aria-pressed="true"]) [data-testid="trade-buy"] { opacity: 0.4; }
   [data-testid="trade-panel"] :is([data-testid="trade-buy"], [data-testid="trade-sell"])[aria-pressed="true"] { box-shadow: 0 0 0 2px #ede6d3 inset; }
+
+  /* NEWS READS LIKE AN APP'S NEWS TAB: search and AUTO-REFRESH share one row (the controls group is
+     flattened into the header row), and "Connect API Keys" leaves the phone header — every locked 🔑
+     source chip below opens the same dialog. Measured 393: first headline y 549 before. */
+  .wm-news-controls { display: contents !important; }
+  .wm-news-keys { display: none !important; }
 
   /* THE PHONE APP (Founder 2026-10-11: "like Webull, moomoo, Robinhood mobile"). The desk masthead
      leaves the market screen while the feed reading is LIVE and established; any other reading keeps

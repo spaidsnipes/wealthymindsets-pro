@@ -942,7 +942,7 @@ export default function NewsPage() {
           />
         </div>
 
-        <div className="ml-auto flex min-w-0 max-w-full flex-wrap items-center gap-1">
+        <div className="wm-news-controls ml-auto flex min-w-0 max-w-full flex-wrap items-center gap-1">
           <button
             onClick={() => setLiveMode(l => !l)}
             className={clsx(
@@ -958,7 +958,7 @@ export default function NewsPage() {
 
           <button
             onClick={() => setShowKeys(true)}
-            className="flex items-center gap-1 px-2 h-6 rounded text-[10px] font-semibold border border-wm-gold/40 bg-wm-gold/10 text-wm-gold hover:bg-wm-gold/20 transition-all"
+            className="wm-news-keys flex items-center gap-1 px-2 h-6 rounded text-[10px] font-semibold border border-wm-gold/40 bg-wm-gold/10 text-wm-gold hover:bg-wm-gold/20 transition-all"
           >
             🔑 Connect API Keys
           </button>
