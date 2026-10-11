@@ -2892,12 +2892,13 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
 
 /* TABLET TOP BAND, ONE THING PER SPOT (true tablet read 2026-10-11, 768x1024): the market-standing strip
    (top 36, centred) and the LIVE TAPE chip (top 42, centred) sat on each other, and "Evidence saved" sat
-   under both. LIVE TAPE takes the row between EFFORT and INSPECT (top 62); the vault chip the row below. */
+   under both. LIVE TAPE takes the row between EFFORT and INSPECT (top 62). */
 @media (min-width: 640px) and (max-width: 1023px) and (min-height: 521px) {
   .wm-chart-market-pane[data-market-primary="true"] .wm-live-session-chip {
     top: 62px !important; left: 50% !important; right: auto !important; transform: translateX(-50%) !important;
   }
-  .wm-chart-market-pane[data-market-primary="true"] .wm-nectar-vault-chip { top: 96px !important; }
+  /* The vault chip steps back as on the phone (at top 96 it sat on "N MARKET EVENTS"); the desk keeps it. */
+  .wm-chart-market-pane[data-market-primary="true"] .wm-nectar-vault-chip { display: none !important; }
 }
 
 /* PHONE LANDSCAPE IS THE CHART (Founder 2026-10-11, "like Webull / moomoo / Robinhood"). Measured
