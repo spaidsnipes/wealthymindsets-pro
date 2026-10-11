@@ -150,6 +150,7 @@ export function AssetClassSwitcher({ symbol, onSelect }: { symbol: string; onSel
         onClick={() => setOpen(o => !o)}
         // 44px phone hit area around the 26px chip (globals.css .wm-tap-slop).
         className="wm-tap-slop"
+        aria-label={`Asset class: ${chipLabelFor(symbol, current)} — switch between Stocks, Crypto, Futures, Forex, Indices and Metals`}
         title="Asset class — switch between Stocks, Crypto, Futures, Forex, Indices and Metals"
         style={{
           display: "flex", alignItems: "center", gap: 6, height: 26, padding: "0 10px",
@@ -160,7 +161,9 @@ export function AssetClassSwitcher({ symbol, onSelect }: { symbol: string; onSel
         }}
       >
         <span style={{ color: "#c9a55c", display: "inline-flex" }}>{current.icon}</span>
-        {chipLabelFor(symbol, current)}
+        {/* A phone shows the class by its mark alone (globals.css), as a trading app does; the word
+            stays for every reader in the button's name. */}
+        <span className="wm-asset-chip-label">{chipLabelFor(symbol, current)}</span>
         <ChevronDown size={12} style={{ opacity: 0.7, transform: open ? "rotate(180deg)" : "none", transition: "transform .15s" }} />
       </button>
 

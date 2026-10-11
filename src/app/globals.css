@@ -2835,6 +2835,9 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
     height: 24px; padding: 0 9px !important; border: 1px solid rgba(240,180,41,0.3) !important; border-radius: 12px !important;
     background: rgba(7,9,15,0.78) !important;
   }
+  /* The asset-class picker is its mark + caret on a phone ("₿ ▾"), so the symbol and its fidelity chip
+     share the first row (measured 375: "BTC-USD" pushed the chip onto a row of its own). */
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-asset-chip-label { display: none; }
   /* THE APP BAR replaces the sideways thumb strip; the strip's controls stay in the page for it to press. */
   body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-instrument-context-strip { display: none !important; }
   .wm-mobile-tabbar {
