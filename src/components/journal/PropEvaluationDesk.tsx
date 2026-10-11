@@ -20,6 +20,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 
 import { PropFillsImportPanel } from "@/components/journal/PropFillsImportPanel";
+import { PROP_PLAN_NO_TARGET_LINE, propWeekendPlan } from "@/lib/journal/propWeekendPlan";
 import { askSpaidbot, readSpaidbotAsk } from "@/lib/ai/spaidbotAsk";
 import { proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import {
@@ -136,6 +137,7 @@ export function PropEvaluationDesk({ storageKey, sample = false }: {
 
   const edit = (patch: Partial<Omit<PropInputs, "verifiedAtMs">>) => setInputs(prev => editInputs(prev, patch));
   const r = useMemo(() => readPropEvaluation(inputs), [inputs]);
+  const weekend = useMemo(() => propWeekendPlan(inputs, r), [inputs, r]);
   const sc = useMemo(() => readPropScenario(inputs, rows), [inputs, rows]);
   const plan = planDays.trim() === "" ? null : planDaysVerdict(inputs, Number(planDays));
   const asOf = inputs.verifiedAtMs === null ? null : new Date(inputs.verifiedAtMs).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
@@ -276,6 +278,24 @@ export function PropEvaluationDesk({ storageKey, sample = false }: {
           <span data-testid="prop-scenario-label" style={{ fontSize: 11, letterSpacing: 1, color: AMBER, fontWeight: 800 }}>SCENARIO LAB · {PROP_SCENARIO_LABEL}</span>
           <span style={{ fontSize: 11, color: MUTED, overflowWrap: "anywhere" }}>Rows you type here are what-if days added after the account above — profits and losses. They change nothing in the account, and no row is a goal for any day.</span>
         </div>
+        {/* SUNDAY STUDY · MONDAY PLAN (Founder G19 §19): process steps read from this desk's own state. */}
+        <Fold key={`plan-${loaded}`} id="plan" title="Sunday study · Monday plan" summary={weekend.openCount ? `${weekend.openCount} Sunday step${weekend.openCount === 1 ? "" : "s"} open` : "Sunday steps done on the desk"} startOpen={false}>
+          <span data-testid="prop-plan-line" style={{ fontSize: 11, color: MUTED }}>{PROP_PLAN_NO_TARGET_LINE}</span>
+          {([["SUNDAY STUDY", weekend.sunday], ["MONDAY · BEFORE AND AFTER THE SESSION", weekend.monday]] as const).map(([head, steps]) => (
+            <div key={head} style={{ display: "grid", gap: 4 }}>
+              <span style={{ fontSize: 11, color: GOLD, fontWeight: 700, letterSpacing: 0.6 }}>{head}</span>
+              <ol style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 4 }}>
+                {steps.map(st => (
+                  <li key={st.id} data-testid="prop-plan-step" data-step={st.id} data-state={st.state} style={{ fontSize: 12, color: INK, overflowWrap: "anywhere" }}>
+                    <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.6, color: st.state === "DONE" ? GREEN : st.state === "OPEN" ? AMBER : MUTED, marginRight: 6 }}>{st.state === "RULE" ? "RULE" : st.state}</span>
+                    {st.text}
+                    {st.detail ? <span style={{ color: MUTED, fontSize: 11 }}> · {st.detail}</span> : null}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ))}
+        </Fold>
         <Fold key={`scenario-${loaded}`} id="scenario" title="What-if days" summary={rows.length ? `${rows.length} row${rows.length === 1 ? "" : "s"} · ${formatCents(sc.rowsSumCents)}` : "no what-if rows"} startOpen={rows.length > 0} tone={AMBER}>
         {rows.map((v, i) => (
           <div key={i} data-testid="prop-scenario-row" style={{ display: "grid", gap: 6, gridTemplateColumns: "minmax(0,1fr) auto", alignItems: "end" }}>
