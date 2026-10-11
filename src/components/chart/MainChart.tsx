@@ -4746,8 +4746,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
 
       let cs: any;
       if (isLine) {
+        // PRICE INK (G19 house pass 2026-10-10): line / area modes draw price in the house ivory,
+        // not a charting-package blue.
         cs = chart.addSeries(LW.LineSeries,{
-          color:            "#4FA3E0",
+          color:            "#ede6d3",
           lineWidth:        2,
           priceLineVisible: true,
           priceLineColor:   "#F0B429",
@@ -4756,9 +4758,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         cs.setData(mainPoints as any);
       } else if (isArea) {
         cs = chart.addSeries(LW.AreaSeries,{
-          topColor:         "rgba(79,163,224,0.40)",
-          bottomColor:      "rgba(79,163,224,0.02)",
-          lineColor:        "#4FA3E0",
+          topColor:         "rgba(237,230,211,0.22)",
+          bottomColor:      "rgba(237,230,211,0.01)",
+          lineColor:        "#ede6d3",
           lineWidth:        2,
           priceLineVisible: true,
           priceLineColor:   "#F0B429",
@@ -4902,7 +4904,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       } else if (isComingSoon) {
         // 3-Line Break / Kagi / Point & Figure — render as line for now with label
         cs = chart.addSeries(LW.LineSeries,{
-          color: "#8B5CF6", lineWidth: 2,
+          color: "#ede6d3", lineWidth: 2,
           priceLineVisible: true, priceLineColor: "#F0B429", lastValueVisible: true,
         });
         cs.setData(displayData.map(b => ({ time: b.time, value: b.close } as any)));
@@ -28334,7 +28336,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       if (selected) {
         ctx.save(); ctx.setLineDash([]); ctx.globalAlpha = 1;
         const HS = 12;
-        d.pts.forEach(p => { const q = toPx(p); if (!q) return; ctx.fillStyle = "#fff"; ctx.strokeStyle = "#00D4AA"; ctx.lineWidth = 2; ctx.beginPath(); ctx.rect(q.x - HS, q.y - HS, HS * 2, HS * 2); ctx.fill(); ctx.stroke(); });
+        d.pts.forEach(p => { const q = toPx(p); if (!q) return; ctx.fillStyle = "#fff"; ctx.strokeStyle = "#d4af37"; ctx.lineWidth = 2; ctx.beginPath(); ctx.rect(q.x - HS, q.y - HS, HS * 2, HS * 2); ctx.fill(); ctx.stroke(); });
         ctx.restore();
       }
     };
@@ -30777,9 +30779,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const btn = (active: boolean): React.CSSProperties => ({
             display: "flex", alignItems: "center", justifyContent: "center",
             minWidth: 22, height: 22, padding: "0 5px", borderRadius: 5, cursor: "pointer",
-            fontSize: 11, lineHeight: 1, color: active ? "#0B0E1A" : "#C7D0E8",
-            background: active ? "#4FA3E0" : "rgba(255,255,255,0.05)",
-            border: `1px solid ${active ? "#4FA3E0" : "rgba(255,255,255,0.10)"}`,
+            fontSize: 11, lineHeight: 1, color: active ? "#0b0b0d" : "#c0b8a0",
+            background: active ? "#d4af37" : "rgba(255,255,255,0.05)",
+            border: `1px solid ${active ? "#d4af37" : "rgba(255,255,255,0.10)"}`,
           });
           const isText = TEXT_TOOLS.has(d.tool);
           return (
@@ -30865,7 +30867,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 title="Opacity"
                 value={Math.round((d.style.opacity ?? 1) * 100)}
                 onChange={e => { d.style.opacity = Number(e.target.value) / 100; bump(); }}
-                style={{ width: 52, accentColor: "#4FA3E0" }}
+                style={{ width: 52, accentColor: "#d4af37" }}
               />
               {FILL_TOOLS.has(d.tool) && d.tool !== "delta-vp" && (
                 <>
@@ -30941,7 +30943,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 position: "absolute", left, top, zIndex: 131, width: boxW,
                 height: 28, padding: "0 9px", borderRadius: 7, outline: "none",
                 fontSize: 12, color: "#EAF0FF", background: "#141824",
-                border: "1px solid #4FA3E0", boxShadow: "0 8px 26px rgba(0,0,0,0.55)",
+                border: "1px solid rgba(212,175,55,0.55)", boxShadow: "0 8px 26px rgba(0,0,0,0.55)",
               }}
             />
           );
@@ -31260,7 +31262,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               }] : []),
               ...(ctxMenu.nearDrawingIdx !== null ? [
                 {
-                  label: "🎨 Edit style", color: "#4FA3E0",
+                  label: "🎨 Edit style", color: "#c9a55c",
                   action: () => {
                     setSelectedIdx(ctxMenu.nearDrawingIdx);
                     setEditBump(v => v + 1);
