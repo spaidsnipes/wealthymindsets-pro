@@ -2722,6 +2722,8 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   [data-placement] > [role="dialog"][data-touch-floor] {
     width: 100vw !important; margin: 0 !important; height: 100svh !important; max-height: 100svh !important;
     border-radius: 0 !important; border: 0 !important; background: #0b0b0d !important;
+    /* Opened from the Home Screen the glass runs under the clock: the sheet's title and Close start below it. */
+    box-sizing: border-box !important; padding-top: env(safe-area-inset-top, 0px) !important;
   }
   /* WATCHLIST ROWS READ LIKE AN APP'S: the price at 14px, the day's change as a coloured pill. */
   .wm-wl-price { font-size: 14px !important; }

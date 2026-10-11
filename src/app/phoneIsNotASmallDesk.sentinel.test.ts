@@ -54,6 +54,9 @@ describe("one price on the phone screen — the quote header owns it, big, with 
     expect(block).toContain(".wm-chart-market-summary .wm-chart-header-price { order: 9; flex: 1 0 100%; font-size: 26px !important;");
     expect(block).toContain(':is([data-chart-identity], [data-legend-group="price"]) { display: none !important; }');
   });
+  it("a full-screen sheet starts below the clock when opened from the Home Screen", () => {
+    expect(block).toContain("box-sizing: border-box !important; padding-top: env(safe-area-inset-top, 0px) !important;");
+  });
   it("the price is the big number; its qualifier (LAST 5m BAR CLOSE) stays beside it, small", () => {
     expect(DASH).toContain('<span className="wm-chart-header-price-note">');
     expect(block).toContain(".wm-chart-header-price-note { font-size: 11px;");
