@@ -60,6 +60,12 @@ describe("one price on the phone screen — the quote header owns it, big, with 
     expect(bt).toContain('{mainTab === "backtest" && <div className="flex-1 min-h-0 flex flex-col overflow-y-auto md:flex-row md:overflow-hidden">');
     expect(bt).toContain('<div className="w-full md:w-72 border-b md:border-b-0 md:border-r border-wm-border');
   });
+  it("WM TV and the Creator tiers stack on a phone (they were ~40px columns)", () => {
+    const tv = readFileSync(path.join(process.cwd(), "src/app/tv/page.tsx"), "utf8");
+    const creator = readFileSync(path.join(process.cwd(), "src/app/creator/page.tsx"), "utf8");
+    expect(tv).toContain('<div className="flex flex-col md:flex-row h-full overflow-hidden">');
+    expect(creator).toContain('<div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-12">');
+  });
   it("a 360px phone keeps every timeframe rung in view", () => {
     expect(block).toContain('@media (max-width: 379px) {\n    .wm-chart-market-pane[data-market-primary="true"] .wm-tf-quickrow { gap: 2px; }');
   });

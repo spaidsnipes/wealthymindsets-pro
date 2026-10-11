@@ -264,7 +264,7 @@ export default function CreatorPage() {
           <p className="text-xs text-wm-text-muted mt-1">Proposed tiers and benefits — pricing and terms are not active offers.</p>
         </div>
 
-        <div className="grid grid-cols-3 gap-5 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-12">
           {TIERS.map(tier => (
             <motion.div
               key={tier.id}

@@ -259,9 +259,11 @@ export default function WMTVPage() {
   const activeText  = TEXT_CHANNELS.find(c => c.id === activeId) || null;
 
   return (
-    <div className="flex h-full overflow-hidden">
+    // A phone stacks the channel guide (a short scrolling list) above the channel; the 224px guide
+    // beside it left the channel a ~130px column (2026-10-11).
+    <div className="flex flex-col md:flex-row h-full overflow-hidden">
       {/* ── Channel sidebar ─────────────────────────────── */}
-      <div className="w-56 shrink-0 border-r border-wm-border bg-wm-dark flex flex-col">
+      <div className="w-full md:w-56 max-h-[32vh] md:max-h-none shrink-0 border-b md:border-b-0 md:border-r border-wm-border bg-wm-dark flex flex-col">
         <div className="flex items-center gap-2 px-3 py-3 border-b border-wm-border">
           <div
             className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
@@ -341,7 +343,7 @@ export default function WMTVPage() {
       </div>
 
       {/* ── Main content ────────────────────────────────── */}
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div className="flex-1 min-w-0 min-h-0 flex flex-col">
         {activeId === "wmtv-home" ? <WMTVHome onOpenLive={() => setActiveId("live-room")} onOpenPodcast={() => setActiveId("podcast-stage")} />
           : activeId === BRAIN_FITNESS_ID ? <BrainFitnessChannel />
           : activeStage ? <LiveStage key={activeStage.id} channel={activeStage} />
