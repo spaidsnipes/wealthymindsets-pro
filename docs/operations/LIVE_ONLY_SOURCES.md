@@ -38,6 +38,20 @@ candle consumer.
 - `src/lib/broker/useTastyFuturesPositioning.ts` — `positioningFromLegs`, `useHeldPositioning`; `useTastyEquityOptionLegs.ts` — `useTastyEquityPositioning`.
 - `src/lib/broker/tastyFrontMonth.ts` — `tastyIndexStreamer`.
 
+## Rules learned while landing it
+
+- A tastytrade options receipt carries no `underlyingAsOf` of its own. Any consumer that needs a SAME-TIME
+  basis (the NQ/ES → NDX/SPX index mapping) must stamp the live index level and its time onto the receipt —
+  never a stale level against a live future (`NO_LIVE_INDEX_LEVEL` after the cash close).
+- When a fallback is removed, sweep the idle states too: the CME daily halt, weekends, after-hours stocks,
+  crypto. Quiet streams keep their LAST live price with its age (never shown as live).
+- A member whose account has no tastytrade connection is told so ("live bars come from a connected tastytrade
+  account…"), not "refused, without saying why".
+- One time-and-sales read per contract (single-flight + 20 s reuse in `src/lib/broker/tastyHistory.ts`): a cold
+  futures chart opens 2 DXLink sockets, not 5–7.
+- Paint cost: `canvas.dataset.paintSections` (`src/lib/chart/paintLaps.ts`) names the costliest `draw()`
+  sections. Canvas calls are cheap; the cost is JavaScript inside `draw()`.
+
 ## Consequences (by design of the order)
 
 - Guests (no tastytrade) have no stock / futures prices.
