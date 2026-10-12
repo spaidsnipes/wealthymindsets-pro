@@ -43,12 +43,27 @@ export async function POST(request: Request) {
     const title    = (form.get("title")  as string | null)?.trim() ?? "";
     const artist   = (form.get("artist") as string | null)?.trim() ?? "";
     const genre    = (form.get("genre")  as string | null)?.trim() || "Other";
-    const uploader = (form.get("uploader") as string | null)?.trim() ?? "";
+    // The uploader is the signed-in human, never a form field.
+    const uploader = auth.user.handle?.trim() || auth.user.displayName || auth.user.sub;
+    const pastedUrl = (form.get("url") as string | null)?.trim() ?? "";
     const durationStr = form.get("duration") as string | null;
     const duration = durationStr ? parseInt(durationStr, 10) : 0;
 
-    if (!file || !title || !artist) {
-      return NextResponse.json({ error: "file, title, and artist are required" }, { status: 400 });
+    if ((!file && !pastedUrl) || !title || !artist) {
+      return NextResponse.json({ error: "file (or url), title, and artist are required" }, { status: 400 });
+    }
+
+    if (!file) {
+      let parsed: URL;
+      try { parsed = new URL(pastedUrl); } catch { return NextResponse.json({ error: "url must be a valid https URL" }, { status: 400 }); }
+      if (parsed.protocol !== "https:") return NextResponse.json({ error: "url must be a valid https URL" }, { status: 400 });
+      const { data: track, error: dbErr } = await supabaseAdmin
+        .from("radio_tracks")
+        .insert({ title, artist, genre, duration, storage_path: "", public_url: parsed.toString(), uploader, user_id: auth.user.sub })
+        .select()
+        .single();
+      if (dbErr) return NextResponse.json({ error: "Could not save the track" }, { status: 500 });
+      return NextResponse.json({ track, url: parsed.toString() });
     }
 
     // Ensure bucket exists (public)
@@ -71,7 +86,7 @@ export async function POST(request: Request) {
     // Insert into radio_tracks
     const { data: track, error: dbErr } = await supabaseAdmin
       .from("radio_tracks")
-      .insert({ title, artist, genre, duration, storage_path: path, public_url: publicUrl, uploader })
+      .insert({ title, artist, genre, duration, storage_path: path, public_url: publicUrl, uploader, user_id: auth.user.sub })
       .select()
       .single();
 

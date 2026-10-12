@@ -614,10 +614,9 @@ function RadioPlayer({ now, playing, onToggle, progress, onSeek, volume, onVolum
 ══════════════════════════════════════════════════════════════ */
 const GENRES_LIST = ["Hip-Hop","R&B","Lo-Fi","Trap","Jazz","Pop","Electronic","Beats","Other"];
 
-function UploadModal({ onClose, onAdd, uploader }: {
+function UploadModal({ onClose, onAdd }: {
   onClose: () => void;
   onAdd: (track: Track, url: string) => void;
-  uploader: string;
 }) {
   const [mode, setMode]         = useState<"file"|"url">("file");
   const [title, setTitle]       = useState("");
@@ -650,59 +649,34 @@ function UploadModal({ onClose, onAdd, uploader }: {
     setError("");
 
     try {
-      let finalUrl = "";
-      let trackData: Track;
-
+      // Uploads go through /api/upload-track, which checks the WM session and
+      // records the uploader from it. The browser no longer writes to Radio
+      // storage or radio_tracks directly.
+      const form = new FormData();
+      form.set("title", title.trim());
+      form.set("artist", artist.trim());
+      form.set("genre", genre);
+      form.set("duration", String(duration || 0));
       if (mode === "url") {
         const url = pasteUrl.trim();
         if (!url) { setError("Please paste a URL"); setUploading(false); return; }
-        // Directly add URL-based track (no server upload needed)
-        trackData = {
-          id: Date.now(),
-          title: title.trim(), artist: artist.trim(),
-          album: "WM Radio Uploads", genre,
-          duration: duration || 180, plays: "0",
-          color: "#00D4AA", liked: false, verified: false, new: true,
-        };
-        finalUrl = url;
-        // Still save metadata to Supabase
-        await supabase.from("radio_tracks").insert({
-          title: trackData.title, artist: trackData.artist, genre, duration: trackData.duration,
-          storage_path: "", public_url: url, uploader,
-        });
+        form.set("url", url);
       } else {
         if (!file) { setError("Please select a file"); setUploading(false); return; }
-
-        // Upload directly browser → Supabase Storage (avoids the serverless request-body size limit)
-        const ext  = file.name.split(".").pop() ?? "mp3";
-        const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-
-        const { error: uploadErr } = await supabase.storage
-          .from("radio")
-          .upload(path, file, { contentType: file.type || "audio/mpeg", upsert: false });
-
-        if (uploadErr) throw new Error(uploadErr.message);
-
-        const { data: urlData } = supabase.storage.from("radio").getPublicUrl(path);
-        finalUrl = urlData.publicUrl;
-
-        // Save metadata to database
-        const { data: dbTrack, error: dbErr } = await supabase
-          .from("radio_tracks")
-          .insert({ title: title.trim(), artist: artist.trim(), genre, duration, storage_path: path, public_url: finalUrl, uploader })
-          .select()
-          .single();
-
-        if (dbErr) throw new Error(dbErr.message);
-
-        trackData = {
-          id: dbTrack.id,
-          title: dbTrack.title, artist: dbTrack.artist,
-          album: "WM Radio Uploads", genre: dbTrack.genre,
-          duration: dbTrack.duration ?? duration, plays: "0",
-          color: "#00D4AA", liked: false, verified: false, new: true,
-        };
+        form.set("file", file);
       }
+      const res = await fetch("/api/upload-track", { method: "POST", body: form, credentials: "include" });
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(typeof out.error === "string" ? out.error : "Upload failed");
+      const dbTrack = out.track;
+      const finalUrl: string = out.url;
+      const trackData: Track = {
+        id: dbTrack.id,
+        title: dbTrack.title, artist: dbTrack.artist,
+        album: "WM Radio Uploads", genre: dbTrack.genre,
+        duration: dbTrack.duration ?? duration, plays: "0",
+        color: "#00D4AA", liked: false, verified: false, new: true,
+      };
 
       onAdd(trackData, finalUrl);
     } catch (e) {
@@ -1286,7 +1260,6 @@ export default function RadioPage() {
           <UploadModal
             onClose={() => setShowUpload(false)}
             onAdd={(track, url) => { addUserTrack(track, url); setShowUpload(false); }}
-            uploader={myHandle}
           />
         )}
       </AnimatePresence>

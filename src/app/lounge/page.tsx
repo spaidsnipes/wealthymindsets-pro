@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import toast from "react-hot-toast";
 import { getSupabase, supabase } from "@/lib/supabase";
+import { loungeWrite } from "@/lib/loungeWrite";
 import dynamic from "next/dynamic";
 const LiveRoom = dynamic(() => import("@/components/lounge/LiveRoom"), { ssr: false });
 import { useAuth } from "@/contexts/AuthContext";
@@ -136,11 +137,9 @@ function CommentsPanel({ postId, myHandle, myName, myAvatar, myColor }:
   const submit = async () => {
     if (!body.trim() || !myHandle) return;
     setSending(true);
-    const { data, error } = await supabase.from("lounge_comments").insert({
-      post_id: postId, user_handle: myHandle, user_name: myName,
-      user_avatar: myAvatar, user_color: myColor, body: body.trim(),
-    }).select().single();
-    if (!error && data) setComments(c => [...c, data as Comment]);
+    const r = await loungeWrite<{ comment: Comment }>({ action: "comment", postId, body: body.trim(), color: myColor });
+    if (r.ok) setComments(c => [...c, r.data.comment]);
+    else toast.error(r.error);
     setBody("");
     setSending(false);
   };
@@ -202,14 +201,10 @@ function PostCard({ post, myHandle, myName, myAvatar, myColor, onDelete }:
 
   const toggleLike = async () => {
     if (!myHandle) { toast.error("Sign in to like posts"); return; }
-    if (liked) {
-      await supabase.from("lounge_likes").delete()
-        .eq("post_id", post.id).eq("user_handle", myHandle);
-      setLiked(false); setLikeCount(c => c - 1);
-    } else {
-      await supabase.from("lounge_likes").insert({ post_id: post.id, user_handle: myHandle });
-      setLiked(true); setLikeCount(c => c + 1);
-    }
+    const r = await loungeWrite({ action: liked ? "unlike" : "like", postId: post.id });
+    if (!r.ok) { toast.error(r.error); return; }
+    if (liked) { setLiked(false); setLikeCount(c => c - 1); }
+    else { setLiked(true); setLikeCount(c => c + 1); }
   };
 
   const sharePost = () => {
@@ -226,7 +221,8 @@ function PostCard({ post, myHandle, myName, myAvatar, myColor, onDelete }:
     // post (first ~60 chars of content) about to be removed.
     const preview = post.content.length > 60 ? `${post.content.slice(0, 60)}…` : post.content;
     if (!window.confirm(`Delete this Lounge post?\n\n"${preview}"\n\nOther traders may have seen it. This cannot be undone.`)) return;
-    await supabase.from("lounge_posts").delete().eq("id", post.id);
+    const r = await loungeWrite({ action: "delete_post", postId: post.id });
+    if (!r.ok) { toast.error(r.error); return; }
     onDelete?.(post.id);
     toast.success("Post deleted");
   };
@@ -384,22 +380,13 @@ function CreatePostModal({ onClose, onPost, user }:
       ? { sym, dir, entry, target, stop, rr, status:"open" }
       : null;
 
-    const { data, error } = await supabase.from("lounge_posts").insert({
-      user_handle:   user.handle,
-      user_name:     user.name,
-      user_avatar:   user.avatar,
-      user_color:    user.color,
-      user_tier:     user.tier,
-      user_verified: user.verified,
-      user_ceo:      user.ceo,
-      content:       text.trim(),
-      type:          postType,
-      trade_card:    trade_card ?? null,
-      tags,
-    }).select().single();
+    const r = await loungeWrite<{ post: Post }>({
+      action: "post", content: text.trim(), type: postType,
+      tradeCard: trade_card ?? undefined, tags, color: user.color,
+    });
 
-    if (error) { toast.error("Post failed — try again"); setSubmitting(false); return; }
-    const newPost: Post = { ...(data as Post), like_count: 0, comment_count: 0, liked_by_me: false };
+    if (!r.ok) { toast.error(r.error); setSubmitting(false); return; }
+    const newPost: Post = { ...r.data.post, like_count: 0, comment_count: 0, liked_by_me: false };
     onPost(newPost);
     onClose();
     toast.success("Post published! 🚀");
@@ -754,7 +741,7 @@ export default function LoungePage() {
     }
   }, []);
 
-  const myHandle  = user?.handle  ?? user?.email?.split("@")[0] ?? "";
+  const myHandle  = user?.handle ?? "";
   const myName    = user?.displayName ?? "You";
   const myAvatar  = user?.avatar  ?? "";
   const myColor   = "#00D4AA";
@@ -834,13 +821,13 @@ export default function LoungePage() {
   const toggleFollow = async (handle: string) => {
     if (!loungeClient) return;
     if (!myHandle) { toast.error("Sign in to follow"); return; }
-    if (follows.has(handle)) {
-      await loungeClient.from("lounge_follows").delete()
-        .eq("follower_handle", myHandle).eq("following_handle", handle);
+    const following = follows.has(handle);
+    const r = await loungeWrite({ action: following ? "unfollow" : "follow", handle });
+    if (!r.ok) { toast.error(r.error); return; }
+    if (following) {
       setFollows(f => { const n = new Set(f); n.delete(handle); return n; });
       toast.success(`Unfollowed ${handle}`);
     } else {
-      await loungeClient.from("lounge_follows").insert({ follower_handle: myHandle, following_handle: handle });
       setFollows(f => new Set([...f, handle]));
       toast.success(`Following ${handle}! 🔔`);
     }

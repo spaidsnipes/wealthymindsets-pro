@@ -208,14 +208,6 @@ const NO_IN_APP_CALLER: Readonly<Record<string, OrphanEntry>> = {
       "Zero references. /app/radio hardcodes its track URLs in a literal array (page.tsx:200) " +
       "instead of reading this store, so the store holds nothing anyone sees. Task #53.",
   },
-  "/api/upload-track": {
-    cls: "DARK",
-    evidence:
-      "Zero references. /app/radio's UploadModal writes DIRECTLY to Supabase storage from the " +
-      "browser (page.tsx:677-689) under the user's own auth, bypassing this route. Two upload " +
-      "paths with different authority — this one holds the SERVICE ROLE key — and the app uses " +
-      "the other one. Task #53.",
-  },
 };
 
 const routes = apiRoutePaths();
@@ -314,7 +306,10 @@ describe("every API endpoint has something that actually calls it", () => {
     const every = Object.values(NO_IN_APP_CALLER);
     const dark = Object.entries(NO_IN_APP_CALLER).filter(([, e]) => e.cls === "DARK");
 
-    expect(dark.length, "DARK count changed — a debt was paid or a new one was taken on").toBe(11);
+    expect(dark.length, "DARK count changed — a debt was paid or a new one was taken on").toBe(10);
+    // 11 -> 10 on 2026-10-11: /api/upload-track PAID — /app/radio's UploadModal
+    // now uploads through it (session-checked) instead of writing to Supabase
+    // storage and radio_tracks from the browser with the anon key.
     // 12 -> 11 on 2026-10-01: /api/broker/tastytrade/market-metrics PAID —
     // MarketMetricsCard reads it on the Market Info / Contract / Valuation views.
     // 13 -> 12 on 2026-09-26: /api/tradovate RETIRED, not wired. It forwarded
