@@ -95,8 +95,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: CHUNK_RECOVERY_SCRIPT }} />
         {/* Preconnect for performance */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="dns-prefetch" href="https://api.polygon.io" />
-        <link rel="dns-prefetch" href="https://finnhub.io" />
       </head>
       <body
         style={{ height: "100%", width: "100%", overflow: "hidden" }}
