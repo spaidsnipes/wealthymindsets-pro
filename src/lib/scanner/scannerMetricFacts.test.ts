@@ -287,3 +287,10 @@ describe("/scanner page", () => {
     expect(code).toMatch(/volRatioFact\.value/);
   });
 });
+
+it("the scanner re-scans once when live prices first arrive, on a timer an effect cleanup cannot cancel (2026-10-12)", () => {
+  const page = readFileSync(join(process.cwd(), "src/app/scanner/page.tsx"), "utf8");
+  expect(page).toContain("liveFillTimerRef.current = setTimeout(() => { void refresh(); }, 2_000);");
+  const block = page.slice(page.indexOf("const liveFilledRef = useRef(false);"), page.indexOf("}, [scannerLive, refresh]);"));
+  expect(block).not.toContain("return () =>");
+});

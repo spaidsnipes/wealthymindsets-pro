@@ -733,6 +733,18 @@ export default function ScannerPage() {
     refresh();
   }, [refresh]);
 
+  // The opening round runs before the live stream has spoken, so most rows are refused. Once live prices
+  // start arriving, re-scan ONCE (2 s later, so the rest arrive too) instead of waiting the 30 s cadence.
+  // (The timer lives in a ref: `scannerLive` changes on every quote, and an effect cleanup would cancel it.)
+  const liveFilledRef = useRef(false);
+  const liveFillTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (liveFilledRef.current || scannerLive.size === 0) return;
+    liveFilledRef.current = true;
+    liveFillTimerRef.current = setTimeout(() => { void refresh(); }, 2_000);
+  }, [scannerLive, refresh]);
+  useEffect(() => () => { if (liveFillTimerRef.current) clearTimeout(liveFillTimerRef.current); }, []);
+
   useEffect(() => {
     if (!live) { if (intervalRef.current) clearInterval(intervalRef.current); return; }
     // Refresh every 30s with real data
