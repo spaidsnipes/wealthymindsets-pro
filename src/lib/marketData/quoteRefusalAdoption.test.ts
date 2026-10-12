@@ -180,10 +180,10 @@ describe("SF-D01 refusal — every gate consumer also carries the reason", () =>
 
 describe("SF-D01 — asking Yahoo for a quote obliges you to consult the gate", () => {
   it("finds the readers it is meant to police", () => {
-    const readers = yahooQuoteReaders();
-    expect(readers.length).toBeGreaterThan(0);
-    // (useWebSocket stopped asking Yahoo for quotes on 2026-10-12 — delayed doors removed.)
-    expect(readers).not.toContain("hooks/useWebSocket.ts");
+    // 2026-10-12 (Founder: "remove anything delayed and dead"): NO client surface asks the
+    // delayed Yahoo quote any more — the rule this block enforced now has nothing to police,
+    // and a new reader would have to come back through this assertion.
+    expect(yahooQuoteReaders()).toEqual([]);
   });
 
   it.each(Object.entries(SF_D01_DELEGATES))(

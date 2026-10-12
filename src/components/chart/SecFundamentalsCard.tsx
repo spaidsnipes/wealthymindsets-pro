@@ -11,7 +11,7 @@ import { owned, readOwned, UNOWNED, type Owned } from "@/lib/marketData/symbolOw
 
 import type { SecQuarter } from "@/lib/fundamentals/secEdgar";
 import { secValuation } from "@/lib/fundamentals/secValuation";
-import { yahooQuoteObserved, yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
+import { useTastyWatchQuotes } from "@/lib/broker/useTastyWatchQuotes";
 
 interface SecBody {
   readonly state: string;
@@ -47,31 +47,14 @@ export function SecFundamentalsCard({ symbol, tab }: { readonly symbol: string; 
   const key = symbol.toUpperCase();
   const [ownedBody, setOwnedBody] = useState<Owned<SecBody>>(UNOWNED);
   const [ownedFailed, setOwnedFailed] = useState<Owned<true>>(UNOWNED);
-  // The price the Valuation view divides by — the same quote route the room reads.
-  const [ownedQuote, setOwnedQuote] = useState<Owned<{ price: number; ts: number | null }>>(UNOWNED);
-  // SF-D01: a refused quote (e.g. a day close presented as live) never prices
-  // the valuation, and the refusal's own words are shown instead.
-  const [ownedRefused, setOwnedRefused] = useState<Owned<string>>(UNOWNED);
   const body = readOwned(ownedBody, key);
   const failed = readOwned(ownedFailed, key) === true;
-  const quote = readOwned(ownedQuote, key);
-  const quoteRefused = readOwned(ownedRefused, key);
-  useEffect(() => {
-    if (tab !== "Valuation") return;
-    let off = false;
-    const setQuote = (q: { price: number; ts: number | null } | null) => setOwnedQuote(q ? owned(key, q) : UNOWNED);
-    const setQuoteRefused = (r: string | null) => setOwnedRefused(r ? owned(key, r) : UNOWNED);
-    fetch(`/api/yahoo?sym=${encodeURIComponent(symbol.toUpperCase())}&type=quote`, { cache: "no-store" })
-      .then(r => r.json() as Promise<{ price?: number; ts?: number }>)
-      .then(j => {
-        if (off) return;
-        if (!yahooQuoteObserved(j)) { setQuote(null); setQuoteRefused(yahooQuoteRefusal(j) ?? "The quote was refused."); return; }
-        setQuoteRefused(null);
-        if (typeof j.price === "number" && j.price > 0) setQuote({ price: j.price, ts: typeof j.ts === "number" ? j.ts : null });
-      })
-      .catch(() => {});
-    return () => { off = true; };
-  }, [symbol, tab, key]);
+  // LIVE ONLY (Founder 2026-10-12: "remove anything delayed and dead"): valuation is priced at
+  // the symbol's live tastytrade price, never the delayed Yahoo quote.
+  const liveMap = useTastyWatchQuotes(React.useMemo(() => (tab === "Valuation" ? [symbol.toUpperCase()] : []), [tab, symbol]));
+  const liveQ = liveMap.get(symbol.toUpperCase());
+  const quote = liveQ && liveQ.price > 0 ? { price: liveQ.price, ts: liveQ.at } : null;
+  const quoteRefused = quote ? null : `No live tastytrade price for ${symbol.toUpperCase()} yet.`;
   useEffect(() => {
     let off = false;
     setOwnedBody(UNOWNED); setOwnedFailed(UNOWNED);

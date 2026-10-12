@@ -32,7 +32,7 @@ describe("ownedWrite — the rule useSymbolOwnedState applies", () => {
 
 describe("components hold per-symbol state through the owner", () => {
   it.each([
-    ["components/chart/SecFundamentalsCard.tsx", ["const quote = readOwned(ownedQuote, key);", "const body = readOwned(ownedBody, key);"]],
+    ["components/chart/SecFundamentalsCard.tsx", ["const body = readOwned(ownedBody, key);"]],
     ["components/chart/MarketMetricsCard.tsx", ["const rows = readOwned(ownedRows, product);", "const list = readOwned(ownedList, product);", "const read = readOwned(ownedRead, q);"]],
     ["components/chart/StockInfoPanel.tsx", ["const realOHLC = readOwned(ownedOHLC, ownerKey);", "const favorited = readOwned(ownedFav, ownerKey) === true;"]],
     ["components/chart/DOMPanel.tsx", ["useSymbolOwnedState<DomLevel[]>(sym, [])"]],
