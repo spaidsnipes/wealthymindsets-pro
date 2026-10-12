@@ -119,22 +119,8 @@ export const PROVIDER_REQUIREMENTS: readonly ProviderRequirement[] = [
     recommended: ["TASTYTRADE_ENV"],
     note: "Needs the OAuth client pair AND a refresh token; the client pair alone cannot mint a session.",
   },
-  {
-    provider: "moomoo",
-    label: "Moomoo (OpenD bridge)",
-    lane: "broker",
-    required: ["MOOMOO_BRIDGE_URL", "MOOMOO_BRIDGE_TOKEN"],
-    recommended: ["MOOMOO_CANARY_SYMBOL"],
-    note: "Both the bridge URL and shared bearer token must be set AND a reachable OpenD bridge must be running.",
-  },
-  {
-    provider: "longbridge-data",
-    label: "Longbridge market data",
-    lane: "market-data",
-    required: ["LONGBRIDGE_BRIDGE_URL", "LONGBRIDGE_BRIDGE_TOKEN"],
-    recommended: ["LONGBRIDGE_CANARY_SYMBOL"],
-    note: "Portable Longbridge OpenAPI bridge. Credentials stay in the bridge; WM Pro receives bounded read-only tick receipts.",
-  },
+
+
   {
     provider: "alpaca-paper",
     label: "Alpaca (paper)",
@@ -170,15 +156,7 @@ export const PROVIDER_REQUIREMENTS: readonly ProviderRequirement[] = [
     recommended: [],
     note: "Server-side quote/candle proxy behind /api/finnhub and /api/market. When absent in production both routes answer 503 with edge NOT CONFIGURED rather than signing a request with the committed dev fallback — the stock tape simply does not render. FINNHUB_KEY_ (trailing underscore) is the name this host actually carries; it is ACCEPTED here so the tape runs, not blessed as correct — see resolveProviderEnv for why the host's naming is treated as a host property rather than an operator error.",
   },
-  {
-    provider: "polygon",
-    label: "Polygon symbol search",
-    lane: "market-data",
-    required: ["POLYGON_KEY"],
-    aliases: { POLYGON_KEY: ["NEXT_PUBLIC_POLYGON_KEY"] },
-    recommended: [],
-    note: "Backs /api/symbol-search (stocks, ETFs, forex, crypto, indices, futures). Absent means symbol lookup returns nothing; it does not degrade an already-loaded chart.",
-  },
+
   {
     provider: "livekit",
     label: "LiveKit realtime (Lounge)",

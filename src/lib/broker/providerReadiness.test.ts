@@ -78,17 +78,9 @@ describe("computeProviderReadiness", () => {
     expect(r.missing).toEqual(["TASTYTRADE_REFRESH_TOKEN"]);
   });
 
-  it("moomoo needs both bridge url and token", () => {
-    const r = computeProviderReadiness("moomoo", { MOOMOO_BRIDGE_URL: "u" });
-    expect(r.status).toBe("BLOCKED");
-    expect(r.missing).toEqual(["MOOMOO_BRIDGE_TOKEN"]);
-  });
 
-  it("Longbridge needs both portable bridge names", () => {
-    const r = computeProviderReadiness("longbridge-data", { LONGBRIDGE_BRIDGE_URL: "u" });
-    expect(r.status).toBe("BLOCKED");
-    expect(r.missing).toEqual(["LONGBRIDGE_BRIDGE_TOKEN"]);
-  });
+
+
 
   it("empty env → every provider BLOCKED", () => {
     const all = computeAllProviderReadiness({});
@@ -166,10 +158,7 @@ describe("market-data & realtime lanes (the ones the receipt was blind to)", () 
     expect(r.missing).toEqual(["FINNHUB_KEY"]);
   });
 
-  it("polygon accepts its NEXT_PUBLIC_ fallback, blocks with neither", () => {
-    expect(computeProviderReadiness("polygon", { NEXT_PUBLIC_POLYGON_KEY: "k" }).status).toBe("CONFIGURED");
-    expect(computeProviderReadiness("polygon", {}).missing).toEqual(["POLYGON_KEY"]);
-  });
+
 
   it("livekit needs the token pair AND the browser-facing host", () => {
     const r = computeProviderReadiness("livekit", {
@@ -562,11 +551,12 @@ describe("detectUnaccountedEnvNameNearMisses (the one-call receipt entry point)"
     const hits = detectUnaccountedEnvNameNearMisses({
       ALPACA_BROKERAGE_KEY: "redacted",
       ALPACA_BROKERAGE_KEY_SECRET_: "redacted",
-      MOOMOO_BRIDGE_TOKEN_: "redacted",
+      LIVEKIT_API_SECRET_: "redacted",
     });
+    // (Synthetic — re-pointed from MOOMOO_BRIDGE_TOKEN when the dead moomoo row was removed, 2026-10-12.)
     expect(hits).toContainEqual({
-      expected: "MOOMOO_BRIDGE_TOKEN",
-      found: "MOOMOO_BRIDGE_TOKEN_",
+      expected: "LIVEKIT_API_SECRET",
+      found: "LIVEKIT_API_SECRET_",
       confidence: "EXACT_MODULO_PUNCTUATION",
     });
   });
@@ -627,4 +617,10 @@ describe("detectUnaccountedEnvNameNearMisses (the one-call receipt entry point)"
     const hits = detectUnaccountedEnvNameNearMisses({ FINNHUB_KEY_: "super-secret-value" });
     expect(JSON.stringify(hits)).not.toContain("super-secret-value");
   });
+});
+
+it("the dead providers are gone from the readiness table (Founder 2026-10-12: remove anything delayed and dead)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync("src/lib/broker/providerReadiness.ts", "utf8");
+  for (const p of ['provider: "moomoo"', 'provider: "longbridge-data"', 'provider: "polygon"']) expect(src).not.toContain(p);
 });
