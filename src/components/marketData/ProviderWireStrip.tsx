@@ -1062,12 +1062,7 @@ export default function ProviderWireStrip({
       readJson<ReadinessPayload>("/api/broker/readiness")
         .then((body) => { if (acceptsReceipt()) { setReadiness(body); held.readiness = body; clearFailure("readiness"); } })
         .catch((error: unknown) => recordFailure("readiness", error)),
-      readProviderReceipt("moomoo")
-        .then((body) => { if (acceptsReceipt()) { setMoomooTicks(body); held.moomooTicks = body; clearFailure("moomoo"); } })
-        .catch((error: unknown) => recordFailure("moomoo", error)),
-      readProviderReceipt("longbridge")
-        .then((body) => { if (acceptsReceipt()) { setLongbridgeTicks(body); held.longbridgeTicks = body; clearFailure("longbridge"); } })
-        .catch((error: unknown) => recordFailure("longbridge", error)),
+      // (moomoo and Longbridge are no longer probed — removed as dead 2026-10-12; their routes are deleted.)
       readProviderReceipt("webull")
         .then((body) => { if (acceptsReceipt()) { setWebullTicks(body as MoomooTickReceipt & WebullDataLaneReceipt); held.webullTicks = body as MoomooTickReceipt & WebullDataLaneReceipt; clearFailure("webull"); } })
         .catch((error: unknown) => recordFailure("webull", error)),

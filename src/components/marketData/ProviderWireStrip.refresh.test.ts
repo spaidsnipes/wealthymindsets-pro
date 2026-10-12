@@ -45,10 +45,11 @@ const SUSPENDED_INDEX = 6;
  */
 const WEBULL_BROKER_INDEX = 7;
 /**
- * One request per receipt: capabilities, readiness, three tick routes — and,
- * since 2026-09-25, the Webull account-lane status. Was 5.
+ * One request per receipt: capabilities, readiness, the Webull tick route and,
+ * since 2026-09-25, the Webull account-lane status. Was 6 until 2026-10-12, when
+ * the dead moomoo and Longbridge tick probes were removed.
  */
-const PROBES_PER_BATCH = 6;
+const PROBES_PER_BATCH = 4;
 
 describe("provider refresh lifecycle", () => {
   it("discards a pre-background batch and rechecks on foreground without overlap", async () => {
