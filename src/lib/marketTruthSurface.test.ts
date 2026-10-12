@@ -58,13 +58,10 @@ describe("same-screen market truth contract", () => {
     }
   });
 
-  it("does not elect the Alpaca relay from transport-open alone", () => {
+  it("the Alpaca relay is gone — nothing elects it (removed 2026-10-12, host answered 404)", () => {
     const hook = source("../hooks/useWebSocket.ts");
-    const relay = hook.slice(hook.indexOf("const alpacaRelayCleanup"), hook.indexOf("if (alpacaRelayCleanup)"));
-    expect(relay).toContain('tapeSourceRef.current = "alpaca"');
-    expect(relay).toContain('tapeSource: "alpaca"');
-    expect(relay).toContain("Socket readiness is transport truth only");
-    expect(relay).not.toContain("if (ok)");
+    expect(hook).not.toContain("alpacaRelayCleanup");
+    expect(hook).not.toContain("aplacawsproxy");
   });
 
   it("keys the DOM by instrument and does not paint quotes as market depth", () => {

@@ -75,7 +75,7 @@ import { classifySymbol, equityVendorSkipNoun } from "@/lib/marketData/symbolAss
 import { EXCHANGE_LABEL, parseExchangeSymbol, type Exchange } from "@/lib/exchanges";
 import { resolveYahooSymbol } from "@/lib/yahooSymbol";
 import { resolveYahooTimeframe } from "@/lib/yahooTimeframes";
-import { tastyCandleSeconds } from "@/lib/marketData/adapters/tastytradeCandles";
+import { tastyServedTimeframe, tastyCandleSeconds } from "@/lib/marketData/adapters/tastytradeCandles";
 import { tastyCryptoStreamer } from "@/lib/broker/tastyFrontMonth";
 import {
   canonRungSpokenName, getTimeframe, isTFId, timeframePendingFounderDecision,
@@ -219,54 +219,25 @@ export function chartBarRouteFor(timeframe: string, symbol: string): ChartBarRou
   //     asked before every generic vendor). The owner's DXLink session serves
   //     each of these sizes natively — receipts in adapters/tastytradeCandles.ts.
   if (classifySymbol(sym) === "FUTURES") {
-    const sec = tastyCandleSeconds(tf);
-    if (sec != null) return route(tf, "tastytrade", "NATIVE", tf === "1M" ? { n: 1, unit: "month" } : fromSeconds(sec), null);
+    const served = tastyServedTimeframe(tf);
+    const sec = served ? tastyCandleSeconds(served) : null;
+    if (served && sec != null) return route(tf, "tastytrade", "NATIVE", served === "1M" ? { n: 1, unit: "month" } : fromSeconds(sec), null);
   }
-  // 0c. Stocks/ETFs and the coins tastytrade lists, at the SECONDS sizes no
-  //     public door publishes: tastytrade's own candles (MainChart
-  //     fetchTastyCandles → tastyCandleStreamerFor). Minute sizes and up keep
-  //     the doors below on the ladder — the chart still asks tastytrade first
-  //     for the owner and the vendor log names whoever actually served.
-  //     Spot FX is not a tastytrade market; it keeps the doors below.
+  // 0c. Stocks/ETFs and the coins tastytrade lists: tastytrade's own candles at
+  //     every size it streams (MainChart fetchTastyCandles → tastyCandleStreamerFor).
+  //
+  // LIVE ONLY (Founder 2026-10-12: "remove anything delayed and dead"). The doors
+  // that used to follow — Alpaca REST, Finnhub REST, Yahoo, Polygon — served
+  // delayed or dead history; they are gone from the waterfall, so an instrument no
+  // live door serves (spot FX, an unlisted coin) has NO route and the chart says so.
   {
     const cls = classifySymbol(sym);
-    const sec = tastyCandleSeconds(tf);
-    if (sec != null && sec < 60 && (cls === "EQUITY" || (cls === "CRYPTO" && tastyCryptoStreamer(sym) != null))) {
-      return route(tf, "tastytrade", "NATIVE", fromSeconds(sec), null);
+    const served = tastyServedTimeframe(tf);
+    const sec = served ? tastyCandleSeconds(served) : null;
+    if (served && sec != null && (cls === "EQUITY" || (cls === "CRYPTO" && tastyCryptoStreamer(sym) != null))) {
+      return route(tf, "tastytrade", "NATIVE", served === "1M" ? { n: 1, unit: "month" } : fromSeconds(sec), null);
     }
   }
-
-  // 2. Alpaca.
-  if (!equityVendorSkipNoun(sym) && Object.prototype.hasOwnProperty.call(ALPACA_TF_MAP, tf)) {
-    const crypto = classifySymbol(sym) === "CRYPTO";
-    const bucket = fromAlpaca(ALPACA_TF_MAP[tf].timeframe);
-    if (bucket && (!crypto || alpacaCryptoPairResolves(sym))) return route(tf, "Alpaca", "NATIVE", bucket, null);
-  }
-
-  // 3. Finnhub REST — equities only (fetchFinnhubCandlesDirect skips crypto).
-  if (classifySymbol(sym) !== "CRYPTO") {
-    const fh = finnhubBucket(tf, sym);
-    if (fh) return route(tf, "Finnhub", "NATIVE", fh, null);
-  }
-
-  // 4. Yahoo.
-  if (resolveYahooSymbol(sym).kind !== "UNRESOLVED") {
-    const plan = resolveYahooTimeframe(tf);
-    const base = plan ? fromYahoo(plan.interval) : null;
-    if (plan && base) {
-      if (plan.sourceMode === "native" && plan.multiplier === 1) return route(tf, "Yahoo", "NATIVE", base, null);
-      const bucket: BarBucket = plan.calendarMonths
-        ? { n: plan.calendarMonths, unit: "month" }
-        : base.unit === "month"
-          ? { n: base.n * plan.multiplier, unit: "month" }
-          : fromSeconds((plan.baseSeconds ?? 0) * plan.multiplier);
-      return route(tf, "Yahoo", "RECONSTRUCTED", bucket, base);
-    }
-  }
-
-  // 5. Finnhub — the last door, crypto included (fetchFinnhubCandles).
-  const fh = finnhubBucket(tf, sym);
-  if (fh) return route(tf, "Finnhub", "NATIVE", fh, null);
   return null;
 }
 

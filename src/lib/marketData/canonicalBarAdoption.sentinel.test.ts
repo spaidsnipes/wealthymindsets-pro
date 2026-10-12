@@ -1075,8 +1075,9 @@ describe("M8 · the artery cannot be narrowed before anyone uses it", () => {
     // VACUITY GUARD: assert we are reading the fetcher this gate is about. A
     // renamed function would make every negative below pass while the filter
     // sat happily in a file this test no longer recognises.
-    expect(chart, "fetchFinnhubCandles not found — this gate is reading nothing")
-      .toContain("async function fetchFinnhubCandles(");
+    // Since 2026-10-12 tastytrade is the chart's only vendor door (the delayed doors were removed).
+    expect(chart, "fetchTastyCandles not found — this gate is reading nothing")
+      .toContain("async function fetchTastyCandles(");
 
     expect(
       chart,

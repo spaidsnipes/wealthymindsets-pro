@@ -196,7 +196,7 @@ describe("one venue builds the bar (admitBarVenue)", () => {
   it("every bar-building lane in the hook asks the venue owner", () => {
     const hook = readFileSync("src/hooks/useWebSocket.ts", "utf8");
     expect(hook.length).toBeGreaterThan(10000);
-    for (const v of ['admitVenue("finnhub")', 'admitVenue("alpaca")', 'admitVenue("binance")', 'admitVenue("coinbase")', 'admitVenue("tastytrade")', 'admitVenue("tastytrade-equity")', "admitVenue(electedSource)", "admitVenue(source)"]) {
+    for (const v of ['admitVenue("finnhub")', 'admitVenue("binance")', 'admitVenue("coinbase")', 'admitVenue("tastytrade")', 'admitVenue("tastytrade-equity")', "admitVenue(source)"]) {
       expect(hook, v).toContain(v);
     }
   });

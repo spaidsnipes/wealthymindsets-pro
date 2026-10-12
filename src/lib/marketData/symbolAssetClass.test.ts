@@ -407,7 +407,7 @@ describe("MainChart asks the owner instead of retyping the predicate", () => {
     // vendor skips now ask the owner for the instrument's own class NOUN
     // (`equityVendorSkipNoun`), so the receipt stops calling spot gold a
     // future. Still the owner; still no private predicate.
-    expect(src).toContain("equityVendorSkipNoun(");
+    // (`equityVendorSkipNoun(` left MainChart with the delayed equity doors, 2026-10-12.)
     // The literal that called spot gold a future on the refusal receipt
     // (serving, XAUUSD 15m) may not come back as a fixed string.
     expect(src).not.toContain('"it does not carry futures."');

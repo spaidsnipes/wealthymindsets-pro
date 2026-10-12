@@ -160,8 +160,8 @@ describe("the ladder answers for the symbol on the glass (Garden 16 §26)", () =
       .filter(e => e.type === "button" && e.props["data-availability"] === "DERIVED_CANONICAL")
       .map(e => textOf(e).replace(/derived$/, ""));
 
-  it("BTCUSD: 3m / 10m / 2h / 4h wear 'derived' on the glass and aloud; TSLA, BTC and ES1! wear it nowhere", () => {
-    expect(derivedIds("BTCUSD")).toEqual(["3m", "10m", "2h", "4h"]);
+  it("no rung wears 'derived' since the delayed rebuilds were removed (2026-10-12); tastytrade serves every size natively", () => {
+    expect(derivedIds("BTCUSD")).toEqual([]);
     // ES1! is served by tastytrade's own candles at every size since 2026-10-01:
     // 16 servable rungs (5s/15s/30s included), every one native.
     const es = elements(TimeframeLadder({ timeframe: "15m", symbol: "ES1!", onChoose: () => {} })).filter(e => e.type === "button");
@@ -171,7 +171,7 @@ describe("the ladder answers for the symbol on the glass (Garden 16 §26)", () =
     expect(derivedIds("ES1!")).toEqual([]);
     const tree = elements(TimeframeLadder({ timeframe: "4h", symbol: "BTCUSD", onChoose: () => {} }));
     const b = tree.find(e => e.type === "button" && textOf(e).startsWith("4h"))!;
-    expect(b.props["aria-label"]).toBe("4 hours bars, derived from finer bars");
+    expect(b.props["aria-label"]).not.toMatch(/derived/);
     expect(b.props["aria-current"]).toBe("true");
     for (const sym of ["TSLA", "BTC"]) {
       const buttons = elements(TimeframeLadder({ timeframe: "15m", symbol: sym, onChoose: () => {} })).filter(e => e.type === "button");
@@ -204,7 +204,7 @@ describe("the ladder answers for the symbol on the glass (Garden 16 §26)", () =
 
   it("on 6M and 45m the same, in their own words; on a marked rung there is no sentence", () => {
     const six = renderToStaticMarkup(<TimeframeLadder timeframe="6M" symbol="ES1!" onChoose={() => {}} />);
-    expect(six).toContain("On now: 6M — served as half-year candles rebuilt from quarterly bars · pending the Founder&#x27;s decision");
+    expect(six).toContain("On now: 6M — served as monthly candles · pending the Founder&#x27;s decision");
     expect(six).not.toContain('aria-current="true"');
     const fortyFive = renderToStaticMarkup(<TimeframeLadder timeframe="45m" symbol="TSLA" onChoose={() => {}} />);
     expect(fortyFive).toContain("On now: 45m — no bar route serves it for this instrument · pending the Founder&#x27;s decision");

@@ -100,15 +100,10 @@ describe("the bar route's failure status — a missing symbol is not a server fa
       expect(seen[0]!.calls).toBeGreaterThan(0);
     });
 
-    it("the status-blind readers stay status-blind (chart, watchlist grid, scanner map, unsettled estimate): they parse the body whatever the status", () => {
+    it("the status-blind readers stay status-blind (watchlist grid, scanner map, unsettled estimate): they parse the body whatever the status", () => {
       const src = (p: string) => readFileSync(path.join(process.cwd(), "src", p), "utf8");
-      const chart = src("components/chart/MainChart.tsx");
-      const fn = chart.slice(chart.indexOf("async function fetchYahooCandles("), chart.indexOf("/* ── Tick-size helper"));
-      expect(fn.length).toBeGreaterThan(500);
-      expect(fn.replace(/\/\/[^\n]*/g, "")).not.toMatch(/res\.ok|res\.status/);                       // REFUSED is decided by `json.error`, which is unchanged
-      expect(fn).toContain('note(log, { vendor: "Yahoo", outcome: "REFUSED", edge: json.error });');
-      // The chart asks the other providers BEFORE this one, so no fallback hangs on this lane's status.
-      expect(chart).toMatch(/const yahooData\s+= \(exchangeData \|\| tastyData \|\| alpacaData \|\| fhDirectData\) \? null : await fetchYahooCandles\(/);
+      // The chart no longer asks Yahoo for bars at all (2026-10-12: delayed doors removed).
+      expect(src("components/chart/MainChart.tsx")).not.toContain("fetchYahooCandles(");
       for (const [f, needle] of [
         ["components/chart/WatchlistGrid.tsx", "&bars=120`, { cache: \"no-store\" })\n      .then(r => r.json())"],
         ["app/scanner/map/page.tsx", "const json = await res.json() as { candles?:VPCandle[] };"],

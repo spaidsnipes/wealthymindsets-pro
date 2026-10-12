@@ -25,10 +25,10 @@ describe("crypto bars follow the tape's venue", () => {
     expect(block).toContain('exchange: "coinbase" as const');
     // 2026-10-01: tastytrade's futures door (door 0) also comes after the venue owner.
     const tasty = code.indexOf("const tastyData    = exchangeData ? null");
-    const alpaca = code.indexOf("const alpacaData   = (exchangeData || tastyData) ? null");
     expect(tasty).toBeGreaterThan(0);
-    expect(alpaca).toBeGreaterThan(0);
     expect(code.indexOf("const tapeCoinbase =")).toBeLessThan(tasty);
-    expect(tasty).toBeLessThan(alpaca);
+    // 2026-10-12: no delayed door follows tastytrade (Founder: "remove anything delayed and dead").
+    expect(code).toContain("const canonicalBatch = exchangeData ?? tastyData;");
+    expect(code).not.toMatch(/const (alpacaData|yahooData|finnhubData|fhDirectData|polyData)\b/);
   });
 });

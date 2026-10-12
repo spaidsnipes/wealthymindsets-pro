@@ -27,10 +27,8 @@ const strip = (s: string) =>
  */
 const CONSUMERS = [
   "src/components/layout/TickerTape.tsx",
-  "src/components/chart/MainChart.tsx",
   "src/components/chart/WatchlistPanel.tsx",
   "src/components/chart/StockInfoPanel.tsx",
-  "src/hooks/useWebSocket.ts",
   "src/app/scanner/page.tsx",
   "src/app/paper/page.tsx",
 ] as const;
@@ -123,7 +121,7 @@ describe("the Yahoo quote round has exactly one owner", () => {
     expect(
       CONSUMERS.length,
       "CONSUMERS is empty — the rule below iterates nothing and passes",
-    ).toBeGreaterThan(5);
+    ).toBeGreaterThan(3); // MainChart and useWebSocket left the round 2026-10-12 (delayed doors removed)
 
     // (2) THE PATTERN IS STILL LIVE. Extract the owner's own URL literal and
     // prove that a fetch() built around it would be caught.
@@ -208,8 +206,8 @@ describe("the Yahoo quote round has exactly one owner", () => {
     expect(owner).toContain("fetchYahooQuoteBody(symbol: string)");
     expect(owner).toContain("new AbortController().signal");
 
-    const chart = strip(read("src/components/chart/MainChart.tsx"));
-    expect(chart).toContain("myAbortSignal.aborted || yahooQuoteRefusal(j)");
+    // (MainChart left the round on 2026-10-12: it no longer reads a delayed Yahoo quote at all.)
+    expect(strip(read("src/components/chart/MainChart.tsx"))).not.toContain("fetchYahooQuoteBody(");
   });
 
   it("the owner does not cache — a later poll still reaches the provider", async () => {

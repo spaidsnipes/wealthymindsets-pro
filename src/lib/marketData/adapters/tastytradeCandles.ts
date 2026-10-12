@@ -38,6 +38,18 @@ export function tastyCandlePeriod(tf: string): string | null {
   return PERIODS[tf]?.period ?? null;
 }
 
+/**
+ * The timeframe tastytrade actually serves for a chart timeframe: its own size, or — for the long
+ * ranges no feed publishes as a bar (3M / 6M / 1Y / 2Y / 5Y) — its MONTHLY candles, which the header
+ * then names (servedTimeframeFor). Null when tastytrade serves nothing for it. Since 2026-10-12 no
+ * delayed vendor rebuilds these ranges (Founder: "remove anything delayed and dead").
+ */
+export function tastyServedTimeframe(tf: string): string | null {
+  if (PERIODS[tf]) return tf;
+  return LONG_RANGES.has(tf) ? "1M" : null;
+}
+const LONG_RANGES = new Set(["3M", "6M", "1Y", "2Y", "5Y"]);
+
 /** The bar size tastytrade serves for a chart timeframe, in seconds (a month counts as 30.4 days). */
 export function tastyCandleSeconds(tf: string): number | null {
   return PERIODS[tf]?.seconds ?? null;

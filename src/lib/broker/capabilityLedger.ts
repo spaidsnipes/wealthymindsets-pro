@@ -77,7 +77,7 @@ export const CAPABILITY_LEDGER: readonly CapabilityRow[] = [
   // broker lane CONNECTED (3 accounts).
   { provider: W, capability: "QUOTES", state: "LIVE", owner: "src/lib/marketData/adapters/webullMarketData.ts", note: "stock snapshots + crypto stream" },
   { provider: W, capability: "BARS", state: "NOT_BUILT", owner: null, note: "chart bars come from tastytrade's candles; a Webull bar door is not built" },
-  { provider: W, capability: "LIVE_PRINTS", state: "LIVE", owner: "src/lib/marketData/adapters/webullTicksBrowser.ts", note: "stock prints in session; Webull sends no aggressor side, so sides are inferred — tastytrade's tape outranks it when fresh" },
+  { provider: W, capability: "LIVE_PRINTS", state: "NOT_BUILT", owner: null, note: "removed 2026-10-12 (Founder: remove anything delayed) — the polled recent-ticks lane was stamped DELAYED; stock prints come from tastytrade's consolidated tape" },
   { provider: W, capability: "DEPTH", state: "NOT_BUILT", owner: null, note: "Webull's book is not wired into WM yet" },
   { provider: W, capability: "OPTIONS_CHAIN", state: "NOT_BUILT", owner: null, note: "options are read from tastytrade's chain" },
   { provider: W, capability: "GREEKS", state: "NOT_BUILT", owner: null, note: "tastytrade supplies Greeks" },

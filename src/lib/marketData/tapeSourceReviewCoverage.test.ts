@@ -56,7 +56,6 @@ import {
   MARKET_DATA_CAPABILITIES,
   type RuntimeTapeSource,
 } from "./capabilityRegistry";
-import { electProviderTapeSource } from "./providerTapeElection";
 
 const REPO_ROOT = resolve(__dirname, "..", "..", "..");
 const ADAPTER_DIR = join(REPO_ROOT, "src/lib/marketData/adapters");
@@ -92,8 +91,8 @@ describe("a feed the app ingests is a feed the registry has reviewed", () => {
     // this file's own failure mode.
     const paths = stampedProviderPaths();
     expect(paths.size, "adapter providerPath scan found nothing — did the directory move?")
-      .toBeGreaterThanOrEqual(6);
-    expect([...paths.keys()]).toContain("webull-openapi-ticks");
+      .toBeGreaterThanOrEqual(5); // 6 → 5: webullTicksBrowser removed 2026-10-12
+    expect([...paths.keys()]).not.toContain("webull-openapi-ticks"); // the polled DELAYED lane was removed
     expect([...paths.keys()]).toContain("coinbase-client-ws");
   });
 
@@ -107,31 +106,10 @@ describe("a feed the app ingests is a feed the registry has reviewed", () => {
     }
   });
 
-  it("THE MEASURED FAILURE: webull was ingested but never reviewed", () => {
-    // The elector really returns it, so the registry really has to answer.
-    expect(electProviderTapeSource(null, "webull")).toBe("webull");
-    const cap = getRuntimeTapeCapability("webull");
-    expect(cap, "the elector can hand the chart a source the registry cannot resolve")
-      .not.toBeNull();
-    expect(cap!.providerPath).toBe("webull-openapi-ticks");
-    // Read off webullTicksBrowser.ts, which stamps PROVIDER/confidence 1.
-    // Recording NONE to be "safe" would contradict the ticks already ingested.
-    expect(hasVerifiedAggressorTape("webull")).toBe(true);
-  });
-
-  it("every source the ELECTOR can return resolves a capability", () => {
-    // Driven through the real elector rather than a hand-copied union, because
-    // a hand-copied union is exactly what drifted. Both candidates, from every
-    // starting state the elector accepts.
-    const starts: (RuntimeTapeSource | "webull" | null)[] =
-      [null, "moomoo", "webull", "coinbase", "binance", "alpaca"];
-    for (const candidate of ["moomoo", "webull"] as const) {
-      for (const start of starts) {
-        const elected = electProviderTapeSource(start as never, candidate, Date.now(), Date.now());
-        expect(getRuntimeTapeCapability(elected), `elector returned "${elected}" — unreviewed`)
-          .not.toBeNull();
-      }
-    }
+  // (The moomoo/Webull tape elector was removed with the polled broker-tick lane, 2026-10-12;
+  //  the registry still reviews "webull" for the certification surface.)
+  it("the webull registry entry still resolves", () => {
+    expect(getRuntimeTapeCapability("webull")?.providerPath).toBe("webull-openapi-ticks");
   });
 
   it("rights still fail closed — reviewing a feed is not granting one", () => {
@@ -145,16 +123,5 @@ describe("a feed the app ingests is a feed the registry has reviewed", () => {
       .toBe(false);
   });
 
-  it("RECORDED, NOT FIXED: webull ticks are DELAYED, and this entry does not say otherwise", () => {
-    // `webullTicksBrowser.ts` stamps `dataMode: "DELAYED"`. The capability
-    // registry has no freshness field, so it CANNOT and does not assert
-    // liveness — age remains the age gate's job, and the entry's own
-    // sessionCoverage says so. Named here so the next reader does not read
-    // "verified aggressor tape" as "live tape".
-    const src = readFileSync(join(ADAPTER_DIR, "webullTicksBrowser.ts"), "utf8");
-    expect(src).toMatch(/dataMode:\s*"DELAYED"/);
-    const cap = getRuntimeTapeCapability("webull")!;
-    expect(cap.sessionCoverage).toMatch(/DELAYED/);
-    expect(cap.availability, "a delayed, request-scoped poll is not AVAILABLE").toBe("PARTIAL");
-  });
+
 });

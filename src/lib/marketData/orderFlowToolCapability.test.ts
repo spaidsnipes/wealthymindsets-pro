@@ -68,15 +68,12 @@ describe("orderFlowToolCapability — an empty overlay must say WHICH emptiness"
     expect(c.drawable).toBe(true);
   });
 
-  it("discloses that a tick-rule side is INFERRED, not asserted by the venue", () => {
-    // Alpaca is the only live US-equity tape today and it receives no aggressor
-    // flag at all — it reconstructs one. A tool drawing from it is drawing a
-    // reconstruction, and the sentence on the button must not hide that behind
-    // the same wording a provider-stamped feed gets.
-    const inferred = orderFlowToolCapability(...DELTA, { source: ALPACA, observedAggressorFlow: true });
+  it("the removed Alpaca relay (2026-10-12) earns no drawable order flow; a provider-stamped feed still does", () => {
+    // The relay was the only tick-rule (INFERRED-side) tape; its host is gone and its registry entry is UNAVAILABLE.
+    const removed = orderFlowToolCapability(...DELTA, { source: ALPACA, observedAggressorFlow: true });
     const stamped = orderFlowToolCapability(...DELTA, { source: COINBASE, observedAggressorFlow: true });
-    expect(inferred.reason).toContain("INFERRED");
-    expect(stamped.reason).not.toContain("INFERRED");
+    expect(removed.drawable).toBe(false);
+    expect(stamped.drawable).toBe(true);
   });
 
   it("quotes the label ON the button, never the internal id", () => {

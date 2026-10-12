@@ -108,7 +108,7 @@ describe("priceSourceBadge (WM-CHART-P0-05 provenance)", () => {
     // entitlement receipt), this test is where the badge is allowed to follow.
     const relay = MARKET_DATA_CAPABILITIES.find((c) => c.providerPath === "alpaca-external-relay");
     expect(relay?.fidelityClass).toBe("PROXY");
-    expect(relay?.availability).toBe("PARTIAL");
+    expect(relay?.availability).toBe("UNAVAILABLE"); // removed 2026-10-12 — host gone
     expect(observedQuote("alpaca", true).label).not.toBe(L.LIVE_CERTIFIED_QUOTE);
   });
 

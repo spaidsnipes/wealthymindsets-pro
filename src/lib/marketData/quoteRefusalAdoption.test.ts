@@ -182,7 +182,8 @@ describe("SF-D01 — asking Yahoo for a quote obliges you to consult the gate", 
   it("finds the readers it is meant to police", () => {
     const readers = yahooQuoteReaders();
     expect(readers.length).toBeGreaterThan(0);
-    expect(readers).toContain("hooks/useWebSocket.ts");
+    // (useWebSocket stopped asking Yahoo for quotes on 2026-10-12 — delayed doors removed.)
+    expect(readers).not.toContain("hooks/useWebSocket.ts");
   });
 
   it.each(Object.entries(SF_D01_DELEGATES))(
@@ -238,32 +239,12 @@ describe("chart quote — a refused price is retracted, not relabelled", () => {
     expect(HOOK).toMatch(/ticker:\s*\{\s*price:\s*0,\s*change:\s*0,\s*changePct:\s*0/);
   });
 
-  it("a refused quote may not VETO candles it never certified", () => {
-    // `spotFetch` is not a display value — it holds a veto. Fifty lines later,
-    // `stalePct > 0.05` throws away the entire candle set. On refusal
-    // `j.price` falls back to prevClose, so an uncertified number could reject
-    // real Alpaca/Finnhub/Polygon candles and blank the chart — worst across a
-    // weekend or a gap, precisely where prevClose is furthest from the truth.
-    // Anchored on the binding, not on `fetch(`: the request is now issued by
-    // the shared round owner, but the veto and its gate still live here.
-    const at = CHART.indexOf("const spotFetch = ");
-    expect(at, "spotFetch must still exist").toBeGreaterThan(-1);
-    const spot = CHART.slice(at, CHART.indexOf(".catch(() => 0);", at));
-    const gateAt = spot.indexOf("yahooQuoteRefusal(");
-    // `?.price`, not `j?.price`: the shared round hands back an `unknown` body,
-    // so the read is now cast at the point of use. WHERE the price is read is
-    // the invariant; the spelling of the binding it is read from is not.
-    const priceAt = spot.indexOf("?.price");
-    expect(gateAt, "spotFetch must consult the gate").toBeGreaterThan(-1);
-    expect(gateAt, "the veto must not be armed before the gate answers").toBeLessThan(priceAt);
-
-    // And the refusal must RETRACT to 0, because `spotPrice > 0` is the
-    // existing guard that disarms the veto. Any other value re-arms it.
-    expect(spot).toMatch(/yahooQuoteRefusal\(j\)\s*\?\s*0\s*:/);
-    expect(CHART, "the veto must stay gated on a positive spot")
-      .toMatch(/candleData\.length > 0 && spotPrice > 0/);
+  it("no delayed quote holds a veto over live candles (2026-10-12: the Yahoo spot cross-check was removed)", () => {
+    // The chart used to fetch a delayed Yahoo quote and throw away tastytrade's live candles when they sat
+    // more than 5% from it. A delayed number may not veto a live one; the cross-check is gone.
+    expect(CHART).not.toContain("const spotFetch = ");
+    expect(CHART).not.toMatch(/stalePct\s*>\s*0\.05/);
   });
-
   it("a live aggressor tape outranks a REST refusal", () => {
     // The tape observes real trades. The quote endpoint declining to certify
     // its own snapshot says nothing about those prints, so it must not wipe

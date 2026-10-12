@@ -144,7 +144,10 @@ describe("rights registry v2 — granular per-action gating", () => {
 });
 
 describe("runtime aggressor tape capability", () => {
-  it.each(["coinbase", "binance", "alpaca"] as const)("accepts reviewed %s trade evidence", source => {
+  it("the removed Alpaca relay (2026-10-12) is no verified aggressor tape", () => {
+    expect(hasVerifiedAggressorTape("alpaca")).toBe(false);
+  });
+  it.each(["coinbase", "binance"] as const)("accepts reviewed %s trade evidence", source => {
     expect(hasVerifiedAggressorTape(source)).toBe(true);
     expect(getRuntimeTapeCapability(source)?.eventType).toBe("trade");
   });

@@ -23,18 +23,13 @@ import { noteArrival, noteFlush } from "@/lib/chart/marketClockProbe";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { MarketEventGuard, type CanonicalMarketEvent } from "@/lib/marketData/marketEvent";
 import { normalizeCoinbaseMatch, normalizeCoinbaseTicker } from "@/lib/marketData/adapters/coinbase";
-import { normalizeAlpacaRelayTrade } from "@/lib/marketData/adapters/alpacaRelay";
 import { absorbOutOfOrderPrint, applyTickToClock } from "@/lib/marketData/liveBarPolicy";
 import { admitBarVenue, noteClosedLiveBar, type BarVenueOwner } from "@/lib/marketData/liveBarFold";
 import { liveBarBucketSec } from "@/lib/timeframes";
 import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 import { ingestSessionNectarEvent } from "@/lib/marketData/sessionNectar";
 import { normalizeBinanceUsTrade } from "@/lib/marketData/adapters/binanceUs";
-import { moomooNextPollDelayMs, selectFreshMoomooTapeEvents } from "@/lib/marketData/adapters/moomooTicksBrowser";
-import { selectFreshLongbridgeObservedEvents } from "@/lib/marketData/adapters/longbridgeTicksBrowser";
-import { selectFreshWebullObservedEvents } from "@/lib/marketData/adapters/webullTicksBrowser";
-import { electProviderTapeSource, type ProviderTapeSource } from "@/lib/marketData/providerTapeElection";
-import { OBSERVED_LANE_HEDGE_MS, selectObservedProviderFallback } from "@/lib/marketData/selectObservedProviderFallback";
+import type { ProviderTapeSource } from "@/lib/marketData/restQuotePolling";
 import { restQuoteNextPollDelayMs } from "@/lib/marketData/restQuotePolling";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 import { peekTastyQuote, subscribeTastyEvents } from "@/lib/broker/tastyQuoteStream";
@@ -48,7 +43,6 @@ import { coinbaseProductFor, fetchCoinbaseTradeHistory } from "@/lib/marketData/
 import { selectVisibilityRefetch } from "@/lib/marketData/visibilityRefetch";
 import { coalesceQuoteRequest } from "@/lib/marketData/quoteRequestCoalescer";
 import { InFlightRounds } from "@/lib/marketData/inFlightRounds";
-import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 import { fetchExchangeQuoteBody } from "@/lib/marketData/exchangeQuoteRounds";
 import { fetchAlpacaQuoteBody, fetchFinnhubQuoteBody } from "@/lib/marketData/providerQuoteRounds";
 import {
@@ -63,7 +57,6 @@ import { quoteRoundIsCurrent } from "@/lib/marketData/quoteSymbolFence";
  * other's question. The key carries its own `ticks:` namespace for the same
  * reason.
  */
-const providerTickRounds = new InFlightRounds();
 import { resolveQuoteDayChange } from "@/lib/marketData/resolveQuoteDayChange";
 import { tapeProtocolChannel } from "@/lib/marketData/tapeProtocol";
 import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
@@ -363,67 +356,11 @@ async function fetchRealQuote(sym: string): Promise<QuoteAnswer | null> {
   return coalesceQuoteRequest(sym, () => fetchRealQuoteUncoalesced(sym));
 }
 
-/**
- * The observed-provider tick chain, at MODULE scope and free of every
- * per-instance flag.
- *
- * That independence is the whole reason this function exists separately. The
- * chain used to live inside the effect and to close over that instance's
- * `disposed`. A shared round built from such a closure would carry ONE
- * instance's lifecycle: if the instance that happened to start the round
- * unmounted mid-flight, its `disposed` would short-circuit the longbridge and
- * webull lanes to `[]` and null the moomoo body — and every joined instance,
- * still mounted and still needing the tape, would receive that emptiness as
- * the provider's answer. Disposal is a property of a CONSUMER, never of the
- * observation, so it is applied to the RESULT by each consumer instead.
- *
- * The signal is likewise owned by the round, not by any joiner. No single
- * unmounting consumer may cancel a round the others are still waiting on.
- */
-function fetchProviderTickSelection(symbol: string, signal: AbortSignal) {
-  const upper = encodeURIComponent(symbol.toUpperCase());
-  const read = async (provider: string) => {
-    const response = await fetch(`/api/market-data/${provider}/ticks?symbol=${upper}`, {
-      cache: "no-store",
-      signal,
-    });
-    return response.ok ? await response.json() : null;
-  };
-  return selectObservedProviderFallback([
-    {
-      source: "moomoo" as const,
-      read: async () => selectFreshMoomooTapeEvents(await read("moomoo"), symbol, Date.now()),
-    },
-    {
-      source: "longbridge" as const,
-      read: async () => selectFreshLongbridgeObservedEvents(await read("longbridge"), symbol, Date.now()),
-    },
-    {
-      source: "webull" as const,
-      read: async () => selectFreshWebullObservedEvents(await read("webull"), symbol, Date.now()),
-    },
-  // Garden 11: Moomoo is NON-BLOCKING. A lane silent past the hedge (an
-  // unreachable OpenD bridge answers only at its 5 s timeout) no longer holds
-  // Webull's prints back; priority still holds for every lane that answers.
-  ], { hedgeMs: OBSERVED_LANE_HEDGE_MS });
-}
-
-/**
- * MEASURED /charts 2026-09-08, 13s across a client-side route re-mount:
- *
- *   moomoo:AMZN      12 requests   min gap 1ms   (58, 60, 77, 84, 85, 86 ...)
- *   longbridge:AMZN   6 requests   min gap 6ms
- *   webull:AMZN       6 requests   min gap 16ms
- *
- * Six identical moomoo requests inside 28ms, repeating every round. Nothing
- * schedules work 1ms apart — that is six live hook instances, each running the
- * full provider chain for the same symbol, each guarded only by its own
- * `moomooInFlight`, which cannot see across instances. Same defect family as
- * the quote path fixed in 98221e1, one layer down.
- */
-function fetchProviderTicks(symbol: string, signal: AbortSignal) {
-  return providerTickRounds.run(`ticks:${symbol}`, () => fetchProviderTickSelection(symbol, signal));
-}
+/* The polled broker-tick fallback (moomoo OpenD, Longbridge, Webull recent-ticks) was REMOVED
+   2026-10-12 (Founder: "remove anything delayed and dead"): moomoo and Longbridge are BLOCKED in
+   production (an unreachable bridge held every poll to its 5 s timeout) and the Webull lane is a
+   polled REST read its own adapter stamps DELAYED. Stock prints come from tastytrade's consolidated
+   stream; the routes and adapters remain for the broker certification surface only. */
 
 async function fetchRealQuoteUncoalesced(sym: string): Promise<QuoteAnswer | null> {
   const upper = sym.toUpperCase();
@@ -550,43 +487,20 @@ async function fetchRealQuoteUncoalesced(sym: string): Promise<QuoteAnswer | nul
     } catch {}
   }
 
-  // ── Stocks & ETFs: Yahoo FIRST. Yahoo's intraday series uses includePrePost,
-  // so it reflects the CONSOLIDATED last price (the number Moomoo/TradingView
-  // show) in both regular AND extended hours. Alpaca's free IEX feed only sees
-  // IEX's own thin prints — which match in RTH but diverge by dollars in
-  // pre/post-market (e.g. TSLA 377 on IEX vs 380.89 consolidated). So Yahoo is
-  // the accurate primary; Alpaca/Finnhub are fallbacks only if Yahoo fails. ───
+  // ── Stocks & ETFs: Alpaca's IEX quote is the polled fallback while no live stream
+  // has spoken (labelled ACTIVE DEGRADED — one venue, not the tape; tastytrade's
+  // consolidated stream supersedes it). LIVE ONLY since 2026-10-12 (Founder: "remove
+  // anything delayed and dead"): the delayed Yahoo quote (stocks AND futures) and
+  // Finnhub's delayed stock quote are no longer asked. A futures contract with no
+  // live tastytrade stream shows NO price rather than a 10-minute-old one. ───
   if (isEquityLane) {
-    try {
-      const j = await fetchYahooQuoteBody(sym) as any;
-      const q = mk(j, "yahoo");
-      if (q?.kind === "quote") return q;
-      if (q?.kind === "refused") heldRefusal ??= q.reason;
-    } catch {}
     try {
       const j = await fetchAlpacaQuoteBody(upper) as any;
       const q = mk(j, "alpaca");
       if (q?.kind === "quote") return q;
       if (q?.kind === "refused") heldRefusal ??= q.reason;
     } catch {}
-    if (!isCrypto) {
-      try {
-        const j = await fetchFinnhubQuoteBody(upper) as any;
-        const q = mk(j, "finnhub");
-        if (q?.kind === "quote") return q;
-        if (q?.kind === "refused") heldRefusal ??= q.reason;
-      } catch {}
-    }
   }
-
-  // ── Futures + Crypto + final fallback: Yahoo Finance proxy ──────────────
-  // For futures this IS the only free source, so a refusal here is final.
-  try {
-    const j = await fetchYahooQuoteBody(sym) as any;
-    const q = mk(j, "yahoo");
-    if (q?.kind === "quote") return q;
-    if (q?.kind === "refused") heldRefusal ??= q.reason;
-  } catch {}
 
   return heldRefusal ? { kind: "refused", reason: heldRefusal } : null;
 }
@@ -1168,120 +1082,6 @@ function tryCoinbase(
   };
 }
 
-/**
- * tryAlpacaRelay — Railway Alpaca IEX proxy connector for the shared TapeHub.
- *
- * Matches the shape of tryCoinbase / tryBinance / tryFinnhub so the equity
- * relay branch can be routed through joinTape with per-symbol dedup +
- * refcount + teardown. Fixes the 9-socket-per-/charts-mount defect: 9 hook
- * instances mounted with the same TSLA symbol now share one socket via
- * tapeHubs.get('alpaca-relay:TSLA'), not spawn 9.
- *
- * F1/F2/F3 semantics preserved (see Cycle 10 P0 trace):
- *   F1 seedFromRest: caller passes priceRef; used as prior-price seed
- *      so the first proxy trade produces a valid tick-inferred aggressor.
- *   F2 truthful ingest: the hub's fanTick calls ingestSessionNectarEvent
- *      for every accepted event (once per real tick, not once per
- *      consumer) — UNKNOWN aggressor observations are still recorded.
- *   F3 transport CONNECTED on WebSocket open — onStatus(true) fires
- *      before the first trade, so the UI's transport indicator stops
- *      false-negatives during the natural open-to-first-trade gap.
- */
-/* A RELAY THAT IS NOT THERE IS NOT REDIALLED EVERY 3 s (G19 Mansion, serving 72731e2, 2026-10-11 21:35 CDT:
-   the default Railway relay answers HTTP 404 "Application not found", and every stock chart re-opened a
-   doomed socket every 3 s for as long as it was open — hundreds of console errors a session, battery on a
-   phone, while tastytrade's consolidated prints already carry the tape). A connect that never OPENED backs
-   off 3 s → 6 s → … → 5 min; the count is shared by every symbol on that relay base and clears on the first
-   open, so a relay that comes back is heard again within one back-off step. */
-const relayNeverOpened = new Map<string, number>();
-export const ALPACA_RELAY_MAX_BACKOFF_MS = 300_000;
-export function alpacaRelayRetryMs(neverOpened: number): number {
-  return Math.min(ALPACA_RELAY_MAX_BACKOFF_MS, 3_000 * 2 ** Math.max(0, Math.min(neverOpened - 1, 7)));
-}
-
-function tryAlpacaRelay(
-  symbol: string,
-  seedFromRest: number,
-  proxyBase: string,
-  onTick: TapeTick,
-  onStatus: TapeStatus,
-): (() => void) | null {
-  let sock: WebSocket | null = null;
-  let closed = false;
-  let retryTimer: ReturnType<typeof setTimeout> | null = null;
-  let lastPx = seedFromRest > 0 ? seedFromRest : 0;
-  const eventGuard = new MarketEventGuard();
-
-  const connectSock = () => {
-    if (closed) return;
-    let url = proxyBase;
-    try { const u = new URL(proxyBase); u.searchParams.set("sym", symbol); url = u.toString(); }
-    catch { url = `${proxyBase}${proxyBase.includes("?") ? "&" : "?"}sym=${encodeURIComponent(symbol)}`; }
-    try { sock = new WebSocket(url); } catch { retryTimer = setTimeout(connectSock, 4000); return; }
-    sock.binaryType = "arraybuffer";
-    let opened = false;
-
-    const handleText = (text: string) => {
-      let parsed: unknown;
-      try { parsed = JSON.parse(text); } catch { return; }
-      const list = Array.isArray(parsed) ? parsed : [parsed];
-      for (const raw of list) {
-        const receivedAtMs = Date.now();
-        const event = normalizeAlpacaRelayTrade(raw, symbol, lastPx, receivedAtMs, Date.now());
-        if (!event) continue;
-        const guarded = eventGuard.inspect(event);
-        if (guarded.status !== "ACCEPTED") continue;
-        lastPx = event.price!;
-        // fanTick (in createTapeHub) calls ingestSessionNectarEvent for us.
-        // Per-consumer onTick handles the UNKNOWN-aggressor gate for signed
-        // indicators (see the useEffect wiring below).
-        onTick({
-          price: event.price!,
-          size: event.size!,
-          side: event.aggressorSide === "BUY" ? "buy"
-              : event.aggressorSide === "SELL" ? "sell"
-              : "buy", // side is only inspected when UNKNOWN is not skipped by the wrapper
-          time: event.timestampProvider ?? event.timestampReceived,
-          trade: true,
-          marketEvent: event,
-        }, true);
-      }
-    };
-
-    sock.onopen = () => {
-      opened = true;
-      relayNeverOpened.set(proxyBase, 0);
-      onStatus(true);
-      try { sock?.send(JSON.stringify({ action: "subscribe", sym: symbol, trades: [symbol] })); } catch { /* proxy may not need a subscribe msg */ }
-    };
-    sock.onmessage = (ev) => {
-      const d = ev.data as unknown;
-      if (typeof d === "string") handleText(d);
-      else if (d instanceof ArrayBuffer) handleText(new TextDecoder().decode(d));
-      else if (d && typeof (d as Blob).text === "function") (d as Blob).text().then(handleText).catch(() => {});
-    };
-    sock.onclose = () => {
-      onStatus(false);
-      if (closed) return;
-      const fails = opened ? 0 : (relayNeverOpened.get(proxyBase) ?? 0) + 1;
-      if (!opened) relayNeverOpened.set(proxyBase, fails);
-      retryTimer = setTimeout(connectSock, opened ? 3000 : alpacaRelayRetryMs(fails));
-    };
-    sock.onerror = () => { try { sock?.close(); } catch { /* already closing */ } };
-  };
-
-  // A relay already known to be absent is not dialled at once by the next symbol either.
-  const knownFails = relayNeverOpened.get(proxyBase) ?? 0;
-  if (knownFails >= 3) retryTimer = setTimeout(connectSock, alpacaRelayRetryMs(knownFails));
-  else connectSock();
-
-  return () => {
-    closed = true;
-    if (retryTimer) clearTimeout(retryTimer);
-    try { sock?.close(); } catch { /* already closing */ }
-  };
-}
-
 /* ── Main hook ──────────────────────────────────────────── */
 /**
  * A symbol that has not spoken yet. Identical to the reset the mount effect
@@ -1692,117 +1492,6 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     tradeTapeOnlyRef.current = isCrypto;
     let disposed = false;
 
-    // Moomoo OpenD executed-print lane. This remains a bounded authenticated
-    // poll because the current bridge is request-scoped; it is never described
-    // as a persistent stream. A route response alone is insufficient: only a
-    // current provider timestamp + exact symbol + explicit provider side can
-    // elect Moomoo as the active aggressor tape.
-    const providerTapeGuard = new MarketEventGuard();
-    let providerTapeLastAcceptedAt = 0;
-    let moomooInFlight = false;
-    let moomooAbort: AbortController | null = null;
-    let moomooTimer: ReturnType<typeof setTimeout> | null = null;
-    let moomooLastRoundStartedAt: number | null = null;
-    // The cadence the visibility handler must TOP UP rather than bypass. It is
-    // not a constant: moomooNextPollDelayMs backs off to a minute when a
-    // provider is unavailable, and a returning tab must respect that backoff
-    // instead of resetting it to the five-second healthy cadence.
-    let moomooIntervalMs = 60_000;
-    const scheduleMoomooPoll = (delayMs: number) => {
-      if (disposed || isFuture || isCrypto || document.visibilityState === "hidden") return;
-      if (moomooTimer) clearTimeout(moomooTimer);
-      moomooTimer = setTimeout(() => { void pollMoomooTicks(); }, delayMs);
-    };
-    const pollMoomooTicks = async () => {
-      if (disposed || isFuture || isCrypto || document.visibilityState === "hidden" || moomooInFlight) return;
-      moomooInFlight = true;
-      moomooLastRoundStartedAt = Date.now();
-      moomooAbort = new AbortController();
-      let nextDelayMs = 60_000;
-      try {
-        // Each provider attempt owns its transport and parse failure. A broken
-        // Moomoo or Longbridge request must not suppress a healthy later lane.
-        // Cancellation still aborts the complete poll.
-        const selection = await fetchProviderTicks(symbol, moomooAbort.signal);
-        // Disposal is applied to the RESULT, by this consumer, rather than
-        // inside the shared round — see fetchProviderTickSelection.
-        if (disposed) return;
-        const electedSource = selection?.source ?? "moomoo";
-        const events = selection?.events ?? [];
-        // Preserve a responsive five-second tape only while this exact symbol
-        // is producing fresh provider events. Missing config, auth blockers,
-        // stale/no-event states, and malformed receipts back off to one minute
-        // so an unavailable provider cannot burn the host request budget.
-        nextDelayMs = moomooNextPollDelayMs(events.length);
-        for (const event of events) {
-          const inspected = providerTapeGuard.inspect(event);
-          if (inspected.status !== "ACCEPTED") continue;
-          ingestSessionNectarEvent(inspected.event);
-          if (inspected.event.aggressorSide !== "BUY" && inspected.event.aggressorSide !== "SELL") {
-            if (electedSource === "longbridge" || electedSource === "webull") {
-              processUnsignedObservation(inspected.event, electedSource);
-            }
-            continue;
-          }
-          // Longbridge direction is provenance only. Even if an unexpected
-          // future payload carries a side, this lane never elects it as tape.
-          if (electedSource === "longbridge") continue;
-          const acceptedAt = Date.now();
-          const nextTapeSource = electProviderTapeSource(
-            tapeSourceRef.current,
-            electedSource,
-            providerTapeLastAcceptedAt,
-            acceptedAt,
-          );
-          if (nextTapeSource !== electedSource) continue;
-          tapeSourceRef.current = nextTapeSource;
-          providerTapeLastAcceptedAt = acceptedAt;
-          // Only the elected tape owner may enter the canonical session store.
-          // A valid-but-rejected alternate provider remains diagnostics evidence.
-          if (!admitVenue(electedSource)) continue;
-          processTick({
-            price: inspected.event.price!,
-            size: inspected.event.size!,
-            side: inspected.event.aggressorSide === "BUY" ? "buy" : "sell",
-            time: inspected.event.timestampProvider!,
-            trade: true,
-            marketEvent: inspected.event,
-          }, true);
-          setState(previous => previous.tapeSource === electedSource ? previous : { ...previous, tapeSource: electedSource });
-        }
-      } catch (error) {
-        if (!(error instanceof DOMException && error.name === "AbortError")) {
-          // Route/provider truth is rendered by the certification surface. The
-          // chart simply retains its last proven source and never invents data.
-        }
-      } finally {
-        moomooInFlight = false;
-        moomooIntervalMs = nextDelayMs;
-        scheduleMoomooPoll(nextDelayMs);
-      }
-    };
-    void pollMoomooTicks();
-    /**
-     * This was a bare "visible? poll." handler — the exact defect
-     * visibilityRefetch.ts was written for in 6e2c817, sitting in the SAME FILE
-     * as the call site that commit did fix. It survived because that commit's
-     * Sentinel matched on the spelling `restTimer` instead of on the invariant,
-     * so it walked straight past a handler named `moomooTimer`. The Sentinel
-     * has been generalised alongside this fix.
-     */
-    const onVisibleMoomoo = () => {
-      const verdict = selectVisibilityRefetch({
-        visibilityState: document.visibilityState,
-        lastRoundStartedAt: moomooLastRoundStartedAt,
-        inFlight: moomooInFlight,
-        now: Date.now(),
-        intervalMs: moomooIntervalMs,
-      });
-      if (verdict.kind !== "REFETCH") return;
-      if (moomooTimer) clearTimeout(moomooTimer);
-      void pollMoomooTicks();
-    };
-    document.addEventListener("visibilitychange", onVisibleMoomoo);
 
     // ── CRYPTO: real-time WebSocket (US-compliant, no key, 24/7) ──
     // Primary = Coinbase (highest US volume, ~4 ticks/sec). Binance.US is kept
@@ -2209,73 +1898,9 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     };
     document.addEventListener("visibilitychange", onVisibleWS);
 
-    // ── Real-time per-trade tape via an always-on external WS proxy ─────────
-    // REAL executed trades for EVERY US stock, so Big Trades bubbles populate on
-    // all symbols — not just the handful the Finnhub WS happens to serve. A
-    // request-scoped serverless runtime cannot host a persistent Alpaca websocket
-    // (the invocation ends), so the proxy runs OFF the app host (e.g. a Railway
-    // service, a VPS) holding the Alpaca IEX socket and relaying trades. This is
-    // a property of request-scoped compute, not of any one vendor, so it stays
-    // true across host migrations. It keeps the Alpaca key/secret — WM only knows
-    // the proxy's public WS URL. Configure via NEXT_PUBLIC_ALPACA_PROXY_URL
-    // (server env) or localStorage wm_alpaca_proxy (quick testing). No-op until a URL
-    // is set → zero churn, no regression. Real trades only, never synthetic.
-    //
-    // Protocol the proxy must speak: accept the symbol as `?sym=TSLA` (and/or a
-    // {"action":"subscribe","sym":"TSLA"} message on open), then push trades as
-    // JSON — either {p,s,t} or raw Alpaca {"T":"t","p":..,"s":..,"t":..}. Both are
-    // accepted below. `t` may be ms-epoch or an RFC3339 string.
-    // Default to the live Railway relay so real-time stock trades/bubbles work for
-    // every user out of the box — no env var or localStorage required. Still
-    // overridable via NEXT_PUBLIC_ALPACA_PROXY_URL (server env) or wm_alpaca_proxy
-    // (localStorage) if the proxy URL ever changes. The proxy URL is not a secret
-    // (the Alpaca key/secret live only on the Railway service). Fails gracefully to
-    // a no-op if the proxy is ever down.
-    const DEFAULT_PROXY = "wss://aplacawsproxy-production.up.railway.app";
-    const proxyBase = (() => {
-      try { return (localStorage.getItem("wm_alpaca_proxy") || process.env.NEXT_PUBLIC_ALPACA_PROXY_URL || DEFAULT_PROXY).trim(); }
-      catch { return (process.env.NEXT_PUBLIC_ALPACA_PROXY_URL || DEFAULT_PROXY).trim(); }
-    })();
-    // Route the Alpaca IEX relay through the shared TapeHub — matches the
-    // crypto (Coinbase/Binance) and Finnhub pattern. Fixes the 9-socket
-    // defect: N hook instances watching the same equity symbol on /charts
-    // now share ONE socket via tapeHubs.get('alpaca-relay:<SYM>') instead
-    // of spawning N. Founder-verified Aug 13 as a release-gate item.
-    //
-    // F1/F2/F3 semantics preserved in tryAlpacaRelay + the per-consumer
-    // onTick wrapper below.
-    const alpacaRelayCleanup = (proxyBase && !isFuture && !isCrypto && typeof WebSocket !== "undefined")
-      ? joinTape(
-          `alpaca-relay:${symbol.toUpperCase()}`,
-          (onTick, onStatus) => tryAlpacaRelay(symbol, priceObservedRef.current ? priceRef.current : 0, proxyBase, onTick, onStatus),
-          (tick, isReal) => {
-            // F2 (Cycle 10 P0): UNKNOWN aggressor observations are already
-            // ingested to Nectar in fanTick (shared TapeHub, line ~493) — do
-            // not silence them. Skip only the signed downstream path here so
-            // Delta/CVD/footprint/tape never see a fake "sell" coerced from
-            // UNKNOWN.
-            if (tick.marketEvent?.aggressorSide === "UNKNOWN") return;
-            // §LXXXI: one venue's prints (IEX) yield to the live consolidated lane.
-            if (tastyLiveAtRef.current != null && Date.now() - tastyLiveAtRef.current < 15_000) return;
-            // IEX is a subset of the consolidated prints: never summed beside them.
-            if (!admitVenue("alpaca")) return;
-            tapeSourceRef.current = "alpaca";
-            processTick(tick, isReal);
-            // A transport-open callback is not market data. Elect Alpaca only
-            // after a normalized, signed trade reached this consumer.
-            hasRealDataRef.current = true;
-            setState(previous =>
-              previous.source === "alpaca" && previous.tapeSource === "alpaca" && previous.connected
-                ? previous
-                : { ...previous, source: "alpaca", tapeSource: "alpaca", connected: true },
-            );
-          },
-          // Socket readiness is transport truth only. It must not promote the
-          // chart's source/connected state before a symbol event is observed.
-          () => {},
-        )
-      : null;
-    if (alpacaRelayCleanup) cleanupFns.current.push(alpacaRelayCleanup);
+    // The Alpaca IEX relay (an external WS proxy on Railway) was REMOVED 2026-10-12 (Founder: "remove anything
+    // delayed and dead"): its host answered HTTP 404 "Application not found" and every stock chart redialled
+    // it. US stock prints come from tastytrade's consolidated tape (§LXXXI).
 
     if (finhCleanup) cleanupFns.current.push(finhCleanup);
     if (binanceCleanup) cleanupFns.current.push(binanceCleanup);
@@ -2284,15 +1909,9 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
       disposed = true;
       tastyCleanup?.();
       tastyLiveAtRef.current = null;
-      moomooAbort?.abort();
-      if (moomooTimer) clearTimeout(moomooTimer);
       if (cryptoFallbackTimer) clearTimeout(cryptoFallbackTimer);
       if (restTimer) clearTimeout(restTimer);
-      // Alpaca relay teardown now flows through cleanupFns.current below —
-      // the joinTape cleanup drops the refcount and closes the shared socket
-      // when the last consumer unmounts (matches crypto/Finnhub behavior).
       document.removeEventListener("visibilitychange", onVisibleWS);
-      document.removeEventListener("visibilitychange", onVisibleMoomoo);
       cleanupFns.current.forEach(fn => fn());
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       if (obsRafRef.current) { cancelAnimationFrame(obsRafRef.current); obsRafRef.current = 0; }

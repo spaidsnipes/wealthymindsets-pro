@@ -192,7 +192,7 @@ export const MARKET_DATA_CAPABILITIES: readonly MarketDataCapability[] = [
     providerPath: "alpaca-external-relay",
     assetClass: "equity",
     eventType: "trade",
-    availability: "PARTIAL",
+    availability: "UNAVAILABLE",
     collectionScope: "EXTERNAL_RELAY",
     fidelityClass: "PROXY",
     timestampFields: ["PROVIDER", "RECEIVED", "PROCESSED"],
@@ -201,7 +201,7 @@ export const MARKET_DATA_CAPABILITIES: readonly MarketDataCapability[] = [
     sessionCoverage: "Relay-defined US equity session; IEX scope must be verified",
     fallbackSemantics: "NONE",
     rights: PUBLIC_DISPLAY_ONLY_RIGHTS,
-    evidence: "src/hooks/useWebSocket.ts DEFAULT_PROXY relay consumer",
+    evidence: "REMOVED 2026-10-12 (Founder: remove anything delayed and dead) — the Railway relay host answered 404 Application not found; no consumer remains",
   }),
   capability({
     providerPath: "alpaca-rest",

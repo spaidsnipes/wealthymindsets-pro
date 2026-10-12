@@ -1,4 +1,13 @@
-import type { ProviderTapeSource } from "./providerTapeElection";
+export type ProviderTapeSource =
+  | "polygon"
+  | "finnhub"
+  | "alpaca"
+  | "coinbase"
+  | "binance"
+  | "moomoo"
+  | "webull"
+  | "tastytrade"
+  | "tastytrade-equity";
 
 export const REST_QUOTE_NO_TAPE_POLL_MS = 5_000;
 export const REST_QUOTE_WITH_TAPE_POLL_MS = 15_000;

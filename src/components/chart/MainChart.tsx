@@ -101,7 +101,7 @@ import { tastyCandleStreamerFor, tastyFrontMonthFor } from "@/lib/broker/tastyFr
 import { fetchTastyTimeAndSales } from "@/lib/broker/tastyHistory";
 import { tastyTimeAndSaleToMarketEvent } from "@/lib/marketData/adapters/tastytradeFuturesTicks";
 import { flowSideWords, type OptionFlowVM } from "@/lib/marketData/viewModels/selectOptionFlowEvents";
-import { tastyCandleFromTime, tastyCandlePeriod, tastyCandleSymbol, tastyCandlesToBars, tastyCandlesToSidedVolume } from "@/lib/marketData/adapters/tastytradeCandles";
+import { tastyServedTimeframe, tastyCandleFromTime, tastyCandlePeriod, tastyCandleSymbol, tastyCandlesToBars, tastyCandlesToSidedVolume } from "@/lib/marketData/adapters/tastytradeCandles";
 import {
   DELTA_LEVEL_CAP_DEFAULT,
   DELTA_LEVEL_CAP_EVENT,
@@ -784,9 +784,6 @@ import { CALL_WALL_RGB, PUT_WALL_RGB, edgeChipWords, foldNarrowLine, offCameraSh
 import type { IndexFuturesMappingVM } from "@/lib/marketData/viewModels/selectIndexFuturesMapping";
 
 /* ── Symbol base prices — verified against MooMoo/TradingView Jun 16 2026 ── */
-// NOTE: fetchPolygonOHLCV returns real OHLCV data for stocks/ETFs/crypto.
-// These seeds are ONLY used for futures (NQ1!, ES1! etc.) and as a 1-second
-// fallback before the Polygon REST snapshot resolves.
 // Updated Jun 17 2026 — sourced from Yahoo Finance proxy at runtime
 const SYMBOL_BASE: Record<string, number> = {
   "NQ1!": 30_476, "ES1!":  7_595,  "RTY1!":  2_968,  "YM1!": 52_464,
@@ -920,104 +917,7 @@ export function getIntervalSec(tf: string): number {
    Both the glyph AND the claim it makes about the feed now belong to
    `chartBarCountdown`; see that file's docblock for the live reading. */
 
-/* ── Polygon symbol mapping ─────────────────────────────── */
-function toPolygonTicker(sym: string): string | null {
-  const s = normalizeSym(sym.toUpperCase());
-  // Futures not supported on basic Polygon tier. VX1! and SR3M4 are declined
-  // separately and deliberately: the class owner resolves VX1! to the ^VIX
-  // INDEX (which is true — it is not a tradable contract here), and SR3M4 is a
-  // dated SOFR contract Polygon's basic tier does not carry either. Both are
-  // refusals about THIS VENUE, which is a fact this function owns.
-  if (classifySymbol(s) === "FUTURES" || s === "VX1!" || s === "SR3M4") return null;
-  // Tick-level timeframes not supported via aggs
-  // Crypto
-  const cryptoMap: Record<string,string> = {
-    BTC:"X:BTCUSD", ETH:"X:ETHUSD", SOL:"X:SOLUSD", BNB:"X:BNBUSD",
-    XRP:"X:XRPUSD", DOGE:"X:DOGEUSD", ADA:"X:ADAUSD", AVAX:"X:AVAXUSD",
-    LINK:"X:LINKUSD", DOT:"X:DOTUSD", MATIC:"X:MATICUSD", LTC:"X:LTCUSD",
-    ATOM:"X:ATOMUSD", UNI:"X:UNIUSD", AAVE:"X:AAVEUSD", FIL:"X:FILUSD",
-    ARB:"X:ARBUSD", OP:"X:OPUSD", SUI:"X:SUIUSD", APT:"X:APTUSD",
-    INJ:"X:INJUSD", PEPE:"X:PEPEUSD", WIF:"X:WIFUSD",
-  };
-  if (cryptoMap[s]) return cryptoMap[s];
-  // Forex
-  if (s.includes("/")) {
-    return `C:${s.replace("/", "")}`;
-  }
-  // VIX — synthetic only
-  if (s === "VIX") return null;
-  // Stocks/ETFs — direct
-  return s;
-}
-
-function toPolygonTimespan(tf: string): { mult: number; span: string } | null {
-  const map: Record<string, { mult: number; span: string }> = {
-    "1m":  { mult:1,  span:"minute" },
-    "2m":  { mult:2,  span:"minute" },
-    "3m":  { mult:3,  span:"minute" },
-    "5m":  { mult:5,  span:"minute" },
-    "10m": { mult:10, span:"minute" },
-    "15m": { mult:15, span:"minute" },
-    "30m": { mult:30, span:"minute" },
-    "1h":  { mult:1,  span:"hour"   },
-    "2h":  { mult:2,  span:"hour"   },
-    "4h":  { mult:4,  span:"hour"   },
-    "1D":  { mult:1,  span:"day"    },
-    "1W":  { mult:1,  span:"week"   },
-    "1M":  { mult:1,  span:"month"  },
-    "3M":  { mult:3,  span:"month"  },
-    "6M":  { mult:6,  span:"month"  },
-    "1Y":  { mult:12, span:"month"  },
-    "5Y":  { mult:60, span:"month"  },
-  };
-  return map[tf] ?? null;
-}
-
-async function fetchPolygonOHLCV(sym: string, tf: string, count: number, signal?: AbortSignal): Promise<LegacyOhlcvTuple[] | null> {
-  // WM-SEC-P0-05 (2026-08-08): client-side Polygon disabled — see
-  // TickerTape.tsx for the full rationale. This function short-circuits
-  // so callers naturally fall through to Yahoo/Alpaca. Restore behind a
-  // server proxy once one exists.
-  const POLY_KEY = "";
-  if (!POLY_KEY) return null;
-
-  const ticker = toPolygonTicker(sym);
-  if (!ticker) return null;
-
-  const timespan = toPolygonTimespan(tf);
-  if (!timespan) return null;
-
-  const intervalSec = getIntervalSec(tf);
-  const toMs   = Date.now();
-  const fromMs = toMs - Math.round(count * 1.8) * intervalSec * 1000;
-
-  const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/${timespan.mult}/${timespan.span}/${fromMs}/${toMs}?adjusted=true&sort=asc&limit=${count}&apiKey=${POLY_KEY}`;
-
-  try {
-    const res  = await fetch(url, { cache: "no-store", signal });
-    const json = await res.json();
-    if (!json.results?.length) return null;
-    return json.results.map((r: any) => ({
-      time:   Math.floor(r.t / 1000),
-      open:   r.o,
-      high:   r.h,
-      low:    r.l,
-      close:  r.c,
-      volume: r.v,
-    }));
-  } catch {
-    return null;
-  }
-}
-
-/* ── Finnhub OHLCV — via /api/finnhub server proxy ──────────────────
- * WM-SEC-P0-03 (2026-08-08): this used to fetch finnhub.io directly with
- * process.env.NEXT_PUBLIC_FINNHUB_KEY, shipping the key in the client
- * bundle. All Finnhub calls now go through /api/finnhub which holds the
- * server-only FINNHUB_KEY. The client-side resMap that duplicated (and
- * disagreed with) the server's FH_RES on `2m` is deleted; the server is
- * the single source of truth for interval mapping — see WM-CHART-P0-03
- * for the still-open fail-closed correctness work on the server map. */
+/* ── Candle batches — the live doors' (venue, tastytrade) one shape ── */
 interface CanonicalCandleBatch {
   readonly candles: LegacyOhlcvTuple[];
   readonly identities: readonly CanonicalBarIdentity[];
@@ -1069,71 +969,7 @@ function note(log: VendorAttempt[] | undefined, attempt: VendorAttempt): void {
   log?.push(attempt);
 }
 
-/** The vendor's own classified edge, if it sent one. Never a paraphrase. */
-async function edgeOf(res: Response): Promise<string | null> {
-  try {
-    const body = await res.json() as { edge?: unknown; error?: unknown };
-    if (typeof body.edge === "string" && body.edge) return body.edge;
-    if (typeof body.error === "string" && body.error) return body.error;
-  } catch { /* a body we cannot read is not a reason we may invent */ }
-  return null;
-}
 
-async function fetchFinnhubCandles(sym: string, tf: string, count: number, signal?: AbortSignal, log?: VendorAttempt[]): Promise<CanonicalCandleBatch | null> {
-  const upper = sym.toUpperCase();
-  // The noun is the INSTRUMENT's class (equityVendorSkipNoun), never a fixed
-  // "futures" — XAUUSD is spot metal and was being called a future here.
-  const skipped = equityVendorSkipNoun(upper);
-  if (skipped) {
-    note(log, { vendor: "Finnhub", outcome: "NOT_ASKED",
-      rule: `this product does not route ${skipped} to its equity vendors.` });
-    return null; // futures/forex/spot metals unsupported by the proxy
-  }
-  try {
-    const url = `/api/finnhub?sym=${encodeURIComponent(upper)}&type=candles&tf=${encodeURIComponent(tf)}&bars=${count}`;
-    const res = await fetch(url, { cache: "no-store", signal });
-    if (!res.ok) {
-      note(log, { vendor: "Finnhub", outcome: "REFUSED", edge: await edgeOf(res) });
-      return null;
-    }
-    const json = await res.json() as {
-      candles?: LegacyOhlcvTuple[];
-      barIdentities?: CanonicalBarIdentity[];
-    };
-    // THE SILENT DROP IS RETIRED HERE, 2026-09-18. This read
-    //   .filter(b => b.open > 0 && b.high > 0)
-    // and it was wrong three separate ways.
-    //
-    // 1. IT WAS SILENT. A bar removed here left an INVISIBLE GAP — the chart
-    //    simply got shorter and nothing, on screen or in a counter, said so.
-    // 2. IT WAS AN AMPUTATION. A non-positive price is not a malformed price.
-    //    Crude oil printed NEGATIVE in April 2020 and that was a real auction.
-    //    canonicalBar.ts's checkBarGeometry deliberately refuses non-finite,
-    //    inside-out and un-traded bars and deliberately does NOT refuse a
-    //    price for being small or negative. This filter did.
-    // 3. IT WAS ASYMMETRIC BY ACCIDENT, not by design. fetchFinnhubCandlesDirect
-    //    below requests the IDENTICAL /api/finnhub URL, applies no filter, and
-    //    runs FIRST — this function is only reached when that one returned
-    //    null. Two readers of one endpoint disagreed about which bars exist.
-    //
-    // What it was really cleaning up after was the route's own fabrications:
-    // `volume ?? 0` and `high ?? Math.max(open, close)` could emit a bar of
-    // zeroes, and `open > 0` swept those away. Those fabrications are gone.
-    // /api/finnhub now refuses a malformed bar at ingress, checks all six
-    // fields rather than two, and DISCLOSES the count as `refusedBars`. The
-    // protection did not disappear; it moved upstream, got stricter, and
-    // started telling the truth about itself. Re-deciding it here would be a
-    // second owner of what a bar is, which is the whole of M8.
-    const batch = candleBatch(json, count);
-    note(log, { vendor: "Finnhub", outcome: batch ? "SERVED" : "EMPTY" });
-    return batch;
-  } catch {
-    // An aborted request is not a refusal and must never be reported as one —
-    // the symbol changed under us, which is the trader's own doing.
-    if (!signal?.aborted) note(log, { vendor: "Finnhub", outcome: "REFUSED", edge: null });
-    return null;
-  }
-}
 
 /* ── US-equity session helpers ───────────────────────────────
  * Stocks/ETFs trade an extended day (pre 4:00 ET, RTH 9:30–16:00 ET,
@@ -1201,61 +1037,7 @@ function filterSession(bars: LegacyOhlcvTuple[], sym: string, intervalSec: numbe
 
 /* ── Yahoo Finance OHLCV — covers futures + crypto + stocks ── */
 // ── Alpaca candles (primary for stocks/ETFs/crypto when key is set) ──────
-async function fetchAlpacaCandles(sym: string, tf: string, count: number, signal?: AbortSignal, log?: VendorAttempt[]): Promise<CanonicalCandleBatch | null> {
-  const up = sym.toUpperCase();
-  // Named by the instrument's OWN class: XAUUSD is spot metal, and "it does
-  // not carry futures" was said about it (serving, 2026-09-25, GP12 §26).
-  const skipped = equityVendorSkipNoun(up);
-  if (skipped) {
-    note(log, { vendor: "Alpaca", outcome: "NOT_ASKED", rule: `it does not carry ${skipped}.` });
-    return null; // Alpaca's data lane carries US equities and crypto only
-  }
-  try {
-    const url = `/api/alpaca?sym=${encodeURIComponent(up)}&type=candles&tf=${tf}&bars=${count}`;
-    const res = await fetch(url, { cache: "no-store", signal });
-    if (res.status === 503 || res.status === 404) {
-      // 503 = no key configured here, 404 = this vendor does not carry it.
-      // Both are real and DIFFERENT from "the market was quiet", which is why
-      // the edge travels rather than being flattened into one sentence.
-      note(log, { vendor: "Alpaca", outcome: "REFUSED", edge: await edgeOf(res) });
-      return null; // key not set or not supported
-    }
-    const json = await res.json();
-    const batch = candleBatch(json, count);
-    note(log, { vendor: "Alpaca", outcome: batch ? "SERVED" : "EMPTY" });
-    return batch;
-  } catch {
-    if (!signal?.aborted) note(log, { vendor: "Alpaca", outcome: "REFUSED", edge: null });
-    return null;
-  }
-}
 
-async function fetchFinnhubCandlesDirect(sym: string, tf: string, count: number, signal?: AbortSignal, log?: VendorAttempt[]): Promise<CanonicalCandleBatch | null> {
-  // Only for stocks/ETFs — futures/crypto fall back to Yahoo
-  // The crypto list here named eleven coins and none of the `-USD` forms the
-  // app's own pickers emit, so BTC-USD was being asked of an equity vendor.
-  const skipped = equityVendorSkipNoun(sym) ?? (classifySymbol(sym) === "CRYPTO" ? "crypto" : null);
-  if (skipped) {
-    note(log, { vendor: "Finnhub REST", outcome: "NOT_ASKED",
-      rule: `this product does not route ${skipped} to its equity vendors.` });
-    return null;
-  }
-  try {
-    const url = `/api/finnhub?sym=${encodeURIComponent(sym)}&type=candles&tf=${tf}&bars=${count}`;
-    const res = await fetch(url, { cache: "no-store", signal });
-    if (!res.ok) {
-      note(log, { vendor: "Finnhub REST", outcome: "REFUSED", edge: await edgeOf(res) });
-      return null;
-    }
-    const json = await res.json();
-    const batch = candleBatch(json, count);
-    note(log, { vendor: "Finnhub REST", outcome: batch ? "SERVED" : "EMPTY" });
-    return batch;
-  } catch {
-    if (!signal?.aborted) note(log, { vendor: "Finnhub REST", outcome: "REFUSED", edge: null });
-    return null;
-  }
-}
 
 /**
  * DOOR 0 FOR FUTURES — tastytrade's own contract bars over the shared DXLink
@@ -1268,7 +1050,10 @@ async function fetchTastyCandles(sym: string, tf: string, count: number, signal?
   // Everything tastytrade carries — futures (metals, energy, grains, FX
   // futures …), stocks/ETFs and listed crypto — at every size it streams,
   // seconds included. Anything it does not list answers null; the next door serves.
-  if (!tastyCandlePeriod(tf)) return null;
+  // A long range (3M … 5Y) is served as tastytrade's monthly candles; the header names them (servedTimeframeFor).
+  const servedTf = tastyServedTimeframe(tf);
+  if (!servedTf || !tastyCandlePeriod(servedTf)) return null;
+  tf = servedTf;
   try {
     const streamer = await tastyCandleStreamerFor(sym);
     const contract = streamer ? { streamer } : null;
@@ -1293,49 +1078,6 @@ async function fetchTastyCandles(sym: string, tf: string, count: number, signal?
   }
 }
 
-async function fetchYahooCandles(sym: string, tf: string, count: number, ext = false, signal?: AbortSignal, log?: VendorAttempt[]): Promise<CanonicalCandleBatch | null> {
-  try {
-    const url = `/api/yahoo?sym=${encodeURIComponent(sym)}&type=candles&tf=${tf}&bars=${count}${ext ? "&ext=1" : ""}`;
-    const res = await fetch(url, { cache: "no-store", signal });
-    const json = await res.json() as {
-      error?: unknown;
-      notAsked?: unknown;
-      rule?: unknown;
-      candles?: LegacyOhlcvTuple[];
-      barIdentities?: CanonicalBarIdentity[];
-    };
-    /* A RULE OF OURS REPORTED AS OURS.
-       `/api/yahoo` sets `notAsked` when a WM rule stopped the request before
-       the wire — today, the refusal to answer a USDT pair with a USD price.
-       That used to arrive here as "Error: Yahoo HTTP 404", because the
-       unresolved ticker was sent anyway, and the glass read "Yahoo was asked
-       and refused". Yahoo answered a question correctly and wore the blame for
-       our decision. NOT_ASKED carries the rule instead, which is the outcome
-       `compileBarHistoryRefusal` was built for and could not previously be
-       given on this lane. */
-    if (json.notAsked === true) {
-      note(log, {
-        vendor: "Yahoo",
-        outcome: "NOT_ASKED",
-        rule: typeof json.rule === "string" && json.rule ? json.rule : null,
-      });
-      return null;
-    }
-    // /api/yahoo answers 200 with an `error` field, so `res.ok` alone would
-    // read a refusal as an empty market. It is not one: the vendor was asked
-    // and said no, which is a different fact from a quiet window.
-    if (typeof json.error === "string" && json.error) {
-      note(log, { vendor: "Yahoo", outcome: "REFUSED", edge: json.error });
-      return null;
-    }
-    const batch = candleBatch(json, count);
-    note(log, { vendor: "Yahoo", outcome: batch ? "SERVED" : "EMPTY" });
-    return batch;
-  } catch {
-    if (!signal?.aborted) note(log, { vendor: "Yahoo", outcome: "REFUSED", edge: null });
-    return null;
-  }
-}
 
 /* ── Tick-size helper ────────────────────────────────────── */
 function getMinTick(base: number): number {
@@ -4549,10 +4291,6 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // not cancel a request the other two are waiting on, or they would read
       // the abort as the provider's answer. Cancellation is a property of a
       // consumer and is applied here, to the RESULT.
-      const spotFetch = fetchYahooQuoteBody(symbol)
-        .then(j => (myAbortSignal.aborted || yahooQuoteRefusal(j) ? 0 : ((j as any)?.price ?? 0)) as number)
-        .catch(() => 0);
-
       // Bar count scales with timeframe so higher timeframes pull years of history
       // (e.g. Daily → 1200 bars ≈ 5y, Weekly/Monthly → full available history).
       const barCount = timeframe === "1D" ? 2600
@@ -4609,19 +4347,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             .then(r => r.json()).then(j => candleBatch(j, barCount)).catch(() => null)
         : null;
 
-      // Priority: exchange-specific, Alpaca, Finnhub, Yahoo, Finnhub REST, Polygon.
-      // Never manufacture market bars when every observed-data source is unavailable.
+      // LIVE DOORS ONLY (Founder 2026-10-12: "remove anything delayed and dead"): the
+      // venue's own candles (crypto), then tastytrade's. The Alpaca REST, Finnhub REST,
+      // Yahoo and Polygon doors served delayed or dead history and are gone; a symbol no
+      // live door serves gets the refusal note, never a delayed chart.
       // THE RECEIPT BOOK. Each helper writes what its door actually said; this
       // function does not interpret any of it. See compileBarHistoryRefusal.
       const vendorLog: VendorAttempt[] = [];
       const tastyData    = exchangeData ? null : await fetchTastyCandles(symbol, timeframe, barCount, myAbortSignal, vendorLog);
-      const alpacaData   = (exchangeData || tastyData) ? null : await fetchAlpacaCandles(symbol, timeframe, barCount, myAbortSignal, vendorLog);
-      const fhDirectData = (exchangeData || tastyData || alpacaData) ? null : await fetchFinnhubCandlesDirect(symbol, timeframe, barCount, myAbortSignal, vendorLog);
-      const yahooData    = (exchangeData || tastyData || alpacaData || fhDirectData) ? null : await fetchYahooCandles(symbol, timeframe, barCount, extendedHours, myAbortSignal, vendorLog);
-      const finnhubData  = (exchangeData || tastyData || alpacaData || fhDirectData || yahooData) ? null : await fetchFinnhubCandles(symbol, timeframe, barCount, myAbortSignal, vendorLog);
-      const polyData     = (exchangeData || tastyData || alpacaData || fhDirectData || yahooData || finnhubData) ? null : await fetchPolygonOHLCV(symbol, timeframe, barCount, myAbortSignal);
-      const canonicalBatch = exchangeData ?? tastyData ?? alpacaData ?? fhDirectData ?? yahooData ?? finnhubData;
-      const realData = canonicalBatch?.candles ?? polyData;
+      const canonicalBatch = exchangeData ?? tastyData;
+      const realData = canonicalBatch?.candles ?? null;
       const fetchedBarIdentities = canonicalBatch?.identities ?? [];
       // The bars' own signed volume travels with the bars that carried it.
       candleSidedRef.current = canonicalBatch?.sided ?? new Map();
@@ -4630,24 +4365,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       const srcName =
         skipVendors  ? ((tapeSource ?? "").toUpperCase() || "__unresolved__") :
         exchangeData ? (exParsed?.exchange?.toUpperCase() || "EXCHANGE") :
-        tastyData    ? "TASTYTRADE" :
-        alpacaData   ? "ALPACA"  :
-        fhDirectData ? "FINNHUB" :
-        yahooData    ? "YAHOO"   :
-        finnhubData  ? "FINNHUB" :
         // Internal sentinel — never rendered to trader.
-        polyData     ? "POLYGON" : "__unresolved__";
+        tastyData    ? "TASTYTRADE" : "__unresolved__";
 
-      // Real spot price (from parallel fetch above)
-      const spotPrice = await spotFetch;
-      // If we have real candle data but the candles are at a stale price level
-      // we reject it instead of silently moving or fabricating bars.
-      let candleData = realData;
-      if (!skipVendors && candleData && candleData.length > 0 && spotPrice > 0) {
-        const lastClose = candleData[candleData.length - 1].close;
-        const stalePct  = Math.abs(lastClose - spotPrice) / spotPrice;
-        if (stalePct > 0.05) candleData = null;
-      }
+      const candleData = realData;
 
       // Tick bars are prints, not session clock buckets: no session filter.
       const rawData = skipVendors ? (candleData ?? []) : filterSession(

@@ -77,14 +77,6 @@ const FOREX_SYMBOLS = symbolsInCategory((c) => c === "Forex");
 /** The pickers spell the same category both ways — "Stock" and "Stocks". */
 const EQUITY_SYMBOLS = symbolsInCategory((c) => c === "Stock" || c === "Stocks");
 
-/** Bare bases MainChart already resolves to a Polygon crypto ticker. */
-const POLYGON_CRYPTO_BASES: string[] = (() => {
-  const src = read("../../components/chart/MainChart.tsx");
-  const start = src.indexOf("const cryptoMap");
-  const end = src.indexOf("if (cryptoMap[s])");
-  return [...src.slice(start, end).matchAll(/([A-Z0-9]+)\s*:\s*"X:/g)].map((m) => m[1]);
-})();
-
 /**
  * Saturday. 2026-09-05 is the day the contradiction was captured live.
  * ET-anchored via the shared owner — see marketDayFixtures.ts.
@@ -125,11 +117,7 @@ describe("picker extraction — the positive control comes first", () => {
     expect(EQUITY_SYMBOLS.filter((s) => crypto.has(s))).toEqual([]);
   });
 
-  it("PROOF MainChart's Polygon crypto map was really read", () => {
-    expect(POLYGON_CRYPTO_BASES.length).toBeGreaterThan(20);
-    expect(POLYGON_CRYPTO_BASES).toContain("BTC");
-    expect(POLYGON_CRYPTO_BASES).toContain("AAVE");
-  });
+
 });
 
 describe("every symbol the product offers as crypto is classified crypto", () => {
@@ -154,12 +142,8 @@ describe("every symbol the product offers as crypto is classified crypto", () =>
     }
   });
 
-  it("MainChart's Polygon map agrees with the identity layer", () => {
-    // Two places encode "this bare ticker is crypto". They may not disagree —
-    // that disagreement is Canon Weakness #1 at the identity layer.
-    const wrong = POLYGON_CRYPTO_BASES.filter((s) => canonicalAssetClass(s) !== "crypto");
-    expect(wrong, "resolved as crypto for chart data but not for the session claim").toEqual([]);
-  });
+  // (MainChart's Polygon crypto map was removed with the Polygon door, 2026-10-12.)
+
 
   it("the venue-pinned rows resolve to their base, not to a venue", () => {
     expect(cryptoBaseTicker("BTC.COINBASE")).toBe("BTC");

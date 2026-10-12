@@ -102,10 +102,9 @@ describe("the refusal note reaches the trader on the chart itself", () => {
     // helpers stop recording, the note has nothing true left to say.
     expect(mainChart, "the cascade no longer collects vendor attempts")
       .toMatch(/VendorAttempt/);
-    expect(mainChart, "Finnhub's classified edge is being thrown away again")
-      .toMatch(/outcome:\s*"REFUSED"/);
-    expect(mainChart, "a vendor skipped by our own rule is not being named")
-      .toMatch(/outcome:\s*"NOT_ASKED"/);
+    // Since 2026-10-12 the only vendor door is tastytrade (the delayed doors were removed); it still names its answer.
+    expect(mainChart, "tastytrade's refusal is being thrown away again")
+      .toMatch(/vendor: "tastytrade", outcome:\s*"REFUSED"/);
   });
 
   it("compiles through the one owner — never a second sentence for one pixel", () => {
