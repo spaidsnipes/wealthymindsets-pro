@@ -1,5 +1,6 @@
 "use client";
 
+import { fetchLiveCandles, liveCandleSourceFor } from "@/lib/marketData/liveCandles";
 import * as React from "react";
 import { useSanctuarySession } from "@/lib/experience/sanctuarySessionContext";
 import {
@@ -125,7 +126,11 @@ type FetchState =
  * Kept as one constant that builds the URL below, so the label and the request
  * cannot drift into disagreeing about where the bars came from.
  */
-export const DECK_CANDLE_SOURCE = "yahoo";
+/** LIVE ONLY since 2026-10-12 (Founder: "remove anything delayed and dead"): the deck's bars are
+ *  the live loader's (venue or tastytrade), and this names which one for the symbol and size. */
+export function deckCandleSourceFor(symbol: string, timeframe: string): string {
+  return liveCandleSourceFor(symbol, timeframe);
+}
 
 export interface DeckMarketChartProps {
   readonly symbol: string;
@@ -242,8 +247,13 @@ export function DeckMarketChart({
     // shows LOADING; a refresh happens underneath the chart already on screen.
     if (!isRefresh) setState({ kind: "LOADING" });
 
-    const url = `/api/${DECK_CANDLE_SOURCE}?sym=${encodeURIComponent(symbol)}&type=candles&tf=${encodeURIComponent(timeframe)}&bars=${bars}`;
-    const doFetch = fetcher ?? ((u: string) => fetch(u, { cache: "no-store" }));
+    const url = `live:${deckCandleSourceFor(symbol, timeframe)}?sym=${encodeURIComponent(symbol)}&type=candles&tf=${encodeURIComponent(timeframe)}&bars=${bars}`;
+    // The default reads the LIVE loader (venue / tastytrade) and hands its answer to the same
+    // classifier a fetch would — so the four states stay one owner's. Tests inject `fetcher`.
+    const doFetch = fetcher ?? (async () => {
+      const live = await fetchLiveCandles(symbol, timeframe, bars);
+      return new Response(JSON.stringify({ candles: live ? [...live.candles] : [] }), { status: 200, headers: { "content-type": "application/json" } });
+    });
 
     /**
      * A failed REFRESH is not the same event as a failed LOAD, and collapsing

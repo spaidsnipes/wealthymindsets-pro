@@ -1,5 +1,6 @@
 "use client";
 
+import { fetchLiveCandles } from "@/lib/marketData/liveCandles";
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { readSymbolList } from "@/lib/marketData/storedSymbolList";
@@ -116,9 +117,9 @@ function Card({ sym, tf }: { sym: string; tf: string }) {
   const [data, setData] = useState<CardData>({ sym, candles: [], loading: true });
 
   const load = useCallback(() => {
-    fetch(`/api/yahoo?sym=${encodeURIComponent(sym)}&type=candles&tf=${encodeURIComponent(tf)}&bars=120`, { cache: "no-store" })
-      .then(r => r.json())
-      .then(j => setData({ sym, candles: Array.isArray(j?.candles) ? j.candles : [], loading: false }))
+    // LIVE ONLY (Founder 2026-10-12): the venue's or tastytrade's own candles — never delayed Yahoo bars.
+    fetchLiveCandles(sym, tf, 120)
+      .then(r => setData({ sym, candles: r ? [...r.candles] : [], loading: false }))
       .catch(() => setData({ sym, candles: [], loading: false }));
   }, [sym, tf]);
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { fetchLiveCandles } from "@/lib/marketData/liveCandles";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
 import { selectHeatmapFeedObservation } from "@/lib/os/selectHeatmapFeedObservation";
@@ -417,9 +418,9 @@ function VPHeatmap({ tf }: { tf: string }) {
     setLoading(true);
     Promise.all(VP_SYMBOLS.map(async sym => {
       try {
-        const res = await fetch(`/api/yahoo?sym=${sym}&type=candles&tf=${chartTF}&bars=300`, { cache:"no-store" });
-        const json = await res.json() as { candles?:VPCandle[] };
-        return [sym, json.candles ?? []] as const;
+        // LIVE ONLY (Founder 2026-10-12): live venue / tastytrade candles, never delayed Yahoo bars.
+        const live = await fetchLiveCandles(sym, chartTF === "D" ? "1D" : chartTF, 300);
+        return [sym, [...(live?.candles ?? [])] as unknown as VPCandle[]] as const;
       } catch { return [sym, []] as const; }
     })).then(entries => {
       if (!cancelled) setProfiles(Object.fromEntries(entries));

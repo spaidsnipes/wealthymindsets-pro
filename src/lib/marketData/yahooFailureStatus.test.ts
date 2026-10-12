@@ -104,11 +104,11 @@ describe("the bar route's failure status — a missing symbol is not a server fa
       const src = (p: string) => readFileSync(path.join(process.cwd(), "src", p), "utf8");
       // The chart no longer asks Yahoo for bars at all (2026-10-12: delayed doors removed).
       expect(src("components/chart/MainChart.tsx")).not.toContain("fetchYahooCandles(");
-      for (const [f, needle] of [
-        ["components/chart/WatchlistGrid.tsx", "&bars=120`, { cache: \"no-store\" })\n      .then(r => r.json())"],
-        ["app/scanner/map/page.tsx", "const json = await res.json() as { candles?:VPCandle[] };"],
-        ["components/journal/UnsettledEstimate.tsx", "daily.set(u, Array.isArray(j.candles) ? j.candles : []);"],
-      ] as const) expect(src(f), f).toContain(needle.replace(/\\"/g, '"').replace(/\\n/g, "\n"));
+      // Since 2026-10-12 these readers no longer ask Yahoo at all — they read the live loader.
+      for (const f of ["components/chart/WatchlistGrid.tsx", "app/scanner/map/page.tsx", "components/journal/UnsettledEstimate.tsx"]) {
+        expect(src(f), f).not.toContain("/api/yahoo?sym=");
+        expect(src(f), f).toContain("fetchLiveCandles(");
+      }
     });
   });
 });

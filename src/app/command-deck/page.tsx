@@ -93,7 +93,7 @@ import { selectMarketObjectPassport } from "@/lib/marketData/viewModels/selectMa
 import DecisionWhyPanel from "@/components/experience/DecisionWhyPanel";
 import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
 import DeckMarketChart, {
-  DECK_CANDLE_SOURCE,
+  deckCandleSourceFor,
   type Candle as DeckCandle,
 } from "@/components/experience/DeckMarketChart";
 import { selectPriceEvidence } from "@/lib/marketData/formatSpinePrice";
@@ -402,11 +402,11 @@ function CommandDeckInner() {
     connected: wsFeed.connected,
     bars: deckCandles,
     // `source` above is the TAPE venue (coinbase on a crypto symbol). These
-    // candles are not from that tape — DeckMarketChart fetches them from
-    // /api/yahoo. Candle-only dimensions must cite the venue that actually
+    // candles are not from that tape — DeckMarketChart reads them from the
+    // live loader (venue or tastytrade). Candle-only dimensions must cite the venue that actually
     // printed the bars, or the receipt names a venue the numbers never came
     // from. See DECK_CANDLE_SOURCE for the live measurement that found this.
-    barSource: DECK_CANDLE_SOURCE,
+    barSource: deckCandleSourceFor(symbol, timeframe),
     // Proven closure (one owner, 2026-10-09): a closed market is CLOSED, not STALE.
     sessionOpen: quoteSession.sessionOpen,
   });

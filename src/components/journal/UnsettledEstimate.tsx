@@ -2,6 +2,7 @@
 
 /** UNSETTLED options read against each underlying's close on the expiry date — ESTIMATED, on the trader's click (§36/§37). */
 
+import { fetchLiveCandles } from "@/lib/marketData/liveCandles";
 import React, { useState } from "react";
 
 import type { Episode } from "@/lib/broker/webullLedger";
@@ -25,8 +26,9 @@ export function UnsettledEstimate({ episodes }: { readonly episodes: readonly Ep
     const daily = new Map<string, LegacyOhlcvTuple[]>();
     for (const u of unders) {
       try {
-        const j = await (await fetch(`/api/yahoo?sym=${encodeURIComponent(u)}&type=candles&tf=1D&bars=700`, { cache: "no-store" })).json() as { candles?: LegacyOhlcvTuple[] };
-        daily.set(u, Array.isArray(j.candles) ? j.candles : []);
+        // LIVE ONLY (Founder 2026-10-12): the underlying's own daily bars from tastytrade, never delayed Yahoo bars.
+        const live = await fetchLiveCandles(u, "1D", 700);
+        daily.set(u, live ? [...live.candles] : []);
       } catch { daily.set(u, []); }
     }
     setRows(unsettled.map(e => expiryEstimate(e, daily.get(parseOptionKey(e.instrumentKey)!.underlying) ?? [])!).filter(Boolean));

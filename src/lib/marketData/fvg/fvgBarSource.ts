@@ -10,6 +10,7 @@
  * `fvgWireBars.ts`.
  */
 
+import { fetchLiveCandles } from "@/lib/marketData/liveCandles";
 import { isPublicFailureCode } from "@/lib/publicFailure";
 import type { CanonicalBar, CanonicalBarIdentity, LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 import { closedFvgBars, rejoinCanonicalBars } from "./fvgWireBars";
@@ -72,7 +73,7 @@ export function upstreamSaysMissing(status: number, body: unknown): boolean {
 /** Interpret one /api/yahoo candles body. Pure — exported for tests. */
 export function readFvgBarBody(
   body: unknown,
-  input: { readonly symbol: string; readonly timeframe: string; readonly nowMs: number },
+  input: { readonly symbol: string; readonly timeframe: string; readonly nowMs: number; readonly symbolId?: string },
 ): FvgBarFetch {
   if (!body || typeof body !== "object") return { ok: false, reason: DID_NOT_LOAD };
   const j = body as Record<string, unknown>;
@@ -86,7 +87,7 @@ export function readFvgBarBody(
   if (!identities) {
     return { ok: false, reason: "These bars arrived without their canonical identity, so no FVG object can be named from them." };
   }
-  const joined = rejoinCanonicalBars({ candles, identities, symbolId: input.symbol, timeframe: input.timeframe });
+  const joined = rejoinCanonicalBars({ candles, identities, symbolId: input.symbolId ?? input.symbol, timeframe: input.timeframe });
   const { closed, forming, noClock } = closedFvgBars(joined.bars, input.timeframe, input.nowMs);
   if (noClock) return { ok: false, reason: `The ${input.timeframe} timeframe has no bar clock, so a bar's close time cannot be stated.` };
   return {
@@ -122,6 +123,18 @@ export async function fetchFvgBars(input: {
   readonly fetcher?: FetchLike;
   readonly signal?: AbortSignal;
 }): Promise<FvgBarFetch> {
+  // LIVE ONLY (Founder 2026-10-12: "remove anything delayed and dead"): with no injected fetcher
+  // the bars are the live loader's (venue / tastytrade), with the identities that door minted —
+  // never delayed Yahoo bars. The injected fetcher remains the test seam for the body reader.
+  if (!input.fetcher) {
+    const live = await fetchLiveCandles(input.symbol, input.timeframe, input.bars, input.signal);
+    if (input.signal?.aborted) return { ok: false, reason: "The read was stopped." };
+    if (!live) return { ok: false, reason: noBars(input.symbol, input.timeframe) };
+    return readFvgBarBody(
+      { candles: [...live.candles], barIdentities: [...live.identities], barProvenance: live.source },
+      { symbol: input.symbol, timeframe: input.timeframe, nowMs: input.nowMs, symbolId: live.symbolId ?? undefined },
+    );
+  }
   const q = new URLSearchParams({ sym: input.symbol, type: "candles", tf: input.timeframe, bars: String(input.bars) });
   if (input.extendedHours) q.set("ext", "1");
   const f: FetchLike = input.fetcher ?? ((u, i) => fetch(u, i));
