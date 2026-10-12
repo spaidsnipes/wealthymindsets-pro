@@ -2721,6 +2721,9 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   /* The volume read ends before the timeframe rungs (measured 390, NQ1!: "Vol 165 contracts" ran under
      "1m"); a longer read is cut with an ellipsis, the whole read stays in its title. */
   .wm-chart-market-pane[data-market-primary="true"] .wm-chart-volume-footer { max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* With the tape chip off by default the standing strip stands alone at the top, and at 375 it ran 13px
+     past its box ("TAPE REGIME TREN…"). Tighter padding and gaps keep every word in. */
+  .wm-chart-market-standing--phone { padding: 3px 6px !important; gap: 4px !important; letter-spacing: 0.02em !important; }
   /* A 360px phone leaves the row 180px: 28px chips with 2px gaps keep all five rungs and ⋯ in view
      (measured at 360: "1m" had scrolled out of sight). The tap slop still gives each one 44px. */
   @media (max-width: 379px) {
