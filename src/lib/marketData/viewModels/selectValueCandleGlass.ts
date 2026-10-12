@@ -238,7 +238,32 @@ function fmtPrice(p: number, dp: number | undefined): string {
     : p.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
 }
 
+/**
+ * ONE GLASS CANDLE PER READING (perf pass 2026-10-12: paintSections on a busy BTC-USD 15s tape put this plan
+ * at 7.0 ms of an ~18–20 ms paint — every paint re-derived the glass and re-formatted the words for every
+ * held bar, though a CLOSED bar's reading never changes). Results are memoised on the reading object's
+ * identity (closed bars keep theirs in the chart's per-bar cache; the forming bar's reading is new each
+ * time and is recomputed). Same inputs, same output — the function stays pure.
+ */
+const glassMemo = new WeakMap<ValueCandleVM, Map<string, ValueGlassCandle | null>>();
+
 function candleFrom(
+  vm: ValueCandleVM,
+  time: number,
+  partial: boolean,
+  scope: string | null,
+  opts: ValueCandleGlassPlanOpts,
+): ValueGlassCandle | null {
+  const key = `${time}|${partial ? 1 : 0}|${scope ?? ""}|${opts.priceDp ?? ""}`;
+  let byKey = glassMemo.get(vm);
+  if (byKey?.has(key)) return byKey.get(key)!;
+  const made = candleFromUncached(vm, time, partial, scope, opts);
+  if (!byKey) { byKey = new Map(); glassMemo.set(vm, byKey); }
+  byKey.set(key, made);
+  return made;
+}
+
+function candleFromUncached(
   vm: ValueCandleVM,
   time: number,
   partial: boolean,

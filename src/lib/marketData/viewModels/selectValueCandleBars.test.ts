@@ -129,3 +129,18 @@ describe("selectValueCandleGlassPlan — which value candles to draw", () => {
     expect(plan.candles).toEqual([]);
   });
 });
+
+describe("the glass plan is memoised on each bar's reading (perf pass 2026-10-12)", () => {
+  it("a second plan over the same readings reuses the same candle objects and says exactly the same", () => {
+    const tape = [p(1, 100, 2), p(20, 101, 1), p(59, 102, 1), p(61, 110, 3), p(90, 111, 1), p(95, 112, 2)];
+    const vm = selectValueCandleBars(tape, MIN);
+    const a = selectValueCandleGlassPlan(null, vm, { priceDp: 2 });
+    const b = selectValueCandleGlassPlan(null, vm, { priceDp: 2 });
+    expect(b).toEqual(a);
+    expect(b.candles.length).toBeGreaterThan(0);
+    b.candles.forEach((c, i) => expect(c).toBe(a.candles[i]));
+    // A different precision is a different answer, not a cache hit.
+    const c = selectValueCandleGlassPlan(null, vm, { priceDp: 4 });
+    expect(c.candles[0]).not.toBe(a.candles[0]);
+  });
+});
