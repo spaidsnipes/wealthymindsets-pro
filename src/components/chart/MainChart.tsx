@@ -16930,6 +16930,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           }
           const extra = [...cache.values()].map(c => c.bar).filter((b): b is NonNullable<typeof b> => b != null);
           vcExtraHoldRef.current = { key, at: nowVc, extra };
+          paintLap(16816); // sub-lap: value-candle merge
           return mergeValueCandleBars(ring, extra);
         };
         const ds = canvas.dataset;
@@ -16960,8 +16961,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         let vcWords = "AT_REST";
         if (on && glass.drawn && glass.cog != null) {
           // Built only when the layer will paint (it used to be built every paint, layer on or off).
-          paintLap(16812); // sub-lap: value-candle bars + plan
-          const vcPlan = selectValueCandleGlassPlan(valueCandleRef.current, vcBarsAllNow(), { priceDp: pxDp });
+          paintLap(16812); // sub-lap: value-candle bars (closed-bar scan + merge)
+          const vcBarsAll = vcBarsAllNow();
+          paintLap(16815); // sub-lap: value-candle glass plan
+          const vcPlan = selectValueCandleGlassPlan(valueCandleRef.current, vcBarsAll, { priceDp: pxDp });
           paintLap(16813); // sub-lap: value-candle glass loop
           const tsV = chart.timeScale();
           // The bars the value candles measured, by their own slot time. A
