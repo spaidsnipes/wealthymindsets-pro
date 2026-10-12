@@ -66,3 +66,21 @@ describe("index → futures mapping through a same-time basis", () => {
     expect(selectIndexFuturesMapping({ futuresSymbol: "NQ1!", indexReceipt: receipt(31076.44, "2026-10-05T16:14:59"), indexWalls: [], futuresBars: bars, barSeconds: 300 })).toMatchObject({ reason: "NO_WALLS" });
   });
 });
+
+import { epochToNyLocal, nyLocalToEpoch as nyLocalToEpochRT, selectIndexFuturesMapping as selectMappingRT } from "./selectIndexFuturesMapping";
+
+describe("same-time index level from the live stream (2026-10-12: Cboe receipts carried it; tastytrade's do not)", () => {
+  it("epochToNyLocal round-trips with nyLocalToEpoch across EDT and EST", () => {
+    for (const ms of [Date.UTC(2026, 9, 12, 14, 30, 5), Date.UTC(2026, 11, 15, 19, 0, 59)]) {
+      const local = epochToNyLocal(ms)!;
+      expect(local).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+      expect(nyLocalToEpochRT(local)).toBe(ms / 1000);
+    }
+    expect(epochToNyLocal(Date.UTC(2026, 9, 12, 14, 30, 5))).toBe("2026-10-12 10:30:05");
+  });
+  it("a held chain with no live index level refuses as NO_LIVE_INDEX_LEVEL, not NO_INDEX_CHAIN", () => {
+    const receipt = { source: "TASTYTRADE_LIVE", underlying: "NDX", spot: null, iv30: null, chainAsOf: null, underlyingAsOf: null, rows: [], dropped: 0 } as never;
+    expect(selectMappingRT({ futuresSymbol: "NQ1!", indexReceipt: receipt, indexWalls: [], futuresBars: [], barSeconds: 300 })).toMatchObject({ mapped: false, reason: "NO_LIVE_INDEX_LEVEL" });
+    expect(selectMappingRT({ futuresSymbol: "NQ1!", indexReceipt: null, indexWalls: [], futuresBars: [], barSeconds: 300 })).toMatchObject({ mapped: false, reason: "NO_INDEX_CHAIN" });
+  });
+});

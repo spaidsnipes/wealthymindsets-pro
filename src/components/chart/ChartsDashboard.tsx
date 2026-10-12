@@ -412,7 +412,7 @@ import { selectOptionsBarrierEvidence, type ExpiryScope, type OptionsBarrierEvid
 import { CHART_SETTINGS_SECTION_EVENT, type ChartSettingsSection } from "@/lib/workspace/toolDoor";
 import { anyGammaPart, anyWallsGamma, parseWallsGamma, WALLS_GAMMA_PARTS, type WallsGammaPart, type WallsGammaSelection } from "@/lib/marketData/wallsGammaFamily";
 import { selectGammaExposure, type GammaExposureVM } from "@/lib/marketData/gammaExposure";
-import { INDEX_FOR_FUTURES, mappedFuturesRoot, selectIndexFuturesMapping, type IndexFuturesMappingVM } from "@/lib/marketData/viewModels/selectIndexFuturesMapping";
+import { INDEX_FOR_FUTURES, epochToNyLocal, mappedFuturesRoot, selectIndexFuturesMapping, type IndexFuturesMappingVM } from "@/lib/marketData/viewModels/selectIndexFuturesMapping";
 import { tastyCandleSeconds } from "@/lib/marketData/adapters/tastytradeCandles";
 // ON-DEMAND PANELS LOAD ON DEMAND (2026-10-04): each mounts only when its
 // door opens, yet all six (~7,500 lines) shipped in /charts' first load —
@@ -3109,10 +3109,17 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const mappedIndexLive = useTastyWatchQuotes(React.useMemo(() => (brickWallsOn && mappedIndex ? [mappedIndex] : []), [brickWallsOn, mappedIndex]));
   const mappedIndexSpot = mappedIndex ? mappedIndexLive.get(mappedIndex.toUpperCase().replace(/^\^/, ""))?.price ?? mappedIndexLive.get(mappedIndex.toUpperCase())?.price ?? null : null;
   const mappedIndexPositioning = useTastyEquityPositioning(mappedIndex ?? "", brickWallsOn && !!mappedIndex, mappedIndexSpot && mappedIndexSpot > 0 ? mappedIndexSpot : null);
-  const indexReceipt = React.useMemo<{ root: string; receipt: CboeOptionsReceipt | null } | null>(
-    () => (brickWallsOn && mappedRoot && mappedIndex ? { root: mappedRoot, receipt: mappedIndexPositioning?.receipt ?? null } : null),
-    [brickWallsOn, mappedRoot, mappedIndex, mappedIndexPositioning],
-  );
+  // The mapping needs a SAME-TIME basis: the receipt carries the index's LIVE level and its own time (Cboe's
+  // receipts used to), and only while that quote is current — after the cash close it is withheld
+  // (NO_LIVE_INDEX_LEVEL), never a stale level against a live future.
+  const mappedIndexQuote = mappedIndex ? mappedIndexLive.get(mappedIndex.toUpperCase().replace(/^\^/, "")) ?? mappedIndexLive.get(mappedIndex.toUpperCase()) ?? null : null;
+  const indexLevelNow = mappedIndexQuote && mappedIndexQuote.price > 0 && Date.now() - mappedIndexQuote.at < 60_000 ? mappedIndexQuote : null;
+  const indexReceipt = React.useMemo<{ root: string; receipt: CboeOptionsReceipt | null } | null>(() => {
+    if (!(brickWallsOn && mappedRoot && mappedIndex)) return null;
+    const r = mappedIndexPositioning?.receipt ?? null;
+    if (!r) return { root: mappedRoot, receipt: null };
+    return { root: mappedRoot, receipt: { ...r, spot: indexLevelNow ? indexLevelNow.price : null, underlyingAsOf: indexLevelNow ? epochToNyLocal(indexLevelNow.at) : null } };
+  }, [brickWallsOn, mappedRoot, mappedIndex, mappedIndexPositioning, indexLevelNow?.price, indexLevelNow?.at]);
   const indexMappingVM = React.useMemo<IndexFuturesMappingVM | null>(() => {
     if (!brickWallsOn || !mappedRoot || !indexReceipt || indexReceipt.root !== mappedRoot) return null;
     const ev = selectOptionsBarrierEvidence(indexReceipt.receipt, null, Date.now(), "ALL");

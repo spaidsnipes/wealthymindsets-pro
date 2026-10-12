@@ -53,6 +53,15 @@ export function nyLocalToEpoch(local: string): number | null {
   return Math.round((asUtc + (asUtc - shown)) / 1000);
 }
 
+/** The inverse of nyLocalToEpoch: epoch MILLISECONDS → "YYYY-MM-DD HH:MM:SS" in New York. */
+export function epochToNyLocal(ms: number): string | null {
+  if (!Number.isFinite(ms) || ms <= 0) return null;
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }).formatToParts(new Date(ms));
+  const g = (t: string) => { const part = parts.find(p => p.type === t); return part ? part.value : ""; };
+  const hh = String(Number(g("hour")) % 24).padStart(2, "0");
+  return `${g("year")}-${g("month")}-${g("day")} ${hh}:${g("minute")}:${g("second")}`;
+}
+
 export interface FuturesBar { readonly time: number; readonly high: number; readonly low: number; readonly close: number }
 
 export interface MappedLevel {
@@ -81,7 +90,7 @@ export type IndexFuturesMappingVM =
       readonly mapped: false;
       readonly index: "SPX" | "NDX" | null;
       readonly futuresRoot: string | null;
-      readonly reason: "NOT_A_MAPPED_FUTURE" | "NO_INDEX_CHAIN" | "NO_INDEX_TIME" | "NO_FUTURES_BAR_AT_INSTANT" | "NO_WALLS";
+      readonly reason: "NOT_A_MAPPED_FUTURE" | "NO_INDEX_CHAIN" | "NO_LIVE_INDEX_LEVEL" | "NO_INDEX_TIME" | "NO_FUTURES_BAR_AT_INSTANT" | "NO_WALLS";
       readonly receipt: string;
     };
 
@@ -101,7 +110,9 @@ export function selectIndexFuturesMapping(input: {
     ({ mapped: false, index: pair?.index ?? null, futuresRoot: root, reason, receipt: `IDXMAP:SILENT:${reason}` });
   if (!root || !pair) return refuse("NOT_A_MAPPED_FUTURE");
   const r = input.indexReceipt;
-  if (!r || !(r.spot != null && r.spot > 0)) return refuse("NO_INDEX_CHAIN");
+  if (!r) return refuse("NO_INDEX_CHAIN");
+  // The chain is held but the index has no LIVE level (the cash session is closed): no same-time basis.
+  if (!(r.spot != null && r.spot > 0)) return refuse("NO_LIVE_INDEX_LEVEL");
   const at = r.underlyingAsOf ? nyLocalToEpoch(r.underlyingAsOf) : null;
   if (at == null) return refuse("NO_INDEX_TIME");
   // The futures bar that CONTAINS the index's instant — never the nearest one
