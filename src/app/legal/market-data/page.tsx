@@ -16,7 +16,7 @@ export default function MarketDataDisclosure() {
       <h2 style={legalH2}>Freshness words</h2>
       <ul>
         <li><strong>LIVE / certified realtime</strong> — streamed from a connected source within its freshness limit.</li>
-        <li><strong>DELAYED</strong> — published with a delay by the source (for example Cboe delayed options, about 15 minutes; open interest from the prior session).</li>
+        <li><strong>DELAYED</strong> — published with a delay by the source. WM Pro does not use delayed price sources for its charts, quotes or option evidence; the word remains for any reading that arrives late. Open interest is always the prior session&apos;s figure — that is how exchanges publish it.</li>
         <li><strong>STALE</strong> — older than its freshness limit. Shown for reference; it can never authorise an order.</li>
         <li><strong>UNAVAILABLE / UNKNOWN</strong> — no answer from the source. A blank is never shown as zero, and a missing feed is never shown as a calm market.</li>
       </ul>
@@ -24,7 +24,7 @@ export default function MarketDataDisclosure() {
       <h2 style={legalH2}>Where data comes from</h2>
       <ul>
         <li><strong>Your broker</strong> (for example tastytrade, Webull) — quotes, candles, trades, option chains and your account data, under your broker's own terms and your market-data subscriptions.</li>
-        <li><strong>Public and delayed sources</strong> — for example Cboe delayed option quotes, public crypto exchange data, and SEC EDGAR filings for company fundamentals where they apply.</li>
+        <li><strong>Public sources</strong> — public crypto exchange and crypto options data (for example Coinbase, Deribit), and SEC EDGAR filings for company fundamentals where they apply.</li>
         <li>Some company data (for example shareholders and ETF holdings) needs a separate provider and is shown as unavailable when that provider is not connected.</li>
       </ul>
 

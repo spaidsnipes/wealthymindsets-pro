@@ -16,7 +16,7 @@
  */
 export const LEGAL_INDEX_VERSION = "2026-10-05" as const;
 export const RISK_DISCLOSURE_VERSION = "2026-10-05" as const;
-export const MARKET_DATA_DISCLOSURE_VERSION = "2026-10-05" as const;
+export const MARKET_DATA_DISCLOSURE_VERSION = "2026-10-12" as const;
 
 export type TermsPrivacyState = "NOT_IN_EFFECT" | "IN_EFFECT";
 export const TERMS_PRIVACY_STATE: TermsPrivacyState = "NOT_IN_EFFECT";
