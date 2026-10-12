@@ -161,7 +161,7 @@ const NO_RECEIPTS = {
 describe("provider wire claim precedence", () => {
   it("says it PAUSED rather than claiming a probe that was never issued", () => {
     const wires = selectProviderWires({ ...NO_RECEIPTS, suspended: true });
-    expect(wires).toHaveLength(5);
+    expect(wires).toHaveLength(3); // moomoo + Longbridge removed 2026-10-12 (dead)
     for (const wire of wires) {
       expect(wire.tone).toBe("SUSPENDED");
       // 2026-10-09: the pause names its reason and recovery (WIRE_PAUSED_LABEL).
@@ -194,10 +194,10 @@ describe("provider wire claim precedence", () => {
   it("never lets a pause overwrite a receipt that was actually returned", () => {
     const wires = selectProviderWires({
       ...NO_RECEIPTS,
-      moomooTicks: { label: "RECEIVING", detail: "", receiving: true, eventCount: 4 },
+      webullTicks: { label: "RECEIVING", detail: "", receiving: true, eventCount: 4 },
       suspended: true,
     });
     expect(wires.some((wire) => wire.tone === "SUSPENDED")).toBe(false);
-    expect(wires.find((wire) => wire.source === "moomoo")?.label).toBe(`Ticks receiving (${WIRE_PROOF_SYMBOL})`);
+    expect(wires.find((wire) => wire.source === "webull")?.label).toBe(`Ticks receiving (${WIRE_PROOF_SYMBOL})`);
   });
 });

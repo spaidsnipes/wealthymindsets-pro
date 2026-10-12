@@ -141,7 +141,9 @@ export function moomooTickWireView(receipt: MoomooTickReceipt): ProviderWireView
  */
 export type TickReceiptSource = "moomoo" | "longbridge" | "webull";
 
-export const TICK_RECEIPT_SOURCES: readonly TickReceiptSource[] = ["moomoo", "longbridge", "webull"];
+// 2026-10-12 (Founder: "remove anything delayed and dead"): moomoo and Longbridge are BLOCKED in
+// production — the strip no longer probes or shows them. Webull's row proves the live data subscription.
+export const TICK_RECEIPT_SOURCES: readonly TickReceiptSource[] = ["webull"];
 
 const PROVIDER_DISPLAY_NAMES: Record<TickReceiptSource, string> = {
   moomoo: "Moomoo",
@@ -672,7 +674,7 @@ export function matrixProviderWireView(
   return { source, tone: "OFFLINE", label: "Status unavailable", detail, evidenceless: true };
 }
 
-export const PROVIDER_SOURCES = ["moomoo", "longbridge", "webull", "tastytrade", "alpaca"] as const;
+export const PROVIDER_SOURCES = ["webull", "tastytrade", "alpaca"] as const;
 
 /** The tastytrade chip when the server holds a quote token (the stream itself is the browser's). */
 export const TASTY_TOKEN_READY_LABEL = "Quote token ready · quotes stream in this browser";

@@ -62,7 +62,7 @@ function tickRoutes(): { provider: string; src: string }[] {
 describe("no tick route substitutes an instrument the caller did not name", () => {
   it("the scan finds the routes it is meant to police", () => {
     const routes = tickRoutes();
-    expect(routes.length, "no tick routes found — this Sentinel has rotted").toBeGreaterThan(2);
+    expect(routes.length, "no tick routes found — this Sentinel has rotted").toBeGreaterThanOrEqual(1); // moomoo + Longbridge tick routes removed 2026-10-12
   });
 
   it("THE MEASURED FAILURE: no route falls back to a hardcoded symbol", () => {

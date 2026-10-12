@@ -346,7 +346,7 @@ describe("witnessedProviderWireView (canon Weakness #1, third panel)", () => {
     const alpaca = wires.find((w) => w.source === "alpaca");
     expect(alpaca?.label).toBe("Observed · not certified");
     // and every provider the page did NOT witness still reports honestly
-    expect(wires.find((w) => w.source === "moomoo")?.label).toBe("Status unavailable");
+    expect(wires.find((w) => w.source === "webull")?.label).toBe("Status unavailable");
   });
 });
 

@@ -55,7 +55,7 @@ function providersWithTickRoutes(): string[] {
 describe("provider proof depth is uniform where the evidence is", () => {
   it("THE MEASURED FAILURE: every shipped tick route is actually asked", () => {
     const shipped = providersWithTickRoutes();
-    expect(shipped.length, "no tick routes found — the scan itself has rotted").toBeGreaterThan(2);
+    expect(shipped.length, "no tick routes found — the scan itself has rotted").toBeGreaterThanOrEqual(1); // moomoo + Longbridge tick routes removed 2026-10-12
     for (const provider of shipped) {
       expect(
         TICK_RECEIPT_SOURCES as readonly string[],

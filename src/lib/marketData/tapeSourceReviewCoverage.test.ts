@@ -91,7 +91,7 @@ describe("a feed the app ingests is a feed the registry has reviewed", () => {
     // this file's own failure mode.
     const paths = stampedProviderPaths();
     expect(paths.size, "adapter providerPath scan found nothing — did the directory move?")
-      .toBeGreaterThanOrEqual(5); // 6 → 5: webullTicksBrowser removed 2026-10-12
+      .toBeGreaterThanOrEqual(4); // 6 → 4: webullTicksBrowser and moomooTicks removed 2026-10-12
     expect([...paths.keys()]).not.toContain("webull-openapi-ticks"); // the polled DELAYED lane was removed
     expect([...paths.keys()]).toContain("coinbase-client-ws");
   });
