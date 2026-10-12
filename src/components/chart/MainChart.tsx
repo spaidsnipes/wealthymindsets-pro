@@ -30486,7 +30486,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   boxShadow: dragging ? "0 0 0 2px rgba(201,165,92,0.35)" : "none",
                 }}>
                   {can ? <span style={{ color: look.ink }}>⇕</span> : null}
-                  {can ? words : `${l.role} · broker`}
+                  {can ? words : `${l.role} · ${l.id.startsWith("sample-") ? "SAMPLE" : "broker"}`}
                 </span>
               </button>
               </React.Fragment>

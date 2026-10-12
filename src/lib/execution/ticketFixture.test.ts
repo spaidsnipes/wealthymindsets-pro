@@ -117,3 +117,9 @@ describe("the sample book on the CHART (Sheriff: fixture state=working showed on
     expect(T).toContain('publishChartOrderLines("sample", symbol, JSON.parse(sampleLinesKey));');
   });
 });
+
+it("the sample book's chart pill says SAMPLE, never broker (G19 Mansion 2026-10-11)", () => {
+  const mc = readFileSync(path.join(process.cwd(), "src/components/chart/MainChart.tsx"), "utf8");
+  expect(mc).toContain('`${l.role} · ${l.id.startsWith("sample-") ? "SAMPLE" : "broker"}`');
+  expect(ticketFixtureChartLines(ticketFixtureLines({ side: "BUY", state: "holding" }, "/NQZ6", 100, 20, 1)).every(l => l.id.startsWith("sample-"))).toBe(true);
+});
