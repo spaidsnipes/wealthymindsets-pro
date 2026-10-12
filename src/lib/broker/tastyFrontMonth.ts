@@ -28,6 +28,9 @@ export function tastyLiveContractFor(chartSymbol: string): Promise<(TastyFrontMo
   if (cls === "FUTURES") return tastyFrontMonthFor(chartSymbol).then(c => (c ? { ...c, equity: false } : null));
   const sym = chartSymbol.trim().toUpperCase();
   if (cls === "EQUITY" && /^[A-Z]{1,5}(\.[A-Z])?$/.test(sym)) return Promise.resolve({ symbol: sym, streamer: sym, equity: true });
+  const idx = cls === "INDEX" ? tastyIndexStreamer(sym) : null;
+  // An index prints no trades with an aggressor; it takes the unsigned door like a stock.
+  if (idx) return Promise.resolve({ symbol: idx, streamer: idx, equity: true });
   return Promise.resolve(null);
 }
 
@@ -58,12 +61,27 @@ export function tastyCryptoStreamer(chartSymbol: string): string | null {
   return quote === "" || quote === "USD" ? `${base}/USD:CXTALP` : null;
 }
 
+/**
+ * CASH INDICES on tastytrade's stream (2026-10-12, live-only order): the chart's index notations
+ * (SPX, ^GSPC, ^SPX, NDX, ^NDX, VIX, ^VIX, RUT, ^RUT) → tastytrade's own index symbol. Anything else: null.
+ */
+const TASTY_INDEX: Readonly<Record<string, string>> = {
+  SPX: "SPX", "^GSPC": "SPX", "^SPX": "SPX",
+  NDX: "NDX", "^NDX": "NDX",
+  VIX: "VIX", "^VIX": "VIX",
+  RUT: "RUT", "^RUT": "RUT",
+};
+export function tastyIndexStreamer(chartSymbol: string): string | null {
+  return TASTY_INDEX[chartSymbol.trim().toUpperCase()] ?? null;
+}
+
 export function tastyCandleStreamerFor(chartSymbol: string): Promise<string | null> {
   const cls = classifySymbol(chartSymbol);
   if (cls === "FUTURES") return tastyFrontMonthFor(chartSymbol).then(c => c?.streamer ?? null);
   const sym = chartSymbol.trim().toUpperCase();
   if (cls === "EQUITY" && /^[A-Z]{1,5}(\.[A-Z])?$/.test(sym)) return Promise.resolve(sym);
   if (cls === "CRYPTO") return Promise.resolve(tastyCryptoStreamer(sym));
+  if (cls === "INDEX") return Promise.resolve(tastyIndexStreamer(sym));
   return Promise.resolve(null);
 }
 
