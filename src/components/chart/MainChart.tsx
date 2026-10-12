@@ -1424,6 +1424,8 @@ interface Props {
     profileSpeciesOpacity?: Partial<Record<string, number>>;
     inventionOpacity?: Partial<Record<string, number>>;
     profileSpeciesInk?: Partial<Record<string, string>>;
+    /** The session-tape telemetry chip over the chart (OFF unless the trader asks). */
+    tapeTelemetryChip?: boolean;
     bubbleScale?: number; footprintNumberStep?: number; wallThickness?: number;
     // ORDER LINES (Founder P0 2026-10-10) — made lawful by appearanceLaw.lawfulOrderLineLooks.
     orderLineEntry?: string; orderLineStop?: string; orderLineTarget?: string;
@@ -30617,6 +30619,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             continues is stated in the BAR REPLAY strip's own receipt rather than
             dropped. */}
         {footprintEnabled && !replayActive && hasRealAggressorTape(tapeSource ?? "") &&
+          // The chip is the tape engine's telemetry, not the market: it shows only when the trader turns it
+          // on (Chart Settings). Market-data status stays in the feed reading and the fidelity badge; the
+          // recorder runs either way (Founder 2026-10-11, "keep the invention, remove the clutter").
+          chartSettings?.tapeTelemetryChip === true &&
           (sessionTapeTick > 0 || sessionNectarUiVersion > 0) && (() => {
           const s = sessionTapeStatsRef.current;
           const fmt = (n: number) => {

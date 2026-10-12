@@ -148,3 +148,12 @@ describe("the engine's internal name stays off the public chart (Founder 2026-10
     expect(chart).toContain("subscribeToSessionNectar");
   });
 });
+
+describe("the tape telemetry chip is the trader's choice, OFF by default (Founder 2026-10-11)", () => {
+  it("renders only when chartSettings.tapeTelemetryChip is true, and Chart Settings offers the switch", () => {
+    const chart = fs.readFileSync(path.join(process.cwd(), "src/components/chart/MainChart.tsx"), "utf8");
+    const modal = fs.readFileSync(path.join(process.cwd(), "src/components/chart/ChartSettingsModal.tsx"), "utf8");
+    expect(chart).toContain("chartSettings?.tapeTelemetryChip === true &&\n          (sessionTapeTick > 0 || sessionNectarUiVersion > 0)");
+    expect(modal).toContain('label="Show session tape chip (LIVE TAPE · Δ)"');
+  });
+});

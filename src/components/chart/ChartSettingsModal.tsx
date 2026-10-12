@@ -77,6 +77,9 @@ export interface ChartSettings {
   // Made lawful by appearanceLaw.lawfulSpeciesInks (never the field, never the
   // POC, never two species alike); a refused ink is named here, not hidden.
   profileSpeciesInk?: Partial<Record<ProfileSpeciesKey, string>>;
+  /** The session-tape telemetry chip (LIVE TAPE · fidelity · Δ) over the chart. OFF unless the trader asks
+   *  (Founder 2026-10-11: "remove the permanent telemetry-style display from the top of Market Home"). */
+  tapeTelemetryChip?: boolean;
   // SLICE B (Founder order §5): marks' size and weight. Absent = as shipped.
   bubbleScale?: number;          // big-trade disc size, 0.6–1.4
   footprintNumberStep?: number;  // footprint numbers, −1…+2 px against the row fit
@@ -489,6 +492,7 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                   <div style={{ height: 1, background: "rgba(139,106,41,0.35)", margin: "12px 0" }} />
                   <div style={{ fontSize: 10, fontWeight: 700, color: "#8a8271", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Candle Timer</div>
                   <Toggle value={s.candleTimer} onChange={v => set({ candleTimer: v })} label="Show candlestick timer" />
+                  <Toggle value={s.tapeTelemetryChip === true} onChange={v => set({ tapeTelemetryChip: v })} label="Show session tape chip (LIVE TAPE · Δ)" />
                   <p style={{ fontSize: 11, color: "#c0b8a0", margin: "4px 0 0", lineHeight: 1.5 }}>
                     Live countdown to the current candle&apos;s close, pinned to the price line on the left edge. Flashes red in the final 5 seconds.
                   </p>
