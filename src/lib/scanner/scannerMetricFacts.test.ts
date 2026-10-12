@@ -258,7 +258,9 @@ describe("/scanner page", () => {
   it("× THE RESTATED DASH IN THE CACHE: the recorded reason must not be the dash", () => {
     // `recordFailure` populates the one structure whose entire job is to hold a
     // sentence. Its fallback used to be the phrase "RSI unavailable".
-    expect(code).toMatch(/recordFailure\([\s\S]{0,400}?not retryable/);
+    // Since 2026-10-12 (live daily bars) the recorded reason names the live door that did not serve.
+    expect(code).toMatch(/recordFailure\(failures, key, identity, `No live daily bars for \$\{identity\.symbol\} — tastytrade did not serve them\.`\)/);
+    expect(code).not.toMatch(/recordFailure\([^)]*"RSI unavailable"/);
   });
 
   it("the page routes all three through the owner", () => {

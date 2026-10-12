@@ -1,5 +1,6 @@
 "use client";
 
+import { fetchLiveCandles } from "@/lib/marketData/liveCandles";
 import { scannerLiveSessionWords, scannerSessionBadge } from "@/lib/scanner/scannerSessionBadge";
 import { PRESET_LABEL, SIGNAL_LABEL } from "./signalLabels";
 import { scannerPriceText } from "./scannerPriceText";
@@ -305,30 +306,15 @@ async function fetchRSI(
   const cached = rsiCache.get(identity.symbol);
   if (cached && Date.now() - cached.ts < 300_000 && !explicitRetry) return { rsi: cached.rsi, failure: null };
   try {
-    const outcome = await consumer.request({
-      symbol: identity.symbol,
-      timeframe: identity.timeframe,
-      bars: identity.bars,
-      automaticRetry: false,
-    });
-    if (outcome.status !== "ready") {
-      if (!outcome.retryable) {
-        /* The fallback used to be the string "RSI unavailable", which is a
-           restatement of the dash promoted into the failure CACHE — the one
-           place whose entire job is to hold a reason. When the consumer
-           declines without a message, say that, and say it is not retryable. */
-        const failure = recordFailure(
-          failures,
-          key,
-          identity,
-          outcome.message ||
-            `The daily-candle consumer declined the request for ${identity.symbol} and gave no message, and marked the outcome as not retryable.`,
-        );
-        return { rsi: null, failure };
-      }
-      return { rsi: null, failure: null };
+    // LIVE ONLY (Founder 2026-10-12: "remove anything delayed and dead"): the daily bars are
+    // tastytrade's own (the live loader), never Yahoo's. `consumer` is retained for the call shape.
+    void consumer;
+    const live = await fetchLiveCandles(identity.symbol, "1D", identity.bars);
+    if (!live) {
+      const failure = recordFailure(failures, key, identity, `No live daily bars for ${identity.symbol} — tastytrade did not serve them.`);
+      return { rsi: null, failure };
     }
-    const closes = outcome.candles.map(bar => bar.close);
+    const closes = live.candles.map(bar => bar.close);
     if (closes.length < 15) {
       const failure = recordFailure(failures, key, identity, "Not enough daily bars for RSI 14");
       return { rsi: null, failure };
@@ -880,7 +866,7 @@ export default function ScannerPage() {
                 how many, instead of calling every row delayed. */}
             <span className="text-wm-text-muted">{liveCount > 0
               ? `${filtered.length - unratedCount} signals · ${liveCount} live`
-              : `${filtered.length - unratedCount} delayed-quote signals`}</span>
+              : `${filtered.length - unratedCount} signals · none live now`}</span>
           </div>
           <span className="wm-scanner-breadth text-[10px] text-wm-green font-bold">{bullCount}▲</span>
           <span className="wm-scanner-breadth text-[10px] text-wm-red font-bold">{bearCount}▼</span>
@@ -1097,8 +1083,6 @@ export default function ScannerPage() {
                         "mt-0.5 inline-flex rounded border px-1 py-px text-[9px] font-black tracking-wide",
                         r.quoteQuality === "LIVE"
                           ? "border-wm-green/50 text-wm-green"
-                          : r.quoteQuality === "DELAYED"
-                          ? "border-wm-gold/40 text-wm-gold"
                           : r.quoteQuality === "STALE"
                             ? "border-wm-red/40 text-wm-red"
                             : "border-wm-border text-wm-text-muted",
@@ -1366,7 +1350,7 @@ export default function ScannerPage() {
         <span>·</span>
         <span>{filtered.length}/{results.length} results</span>
         <span>·</span>
-        <span className="text-wm-gold">{liveCount > 0 ? `QUOTE STATE: ${liveCount} LIVE${liveSessionWords ? ` (${liveSessionWords})` : ""} · ${Math.max(0, filtered.length - liveCount)} DELAYED` : "QUOTE STATE: DELAYED"}</span>
+        <span className="text-wm-gold">{liveCount > 0 ? `QUOTE STATE: ${liveCount} LIVE${liveSessionWords ? ` (${liveSessionWords})` : ""} · ${Math.max(0, filtered.length - liveCount)} NOT MOVING` : "QUOTE STATE: NONE LIVE NOW"}</span>
         <span>·</span>
         {/* The scan's own denominator. Silent when nothing was refused — a
             "0 not certified" chip on every clean round is noise, and noise is

@@ -107,6 +107,6 @@ export function scannerPriceFact(
     text: money(price),
     measured: true,
     tone: "OBSERVED",
-    reason: `Consolidated quote for ${symbol} observed on this scan round. WM does NOT claim this is real-time — the badge beside it reads DELAYED for exactly that reason, and WM cannot measure how far behind the live tape it sits. This is the freshest state this column has, not a live price.`,
+    reason: `The last live tastytrade price for ${symbol}, observed on this scan round. The badge reads LIVE only while the price is moving; LAST LIVE means it has not moved since this round read it.`,
   };
 }

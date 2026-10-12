@@ -1,5 +1,5 @@
 /** LIVE is set only by the page from the watch lane (scannerLiveQuote), never by a scan round. */
-export type ScannerQuoteQuality = "LIVE" | "DELAYED" | "STALE" | "UNAVAILABLE";
+export type ScannerQuoteQuality = "LIVE" | "LAST LIVE" | "STALE" | "UNAVAILABLE";
 
 export interface ScannerQuoteTruth {
   quality: ScannerQuoteQuality;
@@ -26,12 +26,15 @@ export function scannerQuoteTruth(input: {
     return {
       quality: "STALE",
       label: "STALE",
-      title: "The latest refresh did not return this symbol; the previous delayed quote is retained.",
+      title: "The latest refresh did not return this symbol; the previous live price is retained.",
     };
   }
+  // Since 2026-10-12 every scan row is priced from tastytrade's live stream (no delayed quote is
+  // asked). The page overlays LIVE while the price is moving; otherwise the row says it is the
+  // LAST LIVE price it holds — never "delayed".
   return {
-    quality: "DELAYED",
-    label: "DELAYED",
-    title: "Consolidated quote may lag the live tape.",
+    quality: "LAST LIVE",
+    label: "LAST LIVE",
+    title: "The last live tastytrade price for this row, as of this scan round.",
   };
 }

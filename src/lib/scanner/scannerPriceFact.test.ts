@@ -6,7 +6,7 @@ import { scannerQuoteTruth } from "../scannerQuoteTruth";
 
 describe("scannerPriceFact — a carried price may not wear a fresh one's clothes", () => {
   it("× THE INHERITED FRESHNESS: a STALE row's price is a DIFFERENT tone", () => {
-    const fresh = scannerPriceFact(421.55, "DELAYED", "TSLA");
+    const fresh = scannerPriceFact(421.55, "LAST LIVE", "TSLA");
     const carried = scannerPriceFact(421.55, "STALE", "TSLA");
     expect(fresh.text).toBe(carried.text);          // same figure …
     expect(fresh.tone).toBe("OBSERVED");            // … different declared tone
@@ -23,15 +23,15 @@ describe("scannerPriceFact — a carried price may not wear a fresh one's clothe
     expect(f.reason).toMatch(/NO TIMESTAMPED QUOTE EVIDENCE/);
   });
 
-  it("× THE BEST STATE IS STILL NOT LIVE: DELAYED refuses to claim real-time", () => {
-    const f = scannerPriceFact(1.5, "DELAYED", "F");
-    expect(f.reason).toMatch(/does NOT claim this is real-time/i);
-    expect(f.reason).toMatch(/not a live price/i);
+  it("LAST LIVE says it is the last live price and that LIVE is reserved for a moving one (2026-10-12)", () => {
+    const f = scannerPriceFact(1.5, "LAST LIVE", "F");
+    expect(f.reason).toMatch(/last live tastytrade price/i);
+    expect(f.reason).toMatch(/LIVE only while the price is moving/);
   });
 
   it("× THE PHANTOM ZERO: a non-positive or unreadable price is never $0.00", () => {
     for (const v of [0, -3, Number.NaN, "421.55", null, undefined, {}]) {
-      const f = scannerPriceFact(v, "DELAYED", "TSLA");
+      const f = scannerPriceFact(v, "LAST LIVE", "TSLA");
       expect(f.tone).toBe("NONE");
       expect(f.measured).toBe(false);
       expect(f.text).toBe("No price");
@@ -43,7 +43,7 @@ describe("scannerPriceFact — a carried price may not wear a fresh one's clothe
 
   it("× THE PROVENANCE-BLIND TONE: every quality maps to a DISTINCT tone", () => {
     const tones = new Set<ScannerPriceTone>(
-      (["DELAYED", "STALE", "UNAVAILABLE"] as const).map(
+      (["LAST LIVE", "STALE", "UNAVAILABLE"] as const).map(
         (q) => scannerPriceFact(10, q, "X").tone,
       ),
     );
