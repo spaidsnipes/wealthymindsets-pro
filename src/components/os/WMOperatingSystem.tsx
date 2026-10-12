@@ -2681,8 +2681,11 @@ export function WMOperatingSystem({
             padding: "3px 14px",
           }}
         >
+          {/* A segment longer than the phone (serving 857cc1c, 390 × 844: "SOURCE OVERNIGHT · LISTED EXCHANGE …"
+              measured 606 px, centred, so it hung 110 px off BOTH edges and gave the room a horizontal scroll)
+              wraps inside the plate instead; a short one still reads on one line. */}
           {provenance.map((segment) => (
-            <span key={segment} style={{ ...EYEBROW, whiteSpace: "nowrap" }}>
+            <span key={segment} style={{ ...EYEBROW, whiteSpace: "normal", maxWidth: "100%", textAlign: "center" }}>
               {segment}
             </span>
           ))}

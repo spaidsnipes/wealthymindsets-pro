@@ -159,3 +159,8 @@ it("the ticket's section grid is one column that can shrink — SELL is never cu
   const tp = readFileSync(path.join(process.cwd(), "src/components/chart/TradePanel.tsx"), "utf8");
   expect(tp).toContain('data-testid="trade-sections-grid" style={{ padding: compact ? "8px 10px" : 12, display: "grid", gridTemplateColumns: "minmax(0, 1fr)"');
 });
+
+it("the room's provenance segments wrap inside the plate — no horizontal page scroll on a phone (G19 Mansion 2026-10-11)", () => {
+  const os = readFileSync(path.join(process.cwd(), "src/components/os/WMOperatingSystem.tsx"), "utf8");
+  expect(os).toContain('<span key={segment} style={{ ...EYEBROW, whiteSpace: "normal", maxWidth: "100%", textAlign: "center" }}>');
+});
