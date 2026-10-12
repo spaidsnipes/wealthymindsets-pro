@@ -234,17 +234,6 @@ describe("the REST quote fallback routes through the coalescer", () => {
   });
 });
 
-describe("the coalescer does not duplicate the candle path's owner", () => {
-  it("YahooCandleConsumer still owns candle request identity", () => {
-    // Canon: never build a rival to existing infrastructure. The quote
-    // coalescer exists because the CANDLE path already had this discipline and
-    // the quote path did not. If this ever fails, the two have been merged or
-    // one has grown into the other's territory, and this file needs rethinking.
-    const candles = fs.readFileSync(
-      path.join(process.cwd(), "src/lib/yahooCandleConsumer.ts"),
-      "utf8",
-    );
-    expect(candles).toContain("private readonly inFlight = new Map<string, Promise<YahooCandleOutcome>>()");
-    expect(candles).not.toContain("quoteRequestCoalescer");
-  });
-});
+// (The Yahoo candle consumer this block compared against was deleted 2026-10-12 — the scanner
+// reads live tastytrade daily bars; the coalescer remains the quote path's own owner.)
+

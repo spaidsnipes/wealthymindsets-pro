@@ -84,22 +84,7 @@ describe("the bar route's failure status — a missing symbol is not a server fa
       }
     });
 
-    it("candle consumer (scanner page): the outcome and the number of requests are identical under 500 and 404 — it reads the body, never the status", async () => {
-      const { YahooCandleConsumer } = await import("@/lib/yahooCandleConsumer");
-      const seen: { outcome: unknown; calls: number }[] = [];
-      for (const status of [500, 404]) {
-        let calls = 0;
-        const consumer = new YahooCandleConsumer({ fetcher: (async (url: string) => {
-          if (String(url).startsWith("/api/yahoo")) { calls += 1; return answer(status); }
-          return new Response("{}", { status: 404 });
-        }) as never });
-        const outcome = await consumer.request({ symbol: "SIVB", timeframe: "1D", bars: 160 });
-        seen.push({ outcome, calls });
-      }
-      expect(seen[1]).toEqual(seen[0]);
-      expect(seen[0]!.calls).toBeGreaterThan(0);
-    });
-
+    // (The scanner's Yahoo candle consumer was deleted 2026-10-12 — the scanner reads live tastytrade daily bars.)
     it("the status-blind readers stay status-blind (watchlist grid, scanner map, unsettled estimate): they parse the body whatever the status", () => {
       const src = (p: string) => readFileSync(path.join(process.cwd(), "src", p), "utf8");
       // The chart no longer asks Yahoo for bars at all (2026-10-12: delayed doors removed).

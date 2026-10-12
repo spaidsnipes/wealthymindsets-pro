@@ -27,7 +27,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import { useRouter } from "next/navigation";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
-import { YahooCandleConsumer } from "@/lib/yahooCandleConsumer";
 import { classifySymbol, isUnsupportedByEquityVendors } from "@/lib/marketData/symbolAssetClass";
 import {
   compareScannerRsiIdentity, scannerRsiIdentity, scannerRsiIdentityDomToken,
@@ -295,7 +294,6 @@ type RsiResult = Readonly<{ rsi: number | null; failure: RsiFailure | null; avgV
 
 async function fetchRSI(
   identity: ScannerRsiIdentity,
-  consumer: YahooCandleConsumer,
   failures: RsiFailureCache,
   explicitRetry = false,
 ): Promise<RsiResult> {
@@ -308,8 +306,7 @@ async function fetchRSI(
   if (cached && Date.now() - cached.ts < 300_000 && !explicitRetry) return { rsi: cached.rsi, failure: null, avgVolume: cached.avgVolume };
   try {
     // LIVE ONLY (Founder 2026-10-12: "remove anything delayed and dead"): the daily bars are
-    // tastytrade's own (the live loader), never Yahoo's. `consumer` is retained for the call shape.
-    void consumer;
+    // tastytrade's own (the live loader), never Yahoo's.
     const live = await fetchLiveCandles(identity.symbol, "1D", identity.bars);
     if (!live) {
       const failure = recordFailure(failures, key, identity, `No live daily bars for ${identity.symbol} — tastytrade did not serve them.`);
@@ -394,7 +391,7 @@ interface ScannerQuoteRound {
 /** One symbol's live tastytrade reading, as the watch hook publishes it. */
 type ScannerLive = { readonly price: number; readonly at: number; readonly prevClose?: number | null; readonly dayVolume?: number | null };
 
-async function fetchScannerQuotes(consumer: YahooCandleConsumer, failures: RsiFailureCache, liveOf: (sym: string) => ScannerLive | undefined): Promise<ScannerQuoteRound> {
+async function fetchScannerQuotes(failures: RsiFailureCache, liveOf: (sym: string) => ScannerLive | undefined): Promise<ScannerQuoteRound> {
   const results = new Map<string, QuoteData>();
   const refusals = new Map<string, string>();
   // LIVE ONLY (Founder 2026-10-12: "remove anything delayed and dead"). Price, change and
@@ -408,7 +405,7 @@ async function fetchScannerQuotes(consumer: YahooCandleConsumer, failures: RsiFa
     const batch = scannerSymbols.slice(i, i + BATCH);
     await Promise.all(batch.map(async sym => {
       try {
-        const rsiResult = await fetchRSI(scannerRsiIdentity(sym), consumer, failures);
+        const rsiResult = await fetchRSI(scannerRsiIdentity(sym), failures);
         const live = liveOf(sym.toUpperCase());
         const price = live?.price ?? 0;
         if (!(price > 0) || !(live!.at > 0)) { refusals.set(sym, "No live tastytrade price for this market yet."); return; }
@@ -626,7 +623,6 @@ export default function ScannerPage() {
   const [retryingRsiKey, setRetryingRsiKey] = useState<string | null>(null);
   const [updatedRsiKeys, setUpdatedRsiKeys] = useState<Set<string>>(() => new Set());
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const yahooConsumerRef = useRef<YahooCandleConsumer | null>(null);
   const rsiFailuresRef = useRef<RsiFailureCache>(new Map());
   const rsiRetryInFlightRef = useRef<Set<string>>(new Set());
   const rsiRetryButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
@@ -649,9 +645,6 @@ export default function ScannerPage() {
     surface: "Scanner",
     feed: selectScannerFeedObservation({ results }),
   });
-  if (!yahooConsumerRef.current) {
-    yahooConsumerRef.current = new YahooCandleConsumer({ fetcher: (input, init) => fetch(input, init) });
-  }
 
   useEffect(() => {
     if (window.matchMedia("(max-width: 639px)").matches) setFilterOpen(false);
@@ -673,7 +666,7 @@ export default function ScannerPage() {
     if (explicitRetry) rsiFailuresRef.current.clear();
     try {
       const [round, profiles] = await Promise.all([
-        fetchScannerQuotes(yahooConsumerRef.current!, rsiFailuresRef.current, sym => scannerLiveRef.current.get(sym)),
+        fetchScannerQuotes(rsiFailuresRef.current, sym => scannerLiveRef.current.get(sym)),
         fetchFmpProfiles(),
       ]);
       setRound(round);
@@ -714,7 +707,7 @@ export default function ScannerPage() {
     setRetryingRsiKey(key);
     let failureRemains = false;
     try {
-      const outcome = await fetchRSI(identity, yahooConsumerRef.current!, rsiFailuresRef.current, true);
+      const outcome = await fetchRSI(identity, rsiFailuresRef.current, true);
       // A retryable transport failure has no newly cached failure and no RSI.
       // Keep the prior truthful failure visible; never announce "updated" when
       // the retry returned no value.
