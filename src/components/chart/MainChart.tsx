@@ -25028,6 +25028,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
              prevent. So every cell paints into an OFFSCREEN layer at its
              relative strength (hottest last), and that layer meets the glass
              ONCE at the regulator. Overlap can no longer add up past the cap. */
+          paintLap(114763); // sub-lap: weather heat layer (cells, sprites, composite)
           const hc = heatLayerRef.current ?? (heatLayerRef.current = document.createElement("canvas"));
           if (hc.width !== canvas.width || hc.height !== canvas.height) { hc.width = canvas.width; hc.height = canvas.height; }
           const hctx = hc.getContext("2d");
@@ -25401,6 +25402,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 }
               }
             } catch { stormClear = null; }
+            paintLap(114764); // sub-lap: weather storm body + lens
             ds.weatherStormClearZone = stormClear ? `${Math.round(stormClear.x)},${Math.round(stormClear.y)},${Math.round(stormClear.h)}` : "NONE";
             const stormA = STORM_BODY_MAX_ALPHA * att.alpha("weather");
             if (stormClear) {
