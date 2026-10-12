@@ -1771,9 +1771,11 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
       if (disposed || document.visibilityState === "hidden" || restFetchInFlight) return;
       restFetchInFlight = true;
       lastRestStartedAt = Date.now();
+      let answered = false;
       fetchRealQuote(symbol).then(answer => {
         if (!quoteRoundIsCurrent(symbol, activeSymbolRef.current, disposed)) return;
         if (!answer) return;
+        answered = answer.kind !== "refused";
         if (answer.kind === "refused") {
           // RETRACTION, not omission. Every price consumer in this codebase
           // already spells "I have no price" as `price > 0` being false —
@@ -1870,7 +1872,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
         }));
       }).finally(() => {
         restFetchInFlight = false;
-        scheduleRestFetch(restQuoteNextPollDelayMs(tapeSourceRef.current));
+        scheduleRestFetch(restQuoteNextPollDelayMs(tapeSourceRef.current, answered));
       });
     };
 
