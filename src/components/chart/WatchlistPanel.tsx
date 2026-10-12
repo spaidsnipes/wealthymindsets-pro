@@ -905,6 +905,15 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
                   src: lvSrc,
                   ...(refClose ? { change: lv.price - refClose, changePct: ((lv.price - refClose) / refClose) * 100 } : {}),
                   ...(exchClose ? { changeObserved: true } : {}),
+                } : !(rawItem.price > 0) && tt && tt.price > 0 && tt.at > 0 ? {
+                  // LAST LIVE (2026-10-12): with the delayed poll gone, a market whose stream is quiet (the daily
+                  // halt, a weekend) keeps tastytrade's LAST price, stamped with when it was heard — the row's badge
+                  // then says SESSION CLOSED or how old it is. Never presented as live.
+                  ...rawItem,
+                  price: tt.price,
+                  src: "tastytrade",
+                  providerObservedAt: tt.at,
+                  ...(exchClose ? { change: tt.price - exchClose, changePct: ((tt.price - exchClose) / exchClose) * 100, changeObserved: true } : {}),
                 } : exchClose && rawItem.price > 0 ? {
                   ...rawItem,
                   change: rawItem.price - exchClose,

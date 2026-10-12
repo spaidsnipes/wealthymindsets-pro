@@ -174,11 +174,11 @@ function rowFor(
   };
 }
 
-/* ── Multi-source quote fetcher ───────────────────────────────── *
- *  Stocks/ETFs  → Finnhub /api/finnhub (real-time)              *
- *  Futures/Crypto → Yahoo /api/yahoo (15-min delayed but best   *
- *    available free source for these instruments)                *
- * ────────────────────────────────────────────────────────────── */
+/* ── Polled quote fetcher (LIVE ONLY since 2026-10-12) ──────────────────
+ *  Stocks/ETFs → Alpaca IEX (one venue, until tastytrade's stream speaks)
+ *  Crypto      → the venue's own public quote (Coinbase)
+ *  Futures / indices → no poll: tastytrade's live lane, or its last price
+ * ─────────────────────────────────────────────────────────────────── */
 // The two curated sets that stood here — nineteen futures symbols and thirteen
 // coins — were measured against `classifySymbol` and every member landed in the
 // class the set claimed. They were a restatement, not knowledge, and the
@@ -620,6 +620,13 @@ export function TickerTape() {
       // — even while the lane's PRICE is not fresh: the reference does not age.
       const exch = tt?.prevClose != null && tt.prevClose > 0 ? tt.prevClose : null;
       if (!lv) {
+        // LAST LIVE (2026-10-12): no delayed poll stands behind a quiet stream any more, so an empty row
+        // keeps tastytrade's (or Coinbase's) LAST price, stamped with when it was heard — never marked live.
+        const last = !(row.price > 0) ? (tt && tt.price > 0 && tt.at > 0 ? { ...tt, src: "tastytrade" as const } : cb && cb.price > 0 && cb.at > 0 ? { ...cb, src: "coinbase" as const } : null) : null;
+        if (last) {
+          const c1 = exch ? last.price - exch : 0;
+          return { ...row, price: last.price, src: last.src, providerAgeMs: Math.max(0, nowMs - last.at), ...(exch ? { chg: c1, pct: (c1 / exch) * 100, up: c1 >= 0, chgObserved: true } : {}) };
+        }
         if (!exch || !(row.price > 0)) return row;
         const c0 = row.price - exch;
         return { ...row, chg: c0, pct: (c0 / exch) * 100, up: c0 >= 0, chgObserved: true };
