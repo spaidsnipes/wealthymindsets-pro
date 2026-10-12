@@ -7340,7 +7340,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   <div style={{ flex: 1, display:"flex", overflow:"hidden", minWidth:0, minHeight:0, position:"relative",
                     ...(chartLayout === "4" ? { width: "50%", flexShrink: 0 } : {}),
                   }}>
-                    {chartBars.length === 0 && !gridView && activeTab === "Chart" ? (
+                    {/* A load that SETTLED with no bars is not loading: the chart's refusal note says why
+                        (e.g. spot FX has no live source since 2026-10-12). The veil is for the wait only. */}
+                    {chartBars.length === 0 && !barsSettled && !gridView && activeTab === "Chart" ? (
                       <ChartLoadingVeil symbol={symbol} timeframe={timeframe} />
                     ) : null}
                     {lensFixture || attentionFixture ? (

@@ -107,6 +107,12 @@ describe("the refusal note reaches the trader on the chart itself", () => {
       .toMatch(/vendor: "tastytrade", outcome:\s*"REFUSED"/);
   });
 
+  it("a symbol no live door serves is named as such, with the way out for spot FX (2026-10-12)", () => {
+    expect(mainChart).toContain("spot forex has no live source in WM Pro");
+    expect(mainChart).toContain("chart the CME currency future instead, e.g. 6E1! for EUR/USD.");
+    expect(mainChart).toMatch(/tastytrade publishes no \$\{tf\} bars, and WM Pro uses no delayed bar source\./);
+  });
+
   it("compiles through the one owner — never a second sentence for one pixel", () => {
     expect(mainChart).toMatch(/compileBarHistoryRefusal\(/);
   });

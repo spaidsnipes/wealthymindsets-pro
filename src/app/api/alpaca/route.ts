@@ -9,7 +9,7 @@
  *
  * Crypto data is FREE with no authentication on Alpaca.
  * Stock/ETF data requires an Alpaca API key (free paper trading account).
- * Futures: NOT supported — caller falls back to Yahoo.
+ * Futures: NOT supported — futures are priced by tastytrade's stream.
  */
 
 import { publicProxyLimit } from "@/lib/publicProxyLimit";
@@ -248,11 +248,12 @@ export async function GET(request: Request) {
         // STALENESS GUARD: Alpaca's free IEX feed does NOT receive pre/post-market
         // trades, so outside regular hours its "latestTrade" is stuck on the prior
         // session close (e.g. TSLA 375 while the live pre-market is 369). When the
-        // last trade is older than ~3 min, treat Alpaca as stale and 404 so the
-        // caller falls through to Yahoo (which includes pre/post-market prices).
+        // last trade is older than ~3 min, treat Alpaca as stale and refuse it.
+        // (Since 2026-10-12 there is no delayed fallback behind it: outside regular
+        // hours a stock is priced by tastytrade's consolidated stream, or not at all.)
         const tradeTs = json?.latestTrade?.t ? Date.parse(json.latestTrade.t) : 0;
         if (tradeTs && Date.now() - tradeTs > 3 * 60_000) {
-          return NextResponse.json({ error: "Alpaca quote stale (extended hours) — use Yahoo", stale: true }, { status: 404 });
+          return NextResponse.json({ error: "Alpaca's IEX quote is stale outside regular hours — no extended-hours prints on this feed", stale: true }, { status: 404 });
         }
       }
 

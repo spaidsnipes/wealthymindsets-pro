@@ -138,7 +138,10 @@ describe("GET /api/finnhub — honest upstream failure classification", () => {
     const res = await GET(new Request("http://localhost/api/finnhub?sym=BTC.COINBASE&type=quote"));
     expect(res.status).toBe(404);
     expect(spy, "Finnhub was called for a venue this lane cannot honour").not.toHaveBeenCalled();
-    expect(String((await res.json()).error)).toContain("Yahoo");
+    // 2026-10-12: the refusal no longer points at a delayed fallback that was removed.
+    const err = String((await res.json()).error);
+    expect(err).toBe("Symbol not supported by Finnhub");
+    expect(err).not.toContain("Yahoo");
   });
 
   it("reports a missing key in production as NOT CONFIGURED @ 503, not a generic 500", async () => {

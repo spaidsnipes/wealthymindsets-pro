@@ -169,7 +169,7 @@ export async function GET(request: Request) {
 
     const fhSym = toFinnhubSym(rawSym);
     if (!fhSym) {
-      return NextResponse.json({ error: "Symbol not supported by Finnhub — use Yahoo proxy" }, { status: 404 });
+      return NextResponse.json({ error: "Symbol not supported by Finnhub" }, { status: 404 });
     }
 
     /* ── Real-time quote ────────────────────────────────────── */

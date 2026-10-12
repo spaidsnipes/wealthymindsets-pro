@@ -1051,12 +1051,22 @@ async function fetchTastyCandles(sym: string, tf: string, count: number, signal?
   // seconds included. Anything it does not list answers null; the next door serves.
   // A long range (3M … 5Y) is served as tastytrade's monthly candles; the header names them (servedTimeframeFor).
   const servedTf = tastyServedTimeframe(tf);
-  if (!servedTf || !tastyCandlePeriod(servedTf)) return null;
+  if (!servedTf || !tastyCandlePeriod(servedTf)) {
+    note(log, { vendor: "tastytrade", outcome: "NOT_ASKED", rule: `tastytrade publishes no ${tf} bars, and WM Pro uses no delayed bar source.` });
+    return null;
+  }
   tf = servedTf;
   try {
     const streamer = await tastyCandleStreamerFor(sym);
     const contract = streamer ? { streamer } : null;
-    if (!contract || signal?.aborted) return null;
+    if (signal?.aborted) return null;
+    if (!contract) {
+      // LIVE ONLY (2026-10-12): no live door carries this instrument — say which, and where to go.
+      note(log, { vendor: "tastytrade", outcome: "NOT_ASKED", rule: classifySymbol(sym) === "FOREX"
+        ? `spot forex has no live source in WM Pro (no central exchange, and the delayed vendors were removed) — chart the CME currency future instead, e.g. 6E1! for EUR/USD.`
+        : `no live source carries ${sym.toUpperCase()} (tastytrade does not list it), and WM Pro uses no delayed bar source.` });
+      return null;
+    }
     const candleSymbol = tastyCandleSymbol(contract.streamer, tf);
     const fromTime = tastyCandleFromTime(tf, count, Date.now());
     if (!candleSymbol || fromTime == null) return null;

@@ -16,8 +16,9 @@ describe("the chart's first seconds", () => {
     const src = readFileSync(path.join(process.cwd(), "src/components/chart/ChartLoadingVeil.tsx"), "utf8");
     expect(src).toContain("the source has not answered yet");
   });
-  it("is shown only while the camera holds no bars", () => {
+  it("is shown only while the camera holds no bars and the load has not settled", () => {
     const dash = readFileSync(path.join(process.cwd(), "src/components/chart/ChartsDashboard.tsx"), "utf8");
-    expect(dash).toContain('{chartBars.length === 0 && !gridView && activeTab === "Chart" ? (');
+    // …and only while the load has not SETTLED: a settled empty load is a refusal, not a wait (2026-10-12).
+    expect(dash).toContain('{chartBars.length === 0 && !barsSettled && !gridView && activeTab === "Chart" ? (');
   });
 });
