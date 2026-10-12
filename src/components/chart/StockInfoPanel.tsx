@@ -6,6 +6,8 @@ import { CHANGE_UNAVAILABLE_TEXT, CHANGE_UNAVAILABLE_TITLE } from "@/lib/marketD
 import { PRICE_ABSENCE_GLYPH, priceAbsenceReason } from "@/lib/marketData/priceAbsence";
 import { tastyLiveContractFor } from "@/lib/broker/tastyFrontMonth";
 import { useTastyQuotes } from "@/lib/broker/tastyQuoteStream";
+import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
+import { fetchExchangeQuoteBody } from "@/lib/marketData/exchangeQuoteRounds";
 import { readActiveWatchlist, toggleOnActiveWatchlist } from "@/lib/watchlist/activeWatchlist";
 import {
   priceSessionFact,
@@ -138,7 +140,8 @@ export function StockInfoPanel({ symbol }: Props) {
     // ingest, which laundered "the provider did not carry a volume" into the
     // number zero BEFORE anything downstream could tell them apart. Carry the
     // absence; let the owner decide what to say about it.
-    open: number; high: number; low: number; prevClose: number; volume: number | null;
+    // `prevClose` is null for crypto (no session close); `rolling` marks the venue's 24h window.
+    open: number; high: number; low: number; prevClose: number | null; volume: number | null; rolling?: boolean;
   };
   const [ownedOHLC, setOwnedOHLC] = useState<Owned<SessionOHLC>>(UNOWNED);
   const realOHLC = readOwned(ownedOHLC, ownerKey);
@@ -167,7 +170,24 @@ export function StockInfoPanel({ symbol }: Props) {
   const streamer = readOwned(liveStreamer, ownerKey) ?? null;
   const liveSnap = useTastyQuotes(streamer ? [streamer] : NO_STREAMERS);
   const liveQ = streamer ? liveSnap.quotes.get(streamer) : undefined;
+  // CRYPTO has no exchange session: its facts are the venue's own rolling 24h range (Coinbase /stats),
+  // labelled 24h, with no prior close — never a delayed vendor's day bar.
+  const isCrypto = classifySymbol(symbol) === "CRYPTO";
   useEffect(() => {
+    if (!isCrypto) return;
+    const up = symbol.toUpperCase();
+    let current = true;
+    const read = () => fetchExchangeQuoteBody("coinbase", up).then((j: any) => {
+      if (!current) return;
+      const r = j?.rolling24h, o = j?.referenceOpen;
+      if (r && r.high > 0 && r.low > 0 && o > 0) setOwnedOHLC(owned(up, { open: o, high: r.high, low: r.low, prevClose: null, volume: r.volume ?? null, rolling: true }));
+    }).catch(() => {}).finally(() => { if (current) setOwnedSettled(owned(up, true as const)); });
+    void read();
+    const t = window.setInterval(read, 30_000);
+    return () => { current = false; window.clearInterval(t); };
+  }, [symbol, isCrypto]);
+  useEffect(() => {
+    if (isCrypto) return;
     const up = symbol.toUpperCase();
     const o = liveQ?.dayOpen, h = liveQ?.dayHigh, l = liveQ?.dayLow, pc = liveQ?.prevClose;
     if (o != null && o > 0 && h != null && h > 0 && l != null && l > 0 && pc != null && pc > 0) {
@@ -175,7 +195,7 @@ export function StockInfoPanel({ symbol }: Props) {
     } else {
       setOwnedOHLC(UNOWNED);
     }
-  }, [symbol, liveQ?.dayOpen, liveQ?.dayHigh, liveQ?.dayLow, liveQ?.prevClose, liveQ?.dayVolume]);
+  }, [symbol, isCrypto, liveQ?.dayOpen, liveQ?.dayHigh, liveQ?.dayLow, liveQ?.prevClose, liveQ?.dayVolume]);
 
   // §15 — net flow is the window aggressor sum, read from its one owner
   // (selectAggressorFlow). The panel used to fold the ticks itself, counting
@@ -197,9 +217,10 @@ export function StockInfoPanel({ symbol }: Props) {
      `volume` in particular must NOT be gated on truthiness — 0 is an answer. */
   const dp = ticker.price > 1000 ? 2 : ticker.price > 10 ? 3 : 5;
   const observedQuote = realOHLC !== null;
-  const open  = priceSessionFact(realOHLC?.open,      dp, "Open",       symbol, observedQuote);
-  const high  = priceSessionFact(realOHLC?.high,      dp, "High",       symbol, observedQuote);
-  const low   = priceSessionFact(realOHLC?.low,       dp, "Low",        symbol, observedQuote);
+  const rolling = realOHLC?.rolling === true;
+  const open  = priceSessionFact(realOHLC?.open,      dp, rolling ? "24h open" : "Open", symbol, observedQuote);
+  const high  = priceSessionFact(realOHLC?.high,      dp, rolling ? "24h high" : "High", symbol, observedQuote);
+  const low   = priceSessionFact(realOHLC?.low,       dp, rolling ? "24h low" : "Low",   symbol, observedQuote);
   const prev  = priceSessionFact(realOHLC?.prevClose, dp, "Prev close", symbol, observedQuote);
   const vol   = volumeSessionFact(realOHLC?.volume, symbol, observedQuote);
   const turn  = turnoverSessionFact(symbol);
@@ -295,11 +316,11 @@ export function StockInfoPanel({ symbol }: Props) {
         {/* Stats grid */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 0", marginTop: 8 }}>
           {([
-            ["High",       high],
-            ["Low",        low],
-            ["Open",       open],
+            [rolling ? "24h High" : "High",       high],
+            [rolling ? "24h Low" : "Low",         low],
+            [rolling ? "24h Open" : "Open",       open],
             ["Prev Close", prev],
-            ["Volume",     vol],
+            [rolling ? "24h Volume" : "Volume",   vol],
             ["Turnover",   turn],
           ] as [string, SessionFact][]).map(([k, f]) => (
             /* The reason travels with the row on BOTH `title` and
@@ -415,7 +436,8 @@ export function StockInfoPanel({ symbol }: Props) {
 
       {activeTab === "Analysis" && (
         <div style={{ flex: 1, overflowY: "auto", padding: "8px 10px" }}>
-          {realOHLC && (
+          {/* Floor pivots need a prior close — crypto has none, so it shows none (2026-10-12). */}
+          {realOHLC && realOHLC.prevClose != null && (
             <>
               {/* ONE pivot, and every level derived from it (painted-window pass
                   2026-10-05): R1/S1 used (H+L)/2 while the Pivot row printed
@@ -424,7 +446,7 @@ export function StockInfoPanel({ symbol }: Props) {
               <div style={{ fontSize: 10, color: "#8B8FA8", marginBottom: 8 }}>Floor pivots · today&apos;s range so far</div>
               {[
                 ...(() => {
-                  const P = (realOHLC.high + realOHLC.low + realOHLC.prevClose) / 3;
+                  const P = (realOHLC.high + realOHLC.low + realOHLC.prevClose!) / 3;
                   const R = realOHLC.high - realOHLC.low;
                   return [
                     ["R2", +(P + R).toFixed(dp)],

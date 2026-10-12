@@ -90,6 +90,8 @@ type ExchangeQuote = {
   changePct: number | null;
   changeWindow: ChangeWindow;
   referenceOpen: number | null;
+  /** Coinbase only: the venue's own rolling-24h range and volume (its /stats answer), when it said. */
+  rolling24h?: { high: number | null; low: number | null; volume: number | null };
 };
 
 function quote(price: unknown, open: unknown): ExchangeQuote {
@@ -105,7 +107,7 @@ async function getQuote(ex: Ex, coin: string): Promise<ExchangeQuote> {
       j(`https://api.exchange.coinbase.com/products/${p}/ticker`),
       j(`https://api.exchange.coinbase.com/products/${p}/stats`),
     ]);
-    return quote(t?.price, s?.open);
+    return { ...quote(t?.price, s?.open), rolling24h: { high: strictProviderNumber(s?.high), low: strictProviderNumber(s?.low), volume: strictProviderNumber(s?.volume) } };
   }
   if (ex === "kraken") {
     const r = await j(`https://api.kraken.com/0/public/Ticker?pair=${p}`);
