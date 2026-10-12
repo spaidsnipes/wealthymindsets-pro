@@ -1717,11 +1717,15 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
           // ONCE, older than every live print; day volume and bars are not
           // touched (the candles already carry them).
           if (!contract.equity) {
-            void fetchTastyTimeAndSales(contract.streamer, Date.now() - 15 * 60_000).then(hist => {
+            // Asks the chart backfill's widest window (6 h, to the minute) so the chart's own read JOINS this
+            // one instead of opening a second socket (tastyHistory single-flight); the ring keeps its 15 min.
+            const seedFrom = Date.now() - 15 * 60_000;
+            void fetchTastyTimeAndSales(contract.streamer, Math.floor((Date.now() - 6 * 3600_000) / 60_000) * 60_000).then(hist => {
               if (disposed || !hist) return;
               const seeded: Tick[] = [];
               const receivedAt = Date.now();
               for (const e of hist.events) {
+                if ((e.values.time ?? 0) < seedFrom) continue;
                 const ev = tastyTimeAndSaleToMarketEvent(e, symbol, contract, receivedAt, 0);
                 if (!ev || (ev.aggressorSide !== "BUY" && ev.aggressorSide !== "SELL") || ev.timestampProvider == null) continue;
                 seeded.push({ price: ev.price!, size: ev.size!, side: ev.aggressorSide === "BUY" ? "buy" : "sell", time: ev.timestampProvider, trade: true, marketEvent: ev });

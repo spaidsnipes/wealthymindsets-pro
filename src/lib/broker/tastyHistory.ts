@@ -32,14 +32,48 @@ export interface TastyPrintHistory {
   readonly complete: boolean;
 }
 
-export async function fetchTastyTimeAndSales(
+/**
+ * ONE HISTORY READ PER CONTRACT SET (2026-10-12). The chart's backfill and the price hook's ring seed each
+ * opened their own one-shot DXLink socket for the same contract on every futures load (a 4-screen desk: eight).
+ * tastytrade answers at most ~1,000 prints whatever the window, so a caller whose window is COVERED by a read
+ * already in flight joins it and keeps only its own window. The shared read carries no caller's abort signal —
+ * each caller stops LISTENING on its own — so one unmounting chart cannot cancel another's history.
+ */
+const inflight = new Map<string, { readonly fromTime: number; readonly promise: Promise<TastyPrintHistory | null> }>();
+
+export function fetchTastyTimeAndSales(
   streamer: string | readonly string[],
   fromTime: number,
   opts: { readonly timeoutMs?: number; readonly maxEvents?: number; readonly signal?: AbortSignal } = {},
 ): Promise<TastyPrintHistory | null> {
+  const symbols = typeof streamer === "string" ? [streamer] : [...streamer];
+  const key = `${[...symbols].sort().join(",")}|${opts.maxEvents ?? 60_000}|${opts.timeoutMs ?? 15_000}`;
+  const pending = inflight.get(key);
+  let shared: Promise<TastyPrintHistory | null>;
+  if (pending && pending.fromTime <= fromTime) {
+    shared = pending.promise.then(h => (h ? { events: h.events.filter(e => (e.values.time ?? 0) >= fromTime), complete: h.complete } : null));
+  } else {
+    shared = openTimeAndSales(symbols, fromTime, { timeoutMs: opts.timeoutMs, maxEvents: opts.maxEvents });
+    inflight.set(key, { fromTime, promise: shared });
+    void shared.finally(() => { if (inflight.get(key)?.promise === shared) inflight.delete(key); });
+  }
+  const signal = opts.signal;
+  if (!signal) return shared;
+  if (signal.aborted) return Promise.resolve(null);
+  return Promise.race([shared, new Promise<null>(res => signal.addEventListener("abort", () => res(null), { once: true }))]);
+}
+
+/** Test seam: forget every read in flight. */
+export function resetTastyHistoryForTest(): void { inflight.clear(); }
+
+async function openTimeAndSales(
+  streamer: readonly string[],
+  fromTime: number,
+  opts: { readonly timeoutMs?: number; readonly maxEvents?: number } = {},
+): Promise<TastyPrintHistory | null> {
   let tok: { state?: string; token?: string; dxlinkUrl?: string } | null = null;
   try {
-    const a = await fetchQuoteToken(opts.signal);
+    const a = await fetchQuoteToken();
     if (a.status !== 200) return null;
     tok = a.body;
   } catch { return null; }
@@ -51,7 +85,7 @@ export async function fetchTastyTimeAndSales(
     const events: ContractEvent[] = [];
     // Several contracts on one connection (options flow, 2026-10-05): the
     // snapshot is whole when EVERY symbol has closed its own.
-    const symbols = typeof streamer === "string" ? [streamer] : [...streamer];
+    const symbols = [...streamer];
     const ended = new Set<string>();
     let done = false;
     let snipped = false;
@@ -64,7 +98,6 @@ export async function fetchTastyTimeAndSales(
       resolve({ events, complete });
     };
     const timer = setTimeout(() => finish(false), opts.timeoutMs ?? 15_000);
-    opts.signal?.addEventListener("abort", () => finish(false));
     const send = (f: unknown) => { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(f)); };
     ws.onopen = () => send({ type: "SETUP", channel: 0, version: "0.1-DXF-JS/0.3.0", keepaliveTimeout: 60, acceptKeepaliveTimeout: 60 });
     ws.onerror = () => finish(false);

@@ -15,7 +15,11 @@ describe("the order-flow ring is seeded with the exchange's recent prints (2026-
   });
   it("futures seed from tastytrade's TimeAndSale; equities do not", () => {
     const src = readFileSync("src/hooks/useWebSocket.ts", "utf8");
-    expect(src).toContain("if (!contract.equity) {\n            void fetchTastyTimeAndSales(contract.streamer, Date.now() - 15 * 60_000)");
+    // 2026-10-12: the seed asks the chart backfill's 6 h window (so the chart's read joins it) and keeps 15 min.
+    expect(src).toContain("if (!contract.equity) {");
+    expect(src).toContain("const seedFrom = Date.now() - 15 * 60_000;");
+    expect(src).toContain("void fetchTastyTimeAndSales(contract.streamer, Math.floor((Date.now() - 6 * 3600_000) / 60_000) * 60_000)");
+    expect(src).toContain("if ((e.values.time ?? 0) < seedFrom) continue;");
     expect(src).toContain("recentTicks: seedRecentTicks(prev.recentTicks, seeded),");
   });
 });
