@@ -40,8 +40,13 @@ describe("canonAvailabilityFor — the ladder for the instrument actually on the
     expect(r.reason).toMatch(/No bar route/);
   });
 
-  it("spot FX, an index and an unlisted coin have no live door — every rung UNAVAILABLE", () => {
-    for (const sym of ["EURUSD", "SPX", "SHIBUSDT"]) expect(table(sym), sym).toBe(NOTHING);
+  it("spot FX and an unlisted coin have no live door — every rung UNAVAILABLE", () => {
+    for (const sym of ["EURUSD", "SHIBUSDT"]) expect(table(sym), sym).toBe(NOTHING);
+  });
+
+  it("cash indices tastytrade streams take its candles (proved on serving 2026-10-12)", () => {
+    for (const sym of ["SPX", "^GSPC", "NDX", "VIX", "^VIX", "RUT"]) expect(table(sym), sym).toBe(TASTY);
+    expect(chartBarRouteFor("5m", "SPX")).toMatchObject({ vendor: "tastytrade", mode: "NATIVE", exact: true });
   });
 
   it("no route ever names a delayed or dead vendor", () => {

@@ -76,7 +76,7 @@ import { EXCHANGE_LABEL, parseExchangeSymbol, type Exchange } from "@/lib/exchan
 import { resolveYahooSymbol } from "@/lib/yahooSymbol";
 import { resolveYahooTimeframe } from "@/lib/yahooTimeframes";
 import { tastyServedTimeframe, tastyCandleSeconds } from "@/lib/marketData/adapters/tastytradeCandles";
-import { tastyCryptoStreamer } from "@/lib/broker/tastyFrontMonth";
+import { tastyCryptoStreamer, tastyIndexStreamer } from "@/lib/broker/tastyFrontMonth";
 import {
   canonRungSpokenName, getTimeframe, isTFId, timeframePendingFounderDecision,
   type CanonRung, type TFId,
@@ -234,7 +234,8 @@ export function chartBarRouteFor(timeframe: string, symbol: string): ChartBarRou
     const cls = classifySymbol(sym);
     const served = tastyServedTimeframe(tf);
     const sec = served ? tastyCandleSeconds(served) : null;
-    if (served && sec != null && (cls === "EQUITY" || (cls === "CRYPTO" && tastyCryptoStreamer(sym) != null))) {
+    // Cash indices tastytrade streams (SPX, NDX, VIX, RUT — proved on serving a951b0b, 2026-10-12: SPX 1,514 / VIX 2,827 5m candles).
+    if (served && sec != null && (cls === "EQUITY" || (cls === "CRYPTO" && tastyCryptoStreamer(sym) != null) || (cls === "INDEX" && tastyIndexStreamer(sym) != null))) {
       return route(tf, "tastytrade", "NATIVE", served === "1M" ? { n: 1, unit: "month" } : fromSeconds(sec), null);
     }
   }
