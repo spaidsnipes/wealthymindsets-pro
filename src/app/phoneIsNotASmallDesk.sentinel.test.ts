@@ -95,6 +95,9 @@ describe("one price on the phone screen — the quote header owns it, big, with 
     expect(chart).toContain("if (!free(ty)) { ty = Math.max(tagH / 2, Math.min(pane0Bottom - tagH / 2, t.y)); overlapTags++; }");
     expect(chart).not.toContain("if (!free(ty)) continue;");
   });
+  it("the volume read ends before the timeframe rungs on a phone", () => {
+    expect(block).toContain(".wm-chart-volume-footer { max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }");
+  });
   it("a 360px phone keeps every timeframe rung in view", () => {
     expect(block).toContain('@media (max-width: 379px) {\n    .wm-chart-market-pane[data-market-primary="true"] .wm-tf-quickrow { gap: 2px; }');
   });
