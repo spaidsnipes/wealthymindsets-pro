@@ -354,8 +354,9 @@ const PANE_DOM_CHIP_SELECTOR = 'button[aria-label="Data window"], .wm-chart-mark
 const DP_FIELD_FLOOR_ALPHA = 0.1;
 /** A Weather cell sprite larger than this (device px²) is drawn straight onto the heat layer, not cached. */
 const HEAT_SPRITE_MAX_PX = 4_000_000;
-/** How long one drawable weather reading is held before the heat lens re-inks (G19 Mansion perf pass). */
-const HEAT_REINK_MS = 750;
+/** How long one drawable weather reading is held before the heat lens re-inks (G19 Mansion perf pass;
+ *  750 → 2000 ms on 2026-10-12: a busy tape paints ~1.3×/s, so 750 ms held nothing and every paint re-inked). */
+const HEAT_REINK_MS = 2_000;
 /** How often the value candle's CLOSED-bar list may be rebuilt (perf pass 2026-10-12). */
 const VC_CLOSED_REBUILD_MS = 1_000;
 /** Brick Walls masonry sprites kept at most (a camera holds a handful of walls). */

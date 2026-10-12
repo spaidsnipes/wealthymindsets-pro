@@ -53,7 +53,7 @@ describe("the heat layer is redrawn only when what it paints changes", () => {
   // 2026-10-11 G19 Mansion (serving 7ac1169): weather segments are equal-count slices of a rolling print
   // window, so every print is a new reading for every cell. A drawable reading is held HEAT_REINK_MS.
   it("a drawable reading is held for HEAT_REINK_MS; refusal, OFF and a new symbol/timeframe replace it at once; the age is a receipt", () => {
-    expect(MC).toContain("const HEAT_REINK_MS = 750;");
+    expect(MC).toContain("const HEAT_REINK_MS = 2_000;");
     expect(MC).toContain("const heatFresh = selectHeatLens(sampledWeather);");
     expect(MC).toContain("const heat = heatFresh.drawable && heatHeld && heatHeld.vm.drawable && heatHeld.scope === heatScope && heatNow - heatHeld.at < HEAT_REINK_MS");
     expect(MC).toContain("const heatScope = `${symbol}|${timeframe}`;");
