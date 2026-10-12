@@ -154,3 +154,8 @@ describe("one app bar in every room", () => {
   });
 });
 
+
+it("the ticket's section grid is one column that can shrink — SELL is never cut at the phone edge (G19 Mansion 2026-10-11)", () => {
+  const tp = readFileSync(path.join(process.cwd(), "src/components/chart/TradePanel.tsx"), "utf8");
+  expect(tp).toContain('data-testid="trade-sections-grid" style={{ padding: compact ? "8px 10px" : 12, display: "grid", gridTemplateColumns: "minmax(0, 1fr)"');
+});

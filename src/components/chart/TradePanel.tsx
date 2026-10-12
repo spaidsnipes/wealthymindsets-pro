@@ -780,7 +780,10 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
           {audience === "GUEST" && <button type="button" onClick={onOpenPaper} style={{ ...btn(true), marginTop: 8 }}>Open Paper</button>}
         </div>
       ) : (
-        <div style={{ padding: compact ? "8px 10px" : 12, display: "grid", gap: compact ? 6 : 10 }}>
+        <div data-testid="trade-sections-grid" style={{ padding: compact ? "8px 10px" : 12, display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: compact ? 6 : 10 }}>
+          {/* ONE COLUMN THAT CAN SHRINK (G19 Mansion, serving 8c320aa at 390 × 844): an implicit grid column is
+              sized to its widest min-content child, so the BUY / SELL row set the track to 467 px in a 368 px sheet
+              and SELL was cut at the screen edge. `minmax(0, 1fr)` lets every row wrap inside the sheet. */}
           <TicketSections compact={compact} bookActive={bookIsActive(book)} peek={stage === "PEEK"} step={step} review={review} inFlight={!stageInput.preSend}
             onReview={() => { if (review.allowed) setReviewing(true); }} onEdit={() => { if (stageInput.preSend) setReviewing(false); }}
             sections={sectionEl} summary={detailsSummary(book, { inside: owner && tradable })} />
