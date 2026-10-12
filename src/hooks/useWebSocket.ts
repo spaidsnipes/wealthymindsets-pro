@@ -1187,6 +1187,18 @@ function tryCoinbase(
  *      before the first trade, so the UI's transport indicator stops
  *      false-negatives during the natural open-to-first-trade gap.
  */
+/* A RELAY THAT IS NOT THERE IS NOT REDIALLED EVERY 3 s (G19 Mansion, serving 72731e2, 2026-10-11 21:35 CDT:
+   the default Railway relay answers HTTP 404 "Application not found", and every stock chart re-opened a
+   doomed socket every 3 s for as long as it was open — hundreds of console errors a session, battery on a
+   phone, while tastytrade's consolidated prints already carry the tape). A connect that never OPENED backs
+   off 3 s → 6 s → … → 5 min; the count is shared by every symbol on that relay base and clears on the first
+   open, so a relay that comes back is heard again within one back-off step. */
+const relayNeverOpened = new Map<string, number>();
+export const ALPACA_RELAY_MAX_BACKOFF_MS = 300_000;
+export function alpacaRelayRetryMs(neverOpened: number): number {
+  return Math.min(ALPACA_RELAY_MAX_BACKOFF_MS, 3_000 * 2 ** Math.max(0, Math.min(neverOpened - 1, 7)));
+}
+
 function tryAlpacaRelay(
   symbol: string,
   seedFromRest: number,
@@ -1207,6 +1219,7 @@ function tryAlpacaRelay(
     catch { url = `${proxyBase}${proxyBase.includes("?") ? "&" : "?"}sym=${encodeURIComponent(symbol)}`; }
     try { sock = new WebSocket(url); } catch { retryTimer = setTimeout(connectSock, 4000); return; }
     sock.binaryType = "arraybuffer";
+    let opened = false;
 
     const handleText = (text: string) => {
       let parsed: unknown;
@@ -1236,6 +1249,8 @@ function tryAlpacaRelay(
     };
 
     sock.onopen = () => {
+      opened = true;
+      relayNeverOpened.set(proxyBase, 0);
       onStatus(true);
       try { sock?.send(JSON.stringify({ action: "subscribe", sym: symbol, trades: [symbol] })); } catch { /* proxy may not need a subscribe msg */ }
     };
@@ -1245,11 +1260,20 @@ function tryAlpacaRelay(
       else if (d instanceof ArrayBuffer) handleText(new TextDecoder().decode(d));
       else if (d && typeof (d as Blob).text === "function") (d as Blob).text().then(handleText).catch(() => {});
     };
-    sock.onclose = () => { onStatus(false); if (!closed) retryTimer = setTimeout(connectSock, 3000); };
+    sock.onclose = () => {
+      onStatus(false);
+      if (closed) return;
+      const fails = opened ? 0 : (relayNeverOpened.get(proxyBase) ?? 0) + 1;
+      if (!opened) relayNeverOpened.set(proxyBase, fails);
+      retryTimer = setTimeout(connectSock, opened ? 3000 : alpacaRelayRetryMs(fails));
+    };
     sock.onerror = () => { try { sock?.close(); } catch { /* already closing */ } };
   };
 
-  connectSock();
+  // A relay already known to be absent is not dialled at once by the next symbol either.
+  const knownFails = relayNeverOpened.get(proxyBase) ?? 0;
+  if (knownFails >= 3) retryTimer = setTimeout(connectSock, alpacaRelayRetryMs(knownFails));
+  else connectSock();
 
   return () => {
     closed = true;
