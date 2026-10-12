@@ -11,7 +11,7 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { readEquityOptionChain, type FuturesOptionChain } from "@/lib/broker/tastytradeFuturesChain";
-import { pickPositioningLegs, positioningFromLegs, type FuturesPositioning, type Leg } from "@/lib/broker/useTastyFuturesPositioning";
+import { pickPositioningLegs, positioningFromLegs, useHeldPositioning, type FuturesPositioning, type Leg } from "@/lib/broker/useTastyFuturesPositioning";
 import { useTastyQuotes } from "@/lib/broker/tastyQuoteStream";
 import { isOwnerRefusal } from "@/lib/broker/ownerRefusal";
 import { owned, readOwned, UNOWNED, type Owned } from "@/lib/marketData/symbolOwned";
@@ -54,10 +54,11 @@ export function useTastyEquityPositioning(symbol: string, enabled: boolean, pric
   const legs = useTastyEquityOptionLegs(symbol, enabled, price);
   const streamers = useMemo(() => (legs ?? []).map(l => l.streamer), [legs]);
   const snap = useTastyQuotes(streamers);
-  return useMemo(() => {
+  const live = useMemo(() => {
     if (!enabled) return null;
     if (!legs) return { receipt: null, edge: "LOADING" };
     const p = positioningFromLegs(legs, snap.quotes, symbol, price);
     return p.receipt ? { ...p, receipt: { ...p.receipt, underlying: symbol.toUpperCase().replace(/^\^/, "") } } : p;
   }, [enabled, legs, snap, symbol, price]);
+  return useHeldPositioning(live);
 }

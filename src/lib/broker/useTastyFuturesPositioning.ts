@@ -15,7 +15,7 @@
  * socket. It answers only when enough contracts have reported open interest;
  * otherwise it names why. The pressure owner compiles it like any other.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { futuresProductFor, readFuturesOptionChain, type FuturesOptionChain } from "@/lib/broker/tastytradeFuturesChain";
 import { useTastyQuotes } from "@/lib/broker/tastyQuoteStream";
 import type { CboeOptionRow, CboeOptionsReceipt } from "@/lib/marketData/cboeDelayedOptions";
@@ -89,12 +89,13 @@ export function useTastyFuturesPositioning(symbol: string, enabled: boolean, pri
   const legs = useMemo(() => (chain && anchor ? pickPositioningLegs(chain, anchor) : []), [chain, anchor]);
   const streamers = useMemo(() => legs.map(l => l.streamer), [legs]);
   const snap = useTastyQuotes(streamers);
-  return useMemo(() => {
+  const live = useMemo(() => {
     if (!product) return null;
     if (edge) return { receipt: null, edge };
     if (!chain || !anchor) return { receipt: null, edge: "LOADING" };
     return positioningFromLegs(legs, snap.quotes, symbol, price);
   }, [product, edge, chain, anchor, legs, snap, symbol, price]);
+  return useHeldPositioning(live);
 }
 
 /**
@@ -140,4 +141,26 @@ export function positioningFromLegs(
         scope: { kind: "NEAR_MONEY_SUBSET", reachPct: STRIKE_REACH * 100 },
       },
     };
+}
+
+/** How often a live positioning receipt may become a NEW object (2026-10-12 perf pass). */
+export const POSITIONING_RECEIPT_MIN_MS = 2_000;
+
+/**
+ * Open interest is a daily figure and gamma moves slowly, but the shared quote stream emits up to once a
+ * frame — and every new receipt object re-renders the room and re-runs Derivatives Pressure. A receipt is
+ * held for POSITIONING_RECEIPT_MIN_MS unless its EDGE changes (loading → drawn, a refusal), which passes
+ * through at once. PURE decision; the hook keeps the clock.
+ */
+export function holdPositioning(prev: { at: number; value: FuturesPositioning | null } | null, next: FuturesPositioning | null, nowMs: number, minMs = POSITIONING_RECEIPT_MIN_MS): { at: number; value: FuturesPositioning | null } {
+  if (!prev || !next || !prev.value) return { at: nowMs, value: next };
+  if (prev.value.edge !== next.edge || (prev.value.receipt == null) !== (next.receipt == null)) return { at: nowMs, value: next };
+  return nowMs - prev.at >= minMs ? { at: nowMs, value: next } : prev;
+}
+
+/** The hook form: the same receipt object until the hold elapses or the edge changes. */
+export function useHeldPositioning(next: FuturesPositioning | null): FuturesPositioning | null {
+  const ref = useRef<{ at: number; value: FuturesPositioning | null } | null>(null);
+  ref.current = holdPositioning(ref.current, next, Date.now());
+  return ref.current.value;
 }

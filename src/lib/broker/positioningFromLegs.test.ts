@@ -35,3 +35,20 @@ describe("positioningFromLegs", () => {
     expect(cd).not.toContain("/api/market-data/cboe/options");
   });
 });
+
+import { holdPositioning, POSITIONING_RECEIPT_MIN_MS } from "./useTastyFuturesPositioning";
+
+describe("holdPositioning — a live receipt changes at most every 2 s unless its edge changes", () => {
+  const drawn = (n: number) => ({ edge: null, receipt: { rows: [n] } } as never);
+  it("holds a same-edge receipt inside the window and releases after it", () => {
+    const first = holdPositioning(null, drawn(1), 1_000);
+    expect(holdPositioning(first, drawn(2), 1_000 + POSITIONING_RECEIPT_MIN_MS - 1)).toBe(first);
+    expect(holdPositioning(first, drawn(3), 1_000 + POSITIONING_RECEIPT_MIN_MS).value).toEqual(drawn(3));
+  });
+  it("an edge change (loading → drawn, drawn → refused) passes through at once", () => {
+    const loading = holdPositioning(null, { edge: "LOADING", receipt: null }, 1_000);
+    expect(holdPositioning(loading, drawn(1), 1_001).value).toEqual(drawn(1));
+    const d = holdPositioning(null, drawn(1), 1_000);
+    expect(holdPositioning(d, { edge: "GATHERING_OI:1/10", receipt: null }, 1_001).value?.edge).toBe("GATHERING_OI:1/10");
+  });
+});
