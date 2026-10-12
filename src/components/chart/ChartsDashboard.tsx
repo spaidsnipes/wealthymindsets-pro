@@ -405,7 +405,8 @@ import dynamic from "next/dynamic";
 import { keyActivates } from "@/lib/a11y/keyActivates";
 import { useEscapeToClose } from "@/lib/a11y/useEscapeToClose";
 import { useTastyOptionFlow } from "@/lib/broker/useTastyOptionFlow";
-import { useTastyEquityOptionLegs } from "@/lib/broker/useTastyEquityOptionLegs";
+import { useTastyEquityOptionLegs, useTastyEquityPositioning } from "@/lib/broker/useTastyEquityOptionLegs";
+import { useTastyWatchQuotes } from "@/lib/broker/useTastyWatchQuotes";
 import { useDeribitOptionFlow } from "@/lib/marketData/useDeribitOptionFlow";
 import { selectOptionsBarrierEvidence, type ExpiryScope, type OptionsBarrierEvidenceVM } from "@/lib/marketData/viewModels/selectOptionsBarrierEvidence";
 import { CHART_SETTINGS_SECTION_EVENT, type ChartSettingsSection } from "@/lib/workspace/toolDoor";
@@ -2981,6 +2982,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const equityFlowOn = brickWallsOn && (classifySymbol(symbol) === "EQUITY" || classifySymbol(symbol) === "INDEX");
   const equityFlowLegs = useTastyEquityOptionLegs(symbol, equityFlowOn, chartBars.length ? chartBars[chartBars.length - 1].close : null);
   const tastyOptionFlowVM = useTastyOptionFlow(futuresPressureOn ? futuresPositioning?.legs : equityFlowLegs, (futuresPressureOn || equityFlowOn) && brickWallsOn);
+  // LIVE ONLY (Founder 2026-10-12: "remove anything delayed and dead"): stocks, ETFs and cash
+  // indices read their positioning from tastytrade's own chain + live open interest / Greeks,
+  // never Cboe's delayed quotes.
+  const equityPressureOn = pressureEvidenceOn && !lensFixture?.climate && (classifySymbol(symbol) === "EQUITY" || classifySymbol(symbol) === "INDEX");
+  const equityPositioning = useTastyEquityPositioning(symbol, equityPressureOn, chartBars.length ? chartBars[chartBars.length - 1].close : null);
   // BTC / ETH: Deribit's public option trades (taker side stamped by the venue).
   const deribitOptionFlowVM = useDeribitOptionFlow(symbol, brickWallsOn && classifySymbol(symbol) === "CRYPTO");
   const optionFlowVM = deribitOptionFlowVM ?? tastyOptionFlowVM;
@@ -2989,17 +2995,19 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     setDerivativesReceipt({ symbol, receipt: futuresPositioning?.receipt ?? null, edge: futuresPositioning?.edge ?? "LOADING" });
   }, [futuresPressureOn, futuresPositioning, symbol]);
   useEffect(() => {
-    if (futuresPressureOn) return; // the futures branch above owns this market
+    if (!equityPressureOn) return;
+    setDerivativesReceipt({ symbol, receipt: equityPositioning?.receipt ?? null, edge: equityPositioning?.edge ?? "LOADING" });
+  }, [equityPressureOn, equityPositioning, symbol]);
+  useEffect(() => {
+    if (futuresPressureOn || equityPressureOn) return; // the live tastytrade branches above own these markets
     // LENS FIXTURE: the sample chain stands in; the live chain is not fetched.
     if (lensFixture?.climate) { setDerivativesReceipt(null); return; }
-    // BTC / ETH read Deribit's public options (Cboe lists no crypto options);
-    // listed underlyings read Cboe delayed. Anything else has no chain.
+    // BTC / ETH read Deribit's public options (live). Stocks, ETFs, indices and futures read
+    // tastytrade (above). Cboe's DELAYED quotes are no longer asked (2026-10-12). Anything else
+    // has no live chain.
     const deribit = pressureEvidenceOn ? deribitCurrencyFor(symbol) : null;
-    const cboe = pressureEvidenceOn && !deribit ? cboeSymbolFor(symbol) : null;
-    const route = deribit
-      ? `/api/market-data/deribit/options?symbol=${encodeURIComponent(symbol)}`
-      : `/api/market-data/cboe/options?symbol=${encodeURIComponent(symbol)}`;
-    if (!deribit && (!cboe || classifySymbol(symbol) === "CRYPTO" || classifySymbol(symbol) === "FOREX" || classifySymbol(symbol) === "FUTURES")) {
+    const route = `/api/market-data/deribit/options?symbol=${encodeURIComponent(symbol)}`;
+    if (!deribit) {
       setDerivativesReceipt(pressureEvidenceOn ? { symbol, receipt: null, edge: "UNSUPPORTED" } : null);
       return;
     }
@@ -3041,7 +3049,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     load();
     const t = window.setInterval(load, 120_000);
     return () => { alive = false; window.clearInterval(t); };
-  }, [pressureEvidenceOn, symbol, futuresPressureOn, lensFixture?.climate]);
+  }, [pressureEvidenceOn, symbol, futuresPressureOn, equityPressureOn, lensFixture?.climate]);
   const derivativesPressureVM = React.useMemo<DerivativesPressureVM | null>(() => {
     if (pressureEvidenceOn && lensFixture?.climate) {
       return lensFixtureAnchor ? lensFixturePressure(lensFixture.climate, lensFixtureAnchor.centre, lensFixtureAnchor.nowMs) : null;
@@ -3095,20 +3103,16 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // mapped through a same-time basis. Fetched only while Brick Walls is on a
   // mapped future; a stale or missing basis refuses (selectIndexFuturesMapping).
   const mappedRoot = mappedFuturesRoot(symbol);
-  const [indexReceipt, setIndexReceipt] = useState<{ root: string; receipt: CboeOptionsReceipt | null } | null>(null);
-  useEffect(() => {
-    if (!brickWallsOn || !mappedRoot) { setIndexReceipt(null); return; }
-    const idx = INDEX_FOR_FUTURES[mappedRoot]?.index;
-    if (!idx) return;
-    let alive = true;
-    const load = () => fetch(`/api/market-data/cboe/options?symbol=${idx}`, { cache: "no-store" })
-      .then(r => (r.ok ? r.json() : null))
-      .then(j => { if (alive) setIndexReceipt({ root: mappedRoot, receipt: j && Array.isArray(j.rows) ? (j as CboeOptionsReceipt) : null }); })
-      .catch(() => { if (alive) setIndexReceipt({ root: mappedRoot, receipt: null }); });
-    void load();
-    const t = window.setInterval(load, 120_000);
-    return () => { alive = false; window.clearInterval(t); };
-  }, [brickWallsOn, mappedRoot]);
+  // LIVE ONLY (Founder 2026-10-12): the cash index's own chain from tastytrade, anchored at the
+  // index's LIVE level — never Cboe's delayed quotes.
+  const mappedIndex = mappedRoot ? INDEX_FOR_FUTURES[mappedRoot]?.index ?? null : null;
+  const mappedIndexLive = useTastyWatchQuotes(React.useMemo(() => (brickWallsOn && mappedIndex ? [mappedIndex] : []), [brickWallsOn, mappedIndex]));
+  const mappedIndexSpot = mappedIndex ? mappedIndexLive.get(mappedIndex.toUpperCase().replace(/^\^/, ""))?.price ?? mappedIndexLive.get(mappedIndex.toUpperCase())?.price ?? null : null;
+  const mappedIndexPositioning = useTastyEquityPositioning(mappedIndex ?? "", brickWallsOn && !!mappedIndex, mappedIndexSpot && mappedIndexSpot > 0 ? mappedIndexSpot : null);
+  const indexReceipt = React.useMemo<{ root: string; receipt: CboeOptionsReceipt | null } | null>(
+    () => (brickWallsOn && mappedRoot && mappedIndex ? { root: mappedRoot, receipt: mappedIndexPositioning?.receipt ?? null } : null),
+    [brickWallsOn, mappedRoot, mappedIndex, mappedIndexPositioning],
+  );
   const indexMappingVM = React.useMemo<IndexFuturesMappingVM | null>(() => {
     if (!brickWallsOn || !mappedRoot || !indexReceipt || indexReceipt.root !== mappedRoot) return null;
     const ev = selectOptionsBarrierEvidence(indexReceipt.receipt, null, Date.now(), "ALL");

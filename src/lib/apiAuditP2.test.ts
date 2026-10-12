@@ -89,11 +89,11 @@ describe("P2-9 the signed-in data routes that spend the operator's keys", () => 
 
   it("each route asks the ceiling straight after the session check (symbol search, which also answers guests, asks it first)", () => {
     const lanes: [string, string][] = [
-      ["market-data/alpaca/options", "data"], ["market-data/cboe/options", "data"], ["market-data/deribit/options", "data"], ["fmp", "data"],
+      ["market-data/alpaca/options", "data"], ["market-data/deribit/options", "data"], ["fmp", "data"],
       ["fundamentals/sec", "data"], ["discovery", "data"], ["youtube-live", "data"], ["youtube-recent", "data"], ["heatmap", "data"],
       ["finnhub", "market"], ["alpaca", "market"], ["market", "market"],
     ];
-    expect(lanes.length).toBeGreaterThan(11);
+    expect(lanes.length).toBeGreaterThan(10);
     for (const [r, lane] of lanes) {
       const src = read(`src/app/api/${r}/route.ts`);
       expect(src.length, r).toBeGreaterThan(300);

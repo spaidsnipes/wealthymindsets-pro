@@ -107,7 +107,7 @@ describe("FVG + order flow — signed tape only", () => {
   });
 });
 
-describe("the wall loader — the existing Cboe route, the one owner, read-only", () => {
+describe("the wall loader — no delayed route (Cboe removed 2026-10-12)", () => {
   const bars = series([...FLAT, ...BULL]);
   const nowMs = bars[bars.length - 1].asOf + MIN;
 
@@ -118,17 +118,11 @@ describe("the wall loader — the existing Cboe route, the one owner, read-only"
     expect(f).not.toHaveBeenCalled();
   });
 
-  it("a listed symbol asks the Cboe delayed route once (GET) and hands the chain to selectDerivativesPressure", async () => {
-    const f = vi.fn(async () => new Response(JSON.stringify({ source: "CBOE_DELAYED", underlying: "AAPL", spot: 104, iv30: 30, chainAsOf: null, underlyingAsOf: null, rows: [], dropped: 0 }), { status: 200 }));
+  it("a listed symbol no longer asks the Cboe delayed route — it names where live walls are read (2026-10-12)", async () => {
+    const f = vi.fn();
     const out = await loadFvgScanWalls({ symbol: "AAPL", bars, nowMs, fetchImpl: f });
-    expect(f).toHaveBeenCalledTimes(1);
-    expect((f.mock.calls[0] as unknown as [string])[0]).toBe("/api/market-data/cboe/options?symbol=AAPL");
-    expect("vm" in out && out.vm.drawn === false && out.vm.reason).toBe("TOO_FEW_CONTRACTS");
-  });
-
-  it("a refusing route is UNAVAILABLE in its own words", async () => {
-    const f = vi.fn(async () => new Response(JSON.stringify({ edge: "UPSTREAM_TIMEOUT" }), { status: 504 }));
-    expect(await loadFvgScanWalls({ symbol: "AAPL", bars, nowMs, fetchImpl: f })).toEqual({ unavailable: "the Cboe delayed options route answered upstream timeout for AAPL, so no option wall is read" });
+    expect(f).not.toHaveBeenCalled();
+    expect(out).toEqual({ unavailable: "live option walls for AAPL are read on its chart (tastytrade's chain) — the scanner no longer reads delayed Cboe quotes" });
   });
 });
 

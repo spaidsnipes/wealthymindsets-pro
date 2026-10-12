@@ -1,9 +1,9 @@
 /**
  * SCANNER — the options evidence for FVG + options wall (Garden 19 §39).
  *
- * For one symbol that met an FVG condition: ask the existing Cboe DELAYED
- * route for its chain and hand it to the ONE options owner
- * (selectDerivativesPressure). Futures, crypto, forex and anything Cboe does
+ * For one symbol that met an FVG condition. Until 2026-10-12 this asked the Cboe DELAYED
+ * route for its chain; that source was removed (Founder: "remove anything delayed and dead"),
+ * so the scanner now names where live walls are read instead. Futures, crypto, forex and anything Cboe does
  * not list answer UNAVAILABLE with the reason — the scanner never falls back
  * to another provider and never invents a wall. Wall tests are read from the
  * last WALL_TEST_WINDOW_DAYS of the scanner's own closed bars, as the chart does.
@@ -11,7 +11,7 @@
  * Read-only: one GET per symbol with a hit, never on every refresh.
  */
 import type { CanonicalBar } from "@/lib/marketData/canonicalBar";
-import { cboeSymbolFor, type CboeOptionsReceipt } from "@/lib/marketData/cboeDelayedOptions";
+import { cboeSymbolFor } from "@/lib/marketData/cboeDelayedOptions";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 import { selectDerivativesPressure, WALL_TEST_WINDOW_DAYS } from "@/lib/marketData/viewModels/selectDerivativesPressure";
 import { fvgScanWallChainRefusal, type FvgScanWallEvidence } from "@/lib/scanner/fvgScanConditions";
@@ -28,20 +28,9 @@ export async function loadFvgScanWalls(input: {
   const { symbol, bars, nowMs } = input;
   const refusal = fvgScanWallChainRefusal(symbol, classifySymbol(symbol), cboeSymbolFor(symbol));
   if (refusal) return { unavailable: refusal };
-  let receipt: CboeOptionsReceipt | null = null;
-  try {
-    const r = await (input.fetchImpl ?? fetch)(`/api/market-data/cboe/options?symbol=${encodeURIComponent(symbol)}`, { cache: "no-store", signal: input.signal });
-    const j = (await r.json().catch(() => null)) as (CboeOptionsReceipt & { edge?: string }) | null;
-    if (!r.ok || !j || !Array.isArray(j.rows)) {
-      return { unavailable: `the Cboe delayed options route answered ${typeof j?.edge === "string" ? j.edge.toLowerCase().replace(/_/g, " ") : `HTTP ${r.status}`} for ${symbol}, so no option wall is read` };
-    }
-    receipt = j;
-  } catch {
-    if (input.signal?.aborted) return { unavailable: "the read was stopped" };
-    return { unavailable: `the Cboe delayed options route could not be reached for ${symbol}, so no option wall is read` };
-  }
-  const since = nowMs - WALL_TEST_WINDOW_DAYS * 86_400_000;
-  // PressureBar.time is epoch SECONDS (LegacyOhlcvTuple); CanonicalBar.asOf is ms — the ÷1000 is stated here.
-  const pressureBars = bars.filter(b => b.asOf >= since).map(b => ({ time: Math.floor(b.asOf / 1000), open: b.open, high: b.high, low: b.low, close: b.close }));
-  return { vm: selectDerivativesPressure(receipt, pressureBars, nowMs) };
+  // LIVE ONLY (Founder 2026-10-12: "remove anything delayed and dead"): Cboe's DELAYED option
+  // quotes are no longer asked. Live walls come from tastytrade's chain on the chart, which streams
+  // each contract; the scanner does not open those streams for every hit, so it says so.
+  void bars; void nowMs; void input.fetchImpl; void selectDerivativesPressure; void WALL_TEST_WINDOW_DAYS;
+  return { unavailable: `live option walls for ${symbol} are read on its chart (tastytrade's chain) — the scanner no longer reads delayed Cboe quotes` };
 }

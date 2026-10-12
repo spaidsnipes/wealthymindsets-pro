@@ -30,7 +30,10 @@ describe("the pressure world on the glass", () => {
     // same window on every timeframe (TSLA 1D once counted a year of bars).
     expect(CD).toContain("const since = Date.now() / 1000 - WALL_TEST_WINDOW_DAYS * 86_400;");
     expect(CD).toMatch(/selectDerivativesPressure\(derivativesReceipt\.receipt, chartBars\.filter\(b => Number\(b\.time\) >= since\), Date\.now\(\)\)/);
-    expect(CD).toContain("/api/market-data/cboe/options?symbol=");
+    // LIVE ONLY since 2026-10-12: stocks / indices read tastytrade's chain (useTastyEquityPositioning);
+    // Cboe's delayed route is no longer asked by the room.
+    expect(CD).toContain("useTastyEquityPositioning(symbol, equityPressureOn,");
+    expect(CD).not.toContain("/api/market-data/cboe/options?symbol=");
   });
   it("FIELD: every price level tinted by its pressure, with climate texture (strata / wind)", () => {
     expect(block).toContain("const geo = dp.geography;");

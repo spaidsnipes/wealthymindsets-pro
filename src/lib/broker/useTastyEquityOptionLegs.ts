@@ -11,7 +11,8 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { readEquityOptionChain, type FuturesOptionChain } from "@/lib/broker/tastytradeFuturesChain";
-import { pickPositioningLegs, type Leg } from "@/lib/broker/useTastyFuturesPositioning";
+import { pickPositioningLegs, positioningFromLegs, type FuturesPositioning, type Leg } from "@/lib/broker/useTastyFuturesPositioning";
+import { useTastyQuotes } from "@/lib/broker/tastyQuoteStream";
 import { isOwnerRefusal } from "@/lib/broker/ownerRefusal";
 import { owned, readOwned, UNOWNED, type Owned } from "@/lib/marketData/symbolOwned";
 
@@ -39,4 +40,24 @@ export function useTastyEquityOptionLegs(symbol: string, enabled: boolean, price
   }, [sym]);
   useEffect(() => { if (chain && price && price > 0 && anchor == null) setOwnedAnchor(owned(key, price)); }, [chain, price, anchor, key]);
   return useMemo(() => (chain && anchor ? pickPositioningLegs(chain, anchor) : null), [chain, anchor]);
+}
+
+/**
+ * LIVE DERIVATIVES PRESSURE FOR STOCKS, ETFs AND CASH INDICES (Founder 2026-10-12: "remove
+ * anything delayed and dead"). These markets used to read Cboe's DELAYED option quotes. They now
+ * stream their own near-money contracts from tastytrade — the same legs Options Flow hears — and
+ * read each contract's open interest (Summary), gamma and IV (Greeks) from the one shared socket,
+ * through the same receipt builder the futures lane uses (positioningFromLegs). No broker chain →
+ * no receipt, said as LOADING / a named edge; never a delayed one.
+ */
+export function useTastyEquityPositioning(symbol: string, enabled: boolean, price: number | null): FuturesPositioning | null {
+  const legs = useTastyEquityOptionLegs(symbol, enabled, price);
+  const streamers = useMemo(() => (legs ?? []).map(l => l.streamer), [legs]);
+  const snap = useTastyQuotes(streamers);
+  return useMemo(() => {
+    if (!enabled) return null;
+    if (!legs) return { receipt: null, edge: "LOADING" };
+    const p = positioningFromLegs(legs, snap.quotes, symbol, price);
+    return p.receipt ? { ...p, receipt: { ...p.receipt, underlying: symbol.toUpperCase().replace(/^\^/, "") } } : p;
+  }, [enabled, legs, snap, symbol, price]);
 }

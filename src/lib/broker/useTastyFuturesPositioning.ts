@@ -93,11 +93,26 @@ export function useTastyFuturesPositioning(symbol: string, enabled: boolean, pri
     if (!product) return null;
     if (edge) return { receipt: null, edge };
     if (!chain || !anchor) return { receipt: null, edge: "LOADING" };
+    return positioningFromLegs(legs, snap.quotes, symbol, price);
+  }, [product, edge, chain, anchor, legs, snap, symbol, price]);
+}
+
+/**
+ * The Derivatives Pressure receipt from streamed contracts — open interest (Summary), gamma
+ * and IV (Greeks) as each contract's live state carries them. Shared by the futures-option
+ * hook and the equity / index hook (useTastyEquityPositioning). PURE.
+ */
+export function positioningFromLegs(
+  legs: readonly Leg[],
+  quotes: ReadonlyMap<string, { openInterest: number | null; gamma: number | null; iv: number | null; dayVolume: number | null }>,
+  symbol: string,
+  price: number | null,
+): FuturesPositioning {
     if (legs.length === 0) return { receipt: null, edge: "NO_CONTRACTS_NEAR_PRICE" };
     const rows: CboeOptionRow[] = [];
     let dropped = 0;
     for (const l of legs) {
-      const q = snap.quotes.get(l.streamer);
+      const q = quotes.get(l.streamer);
       if (!q || q.openInterest == null || !(q.openInterest >= 0)) { dropped++; continue; }
       rows.push({ contract: l.contract, type: l.type, expiration: l.expiration, strike: l.strike, openInterest: q.openInterest, gamma: q.gamma, iv: q.iv, volume: q.dayVolume });
     }
@@ -125,5 +140,4 @@ export function useTastyFuturesPositioning(symbol: string, enabled: boolean, pri
         scope: { kind: "NEAR_MONEY_SUBSET", reachPct: STRIKE_REACH * 100 },
       },
     };
-  }, [product, edge, chain, anchor, legs, snap, symbol, price]);
 }

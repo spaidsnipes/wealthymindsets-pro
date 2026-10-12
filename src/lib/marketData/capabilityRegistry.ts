@@ -256,7 +256,7 @@ export const MARKET_DATA_CAPABILITIES: readonly MarketDataCapability[] = [
     providerPath: "cboe-delayed-options",
     assetClass: "options",
     eventType: "quote",
-    availability: "PARTIAL",
+    availability: "UNAVAILABLE",
     collectionScope: "REQUEST_SCOPED",
     fidelityClass: "OBSERVED",
     timestampFields: ["PROVIDER", "RECEIVED", "PROCESSED"],
@@ -266,7 +266,7 @@ export const MARKET_DATA_CAPABILITIES: readonly MarketDataCapability[] = [
     fallbackSemantics: "EXPLICIT",
     rights: PUBLIC_DISPLAY_ONLY_RIGHTS,
     attributionRequired: true,
-    evidence: "src/app/api/market-data/cboe/options/route.ts + marketData/cboeDelayedOptions.ts; consumed by ChartsDashboard.tsx (Derivatives Pressure)",
+    evidence: "REMOVED 2026-10-12 (Founder: remove anything delayed and dead) — the route is deleted; stocks / ETFs / indices read tastytrade's live chain (useTastyEquityPositioning). cboeDelayedOptions.ts keeps only the shared receipt types and the symbol map.",
   }),
   capability({
     // Garden 16 (2026-09-27): BTC / ETH positioning for Derivatives Pressure —
