@@ -40,7 +40,7 @@ const SOURCE = readFileSync(CHART, "utf8");
 
 /** The heat block, sliced out so the assertions cannot drift onto other layers. */
 function heatBlock(): string {
-  const start = SOURCE.indexOf("const heat = selectHeatLens(");
+  const start = SOURCE.indexOf("const heatFresh = selectHeatLens(");
   expect(start, "MainChart no longer compiles a heat lens at all").toBeGreaterThan(-1);
   const end = SOURCE.indexOf("delete ds.heatLensCells;", start);
   expect(end, "the heat block lost its receipt teardown").toBeGreaterThan(start);

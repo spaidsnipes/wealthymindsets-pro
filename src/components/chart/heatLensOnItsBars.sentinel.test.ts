@@ -20,7 +20,7 @@ const strip = (s: string) =>
 const CHART = strip(readFileSync(path.join(process.cwd(), "src/components/chart/MainChart.tsx"), "utf8"));
 
 describe("heat lens on its bars", () => {
-  const start = CHART.indexOf("const heat = selectHeatLens(sampledWeather);");
+  const start = CHART.indexOf("const heatFresh = selectHeatLens(sampledWeather);");
   const block = CHART.slice(start, CHART.indexOf("ds.liquidityWeatherLensState = weatherLensWhy;", start));
 
   it("finds the heat lens block", () => {

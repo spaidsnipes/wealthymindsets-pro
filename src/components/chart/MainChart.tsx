@@ -353,6 +353,8 @@ const PANE_DOM_CHIP_SELECTOR = 'button[aria-label="Data window"], .wm-chart-mark
 const DP_FIELD_FLOOR_ALPHA = 0.1;
 /** A Weather cell sprite larger than this (device px²) is drawn straight onto the heat layer, not cached. */
 const HEAT_SPRITE_MAX_PX = 4_000_000;
+/** How long one drawable weather reading is held before the heat lens re-inks (G19 Mansion perf pass). */
+const HEAT_REINK_MS = 750;
 /** Brick Walls masonry sprites kept at most (a camera holds a handful of walls). */
 const BRICK_SPRITE_CACHE_MAX = 48;
 /**
@@ -2526,6 +2528,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
    *  its sprite; only the changed cell is re-blurred. */
   /** A cell sprite is composited whole — its pixels already carry the regulated alpha. */
   const HEAT_SPRITE_WHOLE = 1;
+  /** The weather reading the heat lens is painting, held for HEAT_REINK_MS (G19 Mansion perf pass). */
+  const heatHoldRef = useRef<{ vm: ReturnType<typeof selectHeatLens>; at: number; scope: string } | null>(null);
   const heatCellSpritesRef = useRef<Map<string, { canvas: HTMLCanvasElement; x: number; y: number; contours: number }>>(new Map());
   /** Brick Walls' masonry, one sprite per wall shape (see MASONRY SPRITE). */
   const brickSpritesRef = useRef<Map<string, { canvas: HTMLCanvasElement; x: number; y: number; holes: number; chipped: number }>>(new Map());
@@ -24939,7 +24943,23 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
            beside it, and it is the mechanical form of S-501's "ZONES SHALL
            NOT BURY CANDLES." Hard-coding an alpha here would put the regulator
            somewhere it could be quietly raised. */
-        const heat = selectHeatLens(sampledWeather);
+        /* WEATHER RE-INKS AT A BREATH, NOT AT EVERY PRINT (G19 Mansion, serving 7ac1169,
+           BTC-USD 15s Weather alone, 2026-10-11 20:31 CDT: `heatLensCellSprites=REUSED:0|DRAWN:12`
+           on almost every sample, 17–24 ms mean vs a 10.5 ms clean baseline). The weather's
+           segments are equal-count slices of a rolling print window, so every print moves
+           every slice boundary: each cell is a genuinely new reading and ~70 blurs ran on
+           every frame. A drawable reading is now held for HEAT_REINK_MS and re-placed at its
+           own prices and times every frame (it still rides the candles through scroll and
+           autoscale); a refusal, an OFF, a symbol or timeframe change replaces it at once.
+           The receipt says how old the painted reading is (ds.heatLensReadingAgeMs). */
+        const heatFresh = selectHeatLens(sampledWeather);
+        const heatHeld = heatHoldRef.current;
+        const heatNow = performance.now();
+        const heatScope = `${symbol}|${timeframe}`;
+        const heat = heatFresh.drawable && heatHeld && heatHeld.vm.drawable && heatHeld.scope === heatScope && heatNow - heatHeld.at < HEAT_REINK_MS
+          ? heatHeld.vm
+          : (heatHoldRef.current = { vm: heatFresh, at: heatNow, scope: heatScope }).vm;
+        ds.heatLensReadingAgeMs = heat === heatFresh ? "0" : String(Math.round(heatNow - (heatHoldRef.current?.at ?? heatNow)));
         /* ══ F08B · WEATHER IS A LENS — WHERE IT SITS ═════════════════════════
            The Founder's plate (and FL06 ⑤ "Liquidity Weather (Lens)") draws
            the weather as a brass-ringed lens over the price/time region the
