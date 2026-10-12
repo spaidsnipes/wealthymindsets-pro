@@ -57,3 +57,17 @@ describe("fetchTastyTimeAndSales single-flight", () => {
     expect((await owner)?.events).toHaveLength(2);
   });
 });
+
+describe("a finished read stays joinable briefly", () => {
+  it("a covered caller shortly AFTER the read finished reuses it — no second socket", async () => {
+    vi.stubGlobal("WebSocket", FakeSocket);
+    const { fetchTastyTimeAndSales } = await import("./tastyHistory");
+    const first = fetchTastyTimeAndSales("/NQZ26:XCME", 0);
+    await new Promise(r => setTimeout(r, 0));
+    sockets[0].deliver();
+    await first;
+    const later = await fetchTastyTimeAndSales("/NQZ26:XCME", 3000);
+    expect(sockets).toHaveLength(1);
+    expect(later?.events.map(e => e.values.time)).toEqual([5000]);
+  });
+});

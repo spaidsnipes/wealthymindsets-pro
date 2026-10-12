@@ -40,6 +40,12 @@ export interface TastyPrintHistory {
  * each caller stops LISTENING on its own — so one unmounting chart cannot cancel another's history.
  */
 const inflight = new Map<string, { readonly fromTime: number; readonly promise: Promise<TastyPrintHistory | null> }>();
+/**
+ * A FINISHED read is kept this long (measured on serving 8b104b6: the hook's seed finished in ~1 s and the
+ * chart's backfill asked ~1 s later, so there was nothing in flight to join and it opened its own socket).
+ * Prints after the read reach both callers through the live subscription that is already open.
+ */
+export const TASTY_HISTORY_REUSE_MS = 20_000;
 
 export function fetchTastyTimeAndSales(
   streamer: string | readonly string[],
@@ -55,7 +61,11 @@ export function fetchTastyTimeAndSales(
   } else {
     shared = openTimeAndSales(symbols, fromTime, { timeoutMs: opts.timeoutMs, maxEvents: opts.maxEvents });
     inflight.set(key, { fromTime, promise: shared });
-    void shared.finally(() => { if (inflight.get(key)?.promise === shared) inflight.delete(key); });
+    // A null (failed) read is let go at once; a real one stays joinable for TASTY_HISTORY_REUSE_MS.
+    void shared.then(h => {
+      const drop = () => { if (inflight.get(key)?.promise === shared) inflight.delete(key); };
+      if (!h) drop(); else setTimeout(drop, TASTY_HISTORY_REUSE_MS);
+    }, () => { if (inflight.get(key)?.promise === shared) inflight.delete(key); });
   }
   const signal = opts.signal;
   if (!signal) return shared;
