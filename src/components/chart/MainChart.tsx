@@ -1,5 +1,6 @@
 "use client";
 
+import { paintLap, paintLapBegin, paintLapReceipt } from "@/lib/chart/paintLaps";
 import { arrivalRipple, bigTradeTier, percentileFromSorted, sortedSessionSizes } from "@/lib/chart/bigTradeTier";
 import { symbolDoorHref } from "@/contexts/SymbolContext";
 import { servedTimeframeFor } from "@/lib/marketData/chartBarRoute";
@@ -7662,6 +7663,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     };
 
     const draw = () => {
+      paintLapBegin();
       // Size to the CHART CONTAINER (not the scroll-box parent). When many panes
       // stack the container grows taller than the visible viewport and scrolls;
       // the overlay must match the chart's full height so priceToCoordinate
@@ -7821,6 +7823,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
       } catch { /* a marker read never stops the frame */ }
 
+      paintLap(7824);
       /* ══ H-501 · SEMANTIC DENSITY — which geometry may speak at this depth ══
          Computed ONCE per frame from the same visible-bar count the zoom
          word uses, before the first layer paints. FAR lets macro speak,
@@ -8102,6 +8105,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       if (visibleBars.length === 0) visibleBars = liveBars.slice(-120);
       if (visibleBars.length === 0) return; // truly no data yet
 
+      paintLap(8105);
       /* ═══════════════════════════════════════════════════════
          PLOT-AREA CLIP — everything below (footprint cells, VP boxes,
          Big-Trades bubbles) is confined to pane 0's price area so it
@@ -8410,6 +8414,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       finally { ctx.restore(); }
 
 
+      paintLap(8413);
       /* ══ ATTENTION GOVERNOR — one owner decides how loud each layer is ══
          `selectAttentionGovernor` composes the frame's depth, the regime
          light, the trader's lane opacity and a standing fusion's parent fade
@@ -8537,6 +8542,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           delete canvas.dataset.activationSpotlight;
         }
       } catch (err) { layerFault("ACTIVATION_SPOTLIGHT", err); }
+      paintLap(8540);
       /* ══ GARDEN 19 · FVG / IMBALANCE — TERRITORY, NOT A LABEL ═══════════
          (FVG lane D, Founder order 2026-10-07 §8–§10, §19, §43–§51, §58.)
          The ONE history (fvgEngine FVG_3C v1) through the ONE camera door
@@ -8889,6 +8895,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         ctx.restore();
       };
 
+      paintLap(8892);
       /* ── H-501 · FAR IS A DIFFERENT PICTURE (canon plate
          WM_A_H501_SEMANTIC_ZOOM, left panel: DIM CANDLES · REGIME ENVELOPE ·
          MAJOR STRUCTURE ONLY). Painted first so every later reading sits on
@@ -8975,6 +8982,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
       } catch (err) { layerFault("FAR_PICTURE", err); /* camera mid-transition */ }
 
+      paintLap(8978);
       /* ═══════════════════════════════════════════════════════
          FOOTPRINT MODES — ON EACH CANDLE, AS THE CANON DRAWS THEM.
          The geometry of every mode is written down in
@@ -9092,6 +9100,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         ctx.strokeRect(cx - halfW + 0.5, bodyY + 0.5, colW - 1, bodyH - 1);
       };
 
+      paintLap(9095);
       /* ══════════════════════════════════════════════════════
          MODE 1: BID × ASK — canon M46 (footprint absorption).
          • One cell per price row that TRADED, 1px gutter: a grid, not a
@@ -9200,6 +9209,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         canvas.dataset.fpDeltaText = String(deltaText);
       } } catch (err) { layerFault("FP_BID_ASK", err); }
 
+      paintLap(9203);
       /* ══════════════════════════════════════════════════════
          MODE 2: WM DELTA BUBBLES — the Founder-preserved Nectar trail.
          Net aggressive delta per price zone, one glassy bubble at the zone's
@@ -9456,6 +9466,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         deltaBubbleSpawnRef.current = new Set();
       } } catch (err) { layerFault("FP_DELTA", err); }
 
+      paintLap(9459);
       /* ══════════════════════════════════════════════════════
          MODE 3: VOLUME PROFILE — a per-candle horizontal histogram.
          Each traded row is a bar growing right from the column's left
@@ -9528,6 +9539,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         canvas.dataset.fpVpRowInk = `SIDE_PAIR+EDGE:${fpVpSidePair}`;
       } } catch (err) { layerFault("FP_VOLUME_PROFILE", err); }
 
+      paintLap(9531);
       /* ══════════════════════════════════════════════════════
          MODE 4: IMBALANCE — tint + edge marks.
          A row leans when its dominant side out-trades the other by the
@@ -9624,6 +9636,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         canvas.dataset.imbalanceRunWords = String(runWords);
       } } catch (err) { layerFault("FP_IMBALANCE", err); }
 
+      paintLap(9627);
       /* ══════════════════════════════════════════════════════
          MODE 5: AGG / PASSIVE PROXY — the Nectar trail.
          One ring per price zone (the delta-zone owner's zones, each at its
@@ -9707,6 +9720,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         canvas.dataset.aggPassiveIntoExtreme = String(apInto);
       } } catch (err) { layerFault("FP_AGG_PASSIVE", err); }
 
+      paintLap(9710);
       /* ══════════════════════════════════════════════════════
          SHARED ORDER-FLOW LEGEND — REMOVED FROM THE CHART.
          Per user's explicit request the four-role Aggressive/Passive
@@ -9717,6 +9731,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
          "Agg/Passive 4-way legend" block). Nothing is stamped here.
       ══════════════════════════════════════════════════════ */
 
+      paintLap(9720);
       /* ══════════════════════════════════════════════════════
          MODE 6: BIG TRADES — canon F07A · G04 · F06/H-701 · F07B.
          Individual large executions at their EXACT time and price, as
@@ -10445,6 +10460,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         } else delete dsFp.footprintCells;
       } catch (err) { layerFault("FOOTPRINT_RECEIPT", err); }
 
+      paintLap(10448);
       /* ── CANON F13 · MICRO: PER-BAR DELTA ON THE SAME CAMERA ────────────
          At NEAR only (the zoom word's own count), each bar that holds CAPTURED
          real tape prints its delta (buyer-initiated − seller-initiated) just
@@ -10565,6 +10581,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         canvas.dataset.nearBarDelta = att.permission.paints("microDelta") ? String(printed) : `NOT_NEAR:${depthD}`;
       } catch (err) { layerFault("MICRO_DELTA", err); /* camera mid-transition */ }
 
+      paintLap(10568);
       /* ── H-701 · FORCE → RESPONSE ON THE SELECTED PRINT (canon plate
          WM_A_H701_FORCE_RESPONSE). The selected object is the loudest thing
          on the glass: an EVENT line at the print, a FORCE arrow into it from
@@ -10742,6 +10759,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
       } catch (err) { layerFault("FORCE_RESPONSE", err); /* camera mid-transition */ }
 
+      paintLap(10745);
       /* ── H-501 · NEAR SPEAKS IN GEOMETRY (canon plates H-501 NEAR "tape
          paths, candle components, local anchors"; H-701 "one candle — one
          event": the big-trade cluster ON THE WICK as dots sized by size, the
@@ -11088,6 +11106,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
       } catch (err) { layerFault("NEAR_GEOMETRY", err); /* camera mid-transition */ }
 
+      paintLap(11091);
       /* ── FIDELITY · DATA GAPS ON THE GLASS (canon "Fidelity Five, Not A
          Rainbow"): where no bar arrived inside a session, the hole is bridged
          by a dashed line from the last close to the next open and carries the
@@ -11223,6 +11242,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         canvas.dataset.dataGapsSession = dg.sessionSource ?? "NONE";
       } catch (err) { layerFault("DATA_GAPS", err); /* camera mid-transition */ }
 
+      paintLap(11226);
       /* ══ SESSION BANDS · ASIA / LONDON / NEW YORK (FX lane, 2026-10-06) ══
          Drive canon: sessions are first-class context. Three hairline lanes
          on the floor of the price pane, just above the time axis — a clock
@@ -11329,6 +11349,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
       } catch (err) { layerFault("SESSION_BANDS", err); }
 
+      paintLap(11332);
       /* ══ RELATIVE VOLUME TONE (census C-03, revised §3a) ═════════════════
          Painted BEFORE the effort → response column so the column sits on it.
          A brass inlay inside each finished volume bar whose volume beats
@@ -11414,6 +11435,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           canvas.dataset.rvolWeightCost = `${ms.toFixed(2)}ms|mean${(cr.sum / cr.n).toFixed(2)}|longest${cr.longest.toFixed(2)}|${cr.longest <= RVOL_BUDGET_MS ? "MET" : "OVER"}`;
         }
       } catch (err) { layerFault("RVOL_TONE", err); }
+      paintLap(11417);
       /* ══ F15 · BREATH RIBBON (panel-erasure, Garden 19, 2026-10-07 night) ══
          The certificates' A7 row: the per-bar ATR existed only as the WAIT
          rail's card. Here every CLOSED bar in view carries its ATR as a
@@ -11484,6 +11506,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       } catch (err) { layerFault("BREATH_RIBBON", err); }
 
 
+      paintLap(11487);
       /* ══ EFFORT → RESPONSE ACROSS THE CANDLES (Garden 19 §7) ══════════════
          The volume bar IS the effort (one owner — nothing new drawn for it).
          Inside it, a narrow ivory column = that bar's displacement in ATR
@@ -11638,6 +11661,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
       } catch (err) { layerFault("EFFORT_RESPONSE", err); }
 
+      paintLap(11641);
       /* ══ ORDER FLOW ACROSS CANDLES · BAR DELTA KEEL (Garden 19 §6, C-02) ══
          Each finished bar with SIGNED evidence (captured tape via
          barTapeDelta, else the provider's bid/ask bar sides) carries a 2px
@@ -11922,6 +11946,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
       } catch (err) { layerFault("DELTA_KEEL", err); }
 
+      paintLap(11925);
       /* ══ C-06 CVD ⇄ PRICE NOTCH (G19.CVD_REL · PROPOSED, default OFF) ══════
          The cumulative half of the CVD relationship on the candle (the per-bar
          half is the keel's hollow). Reads the rows the keel read THIS frame —
@@ -11967,6 +11992,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
       } catch (err) { layerFault("CVD_NOTCH", err); }
 
+      paintLap(11970);
       /* ══ #7 · REGIME STATE LINE (F15A "Regime decides which geometry may
          speak") ════════════════════════════════════════════════════════════
          A thin strip just above the volume band: four faint wordless lanes —
@@ -12020,6 +12046,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
       } catch (err) { layerFault("REGIME_STATE_LINE", err); }
 
+      paintLap(12023);
       /* ══ §8 · THE LIVING PROFILE EVOLVES — DEVELOPING VALUE TRAIL ═════════
          Quiet steps behind price: POC (brass) and VAH / VAL (bone hairlines)
          where the Living Profile stood at each bar's close
@@ -12083,6 +12110,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
       } catch (err) { layerFault("LIVING_DEVELOPMENT", err); }
 
+      paintLap(12086);
       /* ══ #14 · PROFILE × CANDLE (Garden 19 §8) ════════════════════════════
          Selection-only. When a Living Profile row is selected (the slice the
          Inspect ticket reads), the bars that built it light up: a thin brass
@@ -12135,6 +12163,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
       } catch (err) { layerFault("PROFILE_CONTRIBUTION", err); }
 
+      paintLap(12138);
       /* ══ C-05 · EFFORT MARK ON EVERY QUALIFYING BAR ══════════════════════
          Class B: the room's own verdict (one reading — the same selector the
          Effort panel and the subject mark read) for each finished bar that
@@ -12175,6 +12204,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
       } catch (err) { layerFault("EFFORT_MARKS_FIELD", err); }
 
+      paintLap(12178);
       /* ══════════════════════════════════════════════════════
          WM FIXED VP & SESSION VP — right-anchored inside chart
       ══════════════════════════════════════════════════════ */
@@ -13054,6 +13084,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // Non-big-trades modes draw VP here (top of stack is fine — no bubbles).
       runWMVP();
 
+      paintLap(13057);
       /* ══════════════════════════════════════════════════════
          WM TAPE HORIZON — vertical marker + label at the timestamp
          WM began observing per-trade tape for the current symbol.
@@ -13149,6 +13180,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         } catch { /* chart may be mid-transition; safe to skip this frame */ }
       } } catch (err) { layerFault("TAPE_HORIZON", err); }
 
+      paintLap(13152);
       /* ══ THE CANDLE PARTICIPATES — FORMING-CANDLE ANATOMY ═════════════════
          Garden 16 five-hour order: "Price descends: CANDLE DESCENDS … a new
          extreme: WICK/EXTREME GEOMETRY UPDATES … accelerates: TEMPO BECOMES
@@ -13257,6 +13289,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
       } catch (err) { layerFault("FORMING_CANDLE", err); }
 
+      paintLap(13260);
       /* ══ FLOW CURRENT — "Give Flow direction" (five-hour order) ══════════════
          Order flow LIVES ON PRICE (F06A). Every bar that holds real SIDED prints
          (tickAccRef: per bar, per price, aggressor bid/ask) carries a current:
@@ -13417,6 +13450,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
       } catch (err) { layerFault("FLOW_CURRENT", err); }
 
+      paintLap(13420);
       /* ══ F05B · THE CANDLE'S ANATOMY ON PRICE (Garden 16 master order §18,
          §10 card-erasure test) ═══════════════════════════════════════════════
          Canon WM_NewMockup_73 F05B "Candle anatomy Inspect, camera alive": the
@@ -13540,6 +13574,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         if (!wrote) canvas.dataset.clarityOnPrice = "NONE";
       } catch (err) { layerFault("F05B_ANATOMY", err); }
 
+      paintLap(13543);
       /* ══════════════════════════════════════════════════════
          CANDLE TIMER — countdown pinned to the LIVE PRICE LINE
          on the left edge, so it travels vertically with price.
@@ -13637,6 +13672,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
       } catch (err) { layerFault("HEADER_COUNTDOWN", err); }
 
+      paintLap(13640);
       /* ══════════════════════════════════════════════════════════════════════
          ABSORPTION ANATOMY — Founder Asset 06, drawn in price/time space.
 
@@ -16656,6 +16692,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
       } catch (err) { layerFault("SCAFFOLDING", err); }
 
+      paintLap(16659);
       /* ══ DUAL ANATOMY · THE FOUNDER BODY (G06 "Absorption vs Exhaustion
          Anatomy — the strong absorb, the weak exhaust") ══════════════════════
          Mode is an Appearance preference (wm_anatomyMode): OFF · MARKET ·
@@ -16808,6 +16845,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         } else delete canvas.dataset.dualAnatomySilence;
       } catch (err) { layerFault("DUAL_ANATOMY", err); }
 
+      paintLap(16811);
       /* ══════════════════════════════════════════════════════════════════════
          THE WM VALUE CANDLE — A CANDLE, ON THE BAR IT MEASURED (canon UI-02).
 
@@ -17137,6 +17175,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
       } catch (err) { layerFault("VALUE_CANDLE", err); /* chart may be mid-transition; safe to skip this frame */ }
 
+      paintLap(17140);
       /* ── H-701 · THE NEAR VALUE HATCH, after the Value Candle (UI-02).
          Queued by the NEAR block; painted here only on bars the Value Candle
          did NOT glaze this frame. Where footprint rows fill the bar it is a
@@ -17177,6 +17216,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
       } catch (err) { layerFault("NEAR_VALUE_HATCH", err); /* camera mid-transition */ }
 
+      paintLap(17180);
       /* ══════════════════════════════════════════════════════════════════════
          STACKED IMBALANCE — PUT BACK ON THE PRICE IT IS A CLAIM ABOUT.
 
@@ -17469,6 +17509,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
       } catch (err) { layerFault("STACKED_IMBALANCE", err); /* chart may be mid-transition; safe to skip this frame */ }
 
+      paintLap(17472);
       /* ══ STACKED IMBALANCE, BAR BY BAR (2026-10-04) ═══════════════════════
          Founder: "the stacked imbalances i cant see". Measured on serving
          BTC 5m with 54 bars of sided tape (77,935 prints): imbalanceStack =
@@ -17641,6 +17682,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
       } catch (err) { layerFault("STACKED_IMBALANCE_BARS", err); }
 
+      paintLap(17644);
       /* ══════════════════════════════════════════════════════════════════════
          DELTA DIVERGENCE — THE TWO PRICES IT COMPARED, AT THOSE PRICES.
 
@@ -17823,6 +17865,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
       } catch (err) { layerFault("DELTA_DIVERGENCE", err); /* chart may be mid-transition; safe to skip this frame */ }
 
+      paintLap(17826);
       /* ══════════════════════════════════════════════════════════════════════
          LIQUIDITY WEATHER — AND THE ADMISSION THAT MOST OF IT HAS NO PRICE.
 
@@ -26708,6 +26751,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
       } catch (err) { layerFault("WEATHER_PROFILES_MEMORY", err); /* chart may be mid-transition; safe to skip this frame */ }
 
+      paintLap(26711);
       /* ══ NO SILENT NOTHING · ORDER FLOW, ONE ROW (master order §VIII) ═════
          Serving ETH-USD 15m where-is-it sweep (2026-09-29): Imbalance Stack,
          Delta Divergence, Effort Mark, Delta Levels and Liquidity Lifecycle
@@ -26930,6 +26974,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         canvas.dataset.silenceFolded = String(silenceFolded);
       } else delete canvas.dataset.silenceFolded; } catch (err) { layerFault("SILENCE_FOLD", err); }
 
+      paintLap(26933);
       /* ══ F05B · THE INSPECTED CANDLE IS MARKED ON THE CANDLE ═══════════════
          The Inspect Ticket reads one bar; the glass says which. A dashed
          hairline above and below that candle (never across it) and its truth
@@ -26995,6 +27040,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
       } catch (err) { layerFault("INSPECTED_BAR", err); }
 
+      paintLap(26998);
       /* ══ H-101 · THE DEBT TAG LIVES ON THE EVENT ═══════════════════════════
          Sheet H-101 ("EVIDENCE DEBT — WAIT IS A FINISHED ORGANISM") hangs a
          brass WAIT tag on the event candle by a leader while the market stays
@@ -27140,6 +27186,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
       } catch (err) { layerFault("DEBT_TAG", err); }
 
+      paintLap(27143);
       /* ══ PRICE-LINE WORDS · PAPER AND BROKER ══════════════════════════════
          Found on the glass 2026-09-26 (Garden 16 §17): the native price-line
          title is right-aligned against the axis — under the profile body, the
@@ -27254,6 +27301,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
       } catch (err) { layerFault("H101_WAIT_PLAQUE", err); }
 
+      paintLap(27257);
       /* ══ §17 CROSS-CANDLE WISDOM ════════════════════════════════════════
          ONE quiet line at most, traced to an evidence object an ON layer
          produced this frame (Delta Keel failures, the Effort → Response
@@ -27330,6 +27378,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
       } catch (err) { layerFault("CROSS_CANDLE_WISDOM", err); }
 
+      paintLap(27333);
       /* ══ §16 NOTES MOVE INTELLIGENTLY · §14 AUTO COMPOSE ═════════════════
          Words the layers above could not seat beside their marks arrive here
          (displacedNotes) instead of vanishing. Neighbours collapse into ONE
@@ -27590,6 +27639,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       } catch (err) { layerFault("CVD_PANE", err); }
       if (layerFaults.length) canvas.dataset.layerFaults = `${layerFaults.length}:${layerFaults.slice(0, 4).join(" | ")}`;
       else delete canvas.dataset.layerFaults;
+      paintLap(27593);
+      if (canvasRef.current) canvasRef.current.dataset.paintSections = paintLapReceipt();
     };
 
     // Use a continuous loop so the canvas always stays in sync with chart scroll/zoom
