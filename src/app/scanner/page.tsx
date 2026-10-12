@@ -1361,7 +1361,7 @@ export default function ScannerPage() {
         <span>·</span>
         <span>{filtered.length}/{results.length} results</span>
         <span>·</span>
-        <span className="text-wm-gold">{liveCount > 0 ? `QUOTE STATE: ${liveCount} LIVE${liveSessionWords ? ` (${liveSessionWords})` : ""} · ${Math.max(0, filtered.length - liveCount)} NOT MOVING` : "QUOTE STATE: NONE LIVE NOW"}</span>
+        <span className="text-wm-gold">{liveCount > 0 ? `QUOTE STATE: ${liveCount} LIVE${liveSessionWords ? ` (${liveSessionWords})` : ""} · ${Math.max(0, filtered.length - liveCount)} LAST LIVE` : "QUOTE STATE: NONE LIVE NOW"}</span>
         <span>·</span>
         {/* The scan's own denominator. Silent when nothing was refused — a
             "0 not certified" chip on every clean round is noise, and noise is
