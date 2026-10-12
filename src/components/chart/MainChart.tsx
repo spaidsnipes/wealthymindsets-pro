@@ -17960,6 +17960,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // word lines stay in the corner; the stage receipts are published
         // (and withdrawn) by the lens.
 
+        paintLap(107963);
         /* ══ H-701 · EFFORT→RESPONSE BAR MARK ═══════════════════════════════
            F06's reading, put back on the candle it is about.
 
@@ -18042,6 +18043,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           }
         }
 
+        paintLap(108045);
         /* ══ H-702 · DELTA LEVELS ON GLASS ═══════════════════════════════════
            `selectDeltaLevelsGlass` has already refused (or not) and named
            reasons this file may not invent. The rules it enforces upstream:
@@ -18171,6 +18173,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           }
         }
 
+        paintLap(108174);
         /* ══ H-901 · REGIME LIGHTING — which geometry may speak ═════════════
            One breaker, read from the regime owner. Every profile fixture
            below is lit by its class's light through the attention governor
@@ -18478,6 +18481,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ctx.restore();
         }
 
+        paintLap(108481);
         /* ══ H-201 · MEMORY GHOST — the market has made this shape before ═══
            The earlier stretch of THESE bars whose % path best matches the
            newest window, re-based and laid faintly under the live bars it
@@ -18767,6 +18771,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           onMemoryGhostRef.current?.(null);
         }
 
+        paintLap(108770);
         /* ══ H-801 · EXPECTED ENVELOPE — the analogue fan from today's open ═══
            CANON F03 / H-801 (2026-09-25): "plan of current session candles
            inside a dashed expected-path envelope". A gold dashed percentile
@@ -19057,6 +19062,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           onExpectedEnvelopeRef.current?.(null);
         }
 
+        paintLap(109060);
         /* ══ GARDEN 15 §2–§7 · DERIVATIVES PRESSURE — the pressure world ══════════
            Static Founder form first (Garden 16 emergency order §7): the market's
            derivatives ENVIRONMENT painted under price from the room's ONE
@@ -20416,6 +20422,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ds.derivativesPressureFault = (err instanceof Error ? `${err.name}: ${err.message}` : String(err)).slice(0, 120);
         } finally { ctx.restore(); }
 
+        paintLap(110419);
         /* ══ WALLS & GAMMA (Founder 2026-10-10) ════════════════════════════════
            Call Wall / Put Wall (OI, selectOptionsBarrierEvidence) and the five
            gamma inventions from the room's ONE GEX compilation, composed into
@@ -20658,6 +20665,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ds.wallsGammaFault = (err instanceof Error ? `${err.name}: ${err.message}` : String(err)).slice(0, 120);
         } finally { ctx.restore(); }
 
+        paintLap(110661);
         /* ══ T-210 / F10 · MTF IS NOT FOUR CHARTS — ancestry on the one chart ══
            Canon plate WM_H_T210_MTF_NOT_FOUR_CHARTS: on the ONE execution
            chart, a translucent green 4H ANCESTRY BAND tagged "4H" at the right
@@ -20984,6 +20992,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           onMtfAncestryRef.current?.(null);
         }
 
+        paintLap(110987);
         /* ══ H-401 · CONTRADICTION NOT AVERAGED — both truths paint ══════════
            Each family's own lean at the current price, from its own owner.
            Nothing is weighted into one score.
@@ -21224,6 +21233,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           onContradictionRef.current?.(null);
         }
 
+        paintLap(111227);
         /* ══ PROFILE STACK PLAN — one owner for every right-edge lane ═══════
            Asked ONCE per frame: which species will draw (Living, Composite,
            Visible Range) after the fixed lanes this plan does not own (VP
@@ -21639,6 +21649,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           return r;
         };
 
+        paintLap(111642);
         /* ══ H-703 · LIVING PROFILE — THE HISTOGRAM ON THE CANVAS ══════════
            P-110's blueprint. The trader looks for a horizontal profile at the
            right side of the market canvas; every mockup that includes a
@@ -22373,6 +22384,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           }
         }
 
+        paintLap(112376);
         /* ══ P-110 #9 · COMPOSITE PROFILE — ONE MORE LANE IN THE STACK ═════
            Completed sessions only. Takes the lane after everything already in
            the right-edge stack (VP columns, Value Candle, Living), so no two
@@ -22564,6 +22576,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           }
         }
 
+        paintLap(112567);
         /* ══ P-110 #7 · VISIBLE RANGE PROFILE — THE BARS IN VIEW ══════════
            Its lane comes from the stack plan like every other. Drawn with an
            outline-only POC and hollow bars so it reads as "this camera", not
@@ -22714,6 +22727,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           }
         }
 
+        paintLap(112717);
         /* ══ H-601 #3 · PROFILE FUSION — the fused OBJECT ═══════════════════
            When the trader fused two lanes (Arrange the stack › Pick · Fuse),
            `fuseProfiles` builds a NEW profile from the two live sources:
@@ -22920,6 +22934,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           }
         }
 
+        paintLap(112923);
         /* ══ P-110 #10 · TPO — TIME AT PRICE, LEFT EDGE ═════════════════════
            The Living Profile owns the right edge and answers "where did SIZE
            trade". This column owns the left edge and answers "where did the
@@ -23136,6 +23151,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           }
         }
 
+        paintLap(113139);
         /* ══ P-110 #2 · STRUCTURE PROFILE — THE LEG, DRAWN FROM ITS SWING ═══
            A profile anchored to a market event. It begins at the x of the
            pivot bar the structure compiler confirmed, and grows RIGHT from
@@ -23465,6 +23481,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           }
         }
 
+        paintLap(113468);
         /* ══ P-110 #3 · PROFILE FUSION — WHERE THE SPECIES AGREE ═══════════
            PARENT A + PARENT B → DERIVED OBJECT, as geometry (Garden 12,
            Defect 1: "Fusion should not need the word FUSION"). It used to be
@@ -23602,6 +23619,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           }
         }
 
+        paintLap(113605);
         /* ══ P-110 #4 · PROFILE MEMORY — PRIOR SESSIONS' VALUE, FORWARD ════
            Each completed session's final POC/VAH/VAL starts at the bar its
            session ended on and runs to the right edge of the candles. Older
@@ -23833,6 +23851,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           }
         }
 
+        paintLap(113836);
         /* ══ LIVING PROFILE · DEVELOPING VALUE MIGRATION ═══════════════════
            The auction's movie on the candles: after every bar, where POC and
            value stood, drawn at the time it was true. Stepped, because value
@@ -24043,6 +24062,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         if (parentChipsWithheld.size > 0) ds.profileParentChipsWithheld = `${parentChipsWithheldCount}:${[...parentChipsWithheld].join("+")}`;
         else delete ds.profileParentChipsWithheld;
 
+        paintLap(114046);
         /* ══ F11 · MARKET OBJECT ZONES — the Passport mockup, on price ═══════
            Swing-origin ZONES from the structure owner, biography from the
            lifecycle owner. Unselected: a quiet outline, so HOME stays calm.
@@ -24322,6 +24342,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           }
         }
 
+        paintLap(114325);
         /* ══ H-704 · MARKET STRUCTURE — swing highs and lows on price ═══════
            P-110's #2 organism. Each pivot is a real price the compiler
            picked (selectMarketStructureGlass owns the marks and their letters).
@@ -24604,6 +24625,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           }
         }
 
+        paintLap(114607);
         /* ══ F13 · SEMANTIC ZOOM TAG ═════════════════════════════════════════
            FAR · MID · NEAR on the SAME camera. One word top-right, telling
            the trader which resolution the picture in front of them is at.
@@ -24723,6 +24745,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           else delete ds.activeDecisionId;
         }
 
+        paintLap(114726);
         /* ── P-601 HEAT LENS: THE SECOND EXCEPTION, AND WHY IT IS ONE ──────
            The note above is right that a COST HAS NO LEVEL, and this does not
            overturn it. It draws no band for the STAGE — "THINNING" is still a
@@ -24759,6 +24782,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ? heatHeld.vm
           : (heatHoldRef.current = { vm: heatFresh, at: heatNow, scope: heatScope }).vm;
         ds.heatLensReadingAgeMs = heat === heatFresh ? "0" : String(Math.round(heatNow - (heatHoldRef.current?.at ?? heatNow)));
+        paintLap(114762);
         /* ══ F08B · WEATHER IS A LENS — WHERE IT SITS ═════════════════════════
            The Founder's plate (and FL06 ⑤ "Liquidity Weather (Lens)") draws
            the weather as a brass-ringed lens over the price/time region the
@@ -25435,6 +25459,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           delete ds.heatLensCellSprites;
           delete ds.weatherStorm;
         }
+        paintLap(115438);
         /* ══ F08B · WEATHER IS A LENS — THE RING, ITS WORDS, ITS READOUT ══════
            Painted after the field it clips (above), in the plate's grammar:
              glass    a faint slate tint inside the ring, behind the candles —
@@ -25988,6 +26013,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           }
         }
 
+        paintLap(115991);
         /* ══ LIQUIDITY LIFECYCLE — F08A "liquidity lifecycle on the book" ════
            Each pool (a volume-at-price node, candle-estimated) is a glowing
            gold LADDER at its price rows, BOUNDED IN TIME by its lifecycle:
@@ -26503,6 +26529,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           delete ds.liquidityDepthTint;
         }
 
+        paintLap(116506);
         /* ══ H-1001 · RISK ON PRICE — hardware brackets on the price axis ════
            The trader's own Long / Short Position (entry · target · stop),
            bracketed at the axis: RISK entry→stop, REWARD entry→target, the
