@@ -30,6 +30,9 @@ afterEach(() => { vi.unstubAllGlobals(); hooks.values = []; hooks.index = 0; hoo
  */
 // Slots 0…4: matrix, readiness, moomoo ticks, longbridge ticks, webull ticks.
 const RECEIPT_COUNT = 5;
+/** The receipts still probed since 2026-10-12 (moomoo / Longbridge slots 2–3 are no longer asked). */
+const LIVE_RECEIPT_SLOTS = [0, 1, 4] as const;
+const liveReceipts = () => LIVE_RECEIPT_SLOTS.map((i) => hooks.values[i]);
 const FAILURES_INDEX = 5;
 const SUSPENDED_INDEX = 6;
 /**
@@ -76,7 +79,7 @@ describe("provider refresh lifecycle", () => {
     expect(fetchMock).toHaveBeenCalledTimes(PROBES_PER_BATCH * 2);
     pending.splice(0).forEach(resolve => resolve(response));
     await new Promise(resolve => setTimeout(resolve, 0));
-    expect(hooks.values.slice(0, RECEIPT_COUNT)).toEqual(Array(RECEIPT_COUNT).fill(body));
+    expect(liveReceipts()).toEqual(Array(LIVE_RECEIPT_SLOTS.length).fill(body));
     expect(hooks.values[WEBULL_BROKER_INDEX]).toEqual(body);
     documentStub.visibilityState = "hidden";
     visibilityChanged();
@@ -104,17 +107,17 @@ describe("provider refresh lifecycle", () => {
     // The strip ASKS the account lane — it does not merely accept one.
     expect((fetchMock.mock.calls as unknown[][]).map((call) => String(call[0]))).toContain("/api/broker/webull/status");
     await new Promise(resolve => setTimeout(resolve, 0));
-    expect(hooks.values.slice(0, RECEIPT_COUNT)).toEqual(Array(RECEIPT_COUNT).fill(body));
+    expect(liveReceipts()).toEqual(Array(LIVE_RECEIPT_SLOTS.length).fill(body));
     fail = true;
     await refresh();
     expect(hooks.values.slice(0, RECEIPT_COUNT)).toEqual(Array(RECEIPT_COUNT).fill(null));
     expect(hooks.values[WEBULL_BROKER_INDEX]).toBeNull();
     // "webull-broker" is its OWN key (2026-09-25): an unanswered account probe
     // may never be read as a market-data verdict, nor the other way round.
-    expect(hooks.values[FAILURES_INDEX]).toEqual(new Set(["market", "readiness", "moomoo", "longbridge", "webull", "webull-broker"]));
+    expect(hooks.values[FAILURES_INDEX]).toEqual(new Set(["market", "readiness", "webull", "webull-broker"]));
     fail = false;
     await refresh();
-    expect(hooks.values.slice(0, RECEIPT_COUNT)).toEqual(Array(RECEIPT_COUNT).fill(body));
+    expect(liveReceipts()).toEqual(Array(LIVE_RECEIPT_SLOTS.length).fill(body));
     expect(hooks.values[WEBULL_BROKER_INDEX]).toEqual(body);
     expect(hooks.values[FAILURES_INDEX]).toEqual(new Set());
     cleanup();
