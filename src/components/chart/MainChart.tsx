@@ -16960,7 +16960,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         let vcWords = "AT_REST";
         if (on && glass.drawn && glass.cog != null) {
           // Built only when the layer will paint (it used to be built every paint, layer on or off).
+          paintLap(16812); // sub-lap: value-candle bars + plan
           const vcPlan = selectValueCandleGlassPlan(valueCandleRef.current, vcBarsAllNow(), { priceDp: pxDp });
+          paintLap(16813); // sub-lap: value-candle glass loop
           const tsV = chart.timeScale();
           // The bars the value candles measured, by their own slot time. A
           // value candle is drawn only on a bar this chart actually holds —
@@ -17127,6 +17129,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.restore();
           }
 
+          paintLap(16814); // sub-lap: after the value-candle glass
           ds.valueCandleCog = String(glass.cog);
           if (vcPlaced > 0) {
             ds.valueCandleForm = vcPlan.form === "GLASS_PER_BAR" ? `GLASS_PER_BAR:${vcPlaced}` : vcPlan.form;
