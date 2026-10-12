@@ -335,6 +335,11 @@ function openTastyCandleRequest(candleSymbol: string, keepAlive: string, fromTim
 
 const getSnapshot = () => snapshot;
 
+/** The shared stream's state now (NOT_OWNER / NOT_CONNECTED name WHY a request answered nothing). */
+export function tastyStreamState(): StreamState {
+  return snapshot.stream;
+}
+
 /**
  * What the shared stream already holds for a symbol. dxFeed sends a Summary
  * (prior-day close, open interest) only on the FIRST subscription, so a

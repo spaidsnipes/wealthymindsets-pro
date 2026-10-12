@@ -113,6 +113,11 @@ describe("the refusal note reaches the trader on the chart itself", () => {
     expect(mainChart).toMatch(/tastytrade publishes no \$\{tf\} bars, and WM Pro uses no delayed bar source\./);
   });
 
+  it("a member without the tastytrade connection is told why there are no bars (2026-10-12)", () => {
+    expect(mainChart).toContain("live bars come from a connected tastytrade account, and this account has none — connect one in Brokers");
+    expect(mainChart).toContain('const st = tastyStreamState();');
+  });
+
   it("compiles through the one owner — never a second sentence for one pixel", () => {
     expect(mainChart).toMatch(/compileBarHistoryRefusal\(/);
   });

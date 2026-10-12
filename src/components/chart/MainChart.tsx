@@ -94,7 +94,7 @@ import clsx from "clsx";
 import { chartHeaderChangeFact, type HeaderChangeKind } from "@/lib/marketData/chartHeaderChangeFact";
 import { deriveBarOverBarChange, deriveLastBarClose } from "@/lib/marketData/deriveLastBarClose";
 import { chartHeaderPriceFact } from "@/lib/marketData/chartHeaderPriceFact";
-import { requestTastyCandles } from "@/lib/broker/tastyQuoteStream";
+import { requestTastyCandles, tastyStreamState } from "@/lib/broker/tastyQuoteStream";
 import { isQuoteSampleSeries, quoteSampleSentence } from "@/lib/marketData/quoteSampleSeries";
 import { MARKET_MONO, MARKET_NUMBER_MIN_PX, MARKET_SANS, crispText, footprintCellPx, marketFont } from "@/lib/chart/marketType";
 import { tastyCandleStreamerFor, tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
@@ -1073,7 +1073,15 @@ async function fetchTastyCandles(sym: string, tf: string, count: number, signal?
     const rows = await requestTastyCandles(candleSymbol, contract.streamer, fromTime);
     if (signal?.aborted) return null;
     const candles = rows ? tastyCandlesToBars(rows, count) : [];
-    if (!rows) { note(log, { vendor: "tastytrade", outcome: "REFUSED", edge: null }); return null; }
+    if (!rows) {
+      // Since 2026-10-12 tastytrade is the only bar source for stocks / futures / indices: a member whose
+      // session cannot open it must be told WHY, not "refused, without saying why".
+      const st = tastyStreamState();
+      note(log, { vendor: "tastytrade", outcome: "REFUSED", edge: st === "NOT_OWNER"
+        ? "live bars come from a connected tastytrade account, and this account has none — connect one in Brokers"
+        : st === "NOT_CONNECTED" ? "tastytrade is not connected on this deployment" : null });
+      return null;
+    }
     note(log, { vendor: "tastytrade", outcome: candles.length ? "SERVED" : "EMPTY" });
     // FIFTH INGRESS (2026-10-06): the futures door mints identities like
     // every other — a pivot on NQ1! can now be born as a MarketObject.
