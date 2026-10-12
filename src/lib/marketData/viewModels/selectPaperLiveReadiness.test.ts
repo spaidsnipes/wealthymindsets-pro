@@ -28,5 +28,7 @@ describe("selectPaperLiveReadiness", () => {
     expect(page).toContain("useTastyWatchQuotes(PAPER_SYMBOLS)");
     expect(page).toContain("selectPaperLiveReadiness(");
     expect(page).not.toContain("fetchYahooQuoteBody(");
+    // Crypto rows (BTC, ETH) take the venue's own live prints when tastytrade has none (fixed 2026-10-12: BTC read "—").
+    expect(page).toContain("useCoinbaseLivePrices(PAPER_SYMBOLS)");
   });
 });

@@ -9,6 +9,7 @@ import { RoomStatePlaque } from "@/components/ui/RoomStatePlaque";
 import { formatTickerPrice, tickerDecimals } from "@/components/layout/tickerFormat";
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useTastyWatchQuotes } from "@/lib/broker/useTastyWatchQuotes";
+import { useCoinbaseLivePrices } from "@/hooks/useWebSocket";
 import { acceptOrderSubmit } from "@/lib/orderSubmitGuard";
 import Link from "next/link";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
@@ -24,6 +25,7 @@ import {
   actionablePaperQuotePrice,
   initialPaperQuoteReadiness,
   selectPaperLiveReadiness,
+  PAPER_LIVE_QUOTE_MAX_AGE_MS,
   type PaperQuoteReadiness,
 } from "@/lib/marketData/viewModels/selectPaperQuoteReadiness";
 import {
@@ -625,8 +627,13 @@ function useLivePrices() {
   // LIVE ONLY (Founder 2026-10-12): the anchors are the live tastytrade prices the chart reads,
   // re-read every 2 s from the stream's latest value — never the delayed Yahoo quote.
   const live = useTastyWatchQuotes(PAPER_SYMBOLS);
+  // Crypto (BTC, ETH): the venue's own live prints, the same lane the watchlist reads — the
+  // tastytrade price stands first when it is fresh, then Coinbase's.
+  const liveCrypto = useCoinbaseLivePrices(PAPER_SYMBOLS);
   const liveRef = useRef(live);
   liveRef.current = live;
+  const cryptoRef = useRef(liveCrypto);
+  cryptoRef.current = liveCrypto;
   useEffect(() => {
     let alive = true;
     const refresh = () => {
@@ -636,7 +643,10 @@ function useLivePrices() {
       const nextReadiness = { ...readinessRef.current };
       const now = Date.now();
       for (const sym of PAPER_SYMBOLS) {
-        const q = liveRef.current.get(sym);
+        const tq = liveRef.current.get(sym);
+        const cb = cryptoRef.current.get(sym);
+        const tFresh = !!tq && tq.price > 0 && now - tq.at <= PAPER_LIVE_QUOTE_MAX_AGE_MS;
+        const q = tFresh ? tq : cb && cb.price > 0 ? { price: cb.price, at: cb.at, prevClose: tq?.prevClose ?? null } : tq;
         const readiness = selectPaperLiveReadiness(q && q.price > 0 ? q : null, readinessRef.current[sym] ?? initialPaperQuoteReadiness(), now);
         nextReadiness[sym] = readiness;
         if (q?.prevClose != null && q.prevClose > 0) pc[sym] = q.prevClose;
