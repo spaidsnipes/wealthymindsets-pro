@@ -11,7 +11,6 @@ import toast from "react-hot-toast";
 // renders `r.disclosure`. Re-adding this import would re-open the cast door.
 import { readActiveWatchlist, toggleOnActiveWatchlist } from "@/lib/watchlist/activeWatchlist";
 import Link from "next/link";
-import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 
 /**
  * Scanner — Real-time multi-filter market scanner
@@ -28,7 +27,6 @@ import { clsx } from "clsx";
 import { useRouter } from "next/navigation";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { YahooCandleConsumer } from "@/lib/yahooCandleConsumer";
-import { yahooQuoteObserved, yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
 import { classifySymbol, isUnsupportedByEquityVendors } from "@/lib/marketData/symbolAssetClass";
 import {
   compareScannerRsiIdentity, scannerRsiIdentity, scannerRsiIdentityDomToken,
@@ -401,67 +399,34 @@ interface ScannerQuoteRound {
   attempted: number;
 }
 
-async function fetchScannerQuotes(consumer: YahooCandleConsumer, failures: RsiFailureCache): Promise<ScannerQuoteRound> {
+/** One symbol's live tastytrade reading, as the watch hook publishes it. */
+type ScannerLive = { readonly price: number; readonly at: number; readonly prevClose?: number | null; readonly dayVolume?: number | null };
+
+async function fetchScannerQuotes(consumer: YahooCandleConsumer, failures: RsiFailureCache, liveOf: (sym: string) => ScannerLive | undefined): Promise<ScannerQuoteRound> {
   const results = new Map<string, QuoteData>();
   const refusals = new Map<string, string>();
-  // Use the app's server-side Yahoo proxy for real pre/post-market price and
-  // actual intraday volume. No client-side vendor key and no fabricated volume.
+  // LIVE ONLY (Founder 2026-10-12: "remove anything delayed and dead"). Price, change and
+  // day volume are tastytrade's live stream (the same lane the chart and watchlist read):
+  // change is measured against the EXCHANGE's own prior close, and the row's observation
+  // time is when that price was actually seen. The delayed Yahoo quote is no longer asked;
+  // a symbol with no live price is simply not a scan row. (RSI still reads completed daily bars.)
   const scannerSymbols = [...SCANNER_STOCKS, ...SCANNER_FUTURES];
   const BATCH = 6;
   for (let i = 0; i < scannerSymbols.length; i += BATCH) {
     const batch = scannerSymbols.slice(i, i + BATCH);
     await Promise.all(batch.map(async sym => {
       try {
-        const identity = scannerRsiIdentity(sym);
-        const [quoteJson, rsiResult] = await Promise.all([
-          fetchYahooQuoteBody(sym) as Promise<any>,
-          fetchRSI(identity, consumer, failures),
-        ]);
-        const price = quoteJson?.price ?? 0;
-        // SF-D01 consumer gate — shared predicate. A scanner row for a
-        // symbol Yahoo could not observe is stale-noise, not a scan hit.
-        if (price > 0 && yahooQuoteObserved(quoteJson)) {
-          // This line used to read `const prev = quoteJson?.prevClose ?? price`,
-          // which made `change` exactly 0 and `changePct` exactly 0 for any
-          // symbol without a real prior close — and the scan ladder GRADED
-          // that zero, presenting an unobserved symbol as a named setup with
-          // a letter grade. The canonical owner refuses instead, and honors
-          // the route's own `ohlcObservation.prevClose` fallback flag.
-          const resolved = selectQuoteChange({
-            price,
-            prevClose: quoteJson?.prevClose,
-            prevCloseObserved: quoteJson?.ohlcObservation?.prevClose,
-          });
-          const change    = resolved.observed ? +resolved.chg.toFixed(2) : null;
-          const changePct = resolved.observed ? +resolved.pct.toFixed(2) : null;
-          /* The owner knows WHICH of four refusals it just made. Keep it. */
-          const changeAbsence = resolved.observed ? null : resolved.absence;
-          // A missing volume is not "0 shares traded" (painted-window pass
-          // 2026-10-05): the quote route coerces absence to 0, so only a
-          // positive count is a measurement here; zero or missing is null.
-          const volRaw = Number(quoteJson?.volume);
-          const avgRaw = Number(quoteJson?.avgVolume);
-          const volume = Number.isFinite(volRaw) && volRaw > 0 ? volRaw : null;
-          const avgVolume = Number.isFinite(avgRaw) && avgRaw > 0 ? avgRaw : null;
-          const receivedAt = Number(quoteJson?.ts);
-          // Read from the discriminant, not from a truthiness check on the
-          // field. An UNKNOWN observation structurally carries no `observedAt`
-          // at all, and `?? receivedAt` there would quietly substitute
-          // transport time for observation time — which is the exact swap this
-          // field was added to prevent.
-          const obs = quoteJson?.observation;
-          const observedAt =
-            obs?.resolution === "RESOLVED" && Number.isFinite(obs.observedAt)
-              ? (obs.observedAt as number)
-              : null;
-          results.set(sym, { price, change, changePct, changeAbsence, volume, avgVolume, rsi: rsiResult.rsi, rsiFailure: rsiResult.failure, receivedAt, observedAt });
-        } else {
-          // Same owner the ticker tape reads — the reason is not re-derived
-          // here, so the two surfaces cannot come to disagree about WHY a
-          // symbol is missing.
-          const refusal = yahooQuoteRefusal(quoteJson);
-          if (refusal) refusals.set(sym, refusal);
-        }
+        const rsiResult = await fetchRSI(scannerRsiIdentity(sym), consumer, failures);
+        const live = liveOf(sym.toUpperCase());
+        const price = live?.price ?? 0;
+        if (!(price > 0) || !(live!.at > 0)) { refusals.set(sym, "No live tastytrade price for this market yet."); return; }
+        const resolved = selectQuoteChange({ price, prevClose: live!.prevClose ?? undefined, prevCloseObserved: live!.prevClose != null && live!.prevClose > 0 });
+        const change    = resolved.observed ? +resolved.chg.toFixed(2) : null;
+        const changePct = resolved.observed ? +resolved.pct.toFixed(2) : null;
+        const changeAbsence = resolved.observed ? null : resolved.absence;
+        // A missing volume is not "0 shares traded": only a positive count is a measurement.
+        const volume = live!.dayVolume != null && live!.dayVolume > 0 ? live!.dayVolume : null;
+        results.set(sym, { price, change, changePct, changeAbsence, volume, avgVolume: null, rsi: rsiResult.rsi, rsiFailure: rsiResult.failure, receivedAt: live!.at, observedAt: live!.at });
       } catch {}
     }));
     if (i + BATCH < scannerSymbols.length) await new Promise(r => setTimeout(r, 120));
@@ -706,12 +671,17 @@ export default function ScannerPage() {
     if (p) setActiveSignals(p.sigs);
   };
 
-  // Initial load + periodic refresh — real Finnhub quotes + RSI, real FMP profiles
+  // The live tastytrade lane every scan row is priced from (read through a ref by the round).
+  const scannerLive = useTastyWatchQuotes(FVG_SCAN_UNIVERSE);
+  const scannerLiveRef = useRef(scannerLive);
+  scannerLiveRef.current = scannerLive;
+
+  // Initial load + periodic refresh — live tastytrade prices + RSI, real FMP profiles
   const refresh = useCallback(async (explicitRetry = false) => {
     if (explicitRetry) rsiFailuresRef.current.clear();
     try {
       const [round, profiles] = await Promise.all([
-        fetchScannerQuotes(yahooConsumerRef.current!, rsiFailuresRef.current),
+        fetchScannerQuotes(yahooConsumerRef.current!, rsiFailuresRef.current, sym => scannerLiveRef.current.get(sym)),
         fetchFmpProfiles(),
       ]);
       setRound(round);

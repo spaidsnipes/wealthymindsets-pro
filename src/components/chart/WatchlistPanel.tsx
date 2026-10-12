@@ -4,15 +4,13 @@ import toast from "react-hot-toast";
 
 import { DEFAULT_WATCHLIST_SYMBOLS } from "@/lib/watchlist/activeWatchlist";
 import React, { useState, useEffect, useRef } from "react";
-import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 import { fetchExchangeQuoteBody } from "@/lib/marketData/exchangeQuoteRounds";
-import { fetchAlpacaQuoteBody, fetchFinnhubQuoteBody } from "@/lib/marketData/providerQuoteRounds";
+import { fetchAlpacaQuoteBody } from "@/lib/marketData/providerQuoteRounds";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, X, Plus, TrendingUp, TrendingDown, LayoutGrid, List } from "lucide-react";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { useSessionClockDate } from "@/lib/marketData/useProvenSessionClosure";
 import { WatchlistRow } from "@/components/chart/WatchlistRow";
-import { yahooQuoteObservedAt, yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
 import { selectVisibilityRefetch } from "@/lib/marketData/visibilityRefetch";
 
 /** The watchlist's poll cadence — and the interval its visibility handler tops up. */
@@ -132,89 +130,33 @@ function changeFields(
   };
 }
 
-/**
- * A row WM declined to certify. Price 0 — deliberately, and not as a sentinel
- * for "missing".
- *
- * MEASURED 2026-09-07 on /charts, before this existed: every futures row read
- *   NQ1!  ACTIVE DEGRADED  29565.25  +0.00%
- * and the +0.00% was not a quiet market. /api/yahoo answered with
- * `price: 29565.25` and `prevClose: 29565.25` — the SAME number, because on an
- * UNKNOWN SF-D01 resolution the legacy `price` field falls back to the
- * previous close. So `selectQuoteChange` computed prevClose − prevClose = 0
- * and reported it as OBSERVED. A perfectly circular zero, rendered with two
- * decimal places of false precision, on four rows at once.
- *
- * Zeroing the price routes the row into `changeObserved: false`, the honest
- * path this panel already owns, and `refusal` carries the reason there.
- */
-function refusedQuote(reason: string, src: string): FinnhubQuote {
-  return { price: 0, change: 0, changePct: 0, changeObserved: false, changeWindow: "UNKNOWN", src, refusal: reason };
-}
 
 async function fetchPolygonSnapshot(syms: string[]): Promise<Record<string, FinnhubQuote>> {
   const result: Record<string, FinnhubQuote> = {};
   const fetchable = syms.filter(s => !s.includes("/"));
   await Promise.all(fetchable.map(async sym => {
     const up = sym.toUpperCase();
-    // Held, not spent: a refusal is only final once no untried provider remains.
-    let heldRefusal: string | null = null;
     try {
-      // Yahoo-only covers futures AND cash indices, for the same reason: no
-      // free equity provider on this fallback chain carries either. `VX1!` sat
-      // in the old futures set because of that routing need, but it is not a
-      // futures contract — the class owner reads it as the ^VIX INDEX, which
-      // is why the class is asked and the routing decision is named separately.
+      // LIVE ONLY (Founder 2026-10-12: "remove anything delayed and dead"). Futures and
+      // indices are priced by the live tastytrade lane the rows already merge
+      // (useTastyWatchQuotes); the delayed Yahoo quote that used to stand in is gone.
       const klass = classifySymbol(up);
-      const isYahooOnly = klass === "FUTURES" || klass === "INDEX";
-      const isCrypto  = klass === "CRYPTO";
+      if (klass === "FUTURES" || klass === "INDEX") return;
 
-      // Crypto → public Coinbase quote. Keep broker/equity Alpaca requests out
-      // of the crypto watchlist path.
-      if (isCrypto) {
+      // Crypto → the venue's own public quote (Coinbase). No delayed fallback.
+      if (klass === "CRYPTO") {
         const j = await fetchExchangeQuoteBody("coinbase", up) as any;
-        if ((j?.price ?? 0) > 0) { result[up] = { price: j.price, ...changeFields(j, "ROLLING_24H"), src: "coinbase" }; return; }
-        // Fallback to Yahoo. NOTE the measure changes with the provider: Yahoo
-        // prices crypto against a synthetic prior close, the exchange against
-        // 24h ago. Same symbol, same column, different question — which is
-        // exactly why the window travels with the number.
-        const y = await fetchYahooQuoteBody(up) as any;
-        const yRefusal = yahooQuoteRefusal(y);
-        if (yRefusal) { result[up] = refusedQuote(yRefusal, "yahoo"); return; }
-        if ((y?.price ?? 0) > 0) { result[up] = { price: y.price, ...changeFields(y, "PRIOR_CLOSE"), src: "yahoo", providerObservedAt: yahooQuoteObservedAt(y) }; return; }
+        if ((j?.price ?? 0) > 0) result[up] = { price: j.price, ...changeFields(j, "ROLLING_24H"), src: "coinbase" };
         return;
       }
 
-      // Futures → Yahoo only. It is the sole free source here, so its refusal
-      // is final: there is no second opinion to wait for.
-      if (isYahooOnly) {
-        const j = await fetchYahooQuoteBody(up) as any;
-        const refusal = yahooQuoteRefusal(j);
-        if (refusal) { result[up] = refusedQuote(refusal, "yahoo"); return; }
-        if ((j?.price ?? 0) > 0) result[up] = { price: j.price, ...changeFields(j, "PRIOR_CLOSE"), src: "yahoo", providerObservedAt: yahooQuoteObservedAt(j) };
-        return;
-      }
-
-      // Stocks/ETFs use the same consolidated-first semantic as MainChart and
-      // TickerTape. A same-screen value must not become LIVE merely because an
-      // independent consumer happened to receive an IEX-only print first.
-      const yhJ = await fetchYahooQuoteBody(up).catch(() => null) as any;
-      heldRefusal ??= yahooQuoteRefusal(yhJ);
-      if (!heldRefusal && yhJ?.price > 0) { result[up] = { price: yhJ.price, ...changeFields(yhJ, "PRIOR_CLOSE"), src: "yahoo", providerObservedAt: yahooQuoteObservedAt(yhJ) }; return; }
-
-      // Alpaca declares its own window: it falls back to the session OPEN when
-      // no prior daily bar is available, which is a weaker reference than a
-      // close. `declared` is only the floor if the route stayed silent.
+      // Stocks/ETFs: Alpaca's IEX quote while no live stream has spoken; tastytrade's
+      // live lane supersedes it. (The delayed Yahoo and Finnhub stock quotes are gone.)
       // The `.catch` stays HERE, on the result: swallowing a failure is this
       // surface's policy, and pushing it into the shared round would hand the
       // other consumers a null they never asked for.
       const alpacaJ = await fetchAlpacaQuoteBody(up).catch(() => null) as any;
-      if ((alpacaJ?.price ?? 0) > 0) { result[up] = { price: alpacaJ.price, ...changeFields(alpacaJ, "PRIOR_CLOSE"), src: "alpaca" }; return; }
-
-      const fhJ = await fetchFinnhubQuoteBody(up).catch(() => null) as any;
-      if (fhJ?.price > 0) { result[up] = { price: fhJ.price, ...changeFields(fhJ, "PRIOR_CLOSE"), src: "finnhub" }; return; }
-      // Every provider is spent. NOW the held refusal is the answer.
-      if (heldRefusal) result[up] = refusedQuote(heldRefusal, "yahoo");
+      if ((alpacaJ?.price ?? 0) > 0) result[up] = { price: alpacaJ.price, ...changeFields(alpacaJ, "PRIOR_CLOSE"), src: "alpaca" };
     } catch {}
   }));
   return result;

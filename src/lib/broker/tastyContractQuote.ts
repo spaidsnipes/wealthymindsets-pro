@@ -127,6 +127,10 @@ export interface ContractQuoteState {
   readonly vega: number | null;
   readonly openInterest: number | null;
   readonly prevClose: number | null;
+  /** The exchange's own session open / high / low (Summary), when it has said. */
+  readonly dayOpen?: number | null;
+  readonly dayHigh?: number | null;
+  readonly dayLow?: number | null;
   /** When WM Pro received the last Quote for this symbol (epoch ms). */
   readonly quoteAt: number | null;
   readonly tradeAt: number | null;
@@ -160,7 +164,7 @@ export function applyContractEvent(prev: ContractQuoteState, e: ContractEvent, n
     case "Greeks":
       return { ...prev, iv: keep(v.volatility, prev.iv), delta: keep(v.delta, prev.delta), gamma: keep(v.gamma, prev.gamma), theta: keep(v.theta, prev.theta), vega: keep(v.vega, prev.vega), greeksAt: nowMs };
     case "Summary":
-      return { ...prev, openInterest: keep(v.openInterest, prev.openInterest), prevClose: keep(v.prevDayClosePrice, prev.prevClose) };
+      return { ...prev, openInterest: keep(v.openInterest, prev.openInterest), prevClose: keep(v.prevDayClosePrice, prev.prevClose), dayOpen: keep(v.dayOpenPrice, prev.dayOpen ?? null), dayHigh: keep(v.dayHighPrice, prev.dayHigh ?? null), dayLow: keep(v.dayLowPrice, prev.dayLow ?? null) };
     case "TimeAndSale":
       return { ...prev, last: keep(v.price, prev.last), tradeAt: nowMs };
     case "Candle":

@@ -69,6 +69,7 @@ const SEVERITY: Record<PaperQuoteReadinessStatus, number> = {
   UNKNOWN: 2,
   LOADING: 1,
   DELAYED: 0,
+  LIVE: -1,
 };
 
 const PANEL_LABEL: Record<PaperQuoteReadinessStatus, string> = {
@@ -76,6 +77,7 @@ const PANEL_LABEL: Record<PaperQuoteReadinessStatus, string> = {
   UNKNOWN: "UNKNOWN",
   LOADING: "LOADING",
   DELAYED: CANONICAL_FIDELITY_LABELS.ACTIVE_DEGRADED,
+  LIVE: CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE,
 };
 
 function formatPct(pct: number): string {

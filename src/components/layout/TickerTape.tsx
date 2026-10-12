@@ -10,7 +10,6 @@ import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { priceSourceBadge } from "@/lib/priceSource";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
-import { yahooQuoteObserved, yahooQuoteObservedAt, yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
 import { useProvenSessionClosure } from "@/lib/marketData/useProvenSessionClosure";
 import {
   TAPE_QUOTE_FRESH_MS,
@@ -19,9 +18,8 @@ import {
 } from "@/lib/marketData/tapeQuoteFreshness";
 import { selectVisibilityRefetch } from "@/lib/marketData/visibilityRefetch";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
-import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 import { fetchExchangeQuoteBody } from "@/lib/marketData/exchangeQuoteRounds";
-import { fetchAlpacaQuoteBody, fetchFinnhubQuoteBody } from "@/lib/marketData/providerQuoteRounds";
+import { fetchAlpacaQuoteBody } from "@/lib/marketData/providerQuoteRounds";
 
 /** The rail's poll cadence. Also the interval the visibility handler tops up. */
 const TAPE_POLL_INTERVAL_MS = 10_000;
@@ -207,95 +205,28 @@ type QuoteAnswer =
 
 async function fetchQuote(sym: string): Promise<QuoteAnswer | null> {
   const up = sym.toUpperCase();
+  // LIVE ONLY (Founder 2026-10-12: "remove anything delayed and dead"). Futures and
+  // indices are priced by the live tastytrade lane this tape already merges
+  // (useTastyWatchQuotes); the delayed Yahoo quote that used to stand in is gone, so a
+  // contract with no live stream shows no price rather than a 10-minute-old one.
+  const klass = classifySymbol(up);
+  if (klass === "FUTURES" || klass === "INDEX") return null;
 
-  // Futures → Yahoo (only free source for futures)
-  if (classifySymbol(up) === "FUTURES") {
-    try {
-      const j = await fetchYahooQuoteBody(up) as any;
-      const price = j?.price ?? 0;
-      // `ohlcObservation.prevClose` is the route's own statement that its
-      // prevClose is a fallback to the current price. Without it this call
-      // read a substituted prevClose as a real one and published a
-      // manufactured flat session as OBSERVED.
-      const yc = selectQuoteChange({ price, prevClose: j?.prevClose, prevCloseObserved: j?.ohlcObservation?.prevClose });
-      if (price > 0 && yahooQuoteObserved(j)) return { kind: "quote", price, chg: yc.observed ? yc.chg : 0, pct: yc.observed ? yc.pct : 0, chgObserved: yc.observed, src: "yahoo", providerObservedAt: yahooQuoteObservedAt(j) };
-      // Yahoo is the ONLY free futures source, so its refusal is the tape's
-      // final answer for this symbol — there is no next provider to try.
-      const refusal = yahooQuoteRefusal(j);
-      if (refusal) return { kind: "refused", reason: refusal };
-    } catch {}
-    return null;
-  }
-
-  // Crypto → public Coinbase quote. The real executed tape is owned by the
-  // WebSocket path; this bounded quote request must never hit Alpaca's equity
-  // route or claim a broker connection.
-  if (classifySymbol(up) === "CRYPTO") {
+  // Crypto → the venue's own public quote (Coinbase). No delayed fallback.
+  if (klass === "CRYPTO") {
     try {
       const j = await fetchExchangeQuoteBody("coinbase", up) as any;
       if (j?.price > 0) { const qc = selectQuoteChange({ price: j.price, prevClose: j?.prevClose, change: j?.change, changePct: j?.changePct, prevCloseObserved: j?.ohlcObservation?.prevClose }); return { kind: "quote", price: j.price, chg: qc.observed ? qc.chg : 0, pct: qc.observed ? qc.pct : 0, chgObserved: qc.observed, src: "coinbase" }; }
     } catch {}
-    // Fallback to Yahoo for crypto
-    try {
-      const j = await fetchYahooQuoteBody(up) as any;
-      const price = j?.price ?? 0;
-      // `ohlcObservation.prevClose` is the route's own statement that its
-      // prevClose is a fallback to the current price. Without it this call
-      // read a substituted prevClose as a real one and published a
-      // manufactured flat session as OBSERVED.
-      const yc = selectQuoteChange({ price, prevClose: j?.prevClose, prevCloseObserved: j?.ohlcObservation?.prevClose });
-      if (price > 0 && yahooQuoteObserved(j)) return { kind: "quote", price, chg: yc.observed ? yc.chg : 0, pct: yc.observed ? yc.pct : 0, chgObserved: yc.observed, src: "yahoo", providerObservedAt: yahooQuoteObservedAt(j) };
-      const refusal = yahooQuoteRefusal(j);
-      if (refusal) return { kind: "refused", reason: refusal };
-    } catch {}
     return null;
   }
 
-  // Stocks/ETFs use the same consolidated-first semantic as MainChart and the
-  // watchlist. Independent consumers must not disagree on LIVE vs DELAYED.
-  // Yahoo's refusal is held, not returned: two more providers may still
-  // observe this symbol. It becomes the row's answer only if they do not.
-  let yahooRefusal: string | null = null;
-  try {
-    const j = await fetchYahooQuoteBody(up) as any;
-    const price = j?.price ?? 0;
-    // Same rule as the futures/crypto Yahoo paths above — the route's own
-    // fallback flag, honored rather than ignored.
-    const yc = selectQuoteChange({ price, prevClose: j?.prevClose, prevCloseObserved: j?.ohlcObservation?.prevClose });
-    if (price > 0 && yahooQuoteObserved(j)) return { kind: "quote", price, chg: yc.observed ? yc.chg : 0, pct: yc.observed ? yc.pct : 0, chgObserved: yc.observed, src: "yahoo", providerObservedAt: yahooQuoteObservedAt(j) };
-    yahooRefusal = yahooQuoteRefusal(j);
-  } catch {}
-  // The flag is forwarded from coinbase/alpaca/finnhub too, even though none of
-  // them publishes one today. It reads `undefined` — permissive, behaviour
-  // unchanged — and the day one of them starts disclosing, it is honored with
-  // no edit here. The alternative was an exemption list, and an exemption is
-  // the shape a defect hides in: the Yahoo path was "the one that needed it"
-  // right up until the scanner turned out to need it too.
-  //
-  // CORRECTION (same commit's message says otherwise — that claim was wrong).
-  // This comment first read: "/api/alpaca runs its own `prevClose ?? price` and
-  // publishes NO ohlcObservation, so its derived `change: 0` still reaches
-  // branch 1 unchallenged." Checked afterwards, and it is FALSE. /api/alpaca
-  // was repaired earlier: `usableReference` (route.ts ~165) already rejects a
-  // reference equal to the price, prevClose stays `null` when absent, and the
-  // route publishes `change: null, changePct: null` rather than a zero. It has
-  // no ohlcObservation because it needs none — it never substitutes.
-  //
-  // Worth leaving in place rather than quietly deleting: the false version was
-  // written during the very fix for a comment that described its own file
-  // correctly and the system incorrectly, and it repeated that exact mistake
-  // by asserting a sibling route's behaviour without opening it. The rule the
-  // rest of this file now enforces on providers applies to us too — an
-  // unverified claim about absent data is not a safe default.
+  // Stocks/ETFs: Alpaca's IEX quote while no live stream has spoken (labelled ACTIVE
+  // DEGRADED downstream — one venue, not the tape); tastytrade's live lane supersedes it.
   try {
     const j = await fetchAlpacaQuoteBody(up) as any;
     if (j?.price > 0 && j.source === "alpaca") { const qc = selectQuoteChange({ price: j.price, prevClose: j?.prevClose, change: j?.change, changePct: j?.changePct, prevCloseObserved: j?.ohlcObservation?.prevClose }); return { kind: "quote", price: j.price, chg: qc.observed ? qc.chg : 0, pct: qc.observed ? qc.pct : 0, chgObserved: qc.observed, src: "alpaca" }; }
   } catch {}
-  try {
-    const j = await fetchFinnhubQuoteBody(up) as any;
-    if (j?.price > 0) { const qc = selectQuoteChange({ price: j.price, prevClose: j?.prevClose, change: j?.change, changePct: j?.changePct, prevCloseObserved: j?.ohlcObservation?.prevClose }); return { kind: "quote", price: j.price, chg: qc.observed ? qc.chg : 0, pct: qc.observed ? qc.pct : 0, chgObserved: qc.observed, src: "finnhub" }; }
-  } catch {}
-  if (yahooRefusal) return { kind: "refused", reason: yahooRefusal };
   return null;
 }
 

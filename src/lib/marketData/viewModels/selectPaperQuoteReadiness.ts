@@ -26,7 +26,7 @@ export const PAPER_DELAYED_QUOTE_MAX_AGE_MS = 15 * 60_000;
  */
 export const TRANSPORT_CLOCK_SKEW_TOLERANCE_MS = 5 * 60_000;
 
-export type PaperQuoteReadinessStatus = "LOADING" | "DELAYED" | "STALE" | "UNKNOWN";
+export type PaperQuoteReadinessStatus = "LOADING" | "LIVE" | "DELAYED" | "STALE" | "UNKNOWN";
 
 export interface PaperQuoteReadiness {
   readonly status: PaperQuoteReadinessStatus;
@@ -215,4 +215,33 @@ export function selectPaperQuoteReadiness(
     label: CANONICAL_FIDELITY_LABELS.ACTIVE_DEGRADED,
     reason: "Canonical delayed observation accepted for paper simulation only.",
   };
+}
+
+
+/** How old a live tastytrade price may be and still authorize a paper fill. */
+export const PAPER_LIVE_QUOTE_MAX_AGE_MS = 15_000;
+
+/**
+ * LIVE ONLY (Founder 2026-10-12: "remove anything delayed and dead"). Paper used to
+ * fill against a delayed Yahoo quote up to 15 minutes old. It now acts only on the
+ * live tastytrade price the chart and watchlist read (useTastyWatchQuotes): fresh
+ * (≤ PAPER_LIVE_QUOTE_MAX_AGE_MS) authorizes, anything older stays visible as STALE
+ * and authorizes nothing, and no live price at all is UNKNOWN. Never a delayed fill.
+ */
+export function selectPaperLiveReadiness(
+  live: { readonly price: number; readonly at: number } | null | undefined,
+  prior: PaperQuoteReadiness,
+  capturedAt: number,
+  maxAgeMs = PAPER_LIVE_QUOTE_MAX_AGE_MS,
+): PaperQuoteReadiness {
+  if (!finitePositive(capturedAt)) return priorAsStale(prior, 0, "Quote evaluation time was invalid.");
+  if (!live || !finitePositive(live.price) || !finitePositive(live.at)) {
+    return priorAsStale(prior, capturedAt, "No live tastytrade price for this market yet.");
+  }
+  const ageMs = Math.max(0, capturedAt - live.at);
+  const observed = { price: live.price, observedAt: live.at, availableAt: live.at, receivedAt: live.at, ageMs };
+  if (ageMs > maxAgeMs) {
+    return { ...observed, status: "STALE", actionable: false, label: `${CANONICAL_FIDELITY_LABELS.STALE_PIPELINE} · NOT ACTIONABLE`, reason: "The live price has not moved recently — paper waits for a current print." };
+  }
+  return { ...observed, status: "LIVE", actionable: true, label: "LIVE · tastytrade", reason: "Live tastytrade price." };
 }

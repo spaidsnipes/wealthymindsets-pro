@@ -4,8 +4,8 @@ import { selectTickerChangeDisplay } from "@/lib/marketData/selectTickerChangeDi
 import { owned, readOwned, UNOWNED, type Owned } from "@/lib/marketData/symbolOwned";
 import { CHANGE_UNAVAILABLE_TEXT, CHANGE_UNAVAILABLE_TITLE } from "@/lib/marketData/changeAbsence";
 import { PRICE_ABSENCE_GLYPH, priceAbsenceReason } from "@/lib/marketData/priceAbsence";
-import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
-import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
+import { tastyLiveContractFor } from "@/lib/broker/tastyFrontMonth";
+import { useTastyQuotes } from "@/lib/broker/tastyQuoteStream";
 import { readActiveWatchlist, toggleOnActiveWatchlist } from "@/lib/watchlist/activeWatchlist";
 import {
   priceSessionFact,
@@ -14,6 +14,8 @@ import {
   type SessionFact,
 } from "@/lib/chart/stockInfoSessionFacts";
 import React, { useState, useRef, useEffect } from "react";
+
+const NO_STREAMERS: readonly string[] = [];
 import { Heart, ChevronDown } from "lucide-react";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { selectAggressorFlow } from "@/lib/marketData/selectAggressorFlow";
@@ -147,37 +149,33 @@ export function StockInfoPanel({ symbol }: Props) {
   const [ownedSettled, setOwnedSettled] = useState<Owned<true>>(UNOWNED);
   const quoteSettled = readOwned(ownedSettled, ownerKey) === true;
 
-  // Fetch real OHLC at mount and on symbol change
+  // LIVE ONLY (Founder 2026-10-12: "remove anything delayed and dead"). The session
+  // facts are the exchange's own, from tastytrade's Summary on the shared live stream
+  // (day open / high / low, prior close) and its Trade (day volume) — never the delayed
+  // Yahoo quote. No live stream for the symbol → the panel says the data is not available.
+  const [liveStreamer, setLiveStreamer] = useState<Owned<string | null>>(UNOWNED);
   useEffect(() => {
-    setOwnedOHLC(UNOWNED);
     setOwnedSettled(UNOWNED);
     let current = true;
     const up = symbol.toUpperCase();
-    const setRealOHLC = (v: SessionOHLC) => setOwnedOHLC(owned(up, v));
-    const setQuoteSettled = (_: true) => setOwnedSettled(owned(up, true as const));
-    // Yahoo for everything — it includes pre/post-market (matches TradingView);
-    // Finnhub free is regular-hours-only and goes stale outside RTH. Two class
-    // predicates were computed here and immediately discarded with `void`; they
-    // routed nothing and could only rot, so they are gone rather than ported.
-    fetchYahooQuoteBody(up).then((j: any) => {
-      // SF-D01: when the quote is refused, `j.price` silently falls back to
-      // prevClose — so `j.price > 0` was a refused number authorising the
-      // session facts below. Ask the owner of the gate instead of trusting
-      // the fallback. The OHLC fields keep their own ohlcObservation gate;
-      // this only removes the refused price from the admission decision.
-      if (!current) return; // a late answer for the previous symbol
-      if (yahooQuoteRefusal(j)) return;
-      const observed = j?.ohlcObservation;
-      if (j?.price > 0 && observed?.open && observed?.high && observed?.low && observed?.prevClose) setRealOHLC({
-        open:      j.open,
-        high:      j.high,
-        low:       j.low,
-        prevClose: j.prevClose,
-        volume:    typeof j.volume === "number" && Number.isFinite(j.volume) ? j.volume : null,
-      });
-    }).catch(() => {}).finally(() => { if (current) setQuoteSettled(true); });
+    tastyLiveContractFor(up)
+      .then(c => { if (current) setLiveStreamer(owned(up, c?.streamer ?? null)); })
+      .catch(() => { if (current) setLiveStreamer(owned(up, null)); })
+      .finally(() => { if (current) setOwnedSettled(owned(up, true as const)); });
     return () => { current = false; };
   }, [symbol]);
+  const streamer = readOwned(liveStreamer, ownerKey) ?? null;
+  const liveSnap = useTastyQuotes(streamer ? [streamer] : NO_STREAMERS);
+  const liveQ = streamer ? liveSnap.quotes.get(streamer) : undefined;
+  useEffect(() => {
+    const up = symbol.toUpperCase();
+    const o = liveQ?.dayOpen, h = liveQ?.dayHigh, l = liveQ?.dayLow, pc = liveQ?.prevClose;
+    if (o != null && o > 0 && h != null && h > 0 && l != null && l > 0 && pc != null && pc > 0) {
+      setOwnedOHLC(owned(up, { open: o, high: h, low: l, prevClose: pc, volume: liveQ?.dayVolume ?? null }));
+    } else {
+      setOwnedOHLC(UNOWNED);
+    }
+  }, [symbol, liveQ?.dayOpen, liveQ?.dayHigh, liveQ?.dayLow, liveQ?.prevClose, liveQ?.dayVolume]);
 
   // §15 — net flow is the window aggressor sum, read from its one owner
   // (selectAggressorFlow). The panel used to fold the ticks itself, counting

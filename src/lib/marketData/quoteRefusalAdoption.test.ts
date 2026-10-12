@@ -166,8 +166,8 @@ describe("SF-D01 refusal — every gate consumer also carries the reason", () =>
     // assertion below would pass vacuously.
     const consumers = gateConsumers();
     expect(consumers.length).toBeGreaterThan(0);
-    expect(consumers).toContain("components/layout/TickerTape.tsx");
-    expect(consumers).toContain("app/scanner/page.tsx");
+    // (The ticker tape stopped asking Yahoo on 2026-10-12 — delayed doors removed.)
+    // (The scanner stopped asking Yahoo for quotes on 2026-10-12.)
     expect(consumers).toContain("hooks/useWebSocket.ts");
   });
 
@@ -360,44 +360,10 @@ describe("watchlist — a circular zero is not a quiet market", () => {
     read("components/chart/WatchlistRow.tsx"),
   ].join("\n");
 
-  it("refuses on every Yahoo branch, not just the one that was easy", () => {
-    // Three separate call sites read /api/yahoo here (crypto fallback,
-    // futures-only, stock-first). A gate on two of three is a gate on none:
-    // the ungated branch is where the next refused price gets in.
-    //
-    // This assertion used to COUNT — `gateCalls.length >= yahooCalls.length`.
-    // A mutation proved that false green: deleting the futures branch's gate
-    // outright still left 3 gates against 3 calls, so 3 >= 3 passed while
-    // NQ1! walked back through the hole. Counting cannot see WHICH branch a
-    // gate belongs to. So bind each gate to its branch by POSITION: for every
-    // call site, a gate must appear after the fetch and before that response's
-    // price is spent.
-    // Re-anchored to the CALL rather than the URL: the three branches now ask
-    // the shared round owner instead of building three identical URLs. The
-    // rule — a gate per branch, bound by position — is untouched.
-    const ASK = "fetchYahooQuoteBody(";
-    const callSites: number[] = [];
-    for (let i = WL.indexOf(ASK); i !== -1; i = WL.indexOf(ASK, i + 1)) {
-      callSites.push(i);
-    }
-    expect(callSites.length, "expected three /api/yahoo quote branches").toBeGreaterThanOrEqual(3);
-
-    for (const [n, at] of callSites.entries()) {
-      // A branch ends where the next one begins; the last runs to end of file.
-      const branch = WL.slice(at, callSites[n + 1] ?? WL.length);
-      const gateAt = branch.indexOf("yahooQuoteRefusal(");
-      const spendAt = branch.indexOf("result[up] = { price:");
-
-      expect(gateAt, `the /api/yahoo branch at index ${n} reads a quote with no refusal gate at all`)
-        .toBeGreaterThanOrEqual(0);
-
-      if (spendAt !== -1) {
-        expect(gateAt, `branch ${n} spends the price before asking whether WM accepted it`)
-          .toBeLessThan(spendAt);
-      }
-    }
+  it("asks no delayed quote on any branch (2026-10-12: the Yahoo and Finnhub stock quotes were removed)", () => {
+    expect(WL).not.toContain("fetchYahooQuoteBody(");
+    expect(WL).not.toContain("fetchFinnhubQuoteBody(");
   });
-
   it("a refused row renders no price and no percentage", () => {
     // MEASURED before the fix: `NQ1! ACTIVE DEGRADED 29565.25 +0.00%` on four
     // rows. The +0.00% was circular — /api/yahoo returned price === prevClose,
@@ -448,13 +414,6 @@ describe("watchlist — a circular zero is not a quiet market", () => {
     expect(WL, "a refused row must be skipped when caching").toMatch(/if \(it\.refusal\) continue;/);
   });
 
-  it("holds a refusal while an untried provider remains", () => {
-    // Yahoo declining an EQUITY quote is not a refusal of the symbol while
-    // Alpaca and Finnhub are still unasked. Futures are the opposite case —
-    // Yahoo is the only free source, so its refusal there is final.
-    expect(WL).toMatch(/heldRefusal \?\?= yahooQuoteRefusal\(yhJ\)/);
-    expect(WL).toMatch(/if \(heldRefusal\) result\[up\] = refusedQuote\(heldRefusal/);
-  });
 });
 
 describe("scanner — a count without a denominator is not a scan result", () => {
@@ -464,7 +423,8 @@ describe("scanner — a count without a denominator is not a scan result", () =>
     // Measured: header read "28 delayed-quote signals" over a 30-symbol
     // universe, and nothing on screen accounted for the missing 2.
     expect(SCANNER).toMatch(/attempted:\s*scannerSymbols\.length/);
-    expect(SCANNER).toMatch(/refusals\.set\(sym,\s*refusal\)/);
+    // Since 2026-10-12 a symbol with no live tastytrade price is recorded as refused, by name.
+    expect(SCANNER).toMatch(/refusals\.set\(sym, "No live tastytrade price for this market yet\."\)/);
   });
 
   it("puts the denominator where the phone can still reach it", () => {
@@ -507,17 +467,12 @@ describe("scanner — a count without a denominator is not a scan result", () =>
   });
 
   it("a refused symbol is never counted as a result", () => {
-    // The gate's positive branch is the ONLY path that writes a quote; the
-    // refusal path is its else. If a future edit made refusal additive, a
-    // symbol WM declined would appear as a scan hit.
-    const guard = SCANNER.indexOf("if (price > 0 && yahooQuoteObserved(quoteJson))");
+    // The no-live-price branch returns before any quote is written.
+    const guard = SCANNER.indexOf("if (!(price > 0) || !(live!.at > 0)) {");
     expect(guard).toBeGreaterThan(-1);
-    const branch = SCANNER.slice(guard, SCANNER.indexOf("} catch {}", guard));
-    expect(branch).toMatch(/}\s*else\s*{[\s\S]*yahooQuoteRefusal\(quoteJson\)/);
-    expect(
-      branch.slice(branch.indexOf("else")),
-      "the refusal branch must not write a quote",
-    ).not.toContain("results.set(");
+    const line = SCANNER.slice(guard, SCANNER.indexOf("\n", guard));
+    expect(line).toContain("return;");
+    expect(line).not.toContain("results.set(");
   });
 });
 
@@ -560,14 +515,11 @@ describe("stock info panel — zero is not a price, and it has no colour", () =>
       .toMatch(/\{ticker\.price > 0 && chg\.displayable &&/);
   });
 
-  it("a refused quote cannot authorise the session facts", () => {
-    // SF-D01: on refusal `j.price` silently falls back to prevClose, so the
-    // old `j.price > 0` admission test was a refused number granting itself
-    // permission. The gate owner must be asked first.
-    const effect = SIP.slice(SIP.indexOf("fetchYahooQuoteBody("), SIP.indexOf("}, [symbol]);"));
-    const gateAt = effect.indexOf("yahooQuoteRefusal(j)");
-    const setAt = effect.indexOf("setRealOHLC({");
-    expect(gateAt, "the OHLC read must consult the refusal gate").toBeGreaterThanOrEqual(0);
-    expect(gateAt, "the gate must run before the session facts are accepted").toBeLessThan(setAt);
+  it("only the exchange's complete session facts are admitted (2026-10-12: live tastytrade Summary)", () => {
+    expect(SIP).not.toContain("fetchYahooQuoteBody(");
+    const at = SIP.indexOf("const o = liveQ?.dayOpen");
+    const setAt = SIP.indexOf("setOwnedOHLC(owned(up, {", at);
+    expect(at).toBeGreaterThan(-1);
+    expect(SIP.slice(at, setAt)).toMatch(/o != null && o > 0 && h != null && h > 0 && l != null && l > 0 && pc != null && pc > 0/);
   });
 });

@@ -65,7 +65,10 @@ describe("the Alpaca and Finnhub quote rounds have exactly one owner", () => {
     for (const file of CONSUMERS) {
       const code = strip(read(file));
       expect(code).toContain("fetchAlpacaQuoteBody(");
-      expect(code).toContain("fetchFinnhubQuoteBody(");
+      // Finnhub stays only as the hook's CRYPTO stand-in (Binance, current); its delayed
+      // stock quote left the tape and the watchlist on 2026-10-12.
+      if (file === "src/hooks/useWebSocket.ts") expect(code).toContain("fetchFinnhubQuoteBody(");
+      else expect(code).not.toContain("fetchFinnhubQuoteBody(");
     }
   });
 
@@ -134,7 +137,6 @@ describe("the Alpaca and Finnhub quote rounds have exactly one owner", () => {
      */
     const watchlist = strip(read("src/components/chart/WatchlistPanel.tsx"));
     expect(watchlist).toContain("fetchAlpacaQuoteBody(up).catch(() => null)");
-    expect(watchlist).toContain("fetchFinnhubQuoteBody(up).catch(() => null)");
     expect(strip(read("src/lib/marketData/providerQuoteRounds.ts"))).not.toContain(".catch(");
   });
 

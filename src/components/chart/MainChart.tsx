@@ -444,7 +444,6 @@ import { legendShortWords } from "@/lib/chart/legendShortWords";
 import { readMarketSession } from "@/lib/marketData/marketSessionClock";
 import { bindPriceLegendInset } from "@/lib/chart/priceLegendAxisClearance";
 import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
-import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 import type { PineOutput } from "@/lib/pine/types";
 import { interpretPine } from "@/lib/pine/interpreter";
 import * as IND from "./indicators";

@@ -28,12 +28,11 @@ const TAPE = fs.readFileSync(
 );
 
 describe("ticker tape — a refusal is not a delay", () => {
-  it("consults the one owner of the refusal reason", () => {
-    expect(TAPE).toContain('from "@/lib/marketData/yahooQuoteObserved"');
-    expect(TAPE, "the tape must read the reason, not just the boolean").toContain(
-      "yahooQuoteRefusal(",
-    );
+  it("asks no delayed quote at all (2026-10-12: the Yahoo quote left the tape)", () => {
+    expect(TAPE).not.toContain("fetchYahooQuoteBody(");
+    expect(TAPE).not.toContain("fetchFinnhubQuoteBody(");
   });
+
 
   it("the renderer has a branch for a refused row, before the pending fallback", () => {
     const refusedAt = TAPE.indexOf("item.refusal ?");

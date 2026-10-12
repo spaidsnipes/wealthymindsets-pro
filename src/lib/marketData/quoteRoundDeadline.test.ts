@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchYahooQuoteBody, yahooQuoteRoundInFlight } from "./yahooQuoteRounds";
 import { fetchExchangeQuoteBody, exchangeQuoteRoundInFlight } from "./exchangeQuoteRounds";
 import {
   fetchAlpacaQuoteBody,
@@ -10,7 +9,6 @@ import {
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe.each([
-  ["yahoo", () => fetchYahooQuoteBody("DEADLINE"), () => yahooQuoteRoundInFlight("DEADLINE")],
   ["exchange", () => fetchExchangeQuoteBody("kraken", "DEADLINE"), () => exchangeQuoteRoundInFlight("kraken", "DEADLINE")],
   // Every owner in the chain, not just the two that had owners first. An
   // unbounded leg would hold its key while the provider stalls, so each later

@@ -5,35 +5,13 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(resolve(__dirname, path), "utf8");
 
 describe("same-screen market truth contract", () => {
-  it("keeps consolidated stock quotes ahead of IEX-only fallbacks", () => {
+  it("no surface asks a delayed stock quote (2026-10-12); Alpaca IEX is the only polled stock fallback", () => {
     const watchlist = source("../components/chart/WatchlistPanel.tsx");
     const tickerTape = source("../components/layout/TickerTape.tsx");
-
-    const watchlistStockPolicy = watchlist.slice(watchlist.indexOf("Stocks/ETFs use the same"));
-    const tickerStockPolicy = tickerTape.slice(tickerTape.indexOf("Stocks/ETFs use the same"));
-    // Both surfaces now ask the shared Yahoo round owner instead of building
-    // the URL, so the Yahoo leg is located by the ASK. Anchoring on the URL
-    // still "found" a match here — a stray mention in a comment ~40k
-    // characters downstream — and so reported Yahoo as running AFTER Alpaca.
-    // The ORDER of the two providers is the invariant; the transport is not.
-    //
-    // 2026-09-08: that repair was applied to the YAHOO half only. When Alpaca
-    // got the same treatment, `indexOf("/api/alpaca")` went to -1 and the rule
-    // failed asserting `249 < -1` — it had been comparing a real position
-    // against "not found" and would have passed for the wrong reason if the
-    // ordering ever inverted. Both ends are now located by the ASK, and both
-    // are asserted PRESENT before their order is compared, so an absent leg
-    // fails loudly instead of arithmetically.
-    const askedAt = (policy: string, owner: string, url: string) => {
-      const at = policy.indexOf(owner);
-      return at === -1 ? policy.indexOf(url) : at;
-    };
-    for (const policy of [watchlistStockPolicy, tickerStockPolicy]) {
-      const yahoo = askedAt(policy, "fetchYahooQuoteBody(", "/api/yahoo");
-      const alpaca = askedAt(policy, "fetchAlpacaQuoteBody(", "/api/alpaca");
-      expect(yahoo).toBeGreaterThan(-1);
-      expect(alpaca).toBeGreaterThan(-1);
-      expect(yahoo).toBeLessThan(alpaca);
+    const hook = source("../hooks/useWebSocket.ts");
+    for (const f of [watchlist, tickerTape, hook]) {
+      expect(f).not.toContain("fetchYahooQuoteBody(");
+      expect(f).toContain("fetchAlpacaQuoteBody(");
     }
   });
 
@@ -43,8 +21,9 @@ describe("same-screen market truth contract", () => {
     const tickerTape = source("../components/layout/TickerTape.tsx");
 
     const hookCrypto = hook.slice(hook.indexOf("Crypto display quotes"), hook.indexOf("Stocks & ETFs"));
-    const watchlistCrypto = watchlist.slice(watchlist.indexOf("Crypto → public Coinbase"), watchlist.indexOf("Futures → Yahoo only"));
-    const tickerCrypto = tickerTape.slice(tickerTape.indexOf("Crypto → public Coinbase"), tickerTape.indexOf("Stocks/ETFs use the same"));
+    const watchlistCrypto = watchlist.slice(watchlist.indexOf("Crypto → the venue's own public quote"), watchlist.indexOf("Stocks/ETFs: Alpaca's IEX quote"));
+    const tickerCrypto = tickerTape.slice(tickerTape.indexOf("Crypto → the venue's own public quote"), tickerTape.indexOf("Stocks/ETFs: Alpaca's IEX quote"));
+    for (const slice of [watchlistCrypto, tickerCrypto]) expect(slice.length).toBeGreaterThan(40);
     for (const policy of [hookCrypto, watchlistCrypto, tickerCrypto]) {
       // RE-ANCHORED 2026-09-08 on the ASK, not the URL — the same repair made
       // to the Yahoo ordering rule above. The invariant is WHICH PROVIDER is
@@ -94,7 +73,10 @@ describe("same-screen market truth contract", () => {
   it("does not manufacture Stock Info session facts from a current quote", () => {
     const stockInfo = source("../components/chart/StockInfoPanel.tsx");
     const yahooRoute = source("../app/api/yahoo/route.ts");
-    expect(stockInfo).toContain("observed?.open");
+    // Since 2026-10-12 the session facts are the exchange's own (tastytrade Summary), admitted only
+    // when open, high, low AND prior close were all said — never derived from the current price.
+    expect(stockInfo).toContain("const o = liveQ?.dayOpen, h = liveQ?.dayHigh, l = liveQ?.dayLow, pc = liveQ?.prevClose;");
+    expect(stockInfo).toMatch(/if \(o != null && o > 0 && h != null && h > 0 && l != null && l > 0 && pc != null && pc > 0\)/);
     // This line used to be pinned to the EXACT BYTES of
     //   `const open  = realOHLC ? realOHLC.open.toFixed(dp)      : "—"`
     // including its interior spacing. That pinned a SPELLING, not the

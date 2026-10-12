@@ -8,7 +8,7 @@
 import { RoomStatePlaque } from "@/components/ui/RoomStatePlaque";
 import { formatTickerPrice, tickerDecimals } from "@/components/layout/tickerFormat";
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
+import { useTastyWatchQuotes } from "@/lib/broker/useTastyWatchQuotes";
 import { acceptOrderSubmit } from "@/lib/orderSubmitGuard";
 import Link from "next/link";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
@@ -23,7 +23,7 @@ import { SymbolSearch } from "@/components/ui/SymbolSearch";
 import {
   actionablePaperQuotePrice,
   initialPaperQuoteReadiness,
-  selectPaperQuoteReadiness,
+  selectPaperLiveReadiness,
   type PaperQuoteReadiness,
 } from "@/lib/marketData/viewModels/selectPaperQuoteReadiness";
 import {
@@ -153,6 +153,8 @@ const UNIVERSE: Record<string,{ name:string; base:number; tick:number }> = {
   "BTC":  { name:"Bitcoin",         base:103_000,tick:1.00 },
   "ETH":  { name:"Ethereum",        base:3_800,  tick:0.10 },
 };
+/** The symbols paper prices from the live tastytrade stream (stable identity for the hook). */
+const PAPER_SYMBOLS: readonly string[] = Object.keys(UNIVERSE);
 
 /**
  * THE ORDER CONTRACT HAS ONE OWNER, AND IT IS NOT THIS FILE.
@@ -620,47 +622,36 @@ function useLivePrices() {
    * showed NQ's real close; this keeps that close, labelled as a close. */
   const [lastCloses, setLastCloses] = useState<Record<string,number>>({});
 
-  // Refresh real anchors from the same quote API the chart uses.
+  // LIVE ONLY (Founder 2026-10-12): the anchors are the live tastytrade prices the chart reads,
+  // re-read every 2 s from the stream's latest value — never the delayed Yahoo quote.
+  const live = useTastyWatchQuotes(PAPER_SYMBOLS);
+  const liveRef = useRef(live);
+  liveRef.current = live;
   useEffect(() => {
     let alive = true;
-    const refresh = async () => {
+    const refresh = () => {
       const snap: Record<string,number> = {};
       const pc:   Record<string,number> = {};
       const lc:   Record<string,number> = {};
       const nextReadiness = { ...readinessRef.current };
-      await Promise.all(Object.keys(UNIVERSE).map(async sym => {
-        try {
-          const j = await fetchYahooQuoteBody(sym) as any;
-          const readiness = selectPaperQuoteReadiness(
-            j,
-            readinessRef.current[sym] ?? initialPaperQuoteReadiness(),
-            Date.now(),
-          );
-          nextReadiness[sym] = readiness;
-          if (readiness.price == null && typeof j?.price === "number" && Number.isFinite(j.price) && j.price > 0) lc[sym] = j.price;
-          if (alive && readiness.price != null) {
-            snap[sym] = readiness.price;
-            if (readiness.actionable && j?.prevClose > 0) pc[sym] = j.prevClose;
-          }
-        } catch {
-          nextReadiness[sym] = selectPaperQuoteReadiness(
-            null,
-            readinessRef.current[sym] ?? initialPaperQuoteReadiness(),
-            Date.now(),
-          );
-        }
-      }));
+      const now = Date.now();
+      for (const sym of PAPER_SYMBOLS) {
+        const q = liveRef.current.get(sym);
+        const readiness = selectPaperLiveReadiness(q && q.price > 0 ? q : null, readinessRef.current[sym] ?? initialPaperQuoteReadiness(), now);
+        nextReadiness[sym] = readiness;
+        if (q?.prevClose != null && q.prevClose > 0) pc[sym] = q.prevClose;
+        if (!readiness.actionable && q && q.price > 0) lc[sym] = q.price;
+        if (readiness.price != null) snap[sym] = readiness.price;
+      }
       if (!alive) return;
       readinessRef.current = nextReadiness;
       setQuoteReadiness(nextReadiness);
       if (Object.keys(pc).length) setPrevCloses(prev => ({ ...prev, ...pc }));
       if (Object.keys(lc).length) setLastCloses(prev => ({ ...prev, ...lc }));
-      if (Object.keys(snap).length) {
-        setPrices(prev => ({ ...prev, ...snap }));
-      }
+      if (Object.keys(snap).length) setPrices(prev => ({ ...prev, ...snap }));
     };
     refresh();
-    const iv = setInterval(refresh, 20_000);
+    const iv = setInterval(refresh, 2_000);
     return () => { alive = false; clearInterval(iv); };
   }, []);
 

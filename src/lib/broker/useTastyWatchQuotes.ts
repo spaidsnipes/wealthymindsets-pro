@@ -18,7 +18,7 @@ import { useTastyQuotes } from "@/lib/broker/tastyQuoteStream";
  * dayId-rolled) — the one reference for "change today" on every live row
  * (2026-10-06: the vendor's change spanned Friday→now in Tuesday's premarket).
  */
-export interface WatchLive { readonly price: number; readonly at: number; readonly prevClose?: number | null }
+export interface WatchLive { readonly price: number; readonly at: number; readonly prevClose?: number | null; readonly dayVolume?: number | null }
 
 /** Fresher than this is LIVE; older is left to the row's own source. */
 export const WATCH_LIVE_FRESH_MS = 15_000;
@@ -70,9 +70,9 @@ export function useTastyWatchQuotes(symbols: readonly string[]): ReadonlyMap<str
       // but may have TRADED hours ago), else by when it was heard.
       const tradeClock = q.tradeTime ?? q.tradeAt;
       const tradeCurrent = tradeClock != null && (q.quoteAt == null || q.quoteAt - tradeClock <= TRADE_STALE_BESIDE_QUOTE_MS);
-      if (q.last != null && q.last > 0 && q.tradeAt != null && tradeCurrent) { out.set(sym, { price: q.last, at: Math.max(q.tradeAt, q.quoteAt ?? 0), prevClose: q.prevClose }); continue; }
+      if (q.last != null && q.last > 0 && q.tradeAt != null && tradeCurrent) { out.set(sym, { price: q.last, at: Math.max(q.tradeAt, q.quoteAt ?? 0), prevClose: q.prevClose, dayVolume: q.dayVolume }); continue; }
       const price = q.quoteAt == null ? null : saneMidpoint(q.bid, q.ask);
-      if (price != null) { out.set(sym, { price, at: q.quoteAt!, prevClose: q.prevClose }); continue; }
+      if (price != null) { out.set(sym, { price, at: q.quoteAt!, prevClose: q.prevClose, dayVolume: q.dayVolume }); continue; }
       // No current price, but the exchange's reference close is known: publish
       // the reference alone (price 0, never fresh) so a row can still measure
       // "today" from the right day while its price comes from elsewhere.
