@@ -25277,14 +25277,26 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             return x == null ? null : +x;
           };
           // No offscreen context → paint nothing rather than paint unregulated.
-          const orderedCells = hctx ? [...heat.cells].sort((a, b) => a.intensity - b.intensity) : [];
+          /* GLASS QUANTUM (G19 Mansion shift, serving 6acf619, BTC-USD 15s Weather alone,
+             2026-10-11 20:40 CDT: `heatLensCellSprites=REUSED:0|DRAWN:11` on nearly every
+             sample, 18–24 ms mean vs a 10.5 ms clean baseline). On a live tape every print
+             re-normalises each cell's intensity and opacity by a few thousandths and every
+             autoscale nudge moves each band by a fraction of a pixel, so each cell's shape key
+             changed every frame and all ~70 blurs ran again. The cell is now inked at the
+             glass's own resolution: intensity in 1/32 steps of the ramp, opacity in 1/200
+             steps (still capped by the regulator below), band and span in whole CSS pixels
+             about the measured midpoint. Nothing smaller than one of those steps was visible;
+             a cell whose ink did not move by a step reuses its sprite. */
+          const quantumCells = heat.cells.map(c => ({ ...c, intensity: Math.round(c.intensity * 32) / 32, opacity: Math.round(c.opacity * 200) / 200 }));
+          const orderedCells = hctx ? quantumCells.sort((a, b) => a.intensity - b.intensity) : [];
           for (const cell of orderedCells) {
             if (!cell.paintable) continue;
             const yh = srs.priceToCoordinate(cell.high);
             const yl = srs.priceToCoordinate(cell.low);
             if (yh == null || yl == null) continue;
-            const top = Math.min(+yh, +yl);
-            const band = Math.max(1, Math.abs(+yl - +yh));
+            const bandMeasured = Math.abs(+yl - +yh);
+            const band = Math.max(1, Math.round(bandMeasured));
+            const top = Math.min(+yh, +yl) + (bandMeasured - band) / 2;
             const alpha = Math.min(cell.opacity, heat.maxOpacity);
             const tone = heatRampColor(cell.intensity);
             const xFrom = cell.fromTime != null ? barXAt(cell.fromTime) : null;
@@ -25293,7 +25305,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             if (!timed) { untimed++; continue; }
             const cx0 = Math.max(0, Math.min(xFrom, xTo) - heatSpacing / 2);
             const cx1 = Math.min(W, Math.max(xFrom, xTo) + heatSpacing / 2);
-            const cw = Math.max(1, cx1 - cx0);
+            const cw = Math.max(1, Math.round(cx1 - cx0));
             stormCols.push({ x0: cx0, x1: cx1, rgb: [0, 0, 0], intensity: cell.intensity, weight: heat.maxOpacity > 0 ? 0.7 + 0.3 * Math.min(1, alpha / heat.maxOpacity) : 0 });
 
             /* THE TIDE IS A TEXTURE OF THE SAME CELL, NOT ANOTHER READING.
@@ -25393,7 +25405,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctxHeat.beginPath();
               ctxHeat.moveTo(cx0, y);
               ctxHeat.bezierCurveTo(cx0 + cw * 0.24, y - swell, cx0 + cw * 0.42, y + swell, cx0 + cw * 0.58, y);
-              ctxHeat.bezierCurveTo(cx0 + cw * 0.74, y - swell, cx0 + cw * 0.88, y + swell, cx1, y);
+              ctxHeat.bezierCurveTo(cx0 + cw * 0.74, y - swell, cx0 + cw * 0.88, y + swell, cx0 + cw, y);
               ctxHeat.stroke();
               contours++;
             }

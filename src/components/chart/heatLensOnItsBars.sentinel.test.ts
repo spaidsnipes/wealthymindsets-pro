@@ -56,10 +56,10 @@ describe("heat lens on its bars", () => {
     // Execute the renderer's span gate with a paint spy: missing coordinates
     // must never produce a rectangle, including a partial timed segment.
     const from = block.indexOf("const timed = xFrom != null && xTo != null;");
-    const to = block.indexOf("const cw = Math.max(1, cx1 - cx0);", from);
+    const to = block.indexOf("const cw = Math.max(1, Math.round(cx1 - cx0));", from);
     expect(from).toBeGreaterThan(-1);
     expect(to).toBeGreaterThan(from);
-    const gate = block.slice(from, to + "const cw = Math.max(1, cx1 - cx0);".length);
+    const gate = block.slice(from, to + "const cw = Math.max(1, Math.round(cx1 - cx0));".length);
     const run = new Function("endpoints", `
       const W = 1000, heatSpacing = 6, painted = [];
       let untimed = 0;

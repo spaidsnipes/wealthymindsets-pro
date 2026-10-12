@@ -37,6 +37,19 @@ describe("the heat layer is redrawn only when what it paints changes", () => {
     expect(block).toContain("contours += sprite.contours;");
     expect(block).toContain("ds.heatLensCellSprites = `REUSED:${heatSpritesReused}|DRAWN:${heatSpritesDrawn}`;");
   });
+  // 2026-10-11 G19 Mansion: on a live 15s tape every print re-normalised each cell's ink by a few
+  // thousandths and every autoscale nudge moved a band by a sub-pixel, so all sprites were re-blurred
+  // every frame (REUSED:0|DRAWN:11). The cell is inked at the glass's own resolution.
+  it("a cell is inked at the glass quantum — 1/32 ramp, 1/200 opacity, whole-pixel band and span", () => {
+    const loop = MC.slice(MC.indexOf("GLASS QUANTUM"), at > 0 ? MC.indexOf("ds.heatLensUntimed = String(untimed);", at) : 0);
+    expect(loop).toContain("const quantumCells = heat.cells.map(c => ({ ...c, intensity: Math.round(c.intensity * 32) / 32, opacity: Math.round(c.opacity * 200) / 200 }));");
+    expect(loop).toContain("const orderedCells = hctx ? quantumCells.sort((a, b) => a.intensity - b.intensity) : [];");
+    expect(loop).toContain("const band = Math.max(1, Math.round(bandMeasured));");
+    expect(loop).toContain("const top = Math.min(+yh, +yl) + (bandMeasured - band) / 2;");
+    expect(loop).toContain("const cw = Math.max(1, Math.round(cx1 - cx0));");
+    // The sprite never reaches for the unquantised right edge.
+    expect(loop.slice(loop.indexOf("heatDraws.push("), loop.indexOf("painted++;"))).not.toMatch(/\bcx1\b/);
+  });
   it("the receipt names which happened; the counts stay the drawn counts", () => {
     expect(block).toContain('ds.heatLensLayer = "REDRAWN";');
     expect(block).toContain('ds.heatLensLayer = "REUSED";');
