@@ -288,9 +288,10 @@ async function loadSecShares(): Promise<boolean> {
 
 // Cache RSI per symbol — recomputed every 5 min. The failure cache (canonical
 // identity key + 15m TTL) lives in @/lib/scannerFailureCache — WM-SCANNER-RECONCILE-01.
-const rsiCache = new Map<string, { rsi: number; ts: number }>();
+const rsiCache = new Map<string, { rsi: number; avgVolume: number | null; ts: number }>();
 
-type RsiResult = Readonly<{ rsi: number | null; failure: RsiFailure | null }>;
+/** `avgVolume`: the mean volume of the last 20 COMPLETED daily bars from the same live bars (null when fewer). */
+type RsiResult = Readonly<{ rsi: number | null; failure: RsiFailure | null; avgVolume?: number | null }>;
 
 async function fetchRSI(
   identity: ScannerRsiIdentity,
@@ -304,7 +305,7 @@ async function fetchRSI(
   const failed = explicitRetry ? null : lookupFailure(failures, key);
   if (failed) return { rsi: null, failure: failed };
   const cached = rsiCache.get(identity.symbol);
-  if (cached && Date.now() - cached.ts < 300_000 && !explicitRetry) return { rsi: cached.rsi, failure: null };
+  if (cached && Date.now() - cached.ts < 300_000 && !explicitRetry) return { rsi: cached.rsi, failure: null, avgVolume: cached.avgVolume };
   try {
     // LIVE ONLY (Founder 2026-10-12: "remove anything delayed and dead"): the daily bars are
     // tastytrade's own (the live loader), never Yahoo's. `consumer` is retained for the call shape.
@@ -329,8 +330,13 @@ async function fetchRSI(
     const avgLoss = losses / 14;
     const rsi = avgLoss === 0 ? 100 : Math.round(100 - (100 / (1 + avgGain / avgLoss)));
     failures.delete(key);
-    rsiCache.set(identity.symbol, { rsi, ts: Date.now() });
-    return { rsi, failure: null };
+    // The volume ratio's denominator (Yahoo used to supply it): the last 20 COMPLETED sessions'
+    // own daily volume from the same live bars — the forming session is excluded, a session that
+    // printed no volume is not a zero, and fewer than 20 answers no average at all.
+    const done = live.candles.slice(0, -1).slice(-20).map(b => b.volume).filter(v => Number.isFinite(v) && v > 0);
+    const avgVolume = done.length === 20 ? done.reduce((a, v) => a + v, 0) / 20 : null;
+    rsiCache.set(identity.symbol, { rsi, avgVolume, ts: Date.now() });
+    return { rsi, failure: null, avgVolume };
   } catch {
     return { rsi: null, failure: null };
   }
@@ -412,7 +418,7 @@ async function fetchScannerQuotes(consumer: YahooCandleConsumer, failures: RsiFa
         const changeAbsence = resolved.observed ? null : resolved.absence;
         // A missing volume is not "0 shares traded": only a positive count is a measurement.
         const volume = live!.dayVolume != null && live!.dayVolume > 0 ? live!.dayVolume : null;
-        results.set(sym, { price, change, changePct, changeAbsence, volume, avgVolume: null, rsi: rsiResult.rsi, rsiFailure: rsiResult.failure, receivedAt: live!.at, observedAt: live!.at });
+        results.set(sym, { price, change, changePct, changeAbsence, volume, avgVolume: rsiResult.avgVolume ?? null, rsi: rsiResult.rsi, rsiFailure: rsiResult.failure, receivedAt: live!.at, observedAt: live!.at });
       } catch {}
     }));
     if (i + BATCH < scannerSymbols.length) await new Promise(r => setTimeout(r, 120));
