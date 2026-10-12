@@ -2724,6 +2724,9 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   /* With the tape chip off by default the standing strip stands alone at the top, and at 375 it ran 13px
      past its box ("TAPE REGIME TREN…"). Tighter padding and gaps keep every word in. */
   .wm-chart-market-standing--phone { padding: 3px 6px !important; gap: 4px !important; letter-spacing: 0.02em !important; }
+  /* …and on a phone "TAPE REGIME" reads "REGIME" (its title still says it is the recent tape's), so the day
+     change and the regime both fit (measured 375: 8px over with "+0.30% today · … BALANCE"). */
+  .wm-chart-market-standing--phone .wm-standing-tape-word { display: none !important; }
   /* A 360px phone leaves the row 180px: 28px chips with 2px gaps keep all five rungs and ⋯ in view
      (measured at 360: "1m" had scrolled out of sight). The tap slop still gives each one 44px. */
   @media (max-width: 379px) {

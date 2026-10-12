@@ -5493,7 +5493,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       <span aria-hidden="true">·</span>
       {/* The canonical regime dimension is read from the recent TAPE — named,
           so it never reads as a claim about the bars on camera (F15A × F14). */}
-      <span className="wm-chart-market-standing-label" title="Regime of the recent tape (direction × tick range), not of the bars on camera">TAPE</span>
+      <span className="wm-chart-market-standing-label wm-standing-tape-word" title="Regime of the recent tape (direction × tick range), not of the bars on camera">TAPE</span>
       <span className="wm-chart-market-standing-label">REGIME</span>
       {/* Spot FX has no tape at all (FX lane, 2026-10-06): "UNRESOLVED"
           promised a verdict that no print will ever settle. Same muted ink. */}
