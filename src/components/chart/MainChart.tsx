@@ -356,6 +356,8 @@ const DP_FIELD_FLOOR_ALPHA = 0.1;
 const HEAT_SPRITE_MAX_PX = 4_000_000;
 /** How long one drawable weather reading is held before the heat lens re-inks (G19 Mansion perf pass). */
 const HEAT_REINK_MS = 750;
+/** How often the value candle's CLOSED-bar list may be rebuilt (perf pass 2026-10-12). */
+const VC_CLOSED_REBUILD_MS = 1_000;
 /** Brick Walls masonry sprites kept at most (a camera holds a handful of walls). */
 const BRICK_SPRITE_CACHE_MAX = 48;
 /**
@@ -3477,6 +3479,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const sessionSizesRef = useRef<{ count: number; sorted: number[] }>({ count: -1, sorted: [] });
   /** Value Candle readings for closed bars, read once from the print store (per symbol|interval). */
   const vcStoreCacheRef = useRef<{ key: string; bars: Map<number, { n: number; bar: ValueCandleBar | null }> }>({ key: "", bars: new Map() });
+  /** The value candle's last CLOSED-bar list and when it was built (rebuilt ≤ once per VC_CLOSED_REBUILD_MS). */
+  const vcExtraHoldRef = useRef<{ key: string; at: number; extra: ValueCandleBar[] } | null>(null);
   const processedTicksRef = useRef<Set<string>>(new Set());
   // WM Session Tape Stats — running counters WM has observed for the current
   // symbol since tape collection began. Purely from real tick.trade events.
@@ -16900,13 +16904,19 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const glass = selectValueCandleGlass(valueCandleRef.current);
         // Every closed bar the print store can read (backfill included),
         // computed once per bar and cached; the live ring keeps the newest.
-        const vcBarsAll = (() => {
+        const vcBarsAllNow = () => {
           const ring = valueCandleBarsRef.current;
           if (!ring || ring.reason !== "PER_BAR") return ring;
           const iv = getIntervalSec(timeframe);
           const key = `${symbol}|${iv}`;
           if (vcStoreCacheRef.current.key !== key) vcStoreCacheRef.current = { key, bars: new Map() };
           const cache = vcStoreCacheRef.current.bars;
+          // CLOSED BARS CHANGE ONLY WHEN BACKFILL LANDS (perf pass 2026-10-12, paintSections on a busy BTC 15s
+          // tape: this block was 7.5 ms of an ~18 ms paint, every paint). The closed-bar list is rebuilt at
+          // most once a second; the forming bar still comes from the live ring on every paint.
+          const nowVc = performance.now();
+          const heldExtra = vcExtraHoldRef.current;
+          if (heldExtra && heldExtra.key === key && nowVc - heldExtra.at < VC_CLOSED_REBUILD_MS) return mergeValueCandleBars(ring, heldExtra.extra);
           const times = [...bigTradePrintAccRef.current.keys()].sort((a, b) => a - b);
           const newestHeld = times.length ? times[times.length - 1] : -Infinity;
           for (const t of times) {
@@ -16919,9 +16929,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             cache.set(t, { n: prints.length, bar: b ?? null });
           }
           const extra = [...cache.values()].map(c => c.bar).filter((b): b is NonNullable<typeof b> => b != null);
+          vcExtraHoldRef.current = { key, at: nowVc, extra };
           return mergeValueCandleBars(ring, extra);
-        })();
-        const vcPlan = selectValueCandleGlassPlan(valueCandleRef.current, vcBarsAll, { priceDp: pxDp });
+        };
         const ds = canvas.dataset;
         // Published in every state, including the silent ones. An absent
         // attribute means this build has no value-candle layer; UNMEASURED
@@ -16949,6 +16959,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         let vcPlaced = 0;
         let vcWords = "AT_REST";
         if (on && glass.drawn && glass.cog != null) {
+          // Built only when the layer will paint (it used to be built every paint, layer on or off).
+          const vcPlan = selectValueCandleGlassPlan(valueCandleRef.current, vcBarsAllNow(), { priceDp: pxDp });
           const tsV = chart.timeScale();
           // The bars the value candles measured, by their own slot time. A
           // value candle is drawn only on a bar this chart actually holds —
