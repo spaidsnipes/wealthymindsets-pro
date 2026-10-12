@@ -159,13 +159,6 @@ const NO_IN_APP_CALLER: Readonly<Record<string, OrphanEntry>> = {
       "Route defines DESTINATIONS = {lounge, shop, radio} and mints a session cookie for them. " +
       "The callers are other WM properties by construction, so they cannot appear in this repo.",
   },
-  "/api/alpaca-stream": {
-    cls: "DARK",
-    evidence:
-      "Zero references in src outside its own route+test. This is the SSE per-trade tape proxy " +
-      "whose header says it 'is what makes Big Trades bubbles populate on EVERY US stock live'. " +
-      "The capability is written and nothing opens the EventSource. Task #49.",
-  },
   "/api/alpaca/trade": {
     cls: "DARK",
     evidence:
@@ -328,7 +321,7 @@ describe("every API endpoint has something that actually calls it", () => {
     const every = Object.values(NO_IN_APP_CALLER);
     const dark = Object.entries(NO_IN_APP_CALLER).filter(([, e]) => e.cls === "DARK");
 
-    expect(dark.length, "DARK count changed — a debt was paid or a new one was taken on").toBe(9);
+    expect(dark.length, "DARK count changed — a debt was paid or a new one was taken on").toBe(8); // 9 → 8: /api/alpaca-stream deleted 2026-10-12 (dead)
     // 10 -> 9 on 2026-10-05 (ATHOS P0.1 uploads): /api/upload-track RETIRED.
     // No caller; it wrote ANY file into the PUBLIC radio bucket with the
     // service-role key, the extension and content-type taken from the client
