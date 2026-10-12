@@ -25382,7 +25382,18 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const rx = Math.max(cw * 0.9, 30);
               const seed = (cell.index + 1) * 2654435761;
               const jit = (k: number) => (((seed ^ (k * 40503)) >>> 0) % 1000) / 1000 - 0.5;
-              ctxHeat.filter = `blur(${Math.round(Math.min(18, Math.max(8, ry / 3)))}px)`;
+              /* THE HALO IS IN THE GRADIENT, NOT IN A FILTER (G19 Mansion perf pass,
+                 serving bf78538, BTC-USD 15s: every paint of a live tape is a new
+                 reading, and five `blur(8–18px)` puffs per cell — ~60 filters a
+                 paint — cost +7–9 ms). A linear radial falloff convolved with a
+                 Gaussian of σ is reproduced analytically: the same centre, a tail
+                 out to R + 2σ, with the convolution's own values at R − σ, R and
+                 R + σ. Same tone, same layer weight; no filter. */
+              const smokeSigma = Math.round(Math.min(18, Math.max(8, ry / 3)));
+              const puffR = Math.max(rx, ry);
+              const puffR2 = puffR + 2 * smokeSigma;
+              const toneAt = (a: number) => tone.replace("rgb(", "rgba(").replace(")", `, ${Math.max(0, Math.min(1, a)).toFixed(3)})`);
+              const sr = smokeSigma / puffR;
               // Colour carries the reading (blue response → gold persistence);
               // brightness is the regulator's alone. So a cheap (blue) segment
               // is as visible as a dear (gold) one — the plate's two halves.
@@ -25391,21 +25402,23 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               for (let k = 0; k < 5; k++) {
                 const px = cx0 + cw / 2 + jit(k) * cw * 0.6;
                 const py = midY + jit(k + 7) * ry * 0.8;
-                const g = ctxHeat.createRadialGradient(px, py, 0, px, py, Math.max(rx, ry));
+                const g = ctxHeat.createRadialGradient(px, py, 0, px, py, puffR2);
                 g.addColorStop(0, tone);
+                g.addColorStop(Math.max(0, puffR - smokeSigma) / puffR2, toneAt(1.08 * sr));
+                g.addColorStop(puffR / puffR2, toneAt(0.4 * sr));
+                g.addColorStop((puffR + smokeSigma) / puffR2, toneAt(0.083 * sr));
                 g.addColorStop(1, "rgba(0,0,0,0)");
                 ctxHeat.fillStyle = g;
                 ctxHeat.save();
                 ctxHeat.translate(px, py);
-                ctxHeat.scale(1, ry / Math.max(rx, ry));
+                ctxHeat.scale(1, ry / puffR);
                 ctxHeat.translate(-px, -py);
                 ctxHeat.beginPath();
-                ctxHeat.arc(px, py, Math.max(rx, ry), 0, Math.PI * 2);
+                ctxHeat.arc(px, py, puffR2, 0, Math.PI * 2);
                 ctxHeat.fill();
                 ctxHeat.restore();
               }
               ctxHeat.globalAlpha = prevAlpha;
-              ctxHeat.filter = "none";
             }
 
             // One to three contour lines: a quiet, deterministic expression

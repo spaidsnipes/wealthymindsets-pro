@@ -59,6 +59,13 @@ describe("the heat layer is redrawn only when what it paints changes", () => {
     expect(MC).toContain("const heatScope = `${symbol}|${timeframe}`;");
     expect(MC).toContain("ds.heatLensReadingAgeMs =");
   });
+  // 2026-10-11 G19 Mansion (serving bf78538): five blur(8–18px) puffs per cell cost +7–9 ms a paint on a live tape.
+  it("the smoke halo is analytic — one small band blur per cell, no filter on the puffs", () => {
+    const loopBody = block.slice(0, block.indexOf("const T = mainCtx.getTransform();"));
+    expect(loopBody.match(/ctxHeat\.filter = `blur/g)).toHaveLength(1);
+    expect(loopBody).toContain("const puffR2 = puffR + 2 * smokeSigma;");
+    expect(loopBody).toContain("g.addColorStop(puffR / puffR2, toneAt(0.4 * sr));");
+  });
   it("the receipt names which happened; the counts stay the drawn counts", () => {
     expect(block).toContain('ds.heatLensLayer = "REDRAWN";');
     expect(block).toContain('ds.heatLensLayer = "REUSED";');
