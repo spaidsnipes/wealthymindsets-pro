@@ -117,8 +117,19 @@ function scheduleRetry(reason: string) {
   retryTimer = setTimeout(() => { retryTimer = null; void connect(); }, delay);
 }
 
+/**
+ * ONE CONNECT IN FLIGHT (G19 Mansion, serving 0ce4515, cold NQ1! 5m, 2026-10-11 21:30 CDT): `ws` is
+ * set only after the token answers, so every subscriber that arrived during that await (panels, tape,
+ * candles) started its own connect — SEVEN DXLink sockets opened in the same millisecond. Each orphan's
+ * CHANNEL_OPENED re-sent FEED_SETUP and the subscriptions through the live socket, one landed in the
+ * middle of the candle snapshot, SNAPSHOT_END never came, and the futures chart waited the full 8 s
+ * timeout for bars a warm socket delivers in 0.5 s. The orphans also held connections open.
+ */
+let connecting = false;
+
 async function connect() {
-  if (ws || !wanted()) return;
+  if (ws || connecting || !wanted()) return;
+  connecting = true;
   emit({ stream: "CONNECTING", reason: null });
   const asked = identity;
   let tok: { state?: string; token?: string; dxlinkUrl?: string; reason?: string; error?: string } | null = null;
@@ -127,10 +138,11 @@ async function connect() {
     const a = await fetchQuoteToken();
     status = a.status;
     tok = a.body;
-  } catch { /* network */ }
+  } catch { /* network */ } finally { connecting = false; }
   // The account changed while the token was being asked for: that token
   // belongs to the previous identity and must not open a socket now.
-  if (asked !== identity) return;
+  // (A newer identity's subscriber waited behind this connect: it gets its own now.)
+  if (asked !== identity) { if (wanted() && !ws && !retryTimer) void connect(); return; }
   if (status === 403) { emit({ stream: "NOT_OWNER", reason: tok?.error ?? "tastytrade market data belongs to its owner only." }); return; }
   if (tok?.state === "NOT_CONFIGURED") { emit({ stream: "NOT_CONNECTED", reason: "tastytrade is not connected on this deployment." }); return; }
   if (tok?.state !== "OK" || !tok.token || !tok.dxlinkUrl) { void status; scheduleRetry(tastyStreamReasonWords("TOKEN")); return; }
@@ -144,6 +156,8 @@ async function connect() {
   // A close may mean the token was refused: the reconnect asks for a fresh one.
   sock.onclose = () => { if (ws === sock) { forgetQuoteToken(); scheduleRetry(tastyStreamReasonWords("CLOSED")); } };
   sock.onmessage = ev => {
+    // A socket that is no longer THE socket speaks for nobody (it would set up the live one again).
+    if (ws !== sock) { try { sock.close(); } catch { /* closed */ } return; }
     let m: { type?: string; channel?: number; state?: string; data?: unknown; error?: string; message?: string };
     try { m = JSON.parse(String(ev.data)); } catch { return; }
     switch (m.type) {
