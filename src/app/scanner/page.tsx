@@ -407,10 +407,13 @@ async function fetchScannerQuotes(failures: RsiFailureCache, liveOf: (sym: strin
     const batch = scannerSymbols.slice(i, i + BATCH);
     await Promise.all(batch.map(async sym => {
       try {
-        const rsiResult = await fetchRSI(scannerRsiIdentity(sym), failures);
+        // The live price first: a symbol with none is not a row, so it must not spend a daily-candle
+        // read on RSI. (The opening round runs before the stream speaks; asking RSI first made it read
+        // ~30 candle sets it then discarded, in the way of the round that fills the table — 2026-10-15.)
         const live = liveOf(sym.toUpperCase());
         const price = live?.price ?? 0;
         if (!(price > 0) || !(live!.at > 0)) { refusals.set(sym, "No live tastytrade price for this market yet."); return; }
+        const rsiResult = await fetchRSI(scannerRsiIdentity(sym), failures);
         const resolved = selectQuoteChange({ price, prevClose: live!.prevClose ?? undefined, prevCloseObserved: live!.prevClose != null && live!.prevClose > 0 });
         const change    = resolved.observed ? +resolved.chg.toFixed(2) : null;
         const changePct = resolved.observed ? +resolved.pct.toFixed(2) : null;
