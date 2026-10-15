@@ -35,34 +35,38 @@ const READ = `(() => {
   const rowInk = (y) => { const p = ctx.getImageData(0, Math.max(0, Math.min(H - 1, Math.round(y))), W, 1).data; let n = 0; for (let i = 3; i < p.length; i += 4) if (p[i] > 40) n++; return n; };
   const colInk = (x0, x1) => { let n = 0; for (let y = 0; y < H; y += 4) { const p = ctx.getImageData(x0, y, x1 - x0, 1).data; let a = 0; for (let i = 3; i < p.length; i += 4) a = Math.max(a, p[i]); if (a > 60) n++; } return n; };
   const wallYs = (d.brickWallsAt || '').split('|').map(s => Number(s.split(':')[1])).filter(Number.isFinite);
-  return { found: true, d, W, H, wallInk: wallYs.map(rowInk), ladderRows: colInk(2, 8), plotInk: [0.25, 0.5, 0.75].map(f => rowInk(H * f)) };
+  // data-invention-visibility = "ID:STATE|…" — the Locate Invention receipt (seven states per invention).
+  const vis = Object.fromEntries((d.inventionVisibility || '').split('|').map(p => { const i = p.lastIndexOf(':'); return i > 0 ? [p.slice(0, i), p.slice(i + 1)] : [p, '']; }));
+  return { found: true, d, W, H, vis, wallInk: wallYs.map(rowInk), ladderRows: colInk(2, 8), plotInk: [0.25, 0.5, 0.75].map(f => rowInk(H * f)) };
 })()`;
+/** A RENDER_FAULT anywhere fails the scene: DOM "ON" can never outrank a thrown painter. */
+const noFault = r => !Object.values(r.vis || {}).includes("RENDER_FAULT");
 
 const SCENES = [
   {
     name: "brick-walls-fixture",
     url: `/charts?symbol=NQ1!&tf=5m&scene=lens-fixture&climate=WALLED&on=BrickWalls`,
-    check: r => /^ON:\d+$/.test(r.d.brickWalls) && r.wallInk.length >= 2 && r.wallInk.every(n => n > 0),
-    words: r => `brickWalls=${r.d.brickWalls} ink=${r.wallInk.join("/")}`,
+    check: r => /^ON:\d+$/.test(r.d.brickWalls) && r.wallInk.length >= 2 && r.wallInk.every(n => n > 0) && r.vis.BRICK_WALLS === "VISIBLE" && noFault(r),
+    words: r => `brickWalls=${r.d.brickWalls} ink=${r.wallInk.join("/")} vis=${r.vis.BRICK_WALLS}`,
   },
   {
     name: "gamma-heatmap-ladder",
     url: `/charts?symbol=SPY&tf=5m&scene=clean&on=wg:GAMMA_HEATMAP,wg:CALL_WALL,wg:PUT_WALL`,
     // A heat band on camera must carry the left-edge ladder; "ON:…:POS0:NEG0" (nothing on camera) is reported, not passed.
-    check: r => /^ON:/.test(r.d.gammaHeatmap) && !/POS0:NEG0/.test(r.d.gammaHeatmap) && r.ladderRows > 0,
+    check: r => /^ON:/.test(r.d.gammaHeatmap) && !/POS0:NEG0/.test(r.d.gammaHeatmap) && r.ladderRows > 0 && r.vis.GAMMA_HEATMAP === "VISIBLE" && noFault(r),
     words: r => `gammaHeatmap=${r.d.gammaHeatmap} ladderRows=${r.ladderRows}`,
   },
   {
     name: "profiles-eleven",
     url: `/charts?symbol=NQ1!&tf=5m&scene=clean&on=LivingProfile,StructureProfile,ProfileMemory,CompositeProfile,TpoProfile,VisibleRangeProfile,fixedVP,sessionVP`,
     check: r => r.d.livingProfile === "DRAWN" && r.d.structureProfile === "DRAWN" && r.d.tpoProfile === "DRAWN" && r.d.compositeProfile === "DRAWN"
-      && r.d.visibleRangeProfile === "DRAWN" && r.d.profileMemory === "DRAWN" && Number(r.d.vpDrawn) >= 2 && r.plotInk.some(n => n > 0),
+      && r.d.visibleRangeProfile === "DRAWN" && r.d.profileMemory === "DRAWN" && Number(r.d.vpDrawn) >= 2 && r.plotInk.some(n => n > 0) && noFault(r),
     words: r => `living=${r.d.livingProfile} structure=${r.d.structureProfile} tpo=${r.d.tpoProfile} composite=${r.d.compositeProfile} vrp=${r.d.visibleRangeProfile} memory=${r.d.profileMemory} vp=${r.d.vpDrawn}`,
   },
   {
     name: "weather-bigtrades-fvg",
     url: `/charts?symbol=NQ1!&tf=5m&scene=clean&on=LiquidityWeather,fp:big-trades,fvg,MarketStructure`,
-    check: r => Number(r.d.paintDrawn) > 0 && r.plotInk.some(n => n > 0) && !("paintFault" in r.d),
+    check: r => Number(r.d.paintDrawn) > 0 && r.plotInk.some(n => n > 0) && !("paintFault" in r.d) && noFault(r),
     words: r => `paintDrawn=${r.d.paintDrawn} bigTrades=${r.d.bigTradesDrawn} fvg=${r.d.fvg} fault=${r.d.paintFault ?? "none"}`,
   },
 ];
