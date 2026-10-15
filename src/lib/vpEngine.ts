@@ -277,19 +277,88 @@ export function computeProfileFromBars(
   const tick = bucketOnTickGrid(opts.tickSize ?? chooseTickSize(range > 0 ? range : Math.abs(hi) || 1, opts.targetRows), opts.instrumentTick);
 
   const buckets = new Map<number, { up: number; down: number }>();
+  accumulateBars(bars, tick, opts.instrumentTick, buckets);
+  return finalize(buckets, tick, valueAreaPct, "candle-estimated", onGrid(lo, opts.instrumentTick));
+}
+
+/** The one bucketing loop: each bar's volume spread evenly over the buckets its range touches. */
+function accumulateBars(
+  bars: readonly LegacyOhlcvTuple[],
+  tick: number,
+  instrumentTick: number | null | undefined,
+  buckets: Map<number, { up: number; down: number }>,
+): void {
   for (const b of bars) {
     if (!(b.volume > 0) || !(b.high >= b.low)) continue;
-    const first = onGrid(bucketFloor(b.low, tick), opts.instrumentTick);
-    const last = onGrid(bucketFloor(b.high, tick), opts.instrumentTick);
+    const first = onGrid(bucketFloor(b.low, tick), instrumentTick);
+    const last = onGrid(bucketFloor(b.high, tick), instrumentTick);
     const nBuckets = Math.max(1, Math.round((last - first) / tick) + 1);
     const per = b.volume / nBuckets;
     const isUp = b.close >= b.open;
     for (let i = 0; i < nBuckets; i++) {
-      const key = onGrid(+(first + i * tick).toFixed(10), opts.instrumentTick);
+      const key = onGrid(+(first + i * tick).toFixed(10), instrumentTick);
       const cur = buckets.get(key) ?? { up: 0, down: 0 };
       if (isUp) cur.up += per; else cur.down += per;
       buckets.set(key, cur);
     }
   }
+}
+
+/**
+ * THE LIVE PROFILE — closed bars bucketed once per bar, the forming bar added per paint
+ * (Garden 19 finish-line order §7, 2026-10-15).
+ *
+ * Serving NQ1! 5m in busy regular hours with every layer on: the VP columns cost 18–20 ms of a
+ * 34 ms paint, because the columns were rebuilt from ~5,000 bars on EVERY tick — a memo keyed on
+ * the forming bar's reading misses whenever the forming bar moves, which on a busy tape is every
+ * paint. The profile is additive per bar, so the closed bars' buckets are built once (per bar
+ * count, tick size and last closed bar) and kept; each paint clones them, adds the forming bar
+ * and finalizes. The sums are bit-identical to `computeProfileFromBars` because the forming bar
+ * is the last term in both. The tick size is derived from ALL bars (forming included), exactly
+ * as the full build derives it, so a forming bar that widens the range beyond every closed bar
+ * changes the tick and the closed buckets are simply rebuilt for that tick.
+ *
+ * `cacheKey` names what else the closed buckets depend on (the symbol and the options).
+ */
+const LIVE_CACHE_MAX = 8;
+const liveClosedCache = new Map<string, { readonly buckets: Map<number, { up: number; down: number }> }>();
+let liveClosedBuilds = 0;
+
+export function computeProfileFromBarsLive(
+  bars: readonly LegacyOhlcvTuple[],
+  opts: ProfileOptions = {},
+  cacheKey = "",
+): ProfileSnapshot {
+  const valueAreaPct = opts.valueAreaPct ?? 0.7;
+  if (bars.length < 2) return computeProfileFromBars([...bars], opts);
+
+  let hi = -Infinity, lo = Infinity;
+  for (const b of bars) {
+    if (!(b.high >= b.low)) continue;
+    if (b.high > hi) hi = b.high;
+    if (b.low < lo) lo = b.low;
+  }
+  const range = hi - lo;
+  const tick = bucketOnTickGrid(opts.tickSize ?? chooseTickSize(range > 0 ? range : Math.abs(hi) || 1, opts.targetRows), opts.instrumentTick);
+
+  const n = bars.length - 1;
+  const lastClosed = bars[n - 1];
+  const key = `${cacheKey}|${n}|${bars[0].time}|${lastClosed.time}|${lastClosed.volume}|${lastClosed.close}|${tick}|${opts.instrumentTick ?? "x"}`;
+  let closed = liveClosedCache.get(key);
+  if (!closed) {
+    const buckets = new Map<number, { up: number; down: number }>();
+    accumulateBars(bars.slice(0, n), tick, opts.instrumentTick, buckets);
+    closed = { buckets };
+    if (liveClosedCache.size >= LIVE_CACHE_MAX) liveClosedCache.delete(liveClosedCache.keys().next().value as string);
+    liveClosedCache.set(key, closed);
+    liveClosedBuilds++;
+  }
+  const buckets = new Map<number, { up: number; down: number }>();
+  for (const [k, v] of closed.buckets) buckets.set(k, { up: v.up, down: v.down });
+  accumulateBars([bars[n]], tick, opts.instrumentTick, buckets);
   return finalize(buckets, tick, valueAreaPct, "candle-estimated", onGrid(lo, opts.instrumentTick));
 }
+
+/** Test seams. */
+export function liveProfileClosedBuilds(): number { return liveClosedBuilds; }
+export function resetLiveProfileCache(): void { liveClosedCache.clear(); liveClosedBuilds = 0; }

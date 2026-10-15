@@ -678,8 +678,7 @@ import {
   sessionSizePercentile,
   signedFlowText,
 } from "@/lib/chart/footprintCanon";
-import { computeProfileFromBars } from "@/lib/vpEngine";
-import { memoProfile, profileMemoKey } from "@/lib/chart/profileMemo";
+import { computeProfileFromBars, computeProfileFromBarsLive } from "@/lib/vpEngine";
 // vpEngine owns WHERE THE VOLUME GOES; vpDrawGeometry owns WHERE THE PIXELS GO.
 // Both halves of the profile are now pure and tested — see vpDrawGeometry.ts.
 import {
@@ -12429,9 +12428,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // P0.2: rows, POC, VAH, VAL on the instrument's tick grid.
           instrumentTick: instrumentTickFor(symbol, barsToUse.length ? barsToUse[barsToUse.length - 1].close : null),
         };
-        // One build per bar reading (src/lib/chart/profileMemo.ts) — not one per paint.
-        const snap = memoProfile(profileMemoKey(symbol, barsToUse, vpOpts),
-          () => computeProfileFromBars([...volumeBearingBars(symbol, barsToUse)], vpOpts));
+        // Closed bars bucketed once per bar, the forming bar added per paint (vpEngine
+        // computeProfileFromBarsLive) — a per-reading memo missed on every tick of a busy tape
+        // and rebuilt ~5,000 bars each paint (18–20 ms, serving NQ1! RTH 2026-10-15).
+        const snap = computeProfileFromBarsLive([...volumeBearingBars(symbol, barsToUse)], vpOpts, `${symbol}|${labelText}|${vpOpts.targetRows}`);
         // The market's own decimals for this column's price tags (pricePrecision.ts);
         // computed here, not read from the frame, because this can run first.
         const vpDp = displayPrecisionFor(symbol, barsToUse);
