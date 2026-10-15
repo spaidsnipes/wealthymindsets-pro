@@ -65,8 +65,9 @@ Not yet measured today: multiple charts side by side, rapid symbol/timeframe swi
 | Positive / Negative gamma regions, Gamma Flip | WITHHELD on a near-money ±4% subset (`FLIP:WITHHELD_NEAR_MONEY_SUBSET`, `gammaRegions SILENCE:PROFILE_WITHHELD`) — honest, and a FOUNDER DECISION (coverage) | 09:46 SPY, 09:52 AAPL |
 | Gamma concentration levels | VISIBLE (AAPL `GAMMA_CONC_POS@345`) | 09:52 |
 | Session VP (fixed + session), Living Profile, Visible Range, Structure (LEG POC), TPO letters, Composite, Profile Memory | VISIBLE (NQ1! 5m) | 09:50 screenshot; receipts `vpDrawn 2`, `livingProfile DRAWN`, `structureProfile DRAWN`, `tpoProfile DRAWN`, `compositeProfile DRAWN`, `profileMemory DRAWN` |
-| Profile DNA | `MEASURED:ALONE` (needs a second profile to compare) | 09:50 |
-| Profile Fusion | `DRAWN|PAIR_OBJECT:NONE` (no fusion pair on this chart) | 09:50 |
+| Profile DNA | VISIBLE with two profiles: `MEASURED · shape P · spine 107-87 · diamond 95` (diamond + bracket on the glass); alone it says `MEASURED:ALONE` | 10:26 (`3a791dc`), 09:50 |
+| Profile Fusion | BUILT · NO CURRENT EVENT (read): Living + Visible Range → `REFUSED:UNIT_MISMATCH` ("volume counted in different units — tape prints vs bar volume"); Structure + Composite → `NO_AGREEMENT` ("no levels agree within 2 ticks"); VRP/classic Session VP are not fusion species. Every silence names its reason on the glass; nothing is averaged into a fake fusion | 10:26–10:28 |
+| Fixed Range Profile (user boundaries) | PARTIAL: the `fixedVP` column paints (`vpDrawn 2`); the DRAW tool's user-boundary read was not completed today (my first click opened a zone's Passport; an empty span refused honestly: `REFUSED:TOO_FEW_BARS_IN_VIEW`) | 09:51, 10:27 |
 | Bid/Ask Split Profile (#11) | BUILT · DATA-LIMITED — a DRAW tool (Tools › Bid/Ask Split Profile, two clicks): the drawing is created and says "Delta+VP · no per-level tape · captured live only"; per-price bid/ask attribution exists only from tape captured since page load, so a historical range has nothing lawful to split. Also the footprint bid×ask mode on live-tape bars | 10:18 (drawing + banner), 09:52 (footprint) |
 | Weather, Big Trades, FVG, Market Structure, Options Flow, Absorption shelf, Demand zone | VISIBLE in the all-layers read | 09:58 |
 

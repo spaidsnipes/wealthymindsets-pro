@@ -73,10 +73,10 @@
     "build": "59c895f"
   },
   "P110.3": {
-    "receipt": "profileFusion DRAWN|PAIR_OBJECT:NONE \u2014 no fusion pair on this chart",
+    "receipt": "Living + VRP \u2192 REFUSED:UNIT_MISMATCH (tape prints vs bar volume), words on glass; Living + classic Session VP \u2192 'needs 2 profile species' \u2014 lawful refusals, no fake fusion (10:26) \u00b7 Structure + Composite \u2192 NO_AGREEMENT ('2 species on, no levels agree within 2 ticks', 10:28)",
     "visible": "NO_EVENT",
-    "proof": "g19-mansion-shift log 10-15 09:51",
-    "build": "59c895f"
+    "proof": "g19-mansion-shift log 10-15 10:26",
+    "build": "3a791dc"
   },
   "P110.4": {
     "receipt": "profileMemory DRAWN (09:51)",
@@ -85,10 +85,10 @@
     "build": "59c895f"
   },
   "P110.5": {
-    "receipt": "profileDna MEASURED:ALONE \u2014 needs a second profile to compare",
-    "visible": "NO_EVENT",
-    "proof": "g19-mansion-shift log 10-15 09:51",
-    "build": "59c895f"
+    "receipt": "profileDna MEASURED \u00b7 shape P \u00b7 spine 107-87 \u00b7 diamond 95 \u00b7 salience STEP2|SPINE+HALO|BRACKET|DIAMOND (Living + Session VP, 10:26)",
+    "visible": "VISIBLE",
+    "proof": "g19-mansion-shift log 10-15 10:26",
+    "build": "3a791dc"
   },
   "P110.6": {
     "receipt": "vpDrawn 2 \u00b7 vpRows 254 \u00b7 vpSessionWindow GLOBEX_DAY (session + fixed columns, 09:51)",
@@ -103,10 +103,10 @@
     "build": "59c895f"
   },
   "P110.8": {
-    "receipt": "vpDrawn 2 with fixedVP on (09:51); user-selected boundaries NOT READ today",
-    "visible": "VISIBLE",
-    "proof": "g19-mansion-shift log 10-15 09:51",
-    "build": "59c895f"
+    "receipt": "vpDrawn 2 with fixedVP on (09:51); DRAW-tool user boundaries attempt hit a zone object \u2192 REFUSED:TOO_FEW_BARS_IN_VIEW (honest empty-span refusal, 10:27); clean user-boundary read NOT DONE",
+    "visible": "PARTIAL",
+    "proof": "g19-mansion-shift log 10-15 09:51, 10:27",
+    "build": "3a791dc"
   },
   "P110.9": {
     "receipt": "compositeProfile DRAWN \u00b7 profileStackLanes COMPOSITE (09:51)",
