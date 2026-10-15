@@ -103,10 +103,10 @@
     "build": "59c895f"
   },
   "P110.8": {
-    "receipt": "vpDrawn 2 with fixedVP on (09:51); DRAW-tool user boundaries attempt hit a zone object \u2192 REFUSED:TOO_FEW_BARS_IN_VIEW (honest empty-span refusal, 10:27); clean user-boundary read NOT DONE",
-    "visible": "PARTIAL",
-    "proof": "g19-mansion-shift log 10-15 09:51, 10:27",
-    "build": "3a791dc"
+    "receipt": "user-dragged span: 'FIXED RANGE \u00b7 12 bars \u00b7 POC 29992.50 \u00b7 CANDLE-EST', fixedRange SLAB:37x2,ANCHORS:2+BARS:12+POC:29992.50 (NQ1! 5m 12:06); a 1-bar span refuses 'drag across at least 5'",
+    "visible": "VISIBLE",
+    "proof": "g19-mansion-shift log 10-15 12:06",
+    "build": "137ed26"
   },
   "P110.9": {
     "receipt": "compositeProfile DRAWN \u00b7 profileStackLanes COMPOSITE (09:51)",
