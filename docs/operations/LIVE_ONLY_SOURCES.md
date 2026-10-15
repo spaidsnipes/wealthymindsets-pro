@@ -62,3 +62,9 @@ candle consumer.
 
 - Widen live options coverage beyond ±4% (restores far-out walls and the gamma flip; costs more option streams on the broker socket)?
 - Delete the remaining DARK non-market routes (paper order route, certification, memecoin, polymarket, sentiment, audio, welcome email)?
+- FOUND 2026-10-15 — two SERVER routes still read Yahoo for client rooms (the sentinel only checks client calls, so it could not see them):
+  `/api/heatmap` (1D % change from Yahoo's delayed quote; 1W–5Y from Yahoo daily closes) feeds /research-heat and /scanner/map;
+  `/api/discovery` (3 months of Yahoo daily closes, today's partial bar included) feeds the scanner's unusual-states card.
+  Options: (a) 1D heat from the tastytrade stream (Summary prior close + last trade) for a capped universe — up to 600 symbols
+  today, which is far more than the chart's socket carries — and multi-day periods as completed closes only (the backtest rule);
+  (b) withdraw both rooms' 1D colour until (a) lands, keeping the completed-close periods; (c) keep them as they are, named HISTORICAL/DELAYED.
