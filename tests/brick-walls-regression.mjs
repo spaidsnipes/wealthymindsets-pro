@@ -52,6 +52,11 @@ const READ = `(() => {
   return { found: true, brickWalls: d.brickWalls, walls, at: d.brickWallsAt || null, ink, paintMeanMs: d.paintMeanMs, w: W, h: H };
 })()`;
 
+// Order §2 step 8 needs a feed cut: every WebSocket the page opens is listed so the harness can close the
+// live one and watch the stream heal. Playwright-only instrumentation; nothing here ships.
+const WS_WRAP = `(() => { const N = window.WebSocket; const list = []; function W(u, p) { const s = p === undefined ? new N(u) : new N(u, p); list.push(s); return s; }
+  W.prototype = N.prototype; W.CONNECTING = 0; W.OPEN = 1; W.CLOSING = 2; W.CLOSED = 3; window.__wsList = list; window.WebSocket = W; })()`;
+
 const steps = [];
 let failed = false;
 function record(name, ok, detail) {
@@ -80,6 +85,7 @@ async function expectWalls(page, name, wantN = 2) {
 const browser = await chromium.launch();
 const context = await browser.newContext({ storageState: STATE, viewport: { width: 1440, height: 900 } });
 const page = await context.newPage();
+await page.addInitScript(WS_WRAP);
 
 await page.goto(scene("5m"), { waitUntil: "domcontentloaded", timeout: 90000 });
 await settle(page);
@@ -132,6 +138,42 @@ await expectWalls(page, "09 toggle on");
 await page.waitForTimeout(60_000);
 await page.screenshot({ path: join(OUT, "_frame.png") });
 await expectWalls(page, "10 sustained 60 s");
+
+// Step 8 — cut the live feed, then watch it restore: the masonry (chain over HTTP) must not blink, and a new
+// socket must be OPEN again within a few seconds. A page that opened no socket cannot run this step (said so).
+{
+  const cut = await page.evaluate(() => { const open = (window.__wsList || []).filter(s => s.readyState === 1); open.forEach(s => s.close(4000, "proof-cut")); return open.length; });
+  if (!cut) record("08b feed cut / restore", false, "no OPEN socket to cut — step not run");
+  else {
+    await page.waitForTimeout(5000);
+    const r = await page.evaluate(READ);
+    const healed = await page.evaluate(() => (window.__wsList || []).some(s => s.readyState === 1));
+    const ok = r.found && /^ON:[1-9]/.test(String(r.brickWalls)) && r.ink.length > 0 && r.ink.every(n => n > 0) && healed;
+    record("08b feed cut / restore", ok, JSON.stringify({ cut, healed, brickWalls: r.brickWalls, ink: r.ink }));
+  }
+}
+
+// Step 11 — SHOW ME (order §4): on 1m the ±1% walls sit beyond the camera; a tap on the ABOVE edge brick must
+// reveal that wall (receipt REVEAL:WALL@…, both walls painted) and let go again after the hold.
+await page.goto(scene("1m", ",DerivativesPressure"), { waitUntil: "domcontentloaded", timeout: 90000 });
+await settle(page);
+{
+  const before = await page.evaluate(() => { const ov = [...document.querySelectorAll("canvas")].find(c => "brickWalls" in c.dataset); if (!ov) return null; const r = ov.getBoundingClientRect(); const hits = String(ov.dataset.pressureWallHitAt || ""); const off = String(ov.dataset.brickWallsOffCamera || ""); return { x: r.x, y: r.y, hits, off, at: ov.dataset.brickWallsAt || "" }; });
+  const above = before && /ABOVE:[1-9]/.test(before.off);
+  const target = above ? before.hits.split("|").map(h => { const [strike, xy] = h.split("@"); const [x, y] = xy.split(",").map(Number); return { strike: Number(strike), x, y }; }).filter(h => !before.at.includes(`${h.strike}:`))[0] : null;
+  if (!target) record("11 show me", false, `no off-camera wall to ask for — ${JSON.stringify(before)}`);
+  else {
+    await page.mouse.click(before.x + target.x, before.y + target.y);
+    await page.waitForTimeout(1500);
+    const r = await page.evaluate(READ);
+    const reveal = await page.evaluate(() => String([...document.querySelectorAll("canvas")].find(c => "brickWalls" in c.dataset)?.dataset.cameraReveal || ""));
+    await page.screenshot({ path: join(OUT, "11-show-me.png") });
+    const shown = reveal.startsWith(`REVEAL:WALL@${target.strike}`) && String(r.at).includes(`${target.strike}:`) && r.ink.every(n => n > 0);
+    await page.waitForTimeout(11_000);
+    const after = await page.evaluate(() => String([...document.querySelectorAll("canvas")].find(c => "brickWalls" in c.dataset)?.dataset.cameraReveal || ""));
+    record("11 show me", shown && after.startsWith("DONE:"), JSON.stringify({ reveal, after, at: r.at, ink: r.ink }));
+  }
+}
 
 writeFileSync(join(OUT, "report.json"), JSON.stringify({ base: BASE, symbol: SYMBOL, at: new Date().toISOString(), steps }, null, 2));
 await browser.close();
