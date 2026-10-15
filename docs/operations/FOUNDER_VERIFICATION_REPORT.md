@@ -67,10 +67,14 @@ Not yet measured today: multiple charts side by side, rapid symbol/timeframe swi
 | Session VP (fixed + session), Living Profile, Visible Range, Structure (LEG POC), TPO letters, Composite, Profile Memory | VISIBLE (NQ1! 5m) | 09:50 screenshot; receipts `vpDrawn 2`, `livingProfile DRAWN`, `structureProfile DRAWN`, `tpoProfile DRAWN`, `compositeProfile DRAWN`, `profileMemory DRAWN` |
 | Profile DNA | `MEASURED:ALONE` (needs a second profile to compare) | 09:50 |
 | Profile Fusion | `DRAWN|PAIR_OBJECT:NONE` (no fusion pair on this chart) | 09:50 |
-| Bid/Ask Split | PARTIAL — exists as the footprint bid-ask mode on live-tape bars only (`footprintBars 1`); no session Bid/Ask Split PROFILE | 09:52 |
+| Bid/Ask Split Profile (#11) | BUILT · DATA-LIMITED — a DRAW tool (Tools › Bid/Ask Split Profile, two clicks): the drawing is created and says "Delta+VP · no per-level tape · captured live only"; per-price bid/ask attribution exists only from tape captured since page load, so a historical range has nothing lawful to split. Also the footprint bid×ask mode on live-tape bars | 10:18 (drawing + banner), 09:52 (footprint) |
 | Weather, Big Trades, FVG, Market Structure, Options Flow, Absorption shelf, Demand zone | VISIBLE in the all-layers read | 09:58 |
 
 The generated ledger (`INVENTION_LEDGER.md`) lists all 110 census entries; those not in this table are NOT READ today.
+
+## 3a. Chart-native trading controls (order §9), serving `4b0b865`, 10:10 CDT
+
+`/charts?symbol=NQ1!&tf=5m&scene=ticket-fixture&side=buy&state=flat` → TRADE on the sample book ("PROOF SCENE — sample book, not your account · nothing can be sent", LIVE DISARMED, KILLED): the ticket reads the live tastytrade bid/ask (29989.75 / 29990.50), the ENTRY line is drawn on the chart with its "↕ ENTRY 29982.50" handle (`orderLines DRAWN:1`), and the limit field follows the handle. Drag read 10:11: handle dragged 55 px down → "ENTRY 29880.50" on the glass, Limit input 29880.50, receipt `ORDER@29880.5:SLID`; the line slid across the VRP/POC chips without being intercepted by them. Live sending stays BLOCKED (standing). Not read today: stop/target lines on a real position, trade-line priority over analytical overlays under a hover.
 
 ## 4. Commercial readiness (Passport · Stripe · entitlement)
 
@@ -78,7 +82,13 @@ The generated ledger (`INVENTION_LEDGER.md`) lists all 110 census entries; those
 - **Stripe: NOT CONFIGURED on production.** `/api/billing/readiness` 09:48: `mode NOT_CONFIGURED`, no `STRIPE_SECRET_KEY`, no webhook secret, no price ids; `/api/billing/standing` tier FREE; `/pricing` shows App $10 / Passport $20 / OS $50, none on sale. The constitution's authorized offer is **$20/month** — the three tiers on the page need the Founder's ruling before any key is set. None of the 20 money-path tests (order §10) can run until the Founder sets the Stripe TEST keys (Cloudflare secrets); the webhook signature/idempotency code is pinned by `billingRoutes.route.test.ts` only.
 - `/legal` reads "Not yet published": Terms/Privacy not in effect — a legal/Founder item before taking money.
 
+## 4a. Whole-house sweep (order §11), serving `4b0b865`, 10:12 CDT, 390×844, owner session
+
+Twelve rooms (/journal, /morning-prep, /news, /education, /lounge, /readiness, /profile, /desk, /watchlist, /scanner/map, /backtesting, /ai-bot) loaded with a fetch/JS-error patch: 0 failed requests, 0 JS errors, 0 px horizontal overflow, no placeholder words. Earlier today: /charts, /command-deck, /paper, /scanner, /scanner/map, /journal clean of failed requests at 1440 (07:12–07:25). Not read today: every clickable control room by room (order §11 asks for each control's intended result; today's sweep is load/error/layout only), keyboard accessibility, colour contrast.
+
 ## 5. What remains blocked (P0, with the exact next action)
+
+0. **Workers Builds went silent at ~09:55 CDT:** `4b0b865` (pushed 09:49) built and went live at 10:00; `09047f2` (09:59), `98d4697` (10:03) and `3a791dc` (10:10) have no Cloudflare build at all (only the GitHub typecheck job). Production is therefore `4b0b865` — the Brick Walls fix is live; the gamma ladder, the ±1% fixture and this report are not. Same symptom as 2026-10-12 (02:31Z → 10:05 CDT). Local deploy refused (wrangler not signed in; standing rule). **Next action (Founder):** Cloudflare dashboard → Workers & Pages → wealthymindsets-pro → Builds: retry the latest commit / check the GitHub app connection.
 
 1. **Members without a tastytrade connection see no stock/futures prices** (LIVE-ONLY order, 10-12). The live stream is the owner's account; `/api/broker/tastytrade/quote-token` answers 403 to a non-owner → `NOT_OWNER` → no bars, no quotes; the glass says "live bars come from a connected tastytrade account… connect one in Brokers". Crypto (Coinbase public) works for everyone. **FOUNDER DECISION:** (a) redistribute the owner stream to members (a market-data entitlement/agreement question, not a code change), (b) each member connects their own broker (built: Brokers page), or (c) a licensed member feed. Until decided, "guest ready" is TRUE for crypto and FALSE for stocks/futures prices.
 2. **Stripe keys + tier ruling** (§4). Next action: Founder sets test keys; then the 20-step money path is run against test mode and reported here.

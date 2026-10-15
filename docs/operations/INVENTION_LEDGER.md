@@ -1,6 +1,6 @@
 # INVENTION LEDGER (generated)
 
-Generated 2026-10-15T15:09:29.795Z by `scripts/invention-ledger.mjs` from `src/lib/canon/inventionCensus.ts` (110 entries: BUILT 80 · NOT_BUILT 20 · PARTIAL 7 · INTERNAL 3) and 27 serving receipts.
+Generated 2026-10-15T15:18:50.653Z by `scripts/invention-ledger.mjs` from `src/lib/canon/inventionCensus.ts` (110 entries: BUILT 80 · NOT_BUILT 20 · PARTIAL 7 · INTERNAL 3) and 27 serving receipts.
 
 **Law (order §0):** registered ≠ exposed ≠ built ≠ painted ≠ visible. The columns are the order's independently testable states as far as the repository and a browser read can establish them. Anything this file cannot establish is written NOT READ. "COMPLETE (serving read)" needs a VISIBLE browser read on the named build; everything else is not complete.
 
@@ -30,7 +30,7 @@ Columns: 1 registered in the census · 2 exposed through an interface (surface) 
 | F06A.FLOW | Flow Current (order flow on price) | F06 Order Flow | YES | YES (SWITCH) | YES `src/components/chart/MainChart.tsx` | BUILT | NOT READ | — | — | — | **BUILT · NOT READ** |
 | F06.VALUE_CANDLE | Value Candle | F06 Order Flow | YES | YES (SWITCH) | YES `src/lib/marketData/viewModels/selectValueCandle.ts` | BUILT | NOT READ | — | — | — | **BUILT · NOT READ** |
 | F06.ANATOMY | Anatomy Cards (absorption / exhaustion metrics) | F06 Order Flow | YES | YES (SWITCH) | YES `src/lib/marketData/viewModels/selectAnatomyCards.ts` | BUILT | NOT READ | — | — | — | **BUILT · NOT READ** |
-| F06.BIDASK_PROFILE | Bid/Ask Split Profile (#11) | P-110 Profiles | YES | YES (SWITCH) | YES `src/lib/marketData/viewModels/selectProfileMenu.ts` | BUILT | PARTIAL | footprint bid-ask only: footprintBars 1 (live tape since load); no session Bid/Ask Split profile | g19-mansion-shift log 10-15 09:52 | 59c895f | **BUILT** |
+| F06.BIDASK_PROFILE | Bid/Ask Split Profile (#11) | P-110 Profiles | YES | YES (SWITCH) | YES `src/lib/marketData/viewModels/selectProfileMenu.ts` | BUILT | PARTIAL | drawing created via Tools › Bid/Ask Split Profile + two clicks; banner 'Delta+VP · no per-level tape · captured live only' (NQ1! 5m 10:18) — per-level split only from tape captured since load | g19-mansion-shift log 10-15 10:18 | 4b0b865 | **BUILT** |
 | F06.COMPRESSION | Order Flow Compression | F06 Order Flow | YES | NO SURFACE (none) | NO OWNER | NOT_BUILT — named in the registry; no owner | NOT READ | — | — | — | **NOT_BUILT** |
 | F07A | Big Trades on the market | F07 Big Trades | YES | YES (FOOTPRINT:big-trades) | YES `src/lib/bigTradeLevels.ts` | BUILT | VISIBLE | all-layers read 09:58 (fp:big-trades; discs + cluster ×5 on glass) | g19-mansion-shift log 10-15 09:58 | 59c895f | **COMPLETE (serving read)** |
 | F07B | Cluster → Response Inspect | F07 Big Trades | YES | YES (CONTEXT) | YES `src/lib/marketData/viewModels/selectPrintResponse.ts` | BUILT | NOT READ | — | — | — | **BUILT · NOT READ** |

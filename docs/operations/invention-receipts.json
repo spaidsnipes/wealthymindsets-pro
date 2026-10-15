@@ -121,10 +121,10 @@
     "build": "59c895f"
   },
   "F06.BIDASK_PROFILE": {
-    "receipt": "footprint bid-ask only: footprintBars 1 (live tape since load); no session Bid/Ask Split profile",
+    "receipt": "drawing created via Tools \u203a Bid/Ask Split Profile + two clicks; banner 'Delta+VP \u00b7 no per-level tape \u00b7 captured live only' (NQ1! 5m 10:18) \u2014 per-level split only from tape captured since load",
     "visible": "PARTIAL",
-    "proof": "g19-mansion-shift log 10-15 09:52",
-    "build": "59c895f"
+    "proof": "g19-mansion-shift log 10-15 10:18",
+    "build": "4b0b865"
   },
   "F11.STRUCTURE": {
     "receipt": "all-layers read 09:58 (MarketStructure on; zones + demand zone words)",
