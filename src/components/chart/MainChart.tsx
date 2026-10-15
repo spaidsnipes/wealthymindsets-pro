@@ -1,6 +1,7 @@
 "use client";
 
 import { paintLap, paintLapBegin, paintLapReceipt } from "@/lib/chart/paintLaps";
+import { compileInventionVisibility } from "@/lib/chart/inventionVisibility";
 import { arrivalRipple, bigTradeTier, percentileFromSorted, sortedSessionSizes } from "@/lib/chart/bigTradeTier";
 import { symbolDoorHref } from "@/contexts/SymbolContext";
 import { servedTimeframeFor } from "@/lib/marketData/chartBarRoute";
@@ -27712,7 +27713,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       if (layerFaults.length) canvas.dataset.layerFaults = `${layerFaults.length}:${layerFaults.slice(0, 4).join(" | ")}`;
       else delete canvas.dataset.layerFaults;
       paintLap(27593);
-      if (canvasRef.current) canvasRef.current.dataset.paintSections = paintLapReceipt();
+      if (canvasRef.current) {
+        canvasRef.current.dataset.paintSections = paintLapReceipt();
+        // LOCATE INVENTION (order §4): the seven states per invention, compiled from the receipts
+        // this frame just published — one line the harness, the ticket and a "show me" door can read.
+        canvasRef.current.dataset.inventionVisibility = compileInventionVisibility(canvasRef.current.dataset as Record<string, string | undefined>);
+      }
     };
 
     // Use a continuous loop so the canvas always stays in sync with chart scroll/zoom
