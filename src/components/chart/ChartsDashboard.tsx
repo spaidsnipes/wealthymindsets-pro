@@ -3121,6 +3121,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     return { root: mappedRoot, receipt: { ...r, spot: indexLevelNow ? indexLevelNow.price : null, underlyingAsOf: indexLevelNow ? epochToNyLocal(indexLevelNow.at) : null } };
   }, [brickWallsOn, mappedRoot, mappedIndex, mappedIndexPositioning, indexLevelNow?.price, indexLevelNow?.at]);
   const indexMappingVM = React.useMemo<IndexFuturesMappingVM | null>(() => {
+    // A pressure proof scene (`scene=lens-fixture&climate=…`) says "not live" on its banner: the
+    // index chain is LIVE evidence, so its mapped walls stay off that glass rather than mixing with
+    // the sample chain's masonry (the receipt reads NONE, Locate Invention reads NO_EVENT).
+    if (lensFixture?.climate) return null;
     if (!brickWallsOn || !mappedRoot || !indexReceipt || indexReceipt.root !== mappedRoot) return null;
     const ev = selectOptionsBarrierEvidence(indexReceipt.receipt, null, Date.now(), "ALL");
     return selectIndexFuturesMapping({
@@ -3130,7 +3134,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       futuresBars: chartBars.map(b => ({ time: Number(b.time), high: Number(b.high), low: Number(b.low), close: Number(b.close) })),
       barSeconds: tastyCandleSeconds(timeframe) ?? 300,
     });
-  }, [brickWallsOn, mappedRoot, indexReceipt, symbol, chartBars, timeframe]);
+  }, [brickWallsOn, mappedRoot, indexReceipt, symbol, chartBars, timeframe, lensFixture?.climate]);
   // T-210 — the ancestry the glass painted, for the MTF Inspect ticket; re-render only when the receipt changes.
   const [mtfAncestryVM, setMtfAncestryVM] = useState<MtfAncestryVM | null>(null);
   // Garden 16 §46 — the glass's measured depth, so the order-flow door can say

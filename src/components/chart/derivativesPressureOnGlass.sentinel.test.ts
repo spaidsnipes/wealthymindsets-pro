@@ -123,6 +123,16 @@ describe("no lookahead in replay (Garden 16 §46, serving c216f713)", () => {
   });
 });
 
+describe("a pressure proof scene is not live, so live index-mapped walls stay off it (2026-10-15)", () => {
+  it("the index→futures mapping memo answers null under scene=lens-fixture&climate=…", () => {
+    const vm = CD.slice(CD.indexOf("const indexMappingVM = React.useMemo"), CD.indexOf("// T-210 — the ancestry the glass painted"));
+    const gate = vm.indexOf("if (lensFixture?.climate) return null;");
+    expect(gate).toBeGreaterThan(-1);
+    expect(gate).toBeLessThan(vm.indexOf("return selectIndexFuturesMapping("));
+    expect(vm).toContain("[brickWallsOn, mappedRoot, indexReceipt, symbol, chartBars, timeframe, lensFixture?.climate]");
+  });
+});
+
 describe("the camera holds the walls it is showing (Garden 16 reconstruction §11)", () => {
   it("with the pressure world on, the nearest wall above/below (≤ WALL_CAMERA_REACH of price) joins the price range", () => {
     expect(MC).toContain("const WALL_CAMERA_REACH = 0.04;");
