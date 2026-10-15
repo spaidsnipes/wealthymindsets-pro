@@ -83,7 +83,28 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(url, 308);
   }
 
-  return NextResponse.next();
+  return secured(NextResponse.next());
+}
+
+/**
+ * Framing protection on every page this middleware sees.
+ *
+ * MEASURED 2026-10-15: wealthymindsetspro.com answered with HSTS and nosniff but
+ * no framing policy at all, so any site could load a signed-in WM Pro page in an
+ * invisible frame and steer a real click — on a product that places orders. WOW
+ * and Wavemotion already carry this baseline; this closes the third door.
+ *
+ * `frame-ancestors 'self'` is the modern rule and X-Frame-Options is kept for
+ * older browsers that ignore it. A header the app has already set is never
+ * overwritten, so a page that deliberately allows embedding can still do so.
+ */
+export const FRAME_HEADERS: Record<string, string> = {
+  "Content-Security-Policy": "frame-ancestors 'self'",
+  "X-Frame-Options": "SAMEORIGIN",
+};
+function secured(response: NextResponse): NextResponse {
+  for (const [name, value] of Object.entries(FRAME_HEADERS)) if (!response.headers.has(name)) response.headers.set(name, value);
+  return response;
 }
 
 export const config = {
