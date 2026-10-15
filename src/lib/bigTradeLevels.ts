@@ -179,11 +179,31 @@ export function bigTradeLevelKey(barTime: number, level: BigTradeLevel): string 
  * bubbles — the renderer spawns from this list and a reordering would look
  * like new prints arriving.
  */
+/**
+ * RANKED ONCE PER BAR READING (extended-runtime read 2026-10-15: the chart's Big Trades pass
+ * re-ranked every visible bar's prints on EVERY paint, and that lap grew 0.4 → 3.4 ms over 16
+ * minutes as the captured tape grew). A bar's print array only appends, so its ranking is kept —
+ * keyed by the array's own identity — until the array gains a print or the sizing base changes.
+ * A WeakMap: a bar's prints evicted from the accumulator take their ranking with them.
+ */
+const ranked = new WeakMap<object, { n: number; base: number; levels: BigTradeLevel[] }>();
+
 export function computeBigTradeLevels(
   ticks: readonly BigTradeTick[],
   base: number,
 ): BigTradeLevel[] {
   if (!Array.isArray(ticks) || ticks.length === 0) return [];
+  const hit = ranked.get(ticks);
+  if (hit && hit.n === ticks.length && hit.base === base) return hit.levels;
+  const levels = computeBigTradeLevelsFresh(ticks, base);
+  ranked.set(ticks, { n: ticks.length, base, levels });
+  return levels;
+}
+
+function computeBigTradeLevelsFresh(
+  ticks: readonly BigTradeTick[],
+  base: number,
+): BigTradeLevel[] {
 
   const minLot = minBigTradeLot(base);
 
