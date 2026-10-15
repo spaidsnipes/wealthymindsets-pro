@@ -1,4 +1,5 @@
 import type { FeedObservation } from "@/lib/os/osChrome";
+import { sessionOpenFromToken } from "@/lib/os/selectPaperFeedObservation";
 
 /**
  * WHAT /scanner HAS ACTUALLY OBSERVED, IN THE VOCABULARY THE FRAME GRADES.
@@ -46,6 +47,20 @@ export interface ScannerFeedObservationRow {
 
 export interface ScannerFeedObservationInput {
   readonly results: ReadonlyArray<ScannerFeedObservationRow> | null | undefined;
+  /**
+   * The canonical session token of each market the scan covers (one per class is enough).
+   * LIVE ONLY (2026-10-15): the rows are streamed, so a quiet scan means either every market
+   * is shut or the stream stalled — and only the calendar can tell those apart.
+   */
+  readonly sessionTokens?: readonly string[];
+}
+
+/** Open when any scanned market is open; closed only when every one is proven closed. */
+export function scanSessionOpen(tokens: readonly string[] | undefined): boolean | null {
+  if (!tokens?.length) return null;
+  const opens = tokens.map(sessionOpenFromToken);
+  if (opens.some(o => o === true)) return true;
+  return opens.every(o => o === false) ? false : null;
 }
 
 export function selectScannerFeedObservation(
@@ -68,11 +83,12 @@ export function selectScannerFeedObservation(
     // Named only once a provider has actually answered. Before the first round
     // resolves, FEED UNKNOWN is the TRUE reading — which is why this fix is not
     // "always say yahoo".
-    source: observed ? "yahoo" : null,
+    // LIVE ONLY (2026-10-12): every scanned row is priced from the tastytrade stream.
+    source: observed ? "tastytrade" : null,
     quotePresent: observed,
     lastObservedAtMs: newest,
     connected: null,
-    sessionOpen: null,
+    sessionOpen: scanSessionOpen(input.sessionTokens),
     barsPresent: false,
     // No companion camera. The scanner ranks a live list; it has no replay
     // engine, and nothing here can point the room at the past.

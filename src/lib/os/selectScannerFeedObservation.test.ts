@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { compileFeedStanding } from "@/lib/os/osChrome";
-import { selectScannerFeedObservation } from "./selectScannerFeedObservation";
+import { SESSION_TOKEN_CLOSED } from "@/lib/marketData/canonicalIdentity";
+import { scanSessionOpen, selectScannerFeedObservation } from "./selectScannerFeedObservation";
 
 const AT = 1_758_000_000_000;
 
@@ -23,8 +24,9 @@ describe("selectScannerFeedObservation — the evidence /scanner actually holds"
     // 2026-09-17 as `SOURCE YAHOO · OBSERVED`). What this line
     // protects — the standing rests on a NAMED provider, not on
     // nothing — moved to `provenance`, which no chrome renders.
-    expect(standing.provenance).toBe("yahoo");
-    expect(standing.detail).not.toContain("yahoo");
+    // LIVE ONLY (2026-10-12): the scan is priced from the tastytrade stream.
+    expect(standing.provenance).toBe("tastytrade");
+    expect(standing.detail).not.toContain("tastytrade");
   });
 
   it("names no provider before a round has resolved — FEED UNKNOWN is then TRUE", () => {
@@ -73,7 +75,7 @@ describe("selectScannerFeedObservation — the evidence /scanner actually holds"
         { quoteObservedAt: null },
       ],
     });
-    expect(obs.source).toBe("yahoo");
+    expect(obs.source).toBe("tastytrade");
     expect(obs.lastObservedAtMs).toBe(AT - 60_000);
   });
 
@@ -107,14 +109,20 @@ describe("selectScannerFeedObservation — the evidence /scanner actually holds"
     ]);
   });
 
-  it("a 20-minute-old REST quote is still graded, not slandered as a stall", () => {
-    const standing = compileFeedStanding(
-      selectScannerFeedObservation({ results: [{ quoteObservedAt: AT - 20 * 60_000 }] }),
-      AT,
-    );
-    expect(standing.label).not.toBe("STALE PIPELINE");
-    expect(standing.established).toBe(true);
+  it("a quiet scan: STALE while a scanned market is open, SESSION CLOSED once every one is shut", () => {
+    // Restated 2026-10-15. The rows used to be yahoo REST quotes, graded on a minutes cadence.
+    // They are streamed now, so twenty silent minutes mean a stalled stream — unless every
+    // market the scan covers is closed, which only the calendar can say.
+    const quiet = [{ quoteObservedAt: AT - 20 * 60_000 }];
+    expect(compileFeedStanding(selectScannerFeedObservation({ results: quiet, sessionTokens: ["RTH", "CLOSED"] }), AT).label)
+      .toBe("STALE PIPELINE");
+    const shut = compileFeedStanding(selectScannerFeedObservation({ results: quiet, sessionTokens: [SESSION_TOKEN_CLOSED, SESSION_TOKEN_CLOSED] }), AT);
+    expect(shut.label).toBe("SESSION CLOSED — LAST VERIFIED");
+    expect(scanSessionOpen(["RTH", SESSION_TOKEN_CLOSED])).toBe(true);
+    expect(scanSessionOpen([SESSION_TOKEN_CLOSED, "SESSION ?"])).toBeNull();
+    expect(scanSessionOpen(undefined)).toBeNull();
   });
+
 
   it("a provider clock ahead of ours is not rounded into a reading", () => {
     const standing = compileFeedStanding(

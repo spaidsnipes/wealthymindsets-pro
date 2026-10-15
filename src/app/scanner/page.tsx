@@ -45,6 +45,8 @@ import {
 } from "@/lib/scanner/scannerFundamental";
 import { scannerQuoteTruth, type ScannerQuoteQuality } from "@/lib/scannerQuoteTruth";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
+import { selectCanonicalSessionToken } from "@/lib/marketData/canonicalIdentity";
+import { useSessionClockDate } from "@/lib/marketData/useProvenSessionClosure";
 import { ScannerDeckViewSwitch } from "@/components/scanner/ScannerDeckViewSwitch";
 import { ChartCompanion } from "@/components/experience/ChartCompanion";
 import { FvgScanStrip } from "@/components/scanner/FvgScanStrip";
@@ -641,9 +643,14 @@ export default function ScannerPage() {
    * The evidence compiled here is the PROVIDER'S observation epoch only; see
    * selectScannerFeedObservation for why transport time may not stand in.
    */
+  const scanClock = useSessionClockDate();
+  const scanSessionTokens = React.useMemo(
+    () => [SCANNER_FUTURES[0], SCANNER_STOCKS[0]].filter(Boolean).map(symbol => selectCanonicalSessionToken({ symbol, at: scanClock }).token),
+    [scanClock],
+  );
   usePublishOsStanding({
     surface: "Scanner",
-    feed: selectScannerFeedObservation({ results }),
+    feed: selectScannerFeedObservation({ results, sessionTokens: scanSessionTokens }),
   });
 
   useEffect(() => {

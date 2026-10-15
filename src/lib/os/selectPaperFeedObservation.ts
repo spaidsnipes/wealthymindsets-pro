@@ -80,7 +80,7 @@ export interface PaperFeedObservationInput {
  * 11am on a Tuesday, which is the precise inversion `selectCanonicalSessionToken`
  * was written to stop.
  */
-function sessionOpenFromToken(token: string): boolean | null {
+export function sessionOpenFromToken(token: string): boolean | null {
   if (token === SESSION_TOKEN_CONTINUOUS) return true;
   if (token === SESSION_TOKEN_CLOSED) return false;
   // The open half of the canonical owner (marketSessionClock, 2026-10-07):
