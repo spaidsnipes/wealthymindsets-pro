@@ -7531,10 +7531,22 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
    * block trades routinely became one key and the second was overwritten:
    * not merged, just gone. See that module's header.
    */
+  // RANKED ONCE PER BAR READING (extended-runtime read 2026-10-15: this lap grew 0.4 → 3.4 ms over 16 min
+  // because every visible bar's prints were re-ranked on EVERY paint while the captured tape grew). A
+  // bar's prints only append, so its ranking is kept until the array changes identity (symbol / reset)
+  // or length (a new print), or the sizing base changes. Bounded: cleared when it outgrows the print
+  // accumulator's own cap.
+  const bigTradeLevelsCacheRef = useRef(new Map<number, { prints: unknown; n: number; base: number; levels: BigTradeLevel[] }>());
   const getRealBigTradeLevels = useCallback((bar: LegacyOhlcvTuple): BigTradeLevel[] => {
     const prints = bigTradePrintAccRef.current.get(bar.time as number);
     if (!prints || prints.length === 0) return [];
-    return computeBigTradeLevels(prints, base);
+    const cache = bigTradeLevelsCacheRef.current;
+    const hit = cache.get(bar.time as number);
+    if (hit && hit.prints === prints && hit.n === prints.length && hit.base === base) return hit.levels;
+    const levels = computeBigTradeLevels(prints, base);
+    if (cache.size > 800) cache.clear();
+    cache.set(bar.time as number, { prints, n: prints.length, base, levels });
+    return levels;
   }, [base]);
 
   /**

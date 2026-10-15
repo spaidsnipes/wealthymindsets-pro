@@ -54,7 +54,9 @@ Cold chart load (NQ1! 5m, six profiles on, visible tab): candles at 1.0 s, every
 
 **Sustained runtime, busy RTH, all 15 layers (10:30–10:33, `3a791dc`):** the overlay slowed to 23–37 ms mean / 38–42 ms worst — over budget. Lap `9941` (the VP columns under Big Trades) read 18–20 ms per paint: the morning's profile memo keys on the forming bar's reading, so on a busy tape every tick misses and ~5,000 bars are re-bucketed each paint. Heap 79–160 MB with no growth trend. Fix: `computeProfileFromBarsLive` — closed bars bucketed once per bar, the forming bar added per paint, bit-identical to the full build (`vpEngineLive.test.ts`). **§2a Serving re-read on `137ed26` (12:03–12:05, same scene, 90 s sustained, 12 paint windows):** overlay mean 7.4–8.8 ms (one window 11.8), worst 10.1–13.5 ms; lap 9941 1.5 ms (was 18–20); heap 80–180 MB with no trend. Back inside the 18 ms desk budget with every layer on in busy regular hours. With the mouse parked over the bars (Inspect/effort readings live), `dceb870` 12:21: mean 5.9–7.3 ms, worst 9.0–16.8 ms over 60 s.
 
-Not yet measured today: multiple charts side by side, rapid symbol/timeframe switching under CPU throttle, reconnection, extended (hours) runtime. Heap was sampled over 3.5 min and 90 s windows (79–180 MB, no trend) — hours-long growth is still unread.
+**Extended runtime, 16 minutes, all 15 layers, RTH (`2d6aa7a`, 12:31–12:47, 60 s samples):** heap 67–212 MB as a GC sawtooth with no growth; overlay mean 6.2 → 10.3 ms, worst 9.3 → 15.0 ms; Brick Walls `ON:3` throughout; 0 hidden skips. The one lap that grows with time is `9720` (Big Trades pass A, 0.4 → 3.4 ms): it re-ranks every visible bar's real prints each paint, so its cost rises with the tape captured since load. Inside budget at 16 min; **next perf item:** cache each bar's ranked levels until that bar's prints change.
+
+Not yet measured today: multiple charts side by side, rapid symbol/timeframe switching under CPU throttle, reconnection, hours-long runtime.
 
 ## 3. Inventions verified today (serving reads)
 
