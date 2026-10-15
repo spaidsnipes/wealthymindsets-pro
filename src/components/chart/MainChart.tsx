@@ -20641,6 +20641,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.font = marketFont("OBJECT_NAME");
               ctx.textAlign = "left"; ctx.textBaseline = "middle";
               const edgeA = Math.max(att.textAlpha("gammaHeatmap"), att.textAlpha("callWall"));
+              // DOM tap targets (zone pins, book strip — `.wm-tap-slop`) sit ABOVE this canvas and would eat a
+              // tap meant for a chip under them (serving SPY 5m 2026-10-15: the ▲ CALL WALL chip under a zone
+              // pin's slop opened the zone passport). Their rects join the keep-out so the slot steps clear.
+              {
+                const host = canvas.parentElement; const hr = host?.getBoundingClientRect();
+                if (host && hr) for (const el of host.querySelectorAll(".wm-tap-slop")) { const b = el.getBoundingClientRect(); if (b.width > 0 && b.height > 0) floatingChips.push({ x: b.left - hr.left, y: b.top - hr.top, w: b.width, h: b.height }); }
+              }
               for (const dir of ["above", "below"] as const) {
                 const raw = edgeChipWords(dir, out.offCamera[dir]);
                 if (!raw) continue;
