@@ -30,18 +30,22 @@ export function arrivalRipple(nowMs: number, bornMs: number, arriving: boolean, 
 }
 
 
-/** Every session print's size (bid + ask), ascending — built once per change of print count. */
-export function sortedSessionSizes(bars: Iterable<readonly { bid: number; ask: number }[]>): number[] {
+/**
+ * Every session print's size (bid + ask), ascending — built once per change of print count.
+ * A typed-array numeric sort (perf 2026-10-15): on a busy crypto tape the session holds tens of
+ * thousands of prints and the comparator sort ran on every new print. Same order, same answer.
+ */
+export function sortedSessionSizes(bars: Iterable<readonly { bid: number; ask: number }[]>): Float64Array {
   const out: number[] = [];
   for (const prints of bars) for (const p of prints) {
     const s = (Number.isFinite(p.bid) && p.bid > 0 ? p.bid : 0) + (Number.isFinite(p.ask) && p.ask > 0 ? p.ask : 0);
     if (s > 0) out.push(s);
   }
-  return out.sort((a, b) => a - b);
+  return Float64Array.from(out).sort();
 }
 
 /** The same answer as footprintCanon.sessionSizePercentile (share strictly below), by binary search. */
-export function percentileFromSorted(sorted: readonly number[], size: number): number | null {
+export function percentileFromSorted(sorted: ArrayLike<number>, size: number): number | null {
   const n = sorted.length;
   if (n < MIN_PRINTS_FOR_PERCENTILE || n === 0) return null;
   let lo = 0, hi = n;

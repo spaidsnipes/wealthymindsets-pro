@@ -3478,7 +3478,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // beside (not inside) the footprint accumulator so two prints at one price
   // remain two bubbles with two timestamps and two canonical event ids.
   const bigTradePrintAccRef = useRef<Map<number, BigTradeTick[]>>(new Map());
-  const sessionSizesRef = useRef<{ count: number; sorted: number[] }>({ count: -1, sorted: [] });
+  const sessionSizesRef = useRef<{ count: number; sorted: ArrayLike<number> }>({ count: -1, sorted: [] });
   /** Value Candle readings for closed bars, read once from the print store (per symbol|interval). */
   const vcStoreCacheRef = useRef<{ key: string; bars: Map<number, { n: number; bar: ValueCandleBar | null }> }>({ key: "", bars: new Map() });
   /** The value candle's last CLOSED-bar list and when it was built (rebuilt ≤ once per VC_CLOSED_REBUILD_MS). */
@@ -10128,6 +10128,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             }
           }
         }
+        paintLap(10120); // Big Trades: session size ranks
+        // The session's sorted print sizes, once per frame (it was re-counted for every disc).
+        {
+          const acc = bigTradePrintAccRef.current;
+          let printCount = 0; for (const v of acc.values()) printCount += v.length;
+          if (sessionSizesRef.current.count !== printCount) sessionSizesRef.current = { count: printCount, sorted: sortedSessionSizes(acc.values()) };
+        }
+        paintLap(10127); // Big Trades: discs + inscriptions
         let discsYieldedToForming = 0;
         /** Inscriptions withheld because the forming candle's column runs through their words. */
         let inscriptionsYieldedToForming = 0;
@@ -10195,9 +10203,6 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // bezel its crown (bigTradeTier — never on thin evidence); the
           // ripple speaks only while the print is ARRIVING and never in STILL.
           // Sorted once per change in the session's print count, then a binary search per disc.
-          const acc = bigTradePrintAccRef.current;
-          let printCount = 0; for (const v of acc.values()) printCount += v.length;
-          if (sessionSizesRef.current.count !== printCount) sessionSizesRef.current = { count: printCount, sorted: sortedSessionSizes(acc.values()) };
           const tier = bigTradeTier(percentileFromSorted(sessionSizesRef.current.sorted, bigTradeRankSize(b.value, bigClusterOf.get(b.spawnKey))));
           const ripple = arrivalRipple(nowMs, b.born, arriving, motionOnRef.current);
           if (ripple != null) {
@@ -10297,6 +10302,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
         // GP12 §64 · the knot receipt: pairs of drawn discs whose circles
         // still intersect. After clustering it is 0; anything else is a knot.
+        paintLap(10300); // Big Trades: receipts + callout
         canvas.dataset.bigTradeOverlaps = String(countCircleOverlaps(drawnDiscs));
         canvas.dataset.bigTradesDrawn = String(bigDrawn);
         canvas.dataset.bigTradeFormingCut = formingCut ? `YIELDS:${discsYieldedToForming}|NEWEST:${1 + newestCutBars}` : "NONE";
