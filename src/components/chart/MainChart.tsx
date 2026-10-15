@@ -9873,6 +9873,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // src/lib/bubbleSpawnCache.ts for the measured failure.
         bubbleSpawnRef.current = compactSpawnKeys(bubbleSpawnRef.current, bubblesRef.current);
 
+        paintLap(9876); // Big Trades: frame rescale
         // ── SIZE IS A CLAIM ABOUT THE FRAME, NOT ABOUT ONE BAR ──────────
         // The single writer of `baseR` for big-trade bubbles. Its own frame,
         // never pooled with the delta family: a print's dominant side and a
@@ -9886,6 +9887,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           b.baseR = nextR;
         }
 
+        paintLap(9889); // Big Trades: pass B (anchor + cull)
         // ── Pass B: update + draw all active bubbles (🫧 hover at key levels) ──
         const nowMs = performance.now();
         const bubbles = bubblesRef.current;
@@ -9938,8 +9940,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
 
         // Draw WM VP FIRST (under the bubbles) so Big Trades + Session VP don't
         // hide the bubbles behind the profile. Guarded → won't double-draw later.
+        paintLap(9941); // Big Trades: WM VP under the bubbles
         runWMVP();
 
+        paintLap(9943); // Big Trades: cluster owner
         // ── F07B · ONE CLUSTER OWNER (GP12 §64 "Merge labels") ──────────
         // Serving 2026-09-26 03:55 CDT: four prints in one minute at
         // 84209–84211 drew four discs on top of each other at the live edge.
@@ -10031,6 +10035,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         let bubbleRank = 0;
         let bubblesQuieted = 0;
         let bigDrawn = 0, bigInscribed = 0;
+        paintLap(10034); // Big Trades: response paths + discs
 
         // ── F07A · THE RESPONSE PATH ─────────────────────────────────────
         // Painted first, under the discs: a dashed gold path from each full
