@@ -110,6 +110,7 @@ import { selectCanonicalSessionToken } from "@/lib/marketData/canonicalIdentity"
 import { selectOptionTradability } from "@/lib/marketData/optionTradability";
 import { useSessionClockDate } from "@/lib/marketData/useProvenSessionClosure";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
+import { paperSymbolOf } from "@/lib/paper/paperSymbolOf";
 import { selectPaperFeedObservation } from "@/lib/os/selectPaperFeedObservation";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
@@ -157,6 +158,7 @@ const UNIVERSE: Record<string,{ name:string; base:number; tick:number }> = {
 };
 /** The symbols paper prices from the live tastytrade stream (stable identity for the hook). */
 const PAPER_SYMBOLS: readonly string[] = Object.keys(UNIVERSE);
+
 
 /**
  * THE ORDER CONTRACT HAS ONE OWNER, AND IT IS NOT THIS FILE.
@@ -646,7 +648,9 @@ function useLivePrices() {
         const tq = liveRef.current.get(sym);
         const cb = cryptoRef.current.get(sym);
         const tFresh = !!tq && tq.price > 0 && now - tq.at <= PAPER_LIVE_QUOTE_MAX_AGE_MS;
-        const q = tFresh ? tq : cb && cb.price > 0 ? { price: cb.price, at: cb.at, prevClose: tq?.prevClose ?? null } : tq;
+        const q = tFresh ? { ...tq, source: "tastytrade" }
+          : cb && cb.price > 0 ? { price: cb.price, at: cb.at, prevClose: tq?.prevClose ?? null, source: "coinbase" }
+          : tq ? { ...tq, source: "tastytrade" } : null;
         const readiness = selectPaperLiveReadiness(q && q.price > 0 ? q : null, readinessRef.current[sym] ?? initialPaperQuoteReadiness(), now);
         nextReadiness[sym] = readiness;
         if (q?.prevClose != null && q.prevClose > 0) pc[sym] = q.prevClose;
@@ -1842,6 +1846,7 @@ const PAPER_GOVERNED_ELEMENTS: readonly SurfaceElement[] = [
 /* ── Main page ───────────────────────────────────────────── */
 export default function PaperTradingPage() {
   const { activeSymbol } = useActiveSymbol();
+  const paperSymbol = paperSymbolOf(activeSymbol, UNIVERSE);
   const { earnWMS } = useWMS();
   const { prices, prevCloses, quoteReadiness, lastCloses } = useLivePrices();
   // Start from deterministic defaults so server and client render identically,
@@ -2005,7 +2010,7 @@ export default function PaperTradingPage() {
    * what an empty `useState` array is.
    */
   const paperProtection = selectPaperProtection({
-    position: positions.find(p => p.symbol === activeSymbol),
+    position: positions.find(p => p.symbol === (paperSymbol ?? activeSymbol)),
     orders,
     bookUnverified: bookRecoveryRequired || !hydrated,
   });
@@ -2585,7 +2590,7 @@ export default function PaperTradingPage() {
   usePublishOsStanding({
     surface: "Paper Trade",
     feed: selectPaperFeedObservation({
-      readiness: quoteReadiness[activeSymbol],
+      readiness: paperSymbol ? quoteReadiness[paperSymbol] : null,
       sessionToken,
     }),
   });
@@ -3073,7 +3078,7 @@ export default function PaperTradingPage() {
 
         {/* Left: Order ticket */}
         <div className={clsx(styles.ticket, "w-64 border-r border-wm-border shrink-0 overflow-y-auto p-3")} style={{ scrollbarWidth:"thin" }}>
-          <OrderTicket key={resetKey} prices={prices} quoteReadiness={quoteReadiness} onSubmit={handleOrder} initialSymbol={UNIVERSE[activeSymbol] ? activeSymbol : undefined} cash={bookRecoveryRequired ? null : cash}/>
+          <OrderTicket key={resetKey} prices={prices} quoteReadiness={quoteReadiness} onSubmit={handleOrder} initialSymbol={paperSymbol ?? undefined} cash={bookRecoveryRequired ? null : cash}/>
 
           <SignalBot
             prices={prices}
@@ -3496,7 +3501,7 @@ export default function PaperTradingPage() {
                 optionPositions={optionPositions}
                 onTrade={openOption}
                 onClose={closeOption}
-                initialSymbol={UNIVERSE[activeSymbol] ? activeSymbol : undefined}
+                initialSymbol={paperSymbol ?? undefined}
               />
           )}
 

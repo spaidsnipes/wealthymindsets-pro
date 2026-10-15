@@ -13,6 +13,10 @@ describe("selectPaperLiveReadiness", () => {
     expect(r).toMatchObject({ status: "LIVE", actionable: true, price: 25010.25, ageMs: 1_000, label: "LIVE · tastytrade" });
     expect(actionablePaperQuotePrice(r)).toBe(25010.25);
   });
+  it("a crypto venue's print is credited to the venue, not to tastytrade", () => {
+    const r = selectPaperLiveReadiness({ price: 81_033.22, at: NOW - 1_000, source: "coinbase" }, initialPaperQuoteReadiness(), NOW);
+    expect(r).toMatchObject({ status: "LIVE", source: "coinbase", label: "LIVE · coinbase" });
+  });
   it("a price older than the live budget stays visible as STALE and authorizes nothing", () => {
     const r = selectPaperLiveReadiness({ price: 100, at: NOW - PAPER_LIVE_QUOTE_MAX_AGE_MS - 1 }, initialPaperQuoteReadiness(), NOW);
     expect(r.status).toBe("STALE");

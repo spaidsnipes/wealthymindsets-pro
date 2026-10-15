@@ -15,9 +15,10 @@ const AT = 1_758_000_000_000;
 function readiness(over: Partial<PaperQuoteReadiness> = {}): PaperQuoteReadiness {
   return {
     ...initialPaperQuoteReadiness(),
-    status: "DELAYED",
+    status: "LIVE",
     actionable: true,
     price: 29_738,
+    source: "tastytrade",
     observedAt: AT - 60_000,
     availableAt: AT - 59_000,
     receivedAt: AT - 58_000,
@@ -43,8 +44,9 @@ describe("selectPaperFeedObservation — the evidence /paper actually holds", ()
     // 2026-09-17 as `SOURCE YAHOO · OBSERVED`). What this line
     // protects — the standing rests on a NAMED provider, not on
     // nothing — moved to `provenance`, which no chrome renders.
-    expect(standing.provenance).toBe("yahoo");
-    expect(standing.detail).not.toContain("yahoo");
+    // LIVE ONLY (2026-10-12): the provenance is the live lane that priced it, never a constant.
+    expect(standing.provenance).toBe("tastytrade");
+    expect(standing.detail).not.toContain("tastytrade");
   });
 
   it("names no provider before one has answered — FEED UNKNOWN is then TRUE", () => {
@@ -147,10 +149,10 @@ describe("selectPaperFeedObservation — the evidence /paper actually holds", ()
     ]);
   });
 
-  it("a 20-minute-old REST quote is still graded, not slandered as a stall", () => {
-    // yahoo is a REST_QUOTE_SOURCE. Measuring a minutes-cadence provider
-    // against a seconds-scale tape budget would report STALE PIPELINE for a
-    // provider behaving exactly as specified.
+  it("a 20-minute-old price from a live stream reads STALE PIPELINE", () => {
+    // Restated 2026-10-15. This used to pin the opposite for yahoo, a minutes-cadence REST
+    // provider. /paper is LIVE ONLY now (tastytrade / the crypto venue stream every print),
+    // so twenty silent minutes on a stream ARE a stall — and paper already refuses to fill on it.
     const standing = compileFeedStanding(
       selectPaperFeedObservation({
         readiness: readiness({ observedAt: AT - 20 * 60_000 }),
@@ -158,8 +160,7 @@ describe("selectPaperFeedObservation — the evidence /paper actually holds", ()
       }),
       AT,
     );
-    expect(standing.label).not.toBe("STALE PIPELINE");
-    expect(standing.established).toBe(true);
+    expect(standing.label).toBe("STALE PIPELINE");
   });
 
   it("a provider clock ahead of ours is not rounded into a reading", () => {

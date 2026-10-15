@@ -113,7 +113,8 @@ export function selectPaperFeedObservation(
     // The provider is named only once it has actually answered. Before that
     // the honest report is that nobody has — and FEED UNKNOWN is then the
     // TRUE reading, which is why this fix does not simply always say "yahoo".
-    source: observed ? "yahoo" : null,
+    // The live lane that priced it (tastytrade, or the crypto venue) — LIVE ONLY since 2026-10-12.
+    source: observed ? r!.source ?? null : null,
     quotePresent: observed,
     lastObservedAtMs: observed ? r!.observedAt : null,
     connected: null,

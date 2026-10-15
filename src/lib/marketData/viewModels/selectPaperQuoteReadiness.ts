@@ -38,6 +38,8 @@ export interface PaperQuoteReadiness {
   readonly ageMs: number | null;
   readonly label: string;
   readonly reason: string;
+  /** The live lane that supplied `price` ("tastytrade", "coinbase"), when one did. */
+  readonly source?: string;
 }
 
 export function initialPaperQuoteReadiness(): PaperQuoteReadiness {
@@ -229,7 +231,7 @@ export const PAPER_LIVE_QUOTE_MAX_AGE_MS = 15_000;
  * and authorizes nothing, and no live price at all is UNKNOWN. Never a delayed fill.
  */
 export function selectPaperLiveReadiness(
-  live: { readonly price: number; readonly at: number } | null | undefined,
+  live: { readonly price: number; readonly at: number; readonly source?: string } | null | undefined,
   prior: PaperQuoteReadiness,
   capturedAt: number,
   maxAgeMs = PAPER_LIVE_QUOTE_MAX_AGE_MS,
@@ -239,9 +241,10 @@ export function selectPaperLiveReadiness(
     return priorAsStale(prior, capturedAt, "No live tastytrade price for this market yet.");
   }
   const ageMs = Math.max(0, capturedAt - live.at);
-  const observed = { price: live.price, observedAt: live.at, availableAt: live.at, receivedAt: live.at, ageMs };
+  const source = live.source ?? "tastytrade";
+  const observed = { price: live.price, observedAt: live.at, availableAt: live.at, receivedAt: live.at, ageMs, source };
   if (ageMs > maxAgeMs) {
     return { ...observed, status: "STALE", actionable: false, label: `${CANONICAL_FIDELITY_LABELS.STALE_PIPELINE} · NOT ACTIONABLE`, reason: "The live price has not moved recently — paper waits for a current print." };
   }
-  return { ...observed, status: "LIVE", actionable: true, label: "LIVE · tastytrade", reason: "Live tastytrade price." };
+  return { ...observed, status: "LIVE", actionable: true, label: `LIVE · ${source}`, reason: `Live ${source} price.` };
 }
