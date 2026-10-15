@@ -52,6 +52,8 @@ Method: every requestAnimationFrame callback's time summed per frame timestamp (
 
 Cold chart load (NQ1! 5m, six profiles on, visible tab): candles at 1.0 s, every profile painted at 6.5 s after navigation. Timeframe switch 5m → 15m through the Timeframe chip (member layers on, `98d4697`, 10:23): chart canvases never dropped (no blank), first overlay paint 79 ms after the click, worst single overlay paint in the following 8 s 21.3 ms, the 15 m chart with every profile painted within 2 s. Caveat for anyone measuring in the desktop app's pane: the overlay skips paints while the pane is hidden (`paintSkippedHidden`), so a hidden-pane read shows a blank chart that is not blank for a trader.
 
+**Sustained runtime, busy RTH, all 15 layers (10:30–10:33, `3a791dc`):** the overlay slowed to 23–37 ms mean / 38–42 ms worst — over budget. Lap `9941` (the VP columns under Big Trades) read 18–20 ms per paint: the morning's profile memo keys on the forming bar's reading, so on a busy tape every tick misses and ~5,000 bars are re-bucketed each paint. Heap 79–160 MB with no growth trend. Fix: `computeProfileFromBarsLive` — closed bars bucketed once per bar, the forming bar added per paint, bit-identical to the full build (`vpEngineLive.test.ts`). Serving re-read after deploy: see §2a.
+
 Not yet measured today: multiple charts side by side, rapid symbol/timeframe switching under CPU throttle, reconnection, extended (hours) runtime, memory growth.
 
 ## 3. Inventions verified today (serving reads)
@@ -70,6 +72,8 @@ Not yet measured today: multiple charts side by side, rapid symbol/timeframe swi
 | Fixed Range Profile (user boundaries) | PARTIAL: the `fixedVP` column paints (`vpDrawn 2`); the DRAW tool's user-boundary read was not completed today (my first click opened a zone's Passport; an empty span refused honestly: `REFUSED:TOO_FEW_BARS_IN_VIEW`) | 09:51, 10:27 |
 | Bid/Ask Split Profile (#11) | BUILT · DATA-LIMITED — a DRAW tool (Tools › Bid/Ask Split Profile, two clicks): the drawing is created and says "Delta+VP · no per-level tape · captured live only"; per-price bid/ask attribution exists only from tape captured since page load, so a historical range has nothing lawful to split. Also the footprint bid×ask mode on live-tape bars | 10:18 (drawing + banner), 09:52 (footprint) |
 | Weather, Big Trades, FVG, Market Structure, Options Flow, Absorption shelf, Demand zone | VISIBLE in the all-layers read | 09:58 |
+
+Phone (375×812, the app's mobile preset, 10:41): SPY gamma — hatched negative bands, solid positive band, call/put wall marks, ladder and status line all on the glass, 0 px overflow, paint 1.9/5.8 ms; NQ1! Brick Walls `ON:2` with Living POC/VAH/VAL, TPO letters and NDX-mapped levels, paint 4.7/6.9 ms. Tablet 834×1194 (10:11): Brick Walls `ON:3`, 0 px overflow, 7.6 ms.
 
 The generated ledger (`INVENTION_LEDGER.md`) lists all 110 census entries; those not in this table are NOT READ today.
 
