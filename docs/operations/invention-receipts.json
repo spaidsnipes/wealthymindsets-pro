@@ -1,31 +1,31 @@
 {
   "_about": "Serving receipts read in the desktop app's browser pane, signed in, for scripts/invention-ledger.mjs. visible: VISIBLE | OFF_CAMERA | NO_EVENT | SILENT | PARTIAL | NOT_READ. proof paths are in ~/wm-held/proof (held outside the public repo).",
   "WG.CALL": {
-    "receipt": "wallsGammaMarks CALL_WALL+PUT_WALL@767|PUT_WALL@768|CALL_WALL@769:OFF_CAMERA (SPY 5m 09:46)",
+    "receipt": "optionWalls ON:C1:P3 · wallsGammaMarks PUT_WALL@30050|PUT_WALL@30075|CALL_WALL+PUT_WALL@30100 (NQ1! 5m 13:15)",
     "visible": "VISIBLE",
-    "proof": "g19-mansion-shift log 10-15 09:46",
-    "build": "59c895f"
+    "proof": "g19-mansion-shift log 10-15 13:15 (all-15-layers NQ1! 5m RTH re-read)",
+    "build": "083295f"
   },
   "WG.PUT": {
-    "receipt": "optionWalls ON:C3:P3 (SPY 5m 09:46)",
+    "receipt": "optionWalls ON:C1:P3 · indexMappedWalls PUT_OI@29825->30034.5|PUT_OI@29850->30059.5|PUT_OI@29875->30084.5 (NQ1! 5m 13:15)",
     "visible": "VISIBLE",
-    "proof": "g19-mansion-shift log 10-15 09:46",
-    "build": "59c895f"
+    "proof": "g19-mansion-shift log 10-15 13:15 (all-15-layers NQ1! 5m RTH re-read)",
+    "build": "083295f"
   },
   "WG.HEAT": {
-    "receipt": "gammaHeatmap ON:PARTIAL:POS0:NEG3:HIGH_CONTRAST \u2014 hatched negative band 768.2\u2013770.5 visible (SPY 5m 10:08); preset change applied at once and persisted across navigation \u00b7 98d4697 ladder: AAPL left-edge column lit rows y120\u2013400 (POS2), SPY y120\u2013200 (POS1:NEG2), 10:21",
+    "receipt": "gammaHeatmap ON:PARTIAL:POS1:NEG11:BALANCED · inventionVisibility GAMMA_HEATMAP:VISIBLE (NQ1! 5m 13:15)",
     "visible": "VISIBLE",
-    "proof": "g19-mansion-shift log 10-15 10:08",
-    "build": "98d4697"
+    "proof": "g19-mansion-shift log 10-15 13:15 (all-15-layers NQ1! 5m RTH re-read)",
+    "build": "083295f"
   },
   "WG.POS": {
-    "receipt": "gammaRegions SILENCE:PROFILE_WITHHELD (near-money \u00b14% subset)",
+    "receipt": "gammaRegions SILENCE:PROFILE_WITHHELD (near-money ±4% subset)",
     "visible": "SILENT",
     "proof": "g19-mansion-shift log 10-15 09:46/09:52",
     "build": "59c895f"
   },
   "WG.NEG": {
-    "receipt": "gammaRegions SILENCE:PROFILE_WITHHELD (near-money \u00b14% subset)",
+    "receipt": "gammaRegions SILENCE:PROFILE_WITHHELD (near-money ±4% subset)",
     "visible": "SILENT",
     "proof": "g19-mansion-shift log 10-15 09:46/09:52",
     "build": "59c895f"
@@ -43,37 +43,37 @@
     "build": "59c895f"
   },
   "G19.FVG": {
-    "receipt": "all-layers read 09:58 (fvg on, zones + demand zone on glass)",
+    "receipt": "fvg OPEN:6|SCARS:2|HIDDEN:767|DEF:FVG_3C@1 (NQ1! 5m 13:15)",
     "visible": "VISIBLE",
-    "proof": "g19-mansion-shift log 10-15 09:58",
-    "build": "59c895f"
+    "proof": "g19-mansion-shift log 10-15 13:15 (all-15-layers NQ1! 5m RTH re-read)",
+    "build": "083295f"
   },
   "F08.BRICK": {
-    "receipt": "brickWalls ON:4 \u00b7 brickWallsAt 29900:198|29910:190|29950:156|29975:136 \u00b7 ink 584/419/268/275 (NQ1! 5m RTH 10:01); \u00a72 steps 1\u20133,5\u20137,9,10 PASS \u00b7 WALLED fixture 98d4697: ON:2, CALL WALL 30321 (top) + PUT WALL 29721 (bottom, darker/redder), ink 677/718, 10:21",
+    "receipt": "brickWalls ON:3 · brickWallsAt 30050:251|30080:215|30100:191 (NQ1! 5m 13:15)",
     "visible": "VISIBLE",
-    "proof": "g19-mansion-shift log 10-15 10:01\u201310:08",
-    "build": "98d4697"
+    "proof": "g19-mansion-shift log 10-15 13:15 (all-15-layers NQ1! 5m RTH re-read)",
+    "build": "083295f"
   },
   "F15.PRESSURE": {
-    "receipt": "derivativesPressurePainted FIELD:161|FRONT@\u2026 (lens fixture WALLED 10:00); FIELD_OFF when only Brick Walls asked",
+    "receipt": "derivativesPressure PRESSURE:INSUFFICIENT_EVIDENCE:-0.29|ZG:NONE|WALLS:30050/BROKEN/P,30080/BROKEN/P,30100/BROKEN/C|N:110|SCOPE:NEAR_MONEY_SUBSET:±4% (NQ1! 5m 13:15)",
     "visible": "VISIBLE",
-    "proof": "g19-mansion-shift log 10-15 10:00",
-    "build": "4b0b865"
+    "proof": "g19-mansion-shift log 10-15 13:15 (all-15-layers NQ1! 5m RTH re-read)",
+    "build": "083295f"
   },
   "P110.1": {
-    "receipt": "livingProfile DRAWN \u00b7 lane 466\u2013536 \u00b7 livingDevelopment 201|STEPS:138 (NQ1! 5m 09:50)",
+    "receipt": "livingProfile DRAWN (NQ1! 5m 13:15)",
     "visible": "VISIBLE",
-    "proof": "g19-mansion-shift log 10-15 09:50",
-    "build": "59c895f"
+    "proof": "g19-mansion-shift log 10-15 13:15 (all-15-layers NQ1! 5m RTH re-read)",
+    "build": "083295f"
   },
   "P110.2": {
-    "receipt": "structureProfile DRAWN (LEG POC words on glass, 09:51)",
+    "receipt": "structureProfile DRAWN (NQ1! 5m 13:15)",
     "visible": "VISIBLE",
-    "proof": "g19-mansion-shift log 10-15 09:51",
-    "build": "59c895f"
+    "proof": "g19-mansion-shift log 10-15 13:15 (all-15-layers NQ1! 5m RTH re-read)",
+    "build": "083295f"
   },
   "P110.3": {
-    "receipt": "Living + VRP \u2192 REFUSED:UNIT_MISMATCH (tape prints vs bar volume), words on glass; Living + classic Session VP \u2192 'needs 2 profile species' \u2014 lawful refusals, no fake fusion (10:26) \u00b7 Structure + Composite \u2192 NO_AGREEMENT ('2 species on, no levels agree within 2 ticks', 10:28)",
+    "receipt": "Living + VRP → REFUSED:UNIT_MISMATCH (tape prints vs bar volume), words on glass; Living + classic Session VP → 'needs 2 profile species' — lawful refusals, no fake fusion (10:26) · Structure + Composite → NO_AGREEMENT ('2 species on, no levels agree within 2 ticks', 10:28)",
     "visible": "NO_EVENT",
     "proof": "g19-mansion-shift log 10-15 10:26",
     "build": "3a791dc"
@@ -85,64 +85,64 @@
     "build": "59c895f"
   },
   "P110.5": {
-    "receipt": "profileDna MEASURED \u00b7 shape P \u00b7 spine 107-87 \u00b7 diamond 95 \u00b7 salience STEP2|SPINE+HALO|BRACKET|DIAMOND (Living + Session VP, 10:26)",
+    "receipt": "profileDna MEASURED · shape P · spine 107-87 · diamond 95 · salience STEP2|SPINE+HALO|BRACKET|DIAMOND (Living + Session VP, 10:26)",
     "visible": "VISIBLE",
     "proof": "g19-mansion-shift log 10-15 10:26",
     "build": "3a791dc"
   },
   "P110.6": {
-    "receipt": "vpDrawn 2 \u00b7 vpRows 254 \u00b7 vpSessionWindow GLOBEX_DAY (session + fixed columns, 09:51)",
+    "receipt": "vpDrawn 2 (session + fixed, NQ1! 5m 13:15)",
     "visible": "VISIBLE",
-    "proof": "g19-mansion-shift log 10-15 09:50\u201309:51",
-    "build": "59c895f"
+    "proof": "g19-mansion-shift log 10-15 13:15 (all-15-layers NQ1! 5m RTH re-read)",
+    "build": "083295f"
   },
   "P110.7": {
-    "receipt": "visibleRangeProfile DRAWN \u00b7 POC 29800 \u00b7 rows 64 \u00b7 rails 2\u2013622 (09:50)",
+    "receipt": "visibleRangeProfile DRAWN · POC 29800 · rows 64 · rails 2–622 (09:50)",
     "visible": "VISIBLE",
     "proof": "g19-mansion-shift log 10-15 09:50",
     "build": "59c895f"
   },
   "P110.8": {
-    "receipt": "user-dragged span: 'FIXED RANGE \u00b7 12 bars \u00b7 POC 29992.50 \u00b7 CANDLE-EST', fixedRange SLAB:37x2,ANCHORS:2+BARS:12+POC:29992.50 (NQ1! 5m 12:06); a 1-bar span refuses 'drag across at least 5'",
+    "receipt": "user-dragged span: 'FIXED RANGE · 12 bars · POC 29992.50 · CANDLE-EST', fixedRange SLAB:37x2,ANCHORS:2+BARS:12+POC:29992.50 (NQ1! 5m 12:06); a 1-bar span refuses 'drag across at least 5'",
     "visible": "VISIBLE",
     "proof": "g19-mansion-shift log 10-15 12:06",
     "build": "137ed26"
   },
   "P110.9": {
-    "receipt": "compositeProfile DRAWN \u00b7 profileStackLanes COMPOSITE (09:51)",
+    "receipt": "compositeProfile DRAWN (NQ1! 5m 13:15)",
     "visible": "VISIBLE",
-    "proof": "g19-mansion-shift log 10-15 09:51",
-    "build": "59c895f"
+    "proof": "g19-mansion-shift log 10-15 13:15 (all-15-layers NQ1! 5m RTH re-read)",
+    "build": "083295f"
   },
   "P110.10": {
-    "receipt": "tpoProfile DRAWN \u2014 letters on the left lane (09:51)",
+    "receipt": "tpoProfile DRAWN (NQ1! 5m 13:15)",
     "visible": "VISIBLE",
-    "proof": "g19-mansion-shift log 10-15 09:51",
-    "build": "59c895f"
+    "proof": "g19-mansion-shift log 10-15 13:15 (all-15-layers NQ1! 5m RTH re-read)",
+    "build": "083295f"
   },
   "F06.BIDASK_PROFILE": {
-    "receipt": "drawing created via Tools \u203a Bid/Ask Split Profile + two clicks; banner 'Delta+VP \u00b7 no per-level tape \u00b7 captured live only' (NQ1! 5m 10:18) \u2014 per-level split only from tape captured since load",
+    "receipt": "drawing created via Tools › Bid/Ask Split Profile + two clicks; banner 'Delta+VP · no per-level tape · captured live only' (NQ1! 5m 10:18) — per-level split only from tape captured since load",
     "visible": "PARTIAL",
     "proof": "g19-mansion-shift log 10-15 10:18",
     "build": "4b0b865"
   },
   "F11.STRUCTURE": {
-    "receipt": "all-layers read 09:58 (MarketStructure on; zones + demand zone words)",
+    "receipt": "marketStructure DRAWN (NQ1! 5m 13:15)",
     "visible": "VISIBLE",
-    "proof": "g19-mansion-shift log 10-15 09:58",
-    "build": "59c895f"
+    "proof": "g19-mansion-shift log 10-15 13:15 (all-15-layers NQ1! 5m RTH re-read)",
+    "build": "083295f"
   },
   "F08B": {
-    "receipt": "all-layers read 09:58 (LiquidityWeather on; weather lens + smoke on glass)",
+    "receipt": "liquidityWeather DRAWN (NQ1! 5m 13:15)",
     "visible": "VISIBLE",
-    "proof": "g19-mansion-shift log 10-15 09:58",
-    "build": "59c895f"
+    "proof": "g19-mansion-shift log 10-15 13:15 (all-15-layers NQ1! 5m RTH re-read)",
+    "build": "083295f"
   },
   "F07A": {
-    "receipt": "all-layers read 09:58 (fp:big-trades; discs + cluster \u00d75 on glass)",
+    "receipt": "bigTradeBubbleStatus DRAWN · 118 bubbles · lap 9720 ≤0.5 ms at 15 min (NQ1! 5m 13:15)",
     "visible": "VISIBLE",
-    "proof": "g19-mansion-shift log 10-15 09:58",
-    "build": "59c895f"
+    "proof": "g19-mansion-shift log 10-15 13:15 (all-15-layers NQ1! 5m RTH re-read)",
+    "build": "083295f"
   },
   "H-701.ABS": {
     "receipt": "absorptionDepthForm SHELF+EFFORT_TICKS (09:50)",
@@ -153,7 +153,7 @@
   "F03A": {
     "receipt": "memoryGhost OFF in the read scenes",
     "visible": "NOT_READ",
-    "proof": "\u2014",
+    "proof": "—",
     "build": "59c895f"
   }
 }
