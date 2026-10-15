@@ -29,7 +29,7 @@ _Shift 2026-10-15 09:35 → 14:35 CDT. Environment: https://wealthymindsetspro.c
 | 1 timeframe 5m → 15m | PASS | `ON:4`, same strikes, re-placed |
 | 2 symbol ES1! and back | PASS | ES1! `ON:3` (7760 BORN, 7765 BORN contact HELD, 7770 BROKEN ×1); NQ1! return `ON:3` |
 | 3 pan + zoom (wheel + drag) | PASS | `ON:3`, `brickWallsAt 29900:212|29950:184|30000:156`, ink 442/351/441, price-aligned |
-| 4 workspace presets | NOT RUN today (the clean proof scene holds writes; presets need the member's own workspace) | — |
+| 4 workspace presets | **FAILED on `137ed26`, fixed:** Workspace › Regime view armed Derivatives Pressure (the field read `WALLS:29950/BORN/P,30000/BROKEN/P`) but left `brickWalls OFF` — the masonry vanished on the preset switch; Clean view turns everything off by design. Fix: `BRICK_WALLS` rides with `DERIVATIVES_PRESSURE` in the Regime view and the Trend desk, pinned by test (12:12; serving read after deploy, see the proof log) | 12:10 |
 | 5 extra profiles + order-flow tools | PASS | all-layers read 09:58: Brick Walls `ON` beside 14 layers, p95 9.7 ms |
 | 6 resize (phone preset 375×812, back to desktop) | PASS | `ON:3`, masonry on the phone screenshot |
 | 7 reload | PASS | `ON:3` at 29950/30000/30050 (walls follow the live chain) |
@@ -63,6 +63,7 @@ Not yet measured today: multiple charts side by side, rapid symbol/timeframe swi
 | Brick Walls (masonry, lifecycle, polarity) | VISIBLE (NQ1!, ES1!) | §1 |
 | NDX/SPX → NQ/ES mapped levels | VISIBLE (dotted, "MAPPED") | §1 |
 | Call Wall / Put Wall marks | VISIBLE (SPY 767/768/769/770, AAPL) | 09:46 `wallsGammaMarks` |
+| Gamma bucket inspection (strike · expiry · IV · OI · source · freshness · model) | VISIBLE on `137ed26` (SPY 12:08): hover on the 768 band → "STRIKE 768 · GEX −$9.1M/1% (MODEL) · +$5.7M / PUT −$14.8M · OI 41,487 · IV 14.3% · 2026-10-16 −$5.1M · +14 more · tastytrade futures options · OI prior session · as of 01:07 PM ET · dealer side ASSUMED"; ladder words "+GEX 769.50–770.50 · 32%", "−GEX 770.50–771.50 · 51% · NEAR-MONEY" on the glass | `gammaInspect 768:-9.13e+6` |
 | Gamma Exposure heatmap | VISIBLE on SPY (negative band 768.2–770.5, hatched; 10:08). On AAPL the $5 buckets filled the whole viewport as one film → ladder in `09047f2` | §1; settings: "High contrast" applied at once and persisted across a new page load (`…:HIGH_CONTRAST`) |
 | Positive / Negative gamma regions, Gamma Flip | WITHHELD on a near-money ±4% subset (`FLIP:WITHHELD_NEAR_MONEY_SUBSET`, `gammaRegions SILENCE:PROFILE_WITHHELD`) — honest, and a FOUNDER DECISION (coverage) | 09:46 SPY, 09:52 AAPL |
 | Gamma concentration levels | VISIBLE (AAPL `GAMMA_CONC_POS@345`) | 09:52 |

@@ -223,7 +223,10 @@ const ARRANGEMENTS: readonly ArrangementSpec[] = [
       US equities and ETFs); where there is none the compiler's readiness count
       says so before the press, and the profiles still deliver.
     */
-    arms: ["FIXED_RANGE", "SESSION", "DERIVATIVES_PRESSURE", "MARKET_STRUCTURE", "REGIME_LIGHTING"],
+    // BRICK_WALLS rides with DERIVATIVES_PRESSURE: the masonry is the pressure world's second
+    // switch on the one pressure owner (Garden 18 §XXII). Serving 2026-10-15: choosing this
+    // view armed the field and left the walls OFF — "Brick Walls disappeared" on a preset switch.
+    arms: ["FIXED_RANGE", "SESSION", "DERIVATIVES_PRESSURE", "BRICK_WALLS", "MARKET_STRUCTURE", "REGIME_LIGHTING"],
   },
   {
     id: "REVIEW",
@@ -598,7 +601,7 @@ export function camerasInForce(current: Readonly<Partial<Record<string, boolean>
 export type LoadoutId = "SCALP" | "TREND" | "SNIPER" | "REVIEW";
 export const CAMERA_LOADOUTS: readonly { readonly id: LoadoutId; readonly label: string; readonly senses: string; readonly arms: readonly ProfileId[] }[] = [
   { id: "SCALP", label: "Scalp", senses: "Flow + Liquidity + Structure", arms: ["ABSORPTION", "IMBALANCE_STACK", "DELTA_DIVERGENCE", "LIQUIDITY_WEATHER", "LIQUIDITY_LIFECYCLE", "MARKET_STRUCTURE"] },
-  { id: "TREND", label: "Trend", senses: "Regime + Profile + Memory", arms: ["REGIME_LIGHTING", "DERIVATIVES_PRESSURE", "SESSION", "FIXED_RANGE", "LIVING_PROFILE", "PROFILE_MEMORY", "MEMORY_GHOST", "MARKET_STRUCTURE"] },
+  { id: "TREND", label: "Trend", senses: "Regime + Profile + Memory", arms: ["REGIME_LIGHTING", "DERIVATIVES_PRESSURE", "BRICK_WALLS", "SESSION", "FIXED_RANGE", "LIVING_PROFILE", "PROFILE_MEMORY", "MEMORY_GHOST", "MARKET_STRUCTURE"] },
   { id: "SNIPER", label: "Sniper", senses: "Structure + Flow + Anatomy", arms: ["MARKET_STRUCTURE", "ABSORPTION", "ANATOMY_CARDS", "EFFORT_MARK", "VALUE_CANDLE", "STRUCTURE_PROFILE"] },
   { id: "REVIEW", label: "Review", senses: "Memory + Session + Effort", arms: ["SESSION", "EFFORT_MARK", "PROFILE_MEMORY", "MEMORY_GHOST", "VALUE_MIGRATION"] },
 ];

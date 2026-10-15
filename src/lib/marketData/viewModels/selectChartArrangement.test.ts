@@ -269,7 +269,7 @@ describe("arrangementSwitches hands back a complete, honest switch set", () => {
     const switches = arrangementSwitches("REGIME", menu);
     for (const e of menu.entries) {
       if (e.gesture !== "TOGGLE") continue;
-      const expected = ["FIXED_RANGE", "SESSION", "DERIVATIVES_PRESSURE", "MARKET_STRUCTURE", "REGIME_LIGHTING"].includes(e.id);
+      const expected = ["FIXED_RANGE", "SESSION", "DERIVATIVES_PRESSURE", "BRICK_WALLS", "MARKET_STRUCTURE", "REGIME_LIGHTING"].includes(e.id);
       expect(
         switches[e.id],
         `${e.id} was left ${switches[e.id]} by REGIME. A desk that only turns ` +
@@ -311,5 +311,14 @@ describe("the tile copy is one line (Founder: no paragraphs on the glass)", () =
     expect(of.note.length).toBeGreaterThan(of.shortNote.length);
     const clean = vm.entries.find(e => e.id === "CLEAN")!;
     expect(clean.shortNote).toBe("");
+  });
+});
+
+describe("REGIME keeps the masonry with the field (Founder 2026-10-15: walls disappeared on a preset switch)", () => {
+  it("every arrangement and quick desk that arms DERIVATIVES_PRESSURE also arms BRICK_WALLS", async () => {
+    const { ARRANGEMENT_SPECS, CAMERA_LOADOUTS } = await import("./selectChartArrangement");
+    const sets: readonly { id: string; arms: readonly string[] }[] = [...ARRANGEMENT_SPECS, ...CAMERA_LOADOUTS];
+    expect(sets.length).toBeGreaterThan(0);
+    for (const s of sets) if (s.arms.includes("DERIVATIVES_PRESSURE")) expect(s.arms, s.id).toContain("BRICK_WALLS");
   });
 });
