@@ -197,3 +197,12 @@ describe("a held wall never crushes the candles (§XIV, NDX 5m 2026-10-01)", () 
     expect(MC).toContain("if (above != null && fits(above, lo)) { hi = above; wallTop = true; }");
   });
 });
+
+describe("show me (Garden 19 order §4): a tap on an off-camera edge brick reveals the wall", () => {
+  it("edge bricks are marked off, the tap asks the camera, the provider applies it, the overlay says so", () => {
+    expect(MC).toContain("pressureWallHitRef.current.push({ strike: o.strike, x: x0 - 10, y: y - 4, w: bl + 12, h: bh + 8, off: true });");
+    expect(MC).toContain('cameraRevealRef.current = askReveal(wallHit.strike, "WALL", Date.now());');
+    expect(MC).toContain("const rv = applyReveal({ lo, hi }, cameraRevealRef.current, Date.now());");
+    expect(MC).toContain("canvasRef.current.dataset.cameraReveal = revealReceipt(cameraRevealRef.current, Date.now());");
+  });
+});

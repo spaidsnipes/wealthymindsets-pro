@@ -35,7 +35,7 @@ _Shift 2026-10-15 09:35 → 14:35 CDT. Environment: https://wealthymindsetspro.c
 | 5 extra profiles + order-flow tools | PASS | all-layers read 09:58: Brick Walls `ON` beside 14 layers, p95 9.7 ms |
 | 6 resize (phone preset 375×812, back to desktop) | PASS | `ON:3`, masonry on the phone screenshot |
 | 7 reload | PASS | `ON:3` at 29950/30000/30050 (walls follow the live chain) |
-| 8 disconnect / restore market data | NOT RUN (no sanctioned way to cut the owner's stream from the pane) | — |
+| 8 disconnect / restore market data | **PASS on `513b5b8` (14:26)** — the live DXLink socket was closed from a page-local probe (WebSocket wrapper in a same-origin iframe, never shipped) | walls `ON:2` at 30150/30180 before, +4 s and +24 s after the cut; a new socket was OPEN within 4 s; masthead stayed LIVE with asOf advancing 2:26:32 → 2:26:52 and the price ticking |
 | 9 toggle off / on | PASS | off: no receipt, nothing painted · on: `ON:3` |
 | 10 sustained streaming 60 s | PASS | `ON:3`, ink 554/229/365, overlay 3.1 / 4.2 ms |
 

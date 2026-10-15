@@ -785,6 +785,7 @@ import { composeWallsGammaMarks, WALLS_GAMMA_OFF, type WallsGammaSelection } fro
 import { gexBucketAt, gexScopeWords, gexWords, type GammaExposureVM } from "@/lib/marketData/gammaExposure";
 import { GAMMA_HEAT_PRESET_EVENT, gammaHeatPreset, gammaHeatStores, readGammaHeatPreset } from "@/lib/chart/gammaHeatAppearance";
 import { CALL_WALL_RGB, PUT_WALL_RGB, edgeChipWords, foldNarrowLine, offCameraShortWords, paintWallsGamma } from "@/components/chart/wallsGammaGlass";
+import { type CameraReveal, applyReveal, askReveal, revealReceipt } from "@/lib/chart/cameraReveal";
 import type { IndexFuturesMappingVM } from "@/lib/marketData/viewModels/selectIndexFuturesMapping";
 
 /* ── Symbol base prices — verified against MooMoo/TradingView Jun 16 2026 ── */
@@ -2521,7 +2522,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const optionFlowRef = useRef<OptionFlowVM | null>(null);
   optionFlowRef.current = optionFlow;
   // The wall rects painted this frame (what a click hits), and the selected strike.
-  const pressureWallHitRef = useRef<{ strike: number; x: number; y: number; w: number; h: number }[]>([]);
+  // `off` marks an EDGE brick (the wall lies beyond the camera): a tap on it is a "show me" ask.
+  const pressureWallHitRef = useRef<{ strike: number; x: number; y: number; w: number; h: number; off?: boolean }[]>([]);
+  // SHOW ME (order §4): the level the trader asked the camera to reveal, for a few seconds.
+  const cameraRevealRef = useRef<CameraReveal | null>(null);
   /** Options Flow marks on this frame (for a tap), and the one a tap pinned (touch has no hover). */
   const flowHitRef = useRef<{ id: string; x: number; y: number; r: number }[]>([]);
   const pinnedFlowRef = useRef<string | null>(null);
@@ -2778,6 +2782,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           if (near.some(k => k >= lo && k <= lo + edge)) wallBottom = true;
         }
       }
+      // SHOW ME (Garden 19 order §4): an explicit ask — a tap on an off-camera edge
+      // brick — extends the camera to that level for a few seconds, outranking the
+      // share rule above; a drag or wheel (manual range) or the timer lets it go.
+      const rv = applyReveal({ lo, hi }, cameraRevealRef.current, Date.now());
+      if (rv.applied) { lo = rv.lo; hi = rv.hi; wallTop = wallTop || rv.top; wallBottom = wallBottom || rv.bottom; }
       const span = hi - lo;
       return { priceRange: { minValue: lo - span * (wallBottom ? 0.3 : 0.06), maxValue: hi + span * (wallTop ? 0.34 : 0.06) } };
     } catch { return fallback; }
@@ -19837,7 +19846,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     }
                     masonryRects.push({ x: x0 - 10, y: y - 1, w: bl + 12, h: bh + 2 });
                     // Generous on touch: the hit row is 12px tall around a 5px brick.
-                    pressureWallHitRef.current.push({ strike: o.strike, x: x0 - 10, y: y - 4, w: bl + 12, h: bh + 8 });
+                    pressureWallHitRef.current.push({ strike: o.strike, x: x0 - 10, y: y - 4, w: bl + 12, h: bh + 8, off: true });
                     if (up) nUp++; else nDown++;
                   });
                 }
@@ -27717,7 +27726,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         canvasRef.current.dataset.paintSections = paintLapReceipt();
         // LOCATE INVENTION (order §4): the seven states per invention, compiled from the receipts
         // this frame just published — one line the harness, the ticket and a "show me" door can read.
-        canvasRef.current.dataset.inventionVisibility = compileInventionVisibility(canvasRef.current.dataset as Record<string, string | undefined>);
+        canvasRef.current.dataset.cameraReveal = revealReceipt(cameraRevealRef.current, Date.now());
+      canvasRef.current.dataset.inventionVisibility = compileInventionVisibility(canvasRef.current.dataset as Record<string, string | undefined>);
       }
     };
 
@@ -28948,6 +28958,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     */
     const wallHit = pressureWallHitRef.current.find(r => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h);
     if (wallHit) {
+      // SHOW ME (order §4): an edge brick names a wall the camera is not showing; the
+      // tap selects it AND asks the camera to reveal it (release any dragged range so
+      // the autoscale provider can answer, then nudge the scale to re-ask).
+      if (wallHit.off) {
+        cameraRevealRef.current = askReveal(wallHit.strike, "WALL", Date.now());
+        manualPriceRangeRef.current = null;
+        smoothedRangeRef.current = null;
+        try { chartRef.current?.priceScale("right").applyOptions({ autoScale: true }); } catch { /* camera mid-build */ }
+      }
       onSelectPressureWall?.(wallHit.strike);
       return;
     }

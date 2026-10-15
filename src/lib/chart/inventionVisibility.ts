@@ -8,7 +8,8 @@
  * `data-living-profile`, …) and names every silence. This owner reads those receipts — the same
  * strings the browser harness and the proof log read — and answers one of seven states per
  * invention, published as `data-invention-visibility = "ID:STATE|ID:STATE|…"`. Nothing painted
- * depends on it; a future "show me" control pans the camera from the OFF_CAMERA entries.
+ * depends on it. "Show me" for walls exists: a tap on an off-camera edge brick asks the
+ * camera to reveal that wall (src/lib/chart/cameraReveal.ts, receipt `data-camera-reveal`).
  *
  *   VISIBLE           the receipt says it painted on this camera
  *   OFF_CAMERA        it exists, but beyond the camera's edge (the edge chips name it)
