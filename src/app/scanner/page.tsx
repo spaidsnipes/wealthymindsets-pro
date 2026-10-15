@@ -740,6 +740,14 @@ export default function ScannerPage() {
     refresh();
   }, [refresh]);
 
+  // Until the live re-scan below has run, an empty table is still the first read, not a finding
+  // (serving phone 2026-10-15: "The scan returned no symbols — nothing was observed" for ~10 s on a
+  // cold load, then 29 rows). Capped at 20 s, so a member with no live lane still gets the true reason.
+  const [awaitingFirstLive, setAwaitingFirstLive] = useState(true);
+  useEffect(() => {
+    const cap = setTimeout(() => setAwaitingFirstLive(false), 20_000);
+    return () => clearTimeout(cap);
+  }, []);
   // The opening round runs before the live stream has spoken, so most rows are refused. Once live prices
   // start arriving, re-scan ONCE (2 s later, so the rest arrive too) instead of waiting the 30 s cadence.
   // (The timer lives in a ref: `scannerLive` changes on every quote, and an effect cleanup would cancel it.)
@@ -748,7 +756,7 @@ export default function ScannerPage() {
   useEffect(() => {
     if (liveFilledRef.current || scannerLive.size === 0) return;
     liveFilledRef.current = true;
-    liveFillTimerRef.current = setTimeout(() => { void refresh(); }, 2_000);
+    liveFillTimerRef.current = setTimeout(() => { void Promise.resolve(refresh()).finally(() => setAwaitingFirstLive(false)); }, 2_000);
   }, [scannerLive, refresh]);
   useEffect(() => () => { if (liveFillTimerRef.current) clearTimeout(liveFillTimerRef.current); }, []);
 
@@ -1041,13 +1049,13 @@ export default function ScannerPage() {
           <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth:"thin" }}>
             {/* The first read takes several seconds; "no signals match" before
                 any quote arrived was a verdict on nothing (2026-10-04). */}
-            {filtered.length === 0 && loading && results.length === 0 && (
+            {filtered.length === 0 && (loading || (awaitingFirstLive && !scanFailed)) && results.length === 0 && (
               <div role="status" className="flex flex-col items-center justify-center h-full text-wm-text-muted gap-2">
                 <RefreshCw size={20} className="opacity-50 animate-spin"/>
                 <span className="text-xs">Reading the market — first scan takes a few seconds…</span>
               </div>
             )}
-            {filtered.length === 0 && !(loading && results.length === 0) && (
+            {filtered.length === 0 && !((loading || (awaitingFirstLive && !scanFailed)) && results.length === 0) && (
               <div className="flex flex-col items-center justify-center h-full text-wm-text-muted gap-2">
                 <AlertCircle size={24} className="opacity-30"/>
                 <span className="text-xs text-center max-w-sm" data-testid="scanner-empty-reason">{scannerEmptyReason({
