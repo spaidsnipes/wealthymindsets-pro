@@ -679,6 +679,7 @@ import {
   signedFlowText,
 } from "@/lib/chart/footprintCanon";
 import { computeProfileFromBars } from "@/lib/vpEngine";
+import { memoProfile, profileMemoKey } from "@/lib/chart/profileMemo";
 // vpEngine owns WHERE THE VOLUME GOES; vpDrawGeometry owns WHERE THE PIXELS GO.
 // Both halves of the profile are now pure and tested — see vpDrawGeometry.ts.
 import {
@@ -12417,11 +12418,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
          */
         // Placeholder volume (spot FX / all-0/1 feeds, volumeTruth.ts) builds no
         // profile: one live "1" over 0s drew a VP out of a flag (2026-09-26).
-        const snap = computeProfileFromBars([...volumeBearingBars(symbol, barsToUse)], {
+        const vpOpts = {
           targetRows: rows, valueAreaPct: 0.7,
           // P0.2: rows, POC, VAH, VAL on the instrument's tick grid.
           instrumentTick: instrumentTickFor(symbol, barsToUse.length ? barsToUse[barsToUse.length - 1].close : null),
-        });
+        };
+        // One build per bar reading (src/lib/chart/profileMemo.ts) — not one per paint.
+        const snap = memoProfile(profileMemoKey(symbol, barsToUse, vpOpts),
+          () => computeProfileFromBars([...volumeBearingBars(symbol, barsToUse)], vpOpts));
         // The market's own decimals for this column's price tags (pricePrecision.ts);
         // computed here, not read from the frame, because this can run first.
         const vpDp = displayPrecisionFor(symbol, barsToUse);
