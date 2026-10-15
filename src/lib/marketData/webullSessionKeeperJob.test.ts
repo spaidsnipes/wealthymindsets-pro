@@ -73,7 +73,9 @@ describe("2FA off: the job records TOKEN_NOT_REQUIRED and a CONNECTED broker lan
     expect(result?.capabilities?.verdict).toBe("APP_KEY_ENTITLEMENT_ISOLATED");
     expect(result?.capabilities?.stocks).toContain("DENIED_ENTITLEMENT(MARKET_DATA_NOT_SUBSCRIBED)");
     expect(result?.capabilities?.crypto).toMatch(/CRYPTO_SNAPSHOT\/[a-z0-9-]+:OK/);
-    expect(JSON.stringify(result)).not.toContain("65000");
+    // A whole number, not a substring: the record's epoch-ms stamps can contain the digits
+    // (CI 2026-10-15 failed on atMs 1792066500031 — no balance had leaked).
+    expect(JSON.stringify(result)).not.toMatch(/(?<![\d.])65,?000(?![\d])/);
 
     const stored = kv.data[WEBULL_KEEPER_RECORD_KEY];
     expect(stored).toBeTruthy();

@@ -44,7 +44,7 @@ import { selectVisibilityRefetch } from "@/lib/marketData/visibilityRefetch";
 import { coalesceQuoteRequest } from "@/lib/marketData/quoteRequestCoalescer";
 import { InFlightRounds } from "@/lib/marketData/inFlightRounds";
 import { fetchExchangeQuoteBody } from "@/lib/marketData/exchangeQuoteRounds";
-import { fetchAlpacaQuoteBody, fetchFinnhubQuoteBody } from "@/lib/marketData/providerQuoteRounds";
+import { alpacaQuoteAskable, fetchAlpacaQuoteBody, fetchFinnhubQuoteBody } from "@/lib/marketData/providerQuoteRounds";
 import {
   cryptoQuoteMayStandIn,
   judgeCryptoQuoteSubstitution,
@@ -493,7 +493,11 @@ async function fetchRealQuoteUncoalesced(sym: string): Promise<QuoteAnswer | nul
   // anything delayed and dead"): the delayed Yahoo quote (stocks AND futures) and
   // Finnhub's delayed stock quote are no longer asked. A futures contract with no
   // live tastytrade stream shows NO price rather than a 10-minute-old one. ───
-  if (isEquityLane) {
+  // Regular hours only: outside them the route refuses every ask, so the refusal is named
+  // here from the calendar instead of from a 404 round-trip (alpacaQuoteAskable).
+  if (isEquityLane && !alpacaQuoteAskable(upper, new Date())) {
+    heldRefusal ??= "Alpaca's IEX quote is stale outside regular hours — no extended-hours prints on this feed";
+  } else if (isEquityLane) {
     try {
       const j = await fetchAlpacaQuoteBody(upper) as any;
       const q = mk(j, "alpaca");
