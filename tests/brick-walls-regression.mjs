@@ -175,6 +175,22 @@ await settle(page);
   }
 }
 
+// Step 11b — SHOW ME through a walls/gamma EDGE CHIP ("▲ CALL WALL …"): the chip's centre comes from the
+// data-show-me-targets-at receipt (never from pixels); a tap must reveal its level.
+await page.goto(`${BASE}/charts?symbol=SPY&tf=5m&scene=clean&on=wg:CALL_WALL,wg:PUT_WALL,wg:GAMMA_HEATMAP&r=${Date.now()}`, { waitUntil: "domcontentloaded", timeout: 90000 });
+await settle(page);
+{
+  const t = await page.evaluate(() => { const ov = [...document.querySelectorAll("canvas")].find(c => "paintMeanMs" in c.dataset); if (!ov) return null; const r = ov.getBoundingClientRect(); const first = String(ov.dataset.showMeTargetsAt || "NONE").split("|").map(s => { const m = s.match(/^([A-Z_]+)@([\d.]+):(-?\d+),(-?\d+)$/); return m ? { what: m[1], price: Number(m[2]), x: Number(m[3]), y: Number(m[4]) } : null; }).find(Boolean); return first ? { ...first, ox: r.x, oy: r.y } : null; });
+  if (!t) record("11b show me (edge chip)", false, "no edge-chip target on this camera — not run");
+  else {
+    await page.mouse.click(t.ox + t.x, t.oy + t.y);
+    await page.waitForTimeout(1500);
+    const reveal = await page.evaluate(() => String([...document.querySelectorAll("canvas")].find(c => "paintMeanMs" in c.dataset)?.dataset.cameraReveal || ""));
+    await page.screenshot({ path: join(OUT, "11b-show-me-chip.png") });
+    record("11b show me (edge chip)", reveal.startsWith(`REVEAL:${t.what}@${t.price}`), JSON.stringify({ target: t, reveal }));
+  }
+}
+
 writeFileSync(join(OUT, "report.json"), JSON.stringify({ base: BASE, symbol: SYMBOL, at: new Date().toISOString(), steps }, null, 2));
 await browser.close();
 process.exit(failed ? 1 : 0);
