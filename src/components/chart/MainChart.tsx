@@ -27727,13 +27727,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       if (layerFaults.length) canvas.dataset.layerFaults = `${layerFaults.length}:${layerFaults.slice(0, 4).join(" | ")}`;
       else delete canvas.dataset.layerFaults;
       paintLap(27593);
+      // LOCATE INVENTION (order §4): the seven states per invention, compiled from the receipts this
+      // frame just published — one line the harness, the ticket and the "show me" door read; beside it
+      // the show-me targets, each "WHAT@price:x,y" in glass px (the data-pressure-wall-hit-at grammar).
       if (canvasRef.current) {
         canvasRef.current.dataset.paintSections = paintLapReceipt();
-        // LOCATE INVENTION (order §4): the seven states per invention, compiled from the receipts
-        // this frame just published — one line the harness, the ticket and a "show me" door can read.
         canvasRef.current.dataset.cameraReveal = revealReceipt(cameraRevealRef.current, Date.now());
-      canvasRef.current.dataset.showMeTargets = String(edgeChipHitRef.current.length + pressureWallHitRef.current.filter(r => r.off).length);
-      canvasRef.current.dataset.inventionVisibility = compileInventionVisibility(canvasRef.current.dataset as Record<string, string | undefined>);
+        canvasRef.current.dataset.showMeTargets = String(edgeChipHitRef.current.length + pressureWallHitRef.current.filter(r => r.off).length);
+        canvasRef.current.dataset.showMeTargetsAt = [...edgeChipHitRef.current.map(r => `${r.what}@${r.price}:${Math.round(r.x + r.w / 2)},${Math.round(r.y + r.h / 2)}`), ...pressureWallHitRef.current.filter(r => r.off).map(r => `WALL@${r.strike}:${Math.round(r.x + r.w / 2)},${Math.round(r.y + r.h / 2)}`)].join("|") || "NONE";
+        canvasRef.current.dataset.inventionVisibility = compileInventionVisibility(canvasRef.current.dataset as Record<string, string | undefined>);
       }
     };
 
