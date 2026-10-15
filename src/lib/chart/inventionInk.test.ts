@@ -52,7 +52,9 @@ describe("wired", () => {
   it("Brick Walls: the trader's ink is the lit face; the shade keeps the clay ratios; untouched = the room's clay", () => {
     expect(FLOW_COLOR_DEFAULTS.brickWallInk).toBe("#D6B070");
     expect(CHART).toContain('brickFaceRef.current = (hexRgb(chartSettings?.brickWallInk, "214,176,112")');
-    expect(CHART).toContain("const [fr, fg, fb] = brickFaceRef.current;");
+    expect(CHART).toContain("const [fr0, fg0, fb0] = brickFaceRef.current;");
+    // PUT-heavy masonry is fired darker and redder from the same ink (2026-10-15).
+    expect(CHART).toContain('const putHeavy = w.polarity === "PUT_HEAVY";');
     expect(CHART).toContain("rgba(${Math.round(fr * 0.682 * tone)},${Math.round(fg * 0.625 * tone)},${Math.round(fb * 0.554 * tone)}");
   });
 });

@@ -19150,6 +19150,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const dpDp = displayPrecisionFor(symbol, barsRef.current ?? []);
             const fmtD = (p: number) => p.toFixed(Math.min(dpDp, 2));
             const painted: string[] = [];
+            // Where each wall's masonry sits on the glass ("strike:y px"), for the browser
+            // regression harness's pixel proof (tests/brick-walls-regression.mjs, 2026-10-15).
+            const wallsAt: string[] = [];
             if (dp.drawn) {
               const barsD = barsRef.current ?? [];
               const vrD = tsD.getVisibleLogicalRange();
@@ -19579,7 +19582,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     const face = bctx.createLinearGradient(bx0, yb, bx0 + bw * 0.4, yb + courseH);
                     // The trader's brick ink (Chart Settings) is the lit face; the shaded face keeps the
                     // room's clay ratios (146/214, 110/176, 62/112), so the brick stays a brick.
-                    const [fr, fg, fb] = brickFaceRef.current;
+                    // PUT-HEAVY masonry is fired darker and redder (the amplifying side's ember), so
+                    // a support wall and a resistance wall are told apart at a glance (2026-10-15).
+                    const [fr0, fg0, fb0] = brickFaceRef.current;
+                    const putHeavy = w.polarity === "PUT_HEAVY";
+                    const fr = putHeavy ? Math.min(255, fr0 * 1.04) : fr0, fg = putHeavy ? fg0 * 0.74 : fg0, fb = putHeavy ? fb0 * 0.66 : fb0;
                     face.addColorStop(0, `rgba(${Math.round(fr * tone)},${Math.round(fg * tone)},${Math.round(fb * tone)},${0.78 * baseA})`);
                     face.addColorStop(1, `rgba(${Math.round(fr * 0.682 * tone)},${Math.round(fg * 0.625 * tone)},${Math.round(fb * 0.554 * tone)},${0.78 * baseA})`);
                     bctx.fillStyle = face;
@@ -19644,6 +19651,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ds.brickWallSprites = `REUSED:${brickSpritesReused}|DRAWN:${brickSpritesDrawn}`;
                 }
                 pressureWallHitRef.current.push({ strike: w.strike, x: x0, y: top - depth - 2, w: len, h: wallH + depth + 6 });
+                wallsAt.push(`${w.strike}:${Math.round(yc)}`);
                 if (selectedPressureWallStrikeRef.current === w.strike) {
                   // Selected: a gold rule around the whole body (the one selection's treatment).
                   ctx.strokeStyle = "rgba(240,200,90,1)";
@@ -19792,7 +19800,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.restore();
                 masonryRects.push({ x: x0, y: top - 2, w: len + 2, h: wallH + 4 });
                 const seenW = wallTestSpanWords(dp.testSpanSec);
-                if (wallsSpeak) wallWords.push({ word: `WALL ${fmtD(w.strike)} · ${wallLifeWord(w.life)}${w.tests ? ` ×${w.tests}` : ""}${seenW ? ` · ${seenW}` : ""}`, x: x0, y: top + wallH / 2 });
+                if (wallsSpeak) wallWords.push({ word: `${w.polarity === "PUT_HEAVY" ? "PUT" : "CALL"} WALL ${fmtD(w.strike)} · ${wallLifeWord(w.life)}${w.tests ? ` ×${w.tests}` : ""}${seenW ? ` · ${seenW}` : ""}`, x: x0, y: top + wallH / 2 });
                 painted.push(`WALL@${w.strike}:${w.life}:${w.tests}`);
               }
               void strikesSorted;
@@ -20221,6 +20229,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.restore();
             }
             ds.derivativesPressurePainted = painted.join("|") || "NONE";
+            ds.brickWallsAt = wallsAt.join("|") || "NONE";
             try {
             // ── OPTIONS FLOW (ATHOS §6 · PROPOSED P-03) ────────────────────
             // Large futures-option prints at their underlying-time anchor:

@@ -96,13 +96,25 @@ describe("every pressure climate, through the real owner, at any price scale", (
       const vm = lensFixturePressure(climate, c, NOW);
       expect(vm.drawn, `${climate} @ ${c}`).toBe(true);
       if (!vm.drawn) return;
-      expect(vm.climate, `${climate} @ ${c}`).toBe(climate);
+      // WALLED fixes the WALLS, not the climate (its even ladder reads MIXED/DAMPING by price scale).
+      if (climate !== "WALLED") expect(vm.climate, `${climate} @ ${c}`).toBe(climate);
       const t = derivativesPressureTint(vm.geography);
       if (climate === "DAMPING") expect(t.negative).toBe(0);
       if (climate === "AMPLIFYING") expect(t.positive).toBe(0);
       if (climate === "MIXED") expect(t.positive > 0 && t.negative > 0).toBe(true);
       // The field sits on the chart's own price axis.
       expect(vm.spot).toBe(c);
+    }
+  });
+  it("WALLED lays one PUT wall 3% below price and one CALL wall 3% above it, at every price scale (Brick Walls regression fixture)", () => {
+    for (const c of CENTRES) {
+      const vm = lensFixturePressure("WALLED", c, NOW);
+      expect(vm.drawn, `WALLED @ ${c}`).toBe(true);
+      if (!vm.drawn) return;
+      const put = vm.walls.find(w => Math.abs(w.strike / c - 0.97) < 1e-3);
+      const call = vm.walls.find(w => Math.abs(w.strike / c - 1.03) < 1e-3);
+      expect(put?.polarity, `put wall @ ${c}`).toBe("PUT_HEAVY");
+      expect(call?.polarity, `call wall @ ${c}`).toBe("CALL_HEAVY");
     }
   });
   it("the sample chain is labelled SAMPLE, never a real underlying, and claims no wall test (no live bars)", () => {

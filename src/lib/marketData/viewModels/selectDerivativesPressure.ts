@@ -100,12 +100,21 @@ export interface GeographySample {
   readonly net: number;
 }
 
+/**
+ * Which side of the chain built the wall. CALL_HEAVY: calls' exposure dominates the
+ * strike (net positive — damping under the dealer-long convention). PUT_HEAVY: puts'
+ * dominates (net negative — amplifying). A wall is a CONCENTRATION of open interest at a
+ * strike; its sign is a separate fact the masonry tints and the ticket names.
+ */
+export type WallPolarity = "CALL_HEAVY" | "PUT_HEAVY";
+
 export interface PressureWall {
   readonly strike: number;
-  /** $ gamma exposure per 1% move at the current price (INFERRED). */
+  /** $ gamma exposure per 1% move at the current price (INFERRED), signed (calls +, puts −). */
   readonly exposure: number;
-  /** Share of gross exposure (0–1): the wall's materiality. */
+  /** Share of GROSS exposure (0–1) that this strike concentrates: the wall's materiality. */
   readonly share: number;
+  readonly polarity: WallPolarity;
   readonly callOi: number;
   readonly putOi: number;
   /** Price is above / below the wall now. */
@@ -325,18 +334,28 @@ export function selectDerivativesPressure(
   // On a subset, the outer band of the heard window cannot hold a wall.
   const wallReach = chainScope.kind === "NEAR_MONEY_SUBSET" ? (chainScope.reachPct / 100) * (1 - SUBSET_EDGE_BAND) : SWEEP;
   const strikes = [...atSpot.byStrike.entries()].filter(([k]) => Math.abs(k / spot - 1) <= wallReach);
+  // A WALL IS A CONCENTRATION, WHATEVER ITS SIGN (Founder's Garden 19 finish-line order,
+  // 2026-10-15). Until today only a strike with POSITIVE net exposure (call-dominant) could be a
+  // wall; a put-dominant strike was a "pocket", and pockets are withheld on a near-money subset.
+  // Serving NQ1! that morning: ratio −0.71 (puts dominate near the money, as they usually do on
+  // index futures) → WALLS:NONE → "Brick Walls disappeared" again. The strike's share of GROSS
+  // exposure is its materiality; the sign is carried as `polarity` for the masonry and the ticket.
   const walls: PressureWall[] = strikes
-    .filter(([, e]) => e > 0 && e / atSpot.gross >= WALL_MIN_SHARE)
-    .sort((a, b) => b[1] - a[1])
+    .filter(([, e]) => Math.abs(e) / atSpot.gross >= WALL_MIN_SHARE)
+    .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
     .slice(0, MAX_WALLS)
     .map(([strike, exposure]) => ({
-      strike, exposure, share: exposure / atSpot.gross,
+      strike, exposure, share: Math.abs(exposure) / atSpot.gross,
+      polarity: (exposure >= 0 ? "CALL_HEAVY" : "PUT_HEAVY") as WallPolarity,
       callOi: oiAt(strike, "call"), putOi: oiAt(strike, "put"),
       ...wallLife(strike, bars, spot),
     }))
     .sort((a, b) => a.strike - b.strike);
+  const wallStrikes = new Set(walls.map(w => w.strike));
+  // Pockets: the amplifying corridors between walls — a negative strike that is itself a wall
+  // is masonry, not a corridor.
   const pockets: PressurePocket[] = (subset ? [] : strikes)
-    .filter(([, e]) => e < 0 && -e / atSpot.gross >= WALL_MIN_SHARE)
+    .filter(([k, e]) => !wallStrikes.has(k) && e < 0 && -e / atSpot.gross >= WALL_MIN_SHARE)
     .sort((a, b) => a[1] - b[1])
     .slice(0, MAX_POCKETS)
     .map(([strike, exposure]) => ({ strike, exposure, share: -exposure / atSpot.gross }))
@@ -355,7 +374,7 @@ export function selectDerivativesPressure(
   const receiptStr = [
     `PRESSURE:${climate}:${ratio.toFixed(2)}`,
     `ZG:${zeroGamma != null ? zeroGamma.toFixed(2) : "NONE"}`,
-    `WALLS:${walls.map(w => `${w.strike}/${w.life}`).join(",") || "NONE"}`,
+    `WALLS:${walls.map(w => `${w.strike}/${w.life}${w.polarity === "PUT_HEAVY" ? "/P" : "/C"}`).join(",") || "NONE"}`,
     `POCKETS:${pockets.map(p => p.strike).join(",") || "NONE"}`,
     `N:${prepared.length}`,
     ...(subset ? [`SCOPE:NEAR_MONEY_SUBSET:±${chainScope.kind === "NEAR_MONEY_SUBSET" ? chainScope.reachPct : 0}%`] : []),

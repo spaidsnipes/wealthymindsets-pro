@@ -32,8 +32,15 @@ export const LENS_FIXTURE_SCENE = "lens-fixture" as const;
 export const LENS_FIXTURE_BANNER = "PROOF SCENE — sample market state, not live" as const;
 
 export const LENS_FIXTURE_STAGES: readonly WeatherStage[] = ["AIRLESS", "THINNING", "STEADY", "THICKENING", "HEAVY", "ERRATIC", "UNMEASURED"];
-export type LensFixtureClimate = Exclude<Climate, "INSUFFICIENT_EVIDENCE">;
-export const LENS_FIXTURE_CLIMATES: readonly LensFixtureClimate[] = ["DAMPING", "AMPLIFYING", "MIXED"];
+/**
+ * WALLED (2026-10-15, Garden 19 finish-line order §2): a deterministic BRICK WALLS fixture —
+ * a heavy PUT strike 3% below price and a heavy CALL strike 3% above it on an otherwise even
+ * ladder, so the masonry has one wall of each polarity to paint, and the browser regression
+ * harness (tests/brick-walls-regression.mjs) can assert them through timeframe, pan, resize
+ * and reload.
+ */
+export type LensFixtureClimate = Exclude<Climate, "INSUFFICIENT_EVIDENCE"> | "WALLED";
+export const LENS_FIXTURE_CLIMATES: readonly LensFixtureClimate[] = ["DAMPING", "AMPLIFYING", "MIXED", "WALLED"];
 
 export interface LensFixture {
   readonly stage: WeatherStage | null;
@@ -134,6 +141,7 @@ export function lensFixtureChain(climate: LensFixtureClimate, centre: number, no
   const rows = Array.from({ length: 41 }, (_, i) => 80 + i).flatMap(k =>
     climate === "DAMPING" ? [row("call", k, 1000), row("put", k, 100)]
       : climate === "AMPLIFYING" ? [row("call", k, 100), row("put", k, 1000)]
+      : climate === "WALLED" ? [row("call", k, k === 103 ? 30000 : 300), row("put", k, k === 97 ? 30000 : 300)]
         : k < 100 ? [row("put", k, 1500)] : k > 100 ? [row("call", k, 1500)] : []);
   return { source: "CBOE_DELAYED", underlying: "SAMPLE", spot: c, iv30: 40, chainAsOf: null, underlyingAsOf: null, rows, dropped: 0 };
 }

@@ -1592,7 +1592,7 @@ export function ChartInspectTicket({
             : "None observed: the response so far agrees with the expected defence.";
         return (
           <div className="mt-1.5 border-t border-wm-border pt-1 text-[10px] leading-snug" data-inspect-pressure-wall={`${w.strike}:${w.life}`} style={{ color: "#C8C0AE" }}>
-            <div className="font-bold tracking-wide text-wm-gold">PRESSURE WALL {mtfPx(w.strike)} · {wallLifeWord(w.life)}</div>
+            <div className="font-bold tracking-wide text-wm-gold">{w.polarity === "PUT_HEAVY" ? "PUT" : "CALL"} WALL {mtfPx(w.strike)} · {wallLifeWord(w.life)}</div>
             <EvidenceLine timeZone={timeZone} testId="inspect-wall-evidence" ev={inspectEvidence({ kind: "DERIVATIVES", drawn: true, fidelity: dp.fidelity, sourceName: positioningSourceWords(dp.source).name, asOfMs: dp.clocks.modelAsOf * 1000 }, feed)} />
             <div>What · a damping concentration: dealer hedging expected to lean AGAINST moves through {mtfPx(w.strike)} (not a direction call)</div>
             <div>Where · strike {mtfPx(w.strike)}, price {w.side === "ABOVE" ? "above" : "below"} it · {(w.share * 100).toFixed(1)}% of gross exposure</div>

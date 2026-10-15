@@ -41,6 +41,19 @@ describe("climate is read from the SIGN of dealer exposure, never as direction",
   it("a concentrated call strike becomes a wall", () => {
     const vm = selectDerivativesPressure(receipt(ladder(k => [row("call", k, k === 105 ? 30000 : 300), row("put", k, 300)])), [], NOW);
     expect(vm.drawn && vm.walls.map(w => w.strike)).toContain(105);
+    expect(vm.drawn && vm.walls.find(w => w.strike === 105)?.polarity).toBe("CALL_HEAVY");
+  });
+  it("a concentrated PUT strike is a wall too — PUT_HEAVY, never a vanished pocket (Founder 2026-10-15: Brick Walls disappeared on a put-heavy NQ chain)", () => {
+    const vm = selectDerivativesPressure(receipt(ladder(k => [row("call", k, 300), row("put", k, k === 95 ? 30000 : 300)])), [], NOW);
+    expect(vm.drawn).toBe(true);
+    if (!vm.drawn) return;
+    const w = vm.walls.find(x => x.strike === 95);
+    expect(w?.polarity).toBe("PUT_HEAVY");
+    expect(w!.exposure).toBeLessThan(0);
+    expect(w!.share).toBeGreaterThan(0);
+    // A strike that is masonry is not also a corridor.
+    expect(vm.pockets.map(p => p.strike)).not.toContain(95);
+    expect(vm.receipt).toMatch(/WALLS:95\/[A-Z]+\/P/);
   });
 });
 
