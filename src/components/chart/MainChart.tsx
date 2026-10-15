@@ -2526,6 +2526,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const pressureWallHitRef = useRef<{ strike: number; x: number; y: number; w: number; h: number; off?: boolean }[]>([]);
   // SHOW ME (order §4): the level the trader asked the camera to reveal, for a few seconds.
   const cameraRevealRef = useRef<CameraReveal | null>(null);
+  // The autoscale provider's last answer (receipt `data-camera-range`): what the camera was told, and when.
+  const cameraAnswerRef = useRef<{ lo: number; hi: number; applied: boolean; at: number } | null>(null);
   // The walls/gamma edge chips ("▲ CALL WALL …") this frame, each a "show me" target carrying its lead price.
   const edgeChipHitRef = useRef<{ price: number; what: string; x: number; y: number; w: number; h: number }[]>([]);
   /** Options Flow marks on this frame (for a tap), and the one a tap pinned (touch has no hover). */
@@ -2789,6 +2791,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // share rule above; a drag or wheel (manual range) or the timer lets it go.
       const rv = applyReveal({ lo, hi }, cameraRevealRef.current, Date.now());
       if (rv.applied) { lo = rv.lo; hi = rv.hi; wallTop = wallTop || rv.top; wallBottom = wallBottom || rv.bottom; }
+      cameraAnswerRef.current = { lo, hi, applied: rv.applied, at: Date.now() };
       const span = hi - lo;
       return { priceRange: { minValue: lo - span * (wallBottom ? 0.3 : 0.06), maxValue: hi + span * (wallTop ? 0.34 : 0.06) } };
     } catch { return fallback; }
@@ -27740,6 +27743,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       if (canvasRef.current) {
         canvasRef.current.dataset.paintSections = paintLapReceipt();
         canvasRef.current.dataset.cameraReveal = revealReceipt(cameraRevealRef.current, Date.now());
+        canvasRef.current.dataset.cameraRange = cameraAnswerRef.current ? `${cameraAnswerRef.current.lo.toFixed(4)}..${cameraAnswerRef.current.hi.toFixed(4)}|${cameraAnswerRef.current.applied ? "REVEAL" : "PLAIN"}|${Math.round((Date.now() - cameraAnswerRef.current.at) / 100) / 10}s` : "NEVER_ASKED";
         canvasRef.current.dataset.showMeTargets = String(edgeChipHitRef.current.length + pressureWallHitRef.current.filter(r => r.off).length);
         canvasRef.current.dataset.showMeTargetsAt = [...edgeChipHitRef.current.map(r => `${r.what}@${r.price}:${Math.round(r.x + r.w / 2)},${Math.round(r.y + r.h / 2)}`), ...pressureWallHitRef.current.filter(r => r.off).map(r => `WALL@${r.strike}:${Math.round(r.x + r.w / 2)},${Math.round(r.y + r.h / 2)}`)].join("|") || "NONE";
         canvasRef.current.dataset.inventionVisibility = compileInventionVisibility(canvasRef.current.dataset as Record<string, string | undefined>);
