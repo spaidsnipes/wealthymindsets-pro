@@ -28922,6 +28922,20 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     };
     return () => { proofSelectBigTradeRef.current = null; };
   }, [proofSelectBigTradeRef, selectBigTradeAt]);
+  // SHOW ME: release any dragged range and make the price scale ASK the autoscale provider again NOW.
+  // Lightweight Charts (5.2) recomputes an auto-scaled range only on a FULL invalidation (model
+  // fullUpdate → recalculateAllPanes). A futures tape supplies one every tick; a stock after the close
+  // supplies none, series.applyOptions is only a light redraw, and priceScale.applyOptions({autoScale:
+  // true}) while already true changes nothing — serving QQQ 5m 2026-10-15: the ask counted 10 s → 1 s
+  // with the axis never moving. chart.applyOptions({}) is the public door to a full update.
+  const revealCamera = useCallback(() => {
+    manualPriceRangeRef.current = null;
+    smoothedRangeRef.current = null;
+    try {
+      chartRef.current?.priceScale("right").applyOptions({ autoScale: true });
+      chartRef.current?.applyOptions({});
+    } catch { /* camera mid-build */ }
+  }, []);
   const handleCursorSelectUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!e.isPrimary) return;
     if (drawingTool !== "cursor") return;
@@ -28979,9 +28993,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     const chipHit = edgeChipHitRef.current.find(r => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h);
     if (chipHit) {
       cameraRevealRef.current = askReveal(chipHit.price, chipHit.what, Date.now());
-      manualPriceRangeRef.current = null;
-      smoothedRangeRef.current = null;
-      try { chartRef.current?.priceScale("right").applyOptions({ autoScale: true }); } catch { /* camera mid-build */ }
+      revealCamera();
       return;
     }
     const wallHit = pressureWallHitRef.current.find(r => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h);
@@ -28991,9 +29003,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // the autoscale provider can answer, then nudge the scale to re-ask).
       if (wallHit.off) {
         cameraRevealRef.current = askReveal(wallHit.strike, "WALL", Date.now());
-        manualPriceRangeRef.current = null;
-        smoothedRangeRef.current = null;
-        try { chartRef.current?.priceScale("right").applyOptions({ autoScale: true }); } catch { /* camera mid-build */ }
+        revealCamera();
       }
       onSelectPressureWall?.(wallHit.strike);
       return;
