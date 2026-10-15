@@ -11,8 +11,14 @@ describe("show me — the camera reveals an asked level (order §4)", () => {
     const r = applyReveal({ lo: 100, hi: 110 }, askReveal(92, "WALL", now), now + 10);
     expect(r).toEqual({ lo: 92, hi: 110, top: false, bottom: true, applied: true });
   });
-  it("a level already on camera changes nothing (applied false)", () => {
+  it("a level in the middle of the camera changes nothing (applied false)", () => {
     expect(applyReveal({ lo: 100, hi: 110 }, askReveal(105, "WALL", now), now + 10).applied).toBe(false);
+  });
+  it("a level inside the range but within the edge band still earns headroom (it reads OFF_CAMERA under the header)", () => {
+    // QQQ 5m 2026-10-15: range 715.44..729.43, ask 729 → top headroom, range top kept at 729.43.
+    expect(applyReveal({ lo: 715.44, hi: 729.43 }, askReveal(729, "CALL_WALL", now), now + 10)).toEqual({ lo: 715.44, hi: 729.43, top: true, bottom: false, applied: true });
+    expect(applyReveal({ lo: 100, hi: 110 }, askReveal(100.5, "WALL", now), now + 10)).toEqual({ lo: 100, hi: 110, top: false, bottom: true, applied: true });
+    expect(applyReveal({ lo: 100, hi: 110 }, askReveal(108.4, "WALL", now), now + 10).applied).toBe(false);
   });
   it("the camera lets go after REVEAL_HOLD_MS", () => {
     const ask = askReveal(118, "WALL", now);

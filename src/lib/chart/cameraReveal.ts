@@ -38,12 +38,21 @@ export interface RevealedRange {
   readonly applied: boolean;
 }
 
-/** Extend `range` to include a live reveal. Expired or absent reveals leave the range alone. */
+/**
+ * A level inside the candles' range but within this share of its top or bottom still reads
+ * OFF_CAMERA on the glass (the header band / the pane floor sit over the edge of the range —
+ * serving QQQ 5m 2026-10-15: `data-camera-range 715.44..729.43` while the 729 mark was
+ * OFF_CAMERA under the header). An ask that close to an edge earns the same headroom as one beyond it.
+ */
+export const REVEAL_EDGE_SHARE = 0.15;
+
+/** Extend `range` to include a live reveal, clear of the edges. Expired or absent reveals leave the range alone. */
 export function applyReveal(range: { readonly lo: number; readonly hi: number }, reveal: CameraReveal | null | undefined, now: number): RevealedRange {
   const base = { lo: range.lo, hi: range.hi, top: false, bottom: false, applied: false };
   if (!reveal || !(now < reveal.until) || !(range.hi > range.lo)) return base;
-  if (reveal.price > range.hi) return { lo: range.lo, hi: reveal.price, top: true, bottom: false, applied: true };
-  if (reveal.price < range.lo) return { lo: reveal.price, hi: range.hi, top: false, bottom: true, applied: true };
+  const edge = (range.hi - range.lo) * REVEAL_EDGE_SHARE;
+  if (reveal.price > range.hi - edge) return { lo: range.lo, hi: Math.max(range.hi, reveal.price), top: true, bottom: false, applied: true };
+  if (reveal.price < range.lo + edge) return { lo: Math.min(range.lo, reveal.price), hi: range.hi, top: false, bottom: true, applied: true };
   return base;
 }
 
