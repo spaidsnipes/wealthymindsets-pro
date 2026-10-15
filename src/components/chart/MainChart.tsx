@@ -2526,6 +2526,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const pressureWallHitRef = useRef<{ strike: number; x: number; y: number; w: number; h: number; off?: boolean }[]>([]);
   // SHOW ME (order §4): the level the trader asked the camera to reveal, for a few seconds.
   const cameraRevealRef = useRef<CameraReveal | null>(null);
+  // The walls/gamma edge chips ("▲ CALL WALL …") this frame, each a "show me" target carrying its lead price.
+  const edgeChipHitRef = useRef<{ price: number; what: string; x: number; y: number; w: number; h: number }[]>([]);
   /** Options Flow marks on this frame (for a tap), and the one a tap pinned (touch has no hover). */
   const flowHitRef = useRef<{ id: string; x: number; y: number; r: number }[]>([]);
   const pinnedFlowRef = useRef<string | null>(null);
@@ -19110,6 +19112,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         ds.livingMarket = livingReceiptRef.current;
         delete ds.derivativesPressurePainted;
         pressureWallHitRef.current = [];
+        edgeChipHitRef.current = [];
         pressureFrontHitRef.current = null;
         // G7 · the pressure world is ISOLATED: a throw inside it is named
         // (derivativesPressureFault) and every later layer still paints.
@@ -20656,6 +20659,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.fillStyle = `rgba(${rgb},${(0.95 * edgeA).toFixed(3)})`;
                 ctx.fillText(words, slot.x + 4, slot.y + 7.5);
                 floatingChips.push(slot);
+                // SHOW ME (order §4): the chip is a tap target — the camera reveals its lead level.
+                edgeChipHitRef.current.push({ price: lead.price, what: lead.kinds[0] ?? "MARK", x: slot.x - 4, y: slot.y - 4, w: slot.w + 8, h: slot.h + 8 });
               }
               ctx.restore();
             }
@@ -27727,6 +27732,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // LOCATE INVENTION (order §4): the seven states per invention, compiled from the receipts
         // this frame just published — one line the harness, the ticket and a "show me" door can read.
         canvasRef.current.dataset.cameraReveal = revealReceipt(cameraRevealRef.current, Date.now());
+      canvasRef.current.dataset.showMeTargets = String(edgeChipHitRef.current.length + pressureWallHitRef.current.filter(r => r.off).length);
       canvasRef.current.dataset.inventionVisibility = compileInventionVisibility(canvasRef.current.dataset as Record<string, string | undefined>);
       }
     };
@@ -28956,6 +28962,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       wall bodies the paint loop drew this frame; the strike goes up to the one
       selection owner and Inspect reads the room's current compilation.
     */
+    // SHOW ME (order §4): a walls/gamma edge chip names a level beyond the camera; a tap asks the camera for it.
+    const chipHit = edgeChipHitRef.current.find(r => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h);
+    if (chipHit) {
+      cameraRevealRef.current = askReveal(chipHit.price, chipHit.what, Date.now());
+      manualPriceRangeRef.current = null;
+      smoothedRangeRef.current = null;
+      try { chartRef.current?.priceScale("right").applyOptions({ autoScale: true }); } catch { /* camera mid-build */ }
+      return;
+    }
     const wallHit = pressureWallHitRef.current.find(r => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h);
     if (wallHit) {
       // SHOW ME (order §4): an edge brick names a wall the camera is not showing; the

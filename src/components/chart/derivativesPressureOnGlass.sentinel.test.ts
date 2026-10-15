@@ -204,5 +204,9 @@ describe("show me (Garden 19 order §4): a tap on an off-camera edge brick revea
     expect(MC).toContain('cameraRevealRef.current = askReveal(wallHit.strike, "WALL", Date.now());');
     expect(MC).toContain("const rv = applyReveal({ lo, hi }, cameraRevealRef.current, Date.now());");
     expect(MC).toContain("canvasRef.current.dataset.cameraReveal = revealReceipt(cameraRevealRef.current, Date.now());");
+    // The walls/gamma edge chips are targets too (universal across the walls family).
+    expect(MC).toContain('edgeChipHitRef.current.push({ price: lead.price, what: lead.kinds[0] ?? "MARK"');
+    expect(MC).toContain("cameraRevealRef.current = askReveal(chipHit.price, chipHit.what, Date.now());");
+    expect(MC).toContain("canvasRef.current.dataset.showMeTargets = String(");
   });
 });
