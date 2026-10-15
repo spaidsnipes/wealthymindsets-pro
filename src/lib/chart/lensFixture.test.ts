@@ -106,13 +106,13 @@ describe("every pressure climate, through the real owner, at any price scale", (
       expect(vm.spot).toBe(c);
     }
   });
-  it("WALLED lays one PUT wall 3% below price and one CALL wall 3% above it, at every price scale (Brick Walls regression fixture)", () => {
+  it("WALLED lays one PUT wall 1% below price and one CALL wall 1% above it, at every price scale (Brick Walls regression fixture)", () => {
     for (const c of CENTRES) {
       const vm = lensFixturePressure("WALLED", c, NOW);
       expect(vm.drawn, `WALLED @ ${c}`).toBe(true);
       if (!vm.drawn) return;
-      const put = vm.walls.find(w => Math.abs(w.strike / c - 0.97) < 1e-3);
-      const call = vm.walls.find(w => Math.abs(w.strike / c - 1.03) < 1e-3);
+      const put = vm.walls.find(w => Math.abs(w.strike / c - 0.99) < 1e-3);
+      const call = vm.walls.find(w => Math.abs(w.strike / c - 1.01) < 1e-3);
       expect(put?.polarity, `put wall @ ${c}`).toBe("PUT_HEAVY");
       expect(call?.polarity, `call wall @ ${c}`).toBe("CALL_HEAVY");
     }
