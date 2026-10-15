@@ -152,6 +152,36 @@ export function paintWallsGamma(env: WallsGammaGlassEnv): WallsGammaGlassResult 
     });
     ctx.restore();
     heat = `ON:${gex.grade}:POS${pos}:NEG${neg}:${preset.id}`;
+
+    /* THE GAMMA LADDER (Founder's Garden 19 finish-line order §3, 2026-10-15). Serving AAPL 5m:
+       the two positive buckets were $5 strike steps and the viewport spanned $4.5, so the
+       "heatmap" was one uniform film over the whole plot — painted, and invisible, because a
+       band with no edge on camera is not a band. Every heat band on camera now also has a solid
+       column at the plot's left edge (sign colour, intensity = its share of the largest bucket),
+       a tick at each strike boundary, and words naming the strike range, the sign and the
+       intensity. A band is identifiable at any zoom, and the words go through the one placer. */
+    ctx.save();
+    const LADDER_W = 10;
+    for (const hit of heatHits) {
+      const b = gex.buckets[hit.i];
+      if (!b) continue;
+      const k = Math.abs(b.net) / gex.maxAbsBucket;
+      const posB = b.net >= 0;
+      const rgb = posB ? preset.posRgb : preset.negRgb;
+      const y0 = Math.max(top, hit.y0), y1 = Math.min(bottom, hit.y1);
+      if (y1 - y0 < 1) continue;
+      ctx.fillStyle = `rgba(${rgb},${(Math.min(1, (0.3 + 0.6 * Math.sqrt(k)) * env.gammaAlpha * degradedK)).toFixed(3)})`;
+      ctx.fillRect(0, y0, LADDER_W, y1 - y0);
+      ctx.strokeStyle = `rgba(${rgb},${(0.95 * env.gammaAlpha * degradedK).toFixed(3)})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, y0 + 0.5); ctx.lineTo(LADDER_W + 8, y0 + 0.5);
+      ctx.moveTo(0, y1 - 0.5); ctx.lineTo(LADDER_W + 8, y1 - 0.5);
+      ctx.stroke();
+      const fmt = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(2));
+      labels.push({ y: (y0 + y1) / 2, text: `${posB ? "+" : "−"}GEX ${fmt(b.lo)}–${fmt(b.hi)} · ${Math.round(k * 100)}%${gex.grade === "PARTIAL" ? " · NEAR-MONEY" : ""}`, rgb, kinds: [posB ? "GAMMA_HEAT_POS" : "GAMMA_HEAT_NEG"] });
+    }
+    ctx.restore();
   }
 
   // ── REGIONS — a left rail, yielding to the pressure field ────────────────

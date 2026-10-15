@@ -64,3 +64,14 @@ describe("a Walls & Gamma tool's ⚙ opens Chart Settings at its own section", (
     expect(modal).toContain('data-settings-section="marks"');
   });
 });
+
+describe("the gamma ladder: every heat band on camera has an edge and words (Founder 2026-10-15)", () => {
+  it("paints a left-edge column per band and names its strike range, sign and intensity through the one placer", () => {
+    const src = readFileSync(path.join(process.cwd(), "src/components/chart/wallsGammaGlass.ts"), "utf8");
+    // Serving AAPL 5m: $5 strike buckets over a $4.5 viewport → one uniform film, no edge, read as nothing.
+    expect(src).toContain("const LADDER_W = 10;");
+    expect(src).toContain("ctx.fillRect(0, y0, LADDER_W, y1 - y0);");
+    expect(src).toContain('kinds: [posB ? "GAMMA_HEAT_POS" : "GAMMA_HEAT_NEG"]');
+    expect(src).toMatch(/GEX \$\{fmt\(b\.lo\)\}–\$\{fmt\(b\.hi\)\} · \$\{Math\.round\(k \* 100\)\}%/);
+  });
+});
