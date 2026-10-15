@@ -1,5 +1,6 @@
 import { InFlightRounds } from "./inFlightRounds";
 import { readClassifiedJsonReceipt } from "./readJsonReceipt";
+import { selectCanonicalSessionToken } from "./canonicalIdentity";
 
 /**
  * Owner of the remaining two legs of the display-quote provider chain:
@@ -47,6 +48,17 @@ import { readClassifiedJsonReceipt } from "./readJsonReceipt";
  * BODY of a non-2xx response, which every consumer here reads.
  */
 const providerQuoteRounds = new InFlightRounds();
+
+/**
+ * Is an Alpaca IEX quote worth asking for this stock right now? Not outside regular hours:
+ * the free IEX feed carries no extended-hours prints, and the route refuses every such ask
+ * (404, "stale outside regular hours"). Serving 2026-10-15 pre-market: the tape and the
+ * watchlist sent four refused asks every 10 s per tab. An unread calendar still asks.
+ */
+export function alpacaQuoteAskable(symbol: string, at: Date): boolean {
+  const token = selectCanonicalSessionToken({ symbol, at }).token;
+  return !(token === "PRE" || token === "POST" || token === "OVERNIGHT" || token === "CLOSED");
+}
 
 /** Join the open `/api/alpaca?type=quote` round for this symbol, or start one. */
 export function fetchAlpacaQuoteBody(symbol: string): Promise<unknown> {

@@ -5,7 +5,7 @@ import toast from "react-hot-toast";
 import { DEFAULT_WATCHLIST_SYMBOLS } from "@/lib/watchlist/activeWatchlist";
 import React, { useState, useEffect, useRef } from "react";
 import { fetchExchangeQuoteBody } from "@/lib/marketData/exchangeQuoteRounds";
-import { fetchAlpacaQuoteBody } from "@/lib/marketData/providerQuoteRounds";
+import { alpacaQuoteAskable, fetchAlpacaQuoteBody } from "@/lib/marketData/providerQuoteRounds";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, X, Plus, TrendingUp, TrendingDown, LayoutGrid, List } from "lucide-react";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
@@ -155,6 +155,8 @@ async function fetchPolygonSnapshot(syms: string[]): Promise<Record<string, Finn
       // The `.catch` stays HERE, on the result: swallowing a failure is this
       // surface's policy, and pushing it into the shared round would hand the
       // other consumers a null they never asked for.
+      // Regular hours only — outside them the route refuses every ask.
+      if (!alpacaQuoteAskable(up, new Date())) return;
       const alpacaJ = await fetchAlpacaQuoteBody(up).catch(() => null) as any;
       if ((alpacaJ?.price ?? 0) > 0) result[up] = { price: alpacaJ.price, ...changeFields(alpacaJ, "PRIOR_CLOSE"), src: "alpaca" };
     } catch {}

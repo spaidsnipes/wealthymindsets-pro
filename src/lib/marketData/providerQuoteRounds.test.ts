@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { InFlightRounds } from "./inFlightRounds";
-import { fetchAlpacaQuoteBody, fetchFinnhubQuoteBody } from "./providerQuoteRounds";
+import { alpacaQuoteAskable, fetchAlpacaQuoteBody, fetchFinnhubQuoteBody } from "./providerQuoteRounds";
 
 /**
  * The last two legs of the display-quote provider chain.
@@ -148,5 +148,15 @@ describe("the Alpaca and Finnhub quote rounds have exactly one owner", () => {
     expect(rounds.isInFlight("alpaca:quote:AAPL")).toBe(false);
     await rounds.run("alpaca:quote:AAPL", start);
     expect(starts).toBe(2);
+  });
+});
+
+describe("alpacaQuoteAskable — regular hours only (the route refuses the rest)", () => {
+  // 2026-10-14 is a Wednesday. Times are ET via the session clock's own conversion of UTC.
+  it("asks during regular hours and stays quiet pre-market, post-market and at the weekend", () => {
+    expect(alpacaQuoteAskable("TSLA", new Date("2026-10-14T15:00:00Z"))).toBe(true);   // 11:00 ET
+    expect(alpacaQuoteAskable("TSLA", new Date("2026-10-14T12:00:00Z"))).toBe(false);  // 08:00 ET pre
+    expect(alpacaQuoteAskable("TSLA", new Date("2026-10-14T21:00:00Z"))).toBe(false);  // 17:00 ET post
+    expect(alpacaQuoteAskable("SPY", new Date("2026-10-17T16:00:00Z"))).toBe(false);   // Saturday
   });
 });

@@ -19,7 +19,7 @@ import {
 import { selectVisibilityRefetch } from "@/lib/marketData/visibilityRefetch";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 import { fetchExchangeQuoteBody } from "@/lib/marketData/exchangeQuoteRounds";
-import { fetchAlpacaQuoteBody } from "@/lib/marketData/providerQuoteRounds";
+import { alpacaQuoteAskable, fetchAlpacaQuoteBody } from "@/lib/marketData/providerQuoteRounds";
 
 /** The rail's poll cadence. Also the interval the visibility handler tops up. */
 const TAPE_POLL_INTERVAL_MS = 10_000;
@@ -223,6 +223,8 @@ async function fetchQuote(sym: string): Promise<QuoteAnswer | null> {
 
   // Stocks/ETFs: Alpaca's IEX quote while no live stream has spoken (labelled ACTIVE
   // DEGRADED downstream — one venue, not the tape); tastytrade's live lane supersedes it.
+  // Regular hours only — outside them the route refuses every ask.
+  if (!alpacaQuoteAskable(up, new Date())) return null;
   try {
     const j = await fetchAlpacaQuoteBody(up) as any;
     if (j?.price > 0 && j.source === "alpaca") { const qc = selectQuoteChange({ price: j.price, prevClose: j?.prevClose, change: j?.change, changePct: j?.changePct, prevCloseObserved: j?.ohlcObservation?.prevClose }); return { kind: "quote", price: j.price, chg: qc.observed ? qc.chg : 0, pct: qc.observed ? qc.pct : 0, chgObserved: qc.observed, src: "alpaca" }; }
