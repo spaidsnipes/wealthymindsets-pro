@@ -13,10 +13,10 @@
     "build": "59c895f"
   },
   "WG.HEAT": {
-    "receipt": "gammaHeatmap ON:PARTIAL:POS0:NEG3:HIGH_CONTRAST \u2014 hatched negative band 768.2\u2013770.5 visible (SPY 5m 10:08); preset change applied at once and persisted across navigation",
+    "receipt": "gammaHeatmap ON:PARTIAL:POS0:NEG3:HIGH_CONTRAST \u2014 hatched negative band 768.2\u2013770.5 visible (SPY 5m 10:08); preset change applied at once and persisted across navigation \u00b7 98d4697 ladder: AAPL left-edge column lit rows y120\u2013400 (POS2), SPY y120\u2013200 (POS1:NEG2), 10:21",
     "visible": "VISIBLE",
     "proof": "g19-mansion-shift log 10-15 10:08",
-    "build": "4b0b865"
+    "build": "98d4697"
   },
   "WG.POS": {
     "receipt": "gammaRegions SILENCE:PROFILE_WITHHELD (near-money \u00b14% subset)",
@@ -49,10 +49,10 @@
     "build": "59c895f"
   },
   "F08.BRICK": {
-    "receipt": "brickWalls ON:4 \u00b7 brickWallsAt 29900:198|29910:190|29950:156|29975:136 \u00b7 ink 584/419/268/275 (NQ1! 5m RTH 10:01); \u00a72 steps 1\u20133,5\u20137,9,10 PASS",
+    "receipt": "brickWalls ON:4 \u00b7 brickWallsAt 29900:198|29910:190|29950:156|29975:136 \u00b7 ink 584/419/268/275 (NQ1! 5m RTH 10:01); \u00a72 steps 1\u20133,5\u20137,9,10 PASS \u00b7 WALLED fixture 98d4697: ON:2, CALL WALL 30321 (top) + PUT WALL 29721 (bottom, darker/redder), ink 677/718, 10:21",
     "visible": "VISIBLE",
     "proof": "g19-mansion-shift log 10-15 10:01\u201310:08",
-    "build": "4b0b865"
+    "build": "98d4697"
   },
   "F15.PRESSURE": {
     "receipt": "derivativesPressurePainted FIELD:161|FRONT@\u2026 (lens fixture WALLED 10:00); FIELD_OFF when only Brick Walls asked",

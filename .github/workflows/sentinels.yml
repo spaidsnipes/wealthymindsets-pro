@@ -308,3 +308,63 @@ jobs:
       # exact thing this step exists to prevent.
       - name: Pixel laws are still falsifiable
         run: npm run prove:revives
+
+  # ── Browser proof against PRODUCTION (Garden 19 finish-line order §8, 2026-10-15) ──
+  #
+  # The job above reads source and measures three signed-out routes. It cannot see a
+  # Brick Wall, a gamma band or a profile: every chart route needs a session. This job
+  # runs the two Playwright harnesses that assert PAINTED PIXELS (not DOM "ON") on the
+  # serving site — tests/inventions-painted.mjs and tests/brick-walls-regression.mjs —
+  # whenever the repository has a `WM_STORAGE_STATE` secret: a Playwright storageState
+  # JSON exported from a CI-only TEST MEMBER's signed-in session (never the owner's).
+  # Without the secret it says so and does nothing; a green check then means "not run",
+  # and the step name says it. Founder action to arm it: create the test member, export
+  # its storageState, add the secret.
+  visual-proof:
+    name: inventions painted · brick walls (production, signed-in session)
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    needs: sentinels
+    timeout-minutes: 25
+    env:
+      WM_STORAGE_STATE_JSON: ${{ secrets.WM_STORAGE_STATE }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Not run — no WM_STORAGE_STATE secret (order §8 needs a CI test member's session)
+        if: env.WM_STORAGE_STATE_JSON == ''
+        run: echo "No WM_STORAGE_STATE secret — the browser proof did not run."
+
+      - uses: actions/setup-node@v4
+        if: env.WM_STORAGE_STATE_JSON != ''
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install
+        if: env.WM_STORAGE_STATE_JSON != ''
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Write the session to the runner's temp dir (never printed, never uploaded)
+        if: env.WM_STORAGE_STATE_JSON != ''
+        run: printf '%s' "$WM_STORAGE_STATE_JSON" > "$RUNNER_TEMP/wm-state.json"
+
+      - name: Inventions painted (receipts + pixels)
+        if: env.WM_STORAGE_STATE_JSON != ''
+        run: WM_STORAGE_STATE="$RUNNER_TEMP/wm-state.json" node tests/inventions-painted.mjs --out "$RUNNER_TEMP/inventions-painted"
+
+      - name: Brick Walls regression (tf · symbol · pan · resize · reload · toggle · 60 s)
+        if: env.WM_STORAGE_STATE_JSON != ''
+        run: WM_STORAGE_STATE="$RUNNER_TEMP/wm-state.json" node tests/brick-walls-regression.mjs --out "$RUNNER_TEMP/brick-walls"
+
+      - name: Keep the screenshots and reports
+        if: always() && env.WM_STORAGE_STATE_JSON != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-proof
+          path: |
+            ${{ runner.temp }}/inventions-painted
+            ${{ runner.temp }}/brick-walls
+          if-no-files-found: ignore
