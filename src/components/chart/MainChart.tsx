@@ -16318,11 +16318,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // 390 LAW: on narrow glass the lens must not murder the chart.
                 // One line for the question, one for the debt; the full card,
                 // control and Ask live on wider glass (same owner, same facts).
+                // L20 (Garden 19, serving b4bc283 at an 800px pane): with the rail folded away the FULL card stood
+                // over half the candles ("ACTIVE QUESTION … EVIDENCE DEBT 3/5"). Panels never cover candles — under
+                // 1200px of glass without the rail, the compact strip carries the same facts.
                 const narrowLens = W < 640; // keep in step with the exhaustion chip's column rule
-                ds.questionLensCard = narrowLens ? "COMPACT" : lensInRailRef.current ? "RAIL" : "FULL";
+                const compactLens = narrowLens || (!lensInRailRef.current && W < 1200);
+                ds.questionLensCard = compactLens ? "COMPACT" : lensInRailRef.current ? "RAIL" : "FULL";
                 lensFormPainted = true;
-                lensColumnActive = !narrowLens && !lensInRailRef.current;
-                if (narrowLens) {
+                lensColumnActive = !compactLens && !lensInRailRef.current;
+                if (compactLens) {
                   const bx = 8, by = 96, bw = W - 16;
                   ctx.fillStyle = "rgba(11,10,8,0.9)"; ctx.fillRect(bx, by, bw, 34);
                   floatingChips.push({ x: bx, y: by, w: bw, h: 34 });
@@ -16345,7 +16349,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.fillStyle = lens.openDebt > 0 ? "rgba(255,150,150,1)" : "rgba(201,165,92,1)";
                   ctx.fillText(`${paid}/${rows} ${lens.ledger === "CHANGES" ? "MOVED" : "PAID"} · ${lens.posture ?? ""}`, bx + 8, by + 25);
                 }
-                if (!narrowLens && !lensInRailRef.current) {
+                if (!compactLens && !lensInRailRef.current) {
                 // THE PLATE'S TOP STRIP — ACTIVE QUESTION | QUESTION FOCUS |
                 // SECONDARY NOISE · QUIETED, across the camera.
                 {

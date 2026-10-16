@@ -1304,8 +1304,10 @@ describe("the canvas stops painting lens cards over the candles when the rail ca
     const { readFileSync } = await import("node:fs");
     const { join } = await import("node:path");
     const code = readFileSync(join(process.cwd(), "src/components/chart/MainChart.tsx"), "utf8");
-    expect(code).toContain("if (!narrowLens && !lensInRailRef.current) {");
-    expect(code).toContain("lensColumnActive = !narrowLens && !lensInRailRef.current;");
+    // L20 (Garden 19): compactLens = narrowLens, or no rail under 1200px of glass.
+    expect(code).toContain("const compactLens = narrowLens || (!lensInRailRef.current && W < 1200);");
+    expect(code).toContain("if (!compactLens && !lensInRailRef.current) {");
+    expect(code).toContain("lensColumnActive = !compactLens && !lensInRailRef.current;");
     expect(code).toContain("if (key !== lensReadKeyRef.current) {");
     const room = readFileSync(join(process.cwd(), "src/components/chart/ChartsDashboard.tsx"), "utf8");
     expect(room).toContain("lensInRail={!narrowViewport && !optionsOpen}");
