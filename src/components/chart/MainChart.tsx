@@ -5566,6 +5566,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       } catch { return null; }
     };
 
+    // A LEVEL (pivots, prior day high/low, opening range, pre-market range) — Garden 19 plates 21/22,
+    // live click-through L1 + L6 (Founder 2026-10-15): serving NQ1! 15m, "Prior Day High/Low" joined
+    // the price scale and stretched it to 29,587–30,889 over candles in 29,587–30,247, and every level
+    // drew as an unlabeled 1px dotted hairline. A level is 2px, dashed, carries its name on the axis
+    // pill (PDH / R1 / S3 …) with its price, and NEVER drives the camera.
+    const addLevel = (vals: number[], color: string, title: string) => {
+      const s = addLine(vals, color, 2, 2, true);
+      s?.applyOptions({ title, autoscaleInfoProvider: () => null });
+      return s;
+    };
+
     // Helper: histogram on main scale
     const addHist = (vals: number[], color: string) => {
       try {
@@ -5815,7 +5826,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const val = (pv as any)[key];
         // A LEVEL never drives the price scale (serving NQ1! 5m 6350c69: the
         // prior session's R3 / S3 stretched the axis and flattened the candles).
-        if (isFinite(val)) addLine(bars.map(() => val), color, 1, 1)?.applyOptions({ autoscaleInfoProvider: () => null });
+        if (isFinite(val)) addLevel(bars.map(() => val), color, key.toUpperCase());
       }
     }
     // Weekly / Monthly Pivots: the PRIOR COMPLETED ISO week / calendar month in
@@ -5827,9 +5838,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       const pv = IND.periodPivots(bars, sessionWindowFor(symbol, timeframe, !!extendedHours), period);
       if (dsP) dsP[key] = pv.drawn ? `DRAWN:${pv.period}` : `WITHHELD:${pv.reason}`;
       if (!pv.drawn) continue;
-      for (const sL of [addLine(bars.map(() => pv.pp), "#F0B429", 1, 2), addLine(bars.map(() => pv.r1), "rgba(239,83,80,0.5)", 1, 1), addLine(bars.map(() => pv.s1), "rgba(38,166,154,0.5)", 1, 1)]) {
-        sL?.applyOptions({ autoscaleInfoProvider: () => null });
-      }
+      const tag = period === "WEEK" ? "W" : "M";
+      addLevel(bars.map(() => pv.pp), "#F0B429", `${tag} PP`); addLevel(bars.map(() => pv.r1), "#ef5350", `${tag} R1`); addLevel(bars.map(() => pv.s1), "#26a69a", `${tag} S1`);
     }
 
     // ── Standard Deviation ────────────────────────────────────
@@ -6069,16 +6079,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     }
     if (inds.has("Prior Day High/Low") || inds.has("Daily Candle Levels")) {
       const pdhl = IND.priorDayHighLow(bars);
-      addLine(pdhl.high, "rgba(239,83,80,0.5)", 1, 1); addLine(pdhl.low, "rgba(38,166,154,0.5)", 1, 1);
+      addLevel(pdhl.high, "#ef5350", "PDH"); addLevel(pdhl.low, "#26a69a", "PDL");
     }
     if (inds.has("Opening Range Breakout")) {
       const orb = IND.openingRangeBreakout(bars);
-      addLine(orb.high, "rgba(251,191,36,0.7)", 1, 2); addLine(orb.low, "rgba(251,191,36,0.7)", 1, 2);
+      addLevel(orb.high, "rgba(251,191,36,0.95)", "OR HIGH"); addLevel(orb.low, "rgba(251,191,36,0.95)", "OR LOW");
     }
     if (inds.has("Pre-Market High/Low")) {
-      // Use prior day range as approximation
+      // No pre-market prints are held here: this draws the PRIOR DAY range and says so on the axis
+      // (labelling it "PM HIGH" would claim a session this owner never measured).
       const pdhl = IND.priorDayHighLow(bars);
-      addLine(pdhl.high, "rgba(139,92,246,0.5)", 1, 2); addLine(pdhl.low, "rgba(139,92,246,0.5)", 1, 2);
+      addLevel(pdhl.high, "rgba(167,139,250,0.95)", "PD HIGH (no PM data)"); addLevel(pdhl.low, "rgba(167,139,250,0.95)", "PD LOW (no PM data)");
     }
 
     // ── Volume Histogram ─────────────────────────────────────
