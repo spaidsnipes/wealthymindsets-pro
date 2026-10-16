@@ -7,7 +7,7 @@
  * press round-trips on its own face, the only two grain collapses are the ones
  * §32 draws, LEARN is a door not a phase, and nothing here mints a Decision_ID.
  */
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import {
@@ -295,5 +295,34 @@ describe("the journal moves the stage (Founder 2026-10-16)", () => {
     const live = selectCardStage({ verdict: "WAIT", reason: null, book: { state: "LONG", quantity: 1, averagePrice: 100, protection: "PROTECTED", working: 1 }, nearZone: null, closedToday: c });
     expect(live.stage).toBe("MANAGE");
     expect(journalClosedToday(rows, "ES1!", "2026-10-16")).toBeNull();
+  });
+});
+
+describe("a drawn plan moves the stage to READY for a member with no broker (Founder 2026-10-16)", () => {
+  let selectCardStage: typeof import("./decisionLifecycle").selectCardStage;
+  beforeAll(async () => { ({ selectCardStage } = await import("./decisionLifecycle")); });
+  const plan = { side: "LONG" as const, entry: 30100, stop: 30080, rr: 3 };
+  const base = { verdict: "WAIT", reason: "RISK NOT DECLARED", nearZone: { side: "SUPPLY" as const, distance: 6, unit: "points" }, closedToday: null };
+  it("WATCH → READY when the plan is drawn, and the sentence says the plan", () => {
+    expect(selectCardStage({ ...base, book: null }).stage).toBe("WATCH");
+    const vm = selectCardStage({ ...base, book: null, plan });
+    expect(vm.stage).toBe("READY");
+    expect(vm.sentence).toBe("Long plan drawn: entry 30,100, stop 30,080, target 3.0R. Permission is yours.");
+  });
+  it("the cycle: WAIT → WATCH → READY (plan) → IN TRADE → MANAGE → REVIEW, each from a fact", () => {
+    const flat = { state: "FLAT", quantity: 0, averagePrice: null, protection: null, working: 0 };
+    const stages = [
+      selectCardStage({ ...base, nearZone: null, book: null }),
+      selectCardStage({ ...base, book: null }),
+      selectCardStage({ ...base, book: flat, plan }),
+      selectCardStage({ ...base, book: { state: "LONG", quantity: 1, averagePrice: 30100, protection: "UNPROTECTED", working: 0 }, plan }),
+      selectCardStage({ ...base, book: { state: "LONG", quantity: 1, averagePrice: 30100, protection: "PROTECTED", working: 1 }, plan }),
+      selectCardStage({ ...base, book: flat, plan, closedToday: { result: "+$1,200", journaled: true } }),
+    ].map(v => v.stage);
+    expect(stages).toEqual(["WAIT", "WATCH", "READY", "IN_TRADE", "MANAGE", "REVIEW"]);
+  });
+  it("working orders still outrank the drawing (the broker's word first)", () => {
+    const vm = selectCardStage({ ...base, book: { state: "FLAT", quantity: 0, averagePrice: null, protection: null, working: 2 }, plan });
+    expect(vm.sentence).toBe("2 orders working. Plan and risk set.");
   });
 });

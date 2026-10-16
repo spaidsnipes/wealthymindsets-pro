@@ -15,8 +15,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useJournalBook } from "@/lib/traderMemory/adapters/useJournalSnapshots";
 import { marketDayKey } from "@/lib/journal/localDayKey";
 
-export function TradeStageRibbon({ symbol, verdict, reason, nearZone }: {
+export function TradeStageRibbon({ symbol, verdict, reason, nearZone, plan = null, fmtPrice }: {
   readonly symbol: string;
+  readonly plan?: CardStageInput["plan"];
+  readonly fmtPrice?: (p: number) => string;
   readonly verdict: string | null;
   readonly reason: string | null;
   readonly nearZone: CardStageInput["nearZone"];
@@ -30,10 +32,13 @@ export function TradeStageRibbon({ symbol, verdict, reason, nearZone }: {
     : null;
   // The journal moves the stage too (Founder 2026-10-16): today's closed trade on this market → REVIEW. The
   // broker's live book still outranks it (a position on is IN TRADE / MANAGE). Never under a fixture scene.
+  // Any signed-in MEMBER's own journal, not only the broker owner's ("if somebody does enter inside of their
+  // journal" — a member with no broker wired logs trades too).
   const { user } = useAuth();
-  const journal = useJournalBook(owner && !fixture ? user?.id ?? null : null);
-  const closedToday = owner && !fixture ? journalClosedToday(journal.entries, symbol, marketDayKey()) : null;
-  const vm = selectCardStage({ verdict, reason, book, nearZone, closedToday });
+  const member = !fixture ? user?.id ?? null : null;
+  const journal = useJournalBook(member);
+  const closedToday = member ? journalClosedToday(journal.entries, symbol, marketDayKey()) : null;
+  const vm = selectCardStage({ verdict, reason, book, nearZone, closedToday, plan: fixture ? null : plan, fmtPrice });
   const at = CARD_STAGES.indexOf(vm.stage);
   return (
     <div data-testid="trade-stage" data-stage={vm.stage} role="group" aria-label={`Stage: ${CARD_STAGE_LABEL[vm.stage]}. ${vm.sentence}`}

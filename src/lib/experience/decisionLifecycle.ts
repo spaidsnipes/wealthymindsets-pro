@@ -444,6 +444,9 @@ export interface CardStageInput {
   /** A trade closed today on this symbol, with its result words ("+$1,200"); null when the room does not know.
    *  `journaled` — it is already in the trader's journal (the review is there, not "journal it"). */
   readonly closedToday: { readonly result: string; readonly journaled?: boolean } | null;
+  /** The trader's own DRAWN plan on this chart (a bracketed Long / Short Position: entry and stop); null when none.
+   *  A member with no broker wired still moves to READY by setting a plan (Founder 2026-10-16). */
+  readonly plan?: { readonly side: "LONG" | "SHORT" | null; readonly entry: number; readonly stop: number; readonly rr: number | null } | null;
   /** Price formatter for the average price. */
   readonly fmtPrice?: (p: number) => string;
 }
@@ -471,6 +474,11 @@ export function selectCardStage(i: CardStageInput): CardStageVM {
   if (i.closedToday) return { stage: "REVIEW", sentence: `Closed ${i.closedToday.result} today. ${i.closedToday.journaled ? "Review it in your journal." : "Journal it."}` };
   if (b && b.state === "FLAT" && b.working > 0) {
     return { stage: "READY", sentence: `${b.working} order${b.working === 1 ? "" : "s"} working. Plan and risk set.` };
+  }
+  if (i.plan) {
+    const side = i.plan.side === "LONG" ? "Long" : i.plan.side === "SHORT" ? "Short" : "Plan";
+    const rr = i.plan.rr !== null && Number.isFinite(i.plan.rr) ? `, target ${i.plan.rr.toFixed(1)}R` : "";
+    return { stage: "READY", sentence: `${side} plan drawn: entry ${fmt(i.plan.entry)}, stop ${fmt(i.plan.stop)}${rr}. Permission is yours.` };
   }
   if (i.verdict === "ACTION") return { stage: "READY", sentence: "Evidence paid. Plan and risk set — permission is yours." };
   if (i.verdict === "WAIT" && i.nearZone) {

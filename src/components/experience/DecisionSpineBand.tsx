@@ -1654,7 +1654,8 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
             {oneStory ? oneStory.primary : "No story compiled — evidence insufficient."}
           </span>
           {/* PLATE 34: the card moves through the real setup — six stages, the current one lit. */}
-          <TradeStageRibbon symbol={market.symbol} verdict={nowDecision?.value ?? null} reason={plaque ? plaque.reason : null} nearZone={props.stageNearZone ?? null} />
+          <TradeStageRibbon symbol={market.symbol} verdict={nowDecision?.value ?? null} reason={plaque ? plaque.reason : null} nearZone={props.stageNearZone ?? null}
+            plan={drawnPlan ? { side: drawnPlan.side, entry: drawnPlan.entry!, stop: drawnPlan.stop!, rr: drawnPlan.rr } : null} fmtPrice={planPx} />
           <JournalReminderStrip tradesToday={props.ruleState ? props.ruleState.trades : null} journaledToday={props.journaledToday ?? false} />
         </div>
       ) : (
