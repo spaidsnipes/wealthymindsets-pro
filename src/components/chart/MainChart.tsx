@@ -24864,10 +24864,18 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const spotV = placeClearOfKeepOut(
                 { x, y: y - 7, w, h: 14 },
                 [...keepOut(), ...rowBodies],
-                { minX: keepOutMinX(), blockers: floatingChips, alternates: rowAlternates },
+                // STRICT (serving GC1! 15m, Oct 16: "dPOC 4197.00 · +6.00 THIS SESSION" lay across a dozen candle
+                // bodies — the old "keep the spot, let the backing yield"). No clear row → the name is held and
+                // listed with the event notes; the line itself still draws.
+                { minX: keepOutMinX(), blockers: floatingChips, alternates: rowAlternates, strict: true },
               );
+              if (spotV.mode === "BLOCKED") {
+                ds.valueMigrationLabel = "HELD";
+                displacedNotes.push({ layer: "PROFILE", text, x: x + w / 2, y });
+              } else {
               recordKeepOut(keepOutLedger, spotV);
               ds.valueMigrationLabel = `${spotV.mode}${spotV.onCandles ? ":YIELDED" : ""}`;
+              floatingChips.push({ x: spotV.rect.x, y: spotV.rect.y, w, h: 14 });
               const labelMid = spotV.rect.y + 7;
               if (Math.abs(labelMid - +ly) > 16) {
                 // Leader: the name is tied back to the line's newest point.
@@ -24886,6 +24894,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.textAlign = "left";
               ctx.textBaseline = "middle";
               ctx.fillText(text, spotV.rect.x + 4, spotV.rect.y + 7);
+              }
             }
             ctx.restore();
             ds.valueMigrationPoints = String(drawn);
