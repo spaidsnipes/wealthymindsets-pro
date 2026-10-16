@@ -27712,6 +27712,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const loading = /^LOADING/.test(ds.tapeBackfill ?? "");
             const bigIdle = mode === "big-trades" && ds.bigTradesDrawn === "0";
             if (/:NO_EXECUTIONS$/.test(fp) || bigIdle) (needsOF ? needsVolume : loading || ds.bigTradeBubbleStatus === "WAITING_FOR_PRINTS" ? waiting : noEvent).push(name);
+            // Codex plate 11 · "No qualifying event — no imbalance structure meets the current settings."
+            // Serving NQ1! 1m (Oct 16): the mode painted 3 footprint bars, tinted 0 rows, and said nothing,
+            // so an empty glass read as "the tool is broken". It names the rule it holds to.
+            else if (mode === "imbalance" && Number(ds.footprintBars ?? 0) > 0 && ds.imbalanceRows === "0" && ds.imbalanceRuns === "0") {
+              noEvent.push(`IMBALANCE (none at ${FP_IMBALANCE_RATIO}:1 yet)`);
+            }
           }
         }
         const parts: string[] = [];
