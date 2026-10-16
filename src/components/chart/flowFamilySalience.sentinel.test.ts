@@ -48,7 +48,8 @@ describe("FF-10 a failed keel (failed aggression) is readable on wide glass", ()
     expect(CHART).toContain("const KEEL_FAIL_MIN_L = 8;");
     expect(CHART).toContain("const KEEL_FAIL_H = 4;");
     expect(CHART).toContain("const L = kl.failed && !narrowDK ? Math.max(KEEL_FAIL_MIN_L, L0) : L0;");
-    expect(CHART).toContain("const hK = kl.failed && !narrowDK ? KEEL_FAIL_H : 2;");
+    // Restated 2026-10-16: the desk's ordinary keel is KEEL_DESK_H tall; the phone keeps 2.
+    expect(CHART).toContain("const hK = kl.failed && !narrowDK ? KEEL_FAIL_H : narrowDK ? 2 : KEEL_DESK_H;");
     expect(CHART).toContain("rect: hollow ? [x + 0.5, y + 0.5, Math.max(1, L - 1), hK - 1] : [x, y, L, hK],");
     expect(CHART).toContain("halo: [x - 1, y - 1, L + 2, hK + 2],");
   });

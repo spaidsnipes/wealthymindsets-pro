@@ -211,6 +211,9 @@ const DELTA_LEVELS_ALPHA_FLOOR = 0.8;
 const KEEL_ATR_WAIT_FRAMES = 2;
 /** Delta Keel salience floor (ASK-6): no keel shorter than this, at any width. */
 const KEEL_MIN_L = 3;
+/** Desk keel (Oct 16 one-at-a-time pass, serving NQ1! 15m: 45 keels drawn at 3 × 2 px — none could be seen). */
+const KEEL_DESK_MIN_L = 6;
+const KEEL_DESK_H = 3;
 /** A FAILED keel (failed aggression) on wide glass: at least this long and tall (G19, Oct 10). */
 const KEEL_FAIL_MIN_L = 8;
 const KEEL_FAIL_H = 4;
@@ -12469,13 +12472,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               if (xr == null || yc == null || +xr < 0 || +xr > plotRight) return null;
               // ASK-6 (Sheriff re-run 69fb204): at MID a 1px keel on a 4px body
               // was sub-perceptual — every keel is at least KEEL_MIN_L px long.
-              const L0 = Math.max(KEEL_MIN_L, keelLength(kl.ratio, bodyW));
+              const floorL = narrowDK ? KEEL_MIN_L : Math.max(KEEL_MIN_L, Math.min(KEEL_DESK_MIN_L, bodyW + 2));
+              const L0 = Math.max(floorL, keelLength(kl.ratio, bodyW));
               // G19 (Oct 10, FF-10): a FAILED keel is the failed-aggression
               // mark — at 3 × 2 px it was unreadable on serving (BTC-USD 1m,
               // FAIL:13). It is at least KEEL_FAIL_MIN_L long and KEEL_FAIL_H
               // tall, still hollow (hollow = the push did not displace).
               const L = kl.failed && !narrowDK ? Math.max(KEEL_FAIL_MIN_L, L0) : L0;
-              const hK = kl.failed && !narrowDK ? KEEL_FAIL_H : 2;
+              const hK = kl.failed && !narrowDK ? KEEL_FAIL_H : narrowDK ? 2 : KEEL_DESK_H;
               const up = bar.close >= bar.open;
               // Just OUTSIDE the close edge: above an up body, below a down one.
               const y = Math.round(+yc + (up ? -(hK + 3) : 3));
@@ -12535,7 +12539,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.restore();
             canvas.dataset.barDeltaKeels = `${drawn}|BASIS:TAPE${nTape}+SIDES${nSides}|FAIL:${failed}`;
             if (narrowDK) canvas.dataset.barDeltaKeelsNarrow = "FAIL_ONLY|W2"; else delete canvas.dataset.barDeltaKeelsNarrow;
-            canvas.dataset.barDeltaKeelsSalience = `L${KEEL_MIN_L}|W2`;
+            canvas.dataset.barDeltaKeelsSalience = narrowDK ? `L${KEEL_MIN_L}|W2` : `L${KEEL_DESK_MIN_L}|W${KEEL_DESK_H}`;
             canvas.dataset.barDeltaKeelsFailSalience = narrowDK ? "NARROW:SOLID" : `L${KEEL_FAIL_MIN_L}|H${KEEL_FAIL_H}|HOLLOW`;
             // What a tap hits: each painted keel's halo, padded (a keel is 2px tall).
             {
@@ -15472,11 +15476,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   // it, else further up; no free slot → the ridge speaks alone.
                   const words = absorbingDrawn ? "EFFORT — the mass around price  ━ ABSORBING" : "EFFORT — the mass around price";
                   const tw = ctx.measureText(words).width;
-                  const tx = Math.max(8, Math.min(plotRight - tw - 4, terr[0].x + 4));
+                  // NOR ACROSS A CANDLE (serving NQ1! 15m, Oct 16 one-at-a-time pass: on a falling leg the caption's
+                  // row "above the ridge" ran through the leg's own bodies). Each slot is tested against the bodies
+                  // and wicks on its row too; the left of the ridge's start is tried before the caption is held.
+                  const txIn = Math.max(8, Math.min(plotRight - tw - 4, terr[0].x + 4));
+                  const txLeft = Math.max(8, terr[0].x - tw - 10);
                   const tops = [mid[0] - outer[0] - 6, mid[0] + outer[0] + 18, mid[0] - outer[0] - 22];
-                  const free = (ty: number) => ty - 12 >= HEADER_FLOOR_Y && ty <= pane0Bottom - 2
-                    && !floatingChips.some(r => tx < r.x + r.w + 2 && tx + tw + 2 > r.x && ty - 12 < r.y + r.h && ty > r.y);
-                  const ty = tops.find(free);
+                  const free = (tx: number, ty: number) => ty - 12 >= HEADER_FLOOR_Y && ty <= pane0Bottom - 2
+                    && !floatingChips.some(r => tx < r.x + r.w + 2 && tx + tw + 2 > r.x && ty - 12 < r.y + r.h && ty > r.y)
+                    && !rowBodiesAt(ty - 12, ty + 1).some(r => tx < r.x + r.w + 2 && tx + tw + 2 > r.x);
+                  const slotT = [...tops.map(t => ({ x: txIn, y: t })), ...[mid[0], ...tops].map(t => ({ x: txLeft, y: t }))].find(q => free(q.x, q.y));
+                  const tx = slotT?.x ?? txIn, ty = slotT?.y;
                   if (ty != null) {
                     ctx.fillText("EFFORT — the mass around price", tx, ty);
                     if (absorbingDrawn) { ctx.fillStyle = "rgba(232,184,92,1)"; ctx.fillText("━ ABSORBING", tx + ctx.measureText("EFFORT — the mass around price  ").width, ty); }

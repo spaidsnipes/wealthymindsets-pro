@@ -90,8 +90,11 @@ describe("ASK-6 (2026-10-08): Delta Keel salience floor at every width", () => {
     // Pin updated 2026-10-10 (Founder "white-line" pass; register FF-10): the floor
     // line now names L0, and a FAILED keel takes its own larger floor on wide glass
     // (flowFamilySalience.sentinel.test.ts). KEEL_MIN_L still holds every keel.
-    expect(CHART).toContain("const L0 = Math.max(KEEL_MIN_L, keelLength(kl.ratio, bodyW));");
-    expect(CHART).toContain("canvas.dataset.barDeltaKeelsSalience = `L${KEEL_MIN_L}|W2`;");
+    // Restated 2026-10-16 (serving NQ1! 15m: 3 × 2 px keels unseen on the desk): KEEL_MIN_L still floors every
+    // keel; the desk floors at KEEL_DESK_MIN_L (never past its own body + 2) and draws KEEL_DESK_H tall.
+    expect(CHART).toContain("const floorL = narrowDK ? KEEL_MIN_L : Math.max(KEEL_MIN_L, Math.min(KEEL_DESK_MIN_L, bodyW + 2));");
+    expect(CHART).toContain("const L0 = Math.max(floorL, keelLength(kl.ratio, bodyW));");
+    expect(CHART).toContain("canvas.dataset.barDeltaKeelsSalience = narrowDK ? `L${KEEL_MIN_L}|W2` : `L${KEEL_DESK_MIN_L}|W${KEEL_DESK_H}`;");
   });
 });
 
