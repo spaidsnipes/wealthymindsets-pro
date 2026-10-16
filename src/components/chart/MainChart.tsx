@@ -10090,6 +10090,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const hitsAP = (r: { x: number; y: number; w: number; h: number }, list: readonly { x: number; y: number; w: number; h: number }[]) =>
           list.some(o => r.x < o.x + o.w && r.x + r.w > o.x && r.y < o.y + o.h && r.y + r.h > o.y);
         const cardsAP: { x: number; y: number; w: number; h: number }[] = [];
+        // L20 (Garden 19, serving b855a5a at 375px): the shelf cards paint early, so the compact question strip
+        // (y 96–130 + its silence row) and the edge beacons ("▼ Call wall 30100.00 · Show me", painted last) were
+        // laid over them. Both places are known before this block: the strip's band whenever the lens is compact,
+        // the beacons from the last frame's hit rects. Cards and the legend step around them.
+        const reservedAP: { x: number; y: number; w: number; h: number }[] = [
+          ...edgeChipHitRef.current,
+          ...pressureWallHitRef.current.filter(r => r.off),
+          ...(W < 640 || (!lensInRailRef.current && W < 1200) ? [{ x: 0, y: 96, w: W, h: 56 }] : []),
+        ];
         const CARD_FONT_AP = "600 13px Inter, ui-sans-serif, system-ui, sans-serif";
         const cardAP = (r: { x: number; y: number; w: number; h: number }, words: string) => {
           ctx.globalAlpha = att.alpha("bubbles");
@@ -10169,14 +10178,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             .filter(r => r.x >= 2 && r.x + r.w <= plotRight - 2 && r.y >= topAP && r.y + r.h <= botAP - 2);
           const overlapAP = (r: { x: number; y: number; w: number; h: number }) => candleRectsAP.reduce((a, o) =>
             a + Math.max(0, Math.min(r.x + r.w, o.x + o.w) - Math.max(r.x, o.x)) * Math.max(0, Math.min(r.y + r.h, o.y + o.h) - Math.max(r.y, o.y)), 0);
-          const free = cands.filter(r => !hitsAP(r, cardsAP));
+          const free = cands.filter(r => !hitsAP(r, cardsAP) && !hitsAP(r, reservedAP));
           const pick = free.find(r => !hitsAP(r, candleRectsAP)) ?? free.sort((a, b) => overlapAP(a) - overlapAP(b))[0];
           if (pick) cardAP(pick, words);
         }
         for (const e of estHeads) {
           const wC = Math.ceil(ctx.measureText(EVIDENCE_LEGEND.estimated).width) + 20;
           const r = { x: Math.round(Math.max(2, Math.min(plotRight - wC - 2, (e.l + e.r) / 2 - wC / 2))), y: topAP + 8, w: wC, h: 24 };
-          if (!hitsAP(r, cardsAP)) cardAP(r, EVIDENCE_LEGEND.estimated);
+          if (!hitsAP(r, cardsAP) && !hitsAP(r, reservedAP)) cardAP(r, EVIDENCE_LEGEND.estimated);
         }
         // 5 · LEGEND — one line, only the kinds on the glass, bottom-left over the volume strip.
         const kindsAP = [
@@ -10188,8 +10197,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const glyphW = 14, sepW = 18;
           const parts = kindsAP.map(k => ({ k, words: EVIDENCE_LEGEND[k], w: glyphW + 6 + Math.ceil(ctx.measureText(EVIDENCE_LEGEND[k]).width) }));
           const wL = parts.reduce((s, p) => s + p.w, 0) + sepW * (parts.length - 1) + 20;
-          const rL = { x: 8, y: botAP - 34, w: Math.min(wL, plotRight - 16), h: 26 };
-          if (!hitsAP(rL, cardsAP)) {
+          const rL = [0, 30, 60].map(up => ({ x: 8, y: botAP - 34 - up, w: Math.min(wL, plotRight - 16), h: 26 }))
+            .find(r => !hitsAP(r, cardsAP) && !hitsAP(r, reservedAP));
+          if (rL) {
             cardAP(rL, "");
             let gx = rL.x + 10;
             const gy = rL.y + rL.h / 2;
