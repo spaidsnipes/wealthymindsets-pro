@@ -34,14 +34,16 @@ interface RoleSpec { readonly weight: number; readonly px: number; readonly fami
 
 export const MARKET_TYPE: Readonly<Record<MarketTypeRole, RoleSpec>> = {
   FOOTPRINT_NUMBER: { weight: 700, px: 11, family: MARKET_MONO },
-  MICRO_NUMBER:     { weight: 600, px: 10, family: MARKET_MONO },
-  PROFILE_VALUE:    { weight: 600, px: 10, family: MARKET_MONO },
-  RISK_VALUE:       { weight: 700, px: 11, family: MARKET_MONO },
-  OBJECT_NAME:      { weight: 700, px: 10, family: MARKET_SANS },
-  // Inter ships italic only at 400 (globals.css) — a heavier italic is synthesised.
-  WHY_LABEL:        { weight: 400, px: 10, family: MARKET_SANS, italic: true },
-  WARNING:          { weight: 800, px: 10, family: MARKET_SANS },
-  FIDELITY:         { weight: 600, px: 9,  family: MARKET_SANS },
+  // PLATE 21 (Garden 19 finish line, 2026-10-15): on-chart tags 13–14px, data 14px, no grey italic
+  // footnotes — the "why" line is an upright sentence. Footprint cells keep their own size and
+  // floor (a number that does not fit its cell is dropped, never shrunk) — plate 24's row work.
+  MICRO_NUMBER:     { weight: 600, px: 13, family: MARKET_MONO },
+  PROFILE_VALUE:    { weight: 600, px: 13, family: MARKET_MONO },
+  RISK_VALUE:       { weight: 700, px: 14, family: MARKET_MONO },
+  OBJECT_NAME:      { weight: 700, px: 13, family: MARKET_SANS },
+  WHY_LABEL:        { weight: 500, px: 13, family: MARKET_SANS },
+  WARNING:          { weight: 800, px: 13, family: MARKET_SANS },
+  FIDELITY:         { weight: 600, px: 13, family: MARKET_SANS },
 };
 
 /** The canvas font string for a role, optionally at a fitted size (never below the number floor for mono roles). */

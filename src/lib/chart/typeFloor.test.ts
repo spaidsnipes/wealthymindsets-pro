@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { floorFont, installTypeFloor, NARROW_NAME_MIN_PX } from "./typeFloor";
+import { floorFont, GLASS_NAME_MIN_PX, installTypeFloor, NARROW_NAME_MIN_PX } from "./typeFloor";
 import { MARKET_MONO, MARKET_SANS, marketFont } from "./marketType";
 
 describe("type floor — on narrow glass no name is painted under 11px", () => {
@@ -12,12 +12,13 @@ describe("type floor — on narrow glass no name is painted under 11px", () => {
     expect(floorFont("600 9px 'JetBrains Mono', monospace", 11)).toBe("600 9px 'JetBrains Mono', monospace");
     expect(floorFont(`700 9px ${MARKET_SANS}`, 0)).toBe(`700 9px ${MARKET_SANS}`);
   });
-  it("every sans role of the font owner clears the phone floor once raised; mono roles keep their own", () => {
-    for (const role of ["OBJECT_NAME", "WHY_LABEL", "WARNING", "FIDELITY"] as const) {
-      expect(floorFont(marketFont(role), NARROW_NAME_MIN_PX)).toMatch(/ 11px /);
+  it("plate 21: every role of the font owner is at or above 13px except footprint cells; mono passes the floor untouched", () => {
+    for (const role of ["OBJECT_NAME", "WHY_LABEL", "WARNING", "FIDELITY", "MICRO_NUMBER", "PROFILE_VALUE", "RISK_VALUE"] as const) {
+      expect(Number(/ (\d+)px /.exec(marketFont(role))?.[1])).toBeGreaterThanOrEqual(GLASS_NAME_MIN_PX);
     }
+    expect(marketFont("WHY_LABEL")).not.toMatch(/italic/);
     for (const role of ["FOOTPRINT_NUMBER", "MICRO_NUMBER", "PROFILE_VALUE", "RISK_VALUE"] as const) {
-      expect(floorFont(marketFont(role), NARROW_NAME_MIN_PX)).toBe(marketFont(role));
+      expect(floorFont(marketFont(role), GLASS_NAME_MIN_PX)).toBe(marketFont(role));
     }
   });
   it("on a context: off by default; raised as the font is SET (so the painter measures the real size); counted; off again at 0", () => {

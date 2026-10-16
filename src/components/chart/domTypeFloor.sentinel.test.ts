@@ -59,113 +59,61 @@ describe("DOM type floor on the trading shell", () => {
     10.5px. The floor is one stylesheet block at <=430px that lifts each way a
     sub-11 size is written; this locks that block and its one stated exception.
   */
-  describe("phone glass (<= 430px): 11px", () => {
+  /*
+    PLATE 21 (Garden 19 finish line, Founder 2026-10-15): "nothing below 13px anywhere, no
+    exceptions". Measured on serving 3d35aeb, /charts desk: 93 of 101 visible text nodes were
+    9–12px. The phone (11px) and tablet-drawer (11px) floors are subsumed by ONE global block,
+    read last, at every width. CSS cannot select by computed size, so the floor is exact only if
+    every size the source WRITES is one the rule names — the walk below keeps that true.
+  */
+  describe("plate 21: the DOM type floor is 13px at every width", () => {
     const css = readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
-    const at = css.indexOf("PHONE GLASS: THE DOM TYPE FLOOR IS 11px");
+    const at = css.indexOf("PLATE 21 · NOTHING UNDER 13px, ANYWHERE");
     const block = css.slice(at);
+    const SIZES = ["7px", "7.5px", "8px", "8.5px", "9px", "9.5px", "10px", "10.5px", "11px", "11.5px", "12px", "12.5px"];
 
-    it("the floor block exists, is the last block in the stylesheet, and is scoped to 430px", () => {
+    it("the floor block exists, is the last block in the stylesheet, and has no media query", () => {
       expect(at).toBeGreaterThan(-1);
-      expect(block).toMatch(/@media \(max-width: 430px\) \{/);
-      // Read after every other phone rule: nothing but this block follows it.
-      expect((block.match(/@media/g) ?? []).length).toBe(1);
+      expect(block).not.toMatch(/@media/);
+      expect((block.match(/font-size: 13px !important;/g) ?? []).length).toBe(1);
     });
 
-    it("every sub-11 size the shell writes is lifted — inline (both serialisations) and Tailwind", () => {
-      for (const size of ["9px", "9.5px", "10px", "10.5px"]) {
+    it("every sub-13 size is lifted — inline (both serialisations), the font: shorthand, and Tailwind", () => {
+      for (const size of SIZES) {
         expect(block, size).toContain(`[style*="font-size: ${size}"]`);
         expect(block, size).toContain(`[style*="font-size:${size}"]`);
-        expect(block, size).toContain(`.text-\\[${size.replace(".", "\\.")}\\]`);
-      }
-      // …and through the `font:` shorthand (size + line-height slash), as the Desk writes it.
-      for (const size of ["9px", "9.5px", "10px", "10.5px"]) {
         expect(block, size).toContain(`[style*=" ${size}/"]`);
         expect(block, size).toContain(`[style*=" ${size} /"]`);
+        expect(block, size).toContain(`.text-\\[${size.replace(".", "\\.")}\\]`);
       }
-      expect((block.match(/font-size: 11px !important;/g) ?? []).length).toBe(4);
+      expect(block).toContain(".text-xs");
     });
 
-    it("the owners that size by class or `font:` shorthand are named", () => {
-      for (const owner of [".wm-fidelity-badge,", ".wm-chart-market-summary .wm-fidelity-badge--chrome,", ".wm-instrument-context-strip > :is(button, a),", ".wm-legend-recency-narrow,", ".wm-mobile-nav-link,", ".wm-chart-market-standing,", ".wm-chart-market-standing-label {"]) {
-        expect(block, owner).toContain(owner);
-      }
+    it("no stylesheet declaration outside the block sets a size under 13px", () => {
+      const head = css.slice(0, at);
+      expect(head.match(/font-size:\s*(?:7|7\.5|8|8\.5|9|9\.5|10|10\.5|11|11\.5|12|12\.5)px/g) ?? []).toEqual([]);
+      expect(head.match(/font:\s*(?:italic\s+)?\d{3}\s+(?:9|9\.5|10|10\.5|11|11\.5|12|12\.5)px/g) ?? []).toEqual([]);
     });
 
-    it("the one exception is the masthead feed reading, and it is stated", () => {
-      expect((block.match(/:not\(\.wm-os-feed-standing/g) ?? []).length).toBe(5);
-      expect(block).toContain("133 -> 144px");
-      // No wider masthead exemption: the plate words take the floor.
-      expect(block).not.toMatch(/:not\(\.wm-os-masthead/);
-    });
-
-    it("no DOM size under 11px anywhere in src slips past the phone rule (2026-10-10)", () => {
-      // CSS cannot select by computed size, so the floor is exact only if every size the
-      // source WRITES is one the rule names. Was a list of nine shell files, and only
-      // 9–11px was checked: an 8.5px course tag (FabioInsights, on /education) and
-      // 8px ON AIR tags (/lounge) painted under the floor at 390. Now: every .tsx in
-      // src, every way a DOM size is written, every size under 11.
+    it("no DOM size under 13px anywhere in src slips past the rule", () => {
       const SIZE = /fontSize:\s*"?(\d+(?:\.\d+)?)(?:px)?"?\s*[,}\s]|text-\[(\d+(?:\.\d+)?)px\]|font:\s*[`"'][^`"']*?\s(\d+(?:\.\d+)?)px\s*\//g;
       const walk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap(e =>
         e.isDirectory() ? walk(path.join(dir, e.name)) : e.name.endsWith(".tsx") && !e.name.includes(".test.") ? [path.join(dir, e.name)] : []);
       const files = walk(path.join(process.cwd(), "src"));
+      const named = SIZES.map(s => Number(s.replace("px", "")));
       let scanned = 0;
       const offenders: string[] = [];
       for (const f of files) {
         for (const m of readFileSync(f, "utf8").matchAll(SIZE)) {
           const n = Number(m[1] ?? m[2] ?? m[3]);
-          if (!(n < 11)) continue;
+          if (!(n < 13)) continue;
           scanned++;
-          if (![9, 9.5, 10, 10.5].includes(n)) offenders.push(`${path.relative(process.cwd(), f)}: ${m[0].trim()}`);
+          if (!named.includes(n)) offenders.push(`${path.relative(process.cwd(), f)}: ${m[0].trim()}`);
         }
       }
-      // ANTI-VACUITY: the walk found the source tree and its many small sizes.
       expect(files.length).toBeGreaterThan(250);
       expect(scanned).toBeGreaterThan(1000);
       expect(offenders).toEqual([]);
-    });
-  });
-
-  /*
-    TABLET DRAWERS (431–900px) = 11px, Settings and Connect only (go 2026-10-09).
-    Measured at 834: those two drawers lift cleanly; the whole glass does not
-    (chart masthead 86 -> 105px, scanner names truncate). So the block is scoped
-    by drawer id and must never widen to the glass without a new measurement.
-  */
-  describe("tablet drawers (431–900px): 11px inside Settings and Connect only", () => {
-    const css = readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
-    const at = css.indexOf("TABLET (431–900px): THE SETTINGS AND CONNECT DRAWERS READ AT 11px");
-    const end = css.indexOf("/* The thumb bar's end padding", at);
-    const block = at > -1 && end > at ? css.slice(at, end) : "";
-
-    it("the block exists, is read before the phone block, and carries one media query", () => {
-      expect(at).toBeGreaterThan(-1);
-      expect(block.length).toBeGreaterThan(200);
-      expect(at).toBeLessThan(css.indexOf("PHONE GLASS: THE DOM TYPE FLOOR IS 11px"));
-      expect(block).toContain("@media (min-width: 431px) and (max-width: 900px) {");
-      expect((block.match(/@media/g) ?? []).length).toBe(1);
-    });
-
-    it("every rule in it is scoped to the two drawers — never the glass", () => {
-      expect(block).toContain(":is(#wm-settings-drawer, #wm-broker-connect) :is(");
-      // One declaration, under the one scoped selector.
-      expect((block.match(/font-size: 11px !important;/g) ?? []).length).toBe(1);
-      expect((block.match(/\{/g) ?? []).length).toBe(2); // the media query and the one rule
-    });
-
-    it("the drawers it names still carry those ids", () => {
-      const settings = readFileSync(path.join(process.cwd(), "src/components/layout/shellPanels.tsx"), "utf8");
-      const connect = readFileSync(path.join(process.cwd(), "src/components/broker/BrokerConnectPanel.tsx"), "utf8");
-      expect(settings).toContain('id="wm-settings-drawer"');
-      expect(connect).toContain('id="wm-broker-connect"');
-    });
-
-    it("it lifts the same four sizes, each way they are written", () => {
-      for (const size of ["9px", "9.5px", "10px", "10.5px"]) {
-        expect(block, size).toContain(`[style*="font-size: ${size}"]`);
-        expect(block, size).toContain(`[style*="font-size:${size}"]`);
-        expect(block, size).toContain(`[style*=" ${size}/"]`);
-        expect(block, size).toContain(`.text-\\[${size.replace(".", "\\.")}\\]`);
-      }
     });
   });
 });

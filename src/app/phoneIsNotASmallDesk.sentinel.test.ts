@@ -104,9 +104,9 @@ describe("one price on the phone screen — the quote header owns it, big, with 
   it("a full-screen sheet starts below the clock when opened from the Home Screen", () => {
     expect(block).toContain("box-sizing: border-box !important; padding-top: env(safe-area-inset-top, 0px) !important;");
   });
-  it("the price is the big number; its qualifier (LAST 5m BAR CLOSE) stays beside it, small", () => {
+  it("the price is the big number; its qualifier (LAST 5m BAR CLOSE) stays beside it, smaller — at the plate 21 floor", () => {
     expect(DASH).toContain('<span className="wm-chart-header-price-note">');
-    expect(block).toContain(".wm-chart-header-price-note { font-size: 11px;");
+    expect(block).toContain(".wm-chart-header-price-note { font-size: 13px;");
   });
 });
 

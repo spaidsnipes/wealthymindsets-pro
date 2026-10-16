@@ -66,7 +66,7 @@
 
   /* Ensure minimum readable size on small labels throughout the app */
   span, p, div, button, td, th, li {
-    min-font-size: 11px; /* non-standard but signals intent; actual enforcement via tailwind classes */
+    min-font-size: 13px; /* non-standard but signals intent; actual enforcement via tailwind classes */
   }
 
   #__next, [data-nextjs-scroll-focus-boundary] {
@@ -196,15 +196,15 @@
   background: rgba(11, 13, 20, .82);
   backdrop-filter: blur(4px);
   color: var(--wm-text, #e6e9f2);
-  font: 800 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: 800 13px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
   letter-spacing: .04em;
   white-space: nowrap;
 }
-.wm-chart-market-standing-label { color: #8b8fa8; font-size: 9px; letter-spacing: .08em; }
+.wm-chart-market-standing-label { color: #8b8fa8; font-size: 13px; letter-spacing: .08em; }
 /* Small-type pass (2026-10-07): 11 px where the strip fits (fit-checked at 834 / 1180 / 1440).
    Phones stay at 9 px — the centred strip is already wider than a 390 screen (starts at x −26),
    so larger words would push "DAY BIAS" further off-screen until the chart lane re-lays it out. */
-@media (min-width: 480px) { .wm-chart-market-standing-label { font-size: 11px; } }
+@media (min-width: 480px) { .wm-chart-market-standing-label { font-size: 13px; } }
 /* PHONE RE-LAYOUT (cert lane, serving 390, 2026-10-07 night): centred at 50%
    the 358 px strip started at x −26 — "DAY BIAS" off-screen — and overlapped
    the "D" button (x 8…30). Under 480 px it is LEFT-anchored right of that
@@ -241,7 +241,7 @@
   align-items: center; justify-content: center; gap: 2px;
   border-radius: 4px; border: 1px solid rgba(183, 138, 52, 0.34);
   background: rgba(11, 13, 20, 0.92); color: #c8c0ae;
-  font: 700 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: 700 13px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 .wm-chart-market-standing [data-standing-direction="BULL"] { color: #00d4aa; }
 .wm-chart-market-standing [data-standing-direction="BEAR"] { color: #ff4d6a; }
@@ -339,7 +339,7 @@
     gap: 3px;
     border-radius: 8px;
     color: #8B8FA8;
-    font-size: 10px;
+    font-size: 13px;
     text-decoration: none;
   }
 
@@ -419,7 +419,7 @@
    legend's own, which is where this figure used to live: same reading, same
    token, new address. Only the geometry is CSS. */
 .wm-chart-volume-footer {
-  font-size: 11px;
+  font-size: 13px;
   letter-spacing: 0.02em;
   white-space: nowrap;
 }
@@ -483,7 +483,7 @@
   .wm-chart-market-summary .wm-fidelity-badge--chrome {
     gap: 3px !important;
     padding: 2px 5px !important;
-    font-size: 9px !important;
+    font-size: 13px !important;
     letter-spacing: 0.02em !important;
   }
 
@@ -754,7 +754,7 @@
     width: 52px;
     min-height: 44px;
     flex: 0 1 54px;
-    font-size: 9px;
+    font-size: 13px;
   }
 
   /* Reveal the auxiliary trio in landscape-short so Notifications,
@@ -774,7 +774,7 @@
     width: 52px;
     min-height: 44px;
     flex: 0 0 auto;
-    font-size: 9px;
+    font-size: 13px;
     color: #8B8FA8;
   }
 
@@ -832,7 +832,7 @@
     width: max-content;
     max-width: min(72vw, 440px) !important;
     padding: 4px 8px !important;
-    font-size: 9px !important;
+    font-size: 13px !important;
     line-height: 1.25 !important;
   }
 
@@ -1351,7 +1351,7 @@ input[type=range]::-moz-range-track { height: 4px; background: #26262d; border-r
 /* Neon toggle button */
 .wm-theme-toggle {
   display: inline-flex; align-items: center; gap: 6px;
-  height: 24px; padding: 0 10px; border-radius: 6px; font-size: 11px; font-weight: 800;
+  height: 24px; padding: 0 10px; border-radius: 6px; font-size: 13px; font-weight: 800;
   letter-spacing: 0.4px; cursor: pointer; white-space: nowrap;
   border: 1px solid #2a3550; background: #11151f; color: #8B95A5;
   transition: all .2s;
@@ -2338,7 +2338,7 @@ input[type=range]::-moz-range-track { height: 4px; background: #26262d; border-r
    visitor reads the name (sheriff sweep 2026-10-07). The header token is
    unchanged; only the login mark is lifted. */
 @media (max-width: 834px) {
-  .wm-login-wordmark [style*="font-size: 9px"] { font-size: 11px !important; }
+  .wm-login-wordmark [style*="font-size: 13px"] { font-size: 13px !important; }
 }
 
 /* SHERIFF A7 (serving 390×640, 2026-10-07): the tick-bar coverage chip sat on
@@ -2585,17 +2585,17 @@ input[type=range]::-moz-range-track { height: 4px; background: #26262d; border-r
    which stays last. */
 @media (min-width: 431px) and (max-width: 900px) {
   :is(#wm-settings-drawer, #wm-broker-connect) :is(
-    [style*="font-size: 9px"], [style*="font-size:9px"],
-    [style*="font-size: 9.5px"], [style*="font-size:9.5px"],
-    [style*="font-size: 10px"], [style*="font-size:10px"],
-    [style*="font-size: 10.5px"], [style*="font-size:10.5px"],
+    [style*="font-size: 13px"], [style*="font-size:13px"],
+    [style*="font-size: 13px"], [style*="font-size:13px"],
+    [style*="font-size: 13px"], [style*="font-size:13px"],
+    [style*="font-size: 13px"], [style*="font-size:13px"],
     [style*=" 9px/"], [style*=" 9px /"],
     [style*=" 9.5px/"], [style*=" 9.5px /"],
     [style*=" 10px/"], [style*=" 10px /"],
     [style*=" 10.5px/"], [style*=" 10.5px /"],
     .text-\[9px\], .text-\[9\.5px\], .text-\[10px\], .text-\[10\.5px\]
   ) {
-    font-size: 11px !important;
+    font-size: 13px !important;
   }
 }
 
@@ -2651,7 +2651,7 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   background: linear-gradient(180deg, rgba(212,175,55,0.38), rgba(139,106,41,0.10));
   animation: wm-veil-breathe 1.6s ease-in-out infinite;
 }
-.wm-chart-loading-words { font: 600 12px Inter, system-ui, sans-serif; letter-spacing: 0.06em; color: #b9a77a; text-align: center; padding: 0 16px; }
+.wm-chart-loading-words { font: 600 13px Inter, system-ui, sans-serif; letter-spacing: 0.06em; color: #b9a77a; text-align: center; padding: 0 16px; }
 @keyframes wm-veil-breathe { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
 .wm-mobile-more { display: none; }
 .wm-tf-quickrow { display: none; }
@@ -2688,10 +2688,10 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
     min-width: 44px !important;
     min-height: 44px !important;
     letter-spacing: 0.01em !important;
-    font-size: 11px !important;
+    font-size: 13px !important;
     gap: 0 !important;
   }
-  .wm-os-equipment-plates .wm-os-equipment-plate-word { font-size: 11px !important; letter-spacing: 0.01em !important; }
+  .wm-os-equipment-plates .wm-os-equipment-plate-word { font-size: 13px !important; letter-spacing: 0.01em !important; }
   .wm-os-masthead > div:has(> .wm-shell-access) { order: 2; margin-left: auto !important; flex: 0 0 auto !important; }
   .wm-shell-access { border: none !important; background: transparent !important; padding: 0 !important; gap: 0 !important; }
   .wm-shell-access button { width: 40px !important; min-width: 40px !important; }
@@ -2712,7 +2712,7 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   }
   .wm-chart-market-pane[data-market-primary="true"] .wm-tf-quick {
     flex: 0 0 auto; min-width: 30px; height: 30px; padding: 0 4px; border-radius: 6px;
-    font: 700 12px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.02em;
+    font: 700 13px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.02em;
     color: #c0b8a0; background: rgba(11,10,8,0.82); border: 1px solid rgba(139,106,41,0.35);
   }
   /* "⋯" (the whole ladder) is pinned at the row's right edge, so it is never scrolled away. */
@@ -2770,7 +2770,7 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   body:has(.wm-mobile-tabbar) [data-placement]:has(> [role="dialog"][data-touch-floor]) { bottom: calc(52px + env(safe-area-inset-bottom)) !important; }
   /* WATCHLIST ROWS READ LIKE AN APP'S: the price at 14px, the day's change as a coloured pill. */
   .wm-wl-price { font-size: 14px !important; }
-  .wm-wl-change { font-size: 12px !important; font-weight: 700 !important; padding: 2px 6px; border-radius: 6px; margin-top: 2px; }
+  .wm-wl-change { font-size: 13px !important; font-weight: 700 !important; padding: 2px 6px; border-radius: 6px; margin-top: 2px; }
   .wm-wl-change[data-dir="up"] { background: rgba(0,192,118,0.16); }
   .wm-wl-change[data-dir="down"] { background: rgba(255,77,103,0.16); }
 
@@ -2826,7 +2826,7 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-chart-market-summary .wm-fidelity-badge--chrome { margin-left: auto !important; }
   body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-chart-market-summary .wm-chart-header-price { order: 9; flex: 1 0 100%; font-size: 26px !important; line-height: 1.2 !important; letter-spacing: -0.01em; white-space: normal !important; }
   body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-chart-market-summary .wm-chart-header-change { display: inline !important; font-size: 13px !important; }
-  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-chart-market-summary .wm-chart-header-price-note { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; opacity: 0.8; }
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-chart-market-summary .wm-chart-header-price-note { font-size: 13px; font-weight: 600; letter-spacing: 0.06em; opacity: 0.8; }
   /* …so the legend's copy of the symbol and price steps back (its status words stay). */
   .wm-chart-market-pane[data-market-primary="true"] :is([data-chart-identity], [data-legend-group="price"]) { display: none !important; }
   /* THE CHART IS A FRAMED GLASS PANEL (Founder 2026-10-11: "no borders on the left side … it feels
@@ -2859,7 +2859,7 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   }
   .wm-mobile-tab {
     flex: 1 1 0; min-width: 44px; min-height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-    background: none; border: 0; color: #a89c80; font: 600 11px/1.1 Inter, system-ui, sans-serif; letter-spacing: 0.02em; text-decoration: none;
+    background: none; border: 0; color: #a89c80; font: 600 13px/1.1 Inter, system-ui, sans-serif; letter-spacing: 0.02em; text-decoration: none;
   }
   .wm-mobile-tab:active { color: #ede6d3; }
   /* One bar in every room: where the app bar stands, the four-door strip steps back. */
@@ -2883,7 +2883,7 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   .wm-mobile-more-title { font: 600 20px/1.2 Georgia, "Times New Roman", serif; color: #ede6d3; }
   .wm-mobile-more-close { min-height: 44px; padding: 0 12px; background: none; border: 0; color: #d4af37; font: 600 14px Inter, system-ui, sans-serif; }
   .wm-mobile-more-body { flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain; padding: 4px 0 16px; }
-  .wm-mobile-more-section-title { margin: 14px 16px 4px; font: 700 11px Inter, system-ui, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; color: #8b7a55; }
+  .wm-mobile-more-section-title { margin: 14px 16px 4px; font: 700 13px Inter, system-ui, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; color: #8b7a55; }
   .wm-mobile-more-row {
     display: flex; align-items: center; gap: 14px; min-height: 52px; padding: 0 16px; color: #ede6d3; text-decoration: none;
     font: 500 15px Inter, system-ui, sans-serif; border-bottom: 1px solid rgba(255,255,255,0.05);
@@ -2892,7 +2892,7 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   .wm-mobile-more-row svg { color: #d4af37; flex: 0 0 auto; }
   .wm-mobile-more-row:active { background: rgba(212,175,55,0.08); }
   .wm-mobile-more-label { flex: 1 1 auto; min-width: 0; }
-  .wm-mobile-more-legacy { font: 700 11px Inter, system-ui, sans-serif; letter-spacing: 0.08em; color: #a89c80; border: 1px solid rgba(168,156,128,0.4); border-radius: 4px; padding: 1px 5px; }
+  .wm-mobile-more-legacy { font: 700 13px Inter, system-ui, sans-serif; letter-spacing: 0.08em; color: #a89c80; border: 1px solid rgba(168,156,128,0.4); border-radius: 4px; padding: 1px 5px; }
   .wm-mobile-more-chev { color: #6f6650; font-size: 20px; }
   .wm-mobile-tab--trade {
     flex: 1.3 1 0; margin: 5px 4px; border-radius: 12px; color: #0b0b0d;
@@ -2951,12 +2951,12 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
    has to be read after them. */
 @media (max-width: 430px) {
   :is(
-    [style*="font-size: 9px"], [style*="font-size:9px"],
-    [style*="font-size: 9.5px"], [style*="font-size:9.5px"],
-    [style*="font-size: 10px"], [style*="font-size:10px"],
-    [style*="font-size: 10.5px"], [style*="font-size:10.5px"]
+    [style*="font-size: 13px"], [style*="font-size:13px"],
+    [style*="font-size: 13px"], [style*="font-size:13px"],
+    [style*="font-size: 13px"], [style*="font-size:13px"],
+    [style*="font-size: 13px"], [style*="font-size:13px"]
   ):not(.wm-os-feed-standing):not(.wm-os-feed-standing *) {
-    font-size: 11px !important;
+    font-size: 13px !important;
   }
   /* The same four sizes written through the `font:` shorthand ("700 10.5px/1 …"
      — the Desk's buttons): a size followed by its line-height slash. */
@@ -2966,10 +2966,10 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
     [style*=" 10px/"], [style*=" 10px /"],
     [style*=" 10.5px/"], [style*=" 10.5px /"]
   ):not(.wm-os-feed-standing):not(.wm-os-feed-standing *) {
-    font-size: 11px !important;
+    font-size: 13px !important;
   }
   :is(.text-\[9px\], .text-\[9\.5px\], .text-\[10px\], .text-\[10\.5px\]):not(.wm-os-feed-standing *) {
-    font-size: 11px !important;
+    font-size: 13px !important;
   }
   /* Owners that set their size by class or by the `font:` shorthand. */
   .wm-fidelity-badge,
@@ -2979,6 +2979,78 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   .wm-mobile-nav-link,
   .wm-chart-market-standing,
   .wm-chart-market-standing-label {
-    font-size: 11px !important;
+    font-size: 13px !important;
   }
+}
+
+/* ── PLATE 21 · NOTHING UNDER 13px, ANYWHERE (Garden 19 finish line, Founder 2026-10-15) ─────────
+   "Fonts are too small, blurry, dark white … you don't even want to look at it." MEASURED on
+   serving 3d35aeb, /charts desk 807px: 93 of 101 visible text nodes rendered 9–12px. The order
+   is "nothing below 13px anywhere, no exceptions", so the floor is global and read LAST: every
+   7–12.5px class or inline size renders at 13px. Layout that cannot hold 13px is reflowed at
+   its own owner, never by shrinking the type back. */
+:is(
+  [style*="font-size: 7px"],
+  [style*="font-size:7px"],
+  [style*="font-size: 7.5px"],
+  [style*="font-size:7.5px"],
+  [style*="font-size: 8px"],
+  [style*="font-size:8px"],
+  [style*="font-size: 8.5px"],
+  [style*="font-size:8.5px"],
+  [style*="font-size: 9px"],
+  [style*="font-size:9px"],
+  [style*="font-size: 9.5px"],
+  [style*="font-size:9.5px"],
+  [style*="font-size: 10px"],
+  [style*="font-size:10px"],
+  [style*="font-size: 10.5px"],
+  [style*="font-size:10.5px"],
+  [style*="font-size: 11px"],
+  [style*="font-size:11px"],
+  [style*="font-size: 11.5px"],
+  [style*="font-size:11.5px"],
+  [style*="font-size: 12px"],
+  [style*="font-size:12px"],
+  [style*="font-size: 12.5px"],
+  [style*="font-size:12.5px"],
+  [style*=" 7px/"],
+  [style*=" 7px /"],
+  [style*=" 7.5px/"],
+  [style*=" 7.5px /"],
+  [style*=" 8px/"],
+  [style*=" 8px /"],
+  [style*=" 8.5px/"],
+  [style*=" 8.5px /"],
+  [style*=" 9px/"],
+  [style*=" 9px /"],
+  [style*=" 9.5px/"],
+  [style*=" 9.5px /"],
+  [style*=" 10px/"],
+  [style*=" 10px /"],
+  [style*=" 10.5px/"],
+  [style*=" 10.5px /"],
+  [style*=" 11px/"],
+  [style*=" 11px /"],
+  [style*=" 11.5px/"],
+  [style*=" 11.5px /"],
+  [style*=" 12px/"],
+  [style*=" 12px /"],
+  [style*=" 12.5px/"],
+  [style*=" 12.5px /"],
+  .text-\[7px\],
+  .text-\[7\.5px\],
+  .text-\[8px\],
+  .text-\[8\.5px\],
+  .text-\[9px\],
+  .text-\[9\.5px\],
+  .text-\[10px\],
+  .text-\[10\.5px\],
+  .text-\[11px\],
+  .text-\[11\.5px\],
+  .text-\[12px\],
+  .text-\[12\.5px\],
+  .text-xs
+) {
+  font-size: 13px !important;
 }

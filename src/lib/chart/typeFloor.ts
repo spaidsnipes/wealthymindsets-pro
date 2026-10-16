@@ -24,6 +24,13 @@
 
 export const NARROW_NAME_MIN_PX = 11;
 
+/**
+ * PLATE 21 (Garden 19 finish line, Founder 2026-10-15: "fonts are too small, blurry … you don't even
+ * want to look at it"): nothing on the glass is painted under 13px — on every glass, not only the
+ * phone. Measured on serving 3d35aeb, NQ1! 15m desk: 93 of 101 visible text nodes were 9–12px.
+ */
+export const GLASS_NAME_MIN_PX = 13;
+
 const PX = /(\d+(?:\.\d+)?)px/;
 
 /** The font string with its size raised to `minPx` — sans only; mono and unsized strings pass unchanged. */

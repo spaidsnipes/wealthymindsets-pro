@@ -470,10 +470,10 @@ describe("the selected object's plaque stays out of the legend band; the forming
 });
 
 describe("phone, evening pass: type floor, figure cap, crisp profile rows (Founder 2026-10-09; serving 390/430 c9303a7)", () => {
-  it("the chart context carries the type floor: 11px for names on narrow glass, off on the desk, set every frame", () => {
+  it("the chart context carries the type floor — 13px for names on EVERY glass since plate 21 (2026-10-15), set every frame", () => {
     expect(CHART).toContain("const typeFloor = installTypeFloor(ctx);");
-    expect(CHART).toContain("typeFloor.setFloor(narrowGlass ? NARROW_NAME_MIN_PX : 0);");
-    expect(CHART).toContain("canvas.dataset.typeFloor = narrowGlass ? `${NARROW_NAME_MIN_PX}|RAISED:${typeFloor.raised()}` : \"OFF\";");
+    expect(CHART).toContain("typeFloor.setFloor(GLASS_NAME_MIN_PX);");
+    expect(CHART).toContain("canvas.dataset.typeFloor = `${GLASS_NAME_MIN_PX}|RAISED:${typeFloor.raised()}`;");
     // The trader's own drawings are never re-sized: only the chart context is floored.
     expect([...CHART.matchAll(/installTypeFloor\(/g)].length).toBe(1);
   });
@@ -494,7 +494,7 @@ describe("phone, evening pass: type floor, figure cap, crisp profile rows (Found
 
 describe("phone type floor follow-ups (serving 390/430, 00e7002, 2026-10-09)", () => {
   it("the context's base font passes the floor; the Structure caption is fitted to the plot on narrow glass; a refusal goes to the silence stack", () => {
-    const i = CHART.indexOf("typeFloor.setFloor(narrowGlass ? NARROW_NAME_MIN_PX : 0);");
+    const i = CHART.indexOf("typeFloor.setFloor(GLASS_NAME_MIN_PX);");
     expect(CHART.slice(i, i + 500)).toContain("ctx.font = ctx.font;");
     expect(CHART).toContain('while (text.length > 8 && ctx.measureText(text + "…").width + 8 > maxW) text = text.slice(0, -1);');
     expect(CHART).toContain("ds.profileFusionRefusal = `${fr.reason}:SILENCE_STACK`;");

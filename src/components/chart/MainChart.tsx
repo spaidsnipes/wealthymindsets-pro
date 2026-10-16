@@ -62,7 +62,7 @@ import { absorptionAnalysisWindow } from "@/lib/chart/absorptionAnalysisWindow";
 import { proofNoLabelsRequested, setCanvasTextSilenced } from "@/lib/chart/proofNoLabels";
 import { installWordGate, wordGateModeFor, type HeldWord } from "@/lib/chart/wordRegistry";
 import { FOG_CAP, FOG_FEATHER_PX, installFogGate } from "@/lib/chart/fieldFogBudget";
-import { installTypeFloor, NARROW_NAME_MIN_PX } from "@/lib/chart/typeFloor";
+import { GLASS_NAME_MIN_PX, installTypeFloor } from "@/lib/chart/typeFloor";
 import { partitionVolumeIndicators } from "@/lib/chart/volumeIndicatorTruth";
 import { createLongPress } from "@/lib/chart/longPress";
 import { clampBubbleScale, clampWallThickness, footprintNumberPx, lawfulOrderLineLooks, lawfulSettings, volumeInk } from "@/lib/chart/appearanceLaw";
@@ -8139,7 +8139,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // set under 11px — raised as the font is set, so chips and placement are
       // measured for the type that paints. Numbers (mono) keep their own floor.
       const typeFloor = installTypeFloor(ctx);
-      typeFloor.setFloor(narrowGlass ? NARROW_NAME_MIN_PX : 0);
+      // PLATE 21 (2026-10-15): the floor is 13px on EVERY glass — desk, tablet and phone.
+      typeFloor.setFloor(GLASS_NAME_MIN_PX);
       // The context's BASE font passes the floor too: a painter that draws after
       // a restore() without setting a font inherits it (serving 390, 00e7002: one
       // "LEG POC …" chip still painted at the canvas default, 10px).
@@ -27428,8 +27429,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         canvas.dataset.fieldFog = fogGate.receipt();
         // The phone's own glass rules, in one receipt (desk: OFF).
         canvas.dataset.priceSovereignty = narrowGlass ? `NEWEST_COLUMN_CLEAR:${sovereigntyHeld + fogGate.columnCuts() + wordGate.columnHeld()}` : "OFF";
-        canvas.dataset.phoneGlass = narrowGlass ? `DISC_R:${BIG_TRADE_NARROW_MAX_R}|ZONE:BAND:${ZONE_BAND_NARROW_FILL}|CONTEXT:0.55/0.3|TYPE:${NARROW_NAME_MIN_PX}|FIGURE_H:${ABSORPTION_FIGURE_NARROW_H}` : "OFF";
-        canvas.dataset.typeFloor = narrowGlass ? `${NARROW_NAME_MIN_PX}|RAISED:${typeFloor.raised()}` : "OFF";
+        canvas.dataset.phoneGlass = narrowGlass ? `DISC_R:${BIG_TRADE_NARROW_MAX_R}|ZONE:BAND:${ZONE_BAND_NARROW_FILL}|CONTEXT:0.55/0.3|TYPE:${GLASS_NAME_MIN_PX}|FIGURE_H:${ABSORPTION_FIGURE_NARROW_H}` : "OFF";
+        canvas.dataset.typeFloor = `${GLASS_NAME_MIN_PX}|RAISED:${typeFloor.raised()}`;
         if (wordGateHeld.length) canvas.dataset.wordGateHeld = wordGate.heldSample(); else delete canvas.dataset.wordGateHeld;
         const anchors = composeOn ? composeNoteAnchors(displacedNotes) : [];
         canvas.dataset.eventNotes = `ANCHORS:${anchors.length}|NOTES:${displacedNotes.length}|COMPOSE:${composeOn ? "ON" : "OFF"}`;
