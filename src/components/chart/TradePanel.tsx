@@ -43,7 +43,7 @@ import { bookAlert, brokerStateWords, ticketBook, type WorkingOrderRow } from "@
 import type { WmOrderState } from "@/lib/broker/tastytradeOrderState";
 import { TicketBookRows, type CancelAck } from "@/components/chart/TicketBookRows";
 import { stepPriceText, ticketKeyAction } from "@/lib/execution/ticketKeys";
-import { COMPACT_ACT_MAX_HEIGHT, COMPACT_HALF_MAX_HEIGHT, halfControl, halfFromDrag, halfInForce, COMPACT_PEEK_MAX_HEIGHT, COMPACT_TICKET_QUERY, WIDE_TICKET_MAX_HEIGHT, bookIsActive, compactRiskLine, detailsSummary, foldControl, reviewGate, ticketStage, ticketStep, type TicketSection } from "@/lib/execution/ticketLayout";
+import { TRADE_DOCK_QUERY, TRADE_DOCK_WIDTH, COMPACT_ACT_MAX_HEIGHT, COMPACT_HALF_MAX_HEIGHT, halfControl, halfFromDrag, halfInForce, COMPACT_PEEK_MAX_HEIGHT, COMPACT_TICKET_QUERY, WIDE_TICKET_MAX_HEIGHT, bookIsActive, compactRiskLine, detailsSummary, foldControl, reviewGate, ticketStage, ticketStep, type TicketSection } from "@/lib/execution/ticketLayout";
 import { TicketSections } from "@/components/chart/TicketSections";
 import { parseTicketFixture, TICKET_FIXTURE_BANNER, ticketFixtureChartLines, ticketFixtureLines, type TicketFixture } from "@/lib/execution/ticketFixture";
 import { railSendGate } from "@/lib/broker/railSendGate";
@@ -421,6 +421,30 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   const halfOn = halfInForce(halfInput);
   const gripY = useRef<number | null>(null);
   // Keyboard (order §6): B / S side, Esc closes, ↑ / ↓ steps a focused price by a tick — and Enter NEVER sends.
+  // L9 (Founder live click-through 2026-10-15): "Escape doesn't close the ticket." Inside the sheet its own
+  // key map owns Escape (a pre-send step may use it); anywhere else on the page Escape closes the sheet.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented || e.isComposing) return;
+      const t = e.target as HTMLElement | null;
+      if (t?.closest?.('[data-testid="trade-panel"]')) return;
+      onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  // PLATE 32 / L9: on a desk the sheet DOCKS to the right edge and the chart gives up its width
+  // (body[data-trade-docked] → .wm-chart-market-pane margin), so it covers nothing — not the forming
+  // candle, not the live price, not settled history. The phone keeps its bottom sheet.
+  const [dockTop, setDockTop] = useState<number | null>(null);
+  useEffect(() => {
+    if (compact || !window.matchMedia?.(TRADE_DOCK_QUERY).matches) { setDockTop(null); return; }
+    const pane = document.querySelector(".wm-chart-market-pane");
+    setDockTop(pane ? Math.max(0, Math.round(pane.getBoundingClientRect().top)) : 120);
+    document.body.dataset.tradeDocked = "1";
+    window.dispatchEvent(new Event("resize"));
+    return () => { delete document.body.dataset.tradeDocked; window.dispatchEvent(new Event("resize")); };
+  }, [compact]);
   const onTicketKey = (e: React.KeyboardEvent<HTMLElement>) => {
     const t = e.target as HTMLElement;
     const a = ticketKeyAction({ key: e.key, ctrl: e.ctrlKey, meta: e.metaKey, alt: e.altKey, composing: e.nativeEvent.isComposing, tag: t.tagName, label: t.getAttribute("aria-label"), preSend: stageInput.preSend });
@@ -711,6 +735,8 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
         background: "#0d0b08", border: `1px solid ${LINE}`, borderRadius: 12, boxShadow: "0 18px 48px rgba(0,0,0,0.6)", color: INK, fontSize: 12,
         // The phone placement fold wins over every stage while it lasts (see placingFold).
         ...(placingFold ? { maxHeight: PLACING_FOLD_MAX_HEIGHT, overflowY: "hidden" as const } : null),
+        // Docked on a desk (plate 32): full height at the right edge, beside the chart, never over it.
+        ...(!compact && dockTop != null ? { left: "auto", right: 0, top: dockTop, bottom: 0, width: TRADE_DOCK_WIDTH, maxHeight: "none", borderRadius: 0, borderTop: "none", borderRight: "none", borderBottom: "none", boxShadow: "-12px 0 32px rgba(0,0,0,0.45)" } : null),
       }}
     >
       {/* The HALF grip: drag the sheet's top edge down to half height, up to full (snaps on release). Same rules as

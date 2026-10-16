@@ -2983,6 +2983,12 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   }
 }
 
+/* PLATE 32 / L9 (2026-10-15): the TRADE sheet docks right on a desk; the chart pane gives up its width so the
+   sheet covers nothing (TradePanel sets body[data-trade-docked]; the width is TRADE_DOCK_WIDTH). */
+@media (min-width: 1024px) {
+  body[data-trade-docked="1"] .wm-chart-market-pane { margin-right: 400px; }
+}
+
 /* ── PLATE 21 · NOTHING UNDER 13px, ANYWHERE (Garden 19 finish line, Founder 2026-10-15) ─────────
    "Fonts are too small, blurry, dark white … you don't even want to look at it." MEASURED on
    serving 3d35aeb, /charts desk 807px: 93 of 101 visible text nodes rendered 9–12px. The order

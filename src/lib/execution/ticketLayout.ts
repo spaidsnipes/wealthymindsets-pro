@@ -188,6 +188,10 @@ export function bookIsActive(book: TicketBook): boolean {
 
 /** The wide ticket's height: the whole entry path without an inner scroll on a 900 px desk; it still scrolls if the screen is shorter. */
 export const WIDE_TICKET_MAX_HEIGHT = "calc(100vh - 88px)";
+/** Plate 32: the desk docks the sheet at the right edge this wide, and the chart pane gives up the same width. */
+export const TRADE_DOCK_WIDTH = 400;
+/** Only a desk docks (a tablet keeps the floating sheet; a phone its bottom sheet). Same width as globals.css. */
+export const TRADE_DOCK_QUERY = "(min-width: 1024px)";
 
 /** "Details · FLAT · 0 working" — the disclosure states the book before it is opened. */
 export function detailsSummary(book: TicketBook, plan?: { readonly inside: boolean }): string {
