@@ -45,7 +45,8 @@ describe("the envelope's words (Sentinel)", () => {
   });
 
   it("each takes a strict slot test against its rows' bodies and the chips, and joins the ledger", () => {
-    expect(block).toMatch(/placeClearOfKeepOut\(\s*capAbove,\s*\[\.\.\.keepOut\(\), \.\.\.rowBodiesAt\([^)]*\)[^\]]*\],\s*\{ minX: keepOutMinX\(\), blockers: floatingChips, strict: true, alternates: \[capBelow\] \},?\s*\)/);
+    // Restated 2026-10-16: the caption's alternates are its below row, then stacked rows off the fan's end.
+    expect(block).toMatch(/placeClearOfKeepOut\(\s*capAbove,\s*\[\.\.\.keepOut\(\), \.\.\.rowBodiesAt\([^)]*\)[^\]]*\],\s*\{ minX: keepOutMinX\(\), blockers: floatingChips, strict: true, alternates: \[capBelow, \.\.\.capRows\] \},?\s*\)/);
     expect(block).toMatch(/placeClearOfKeepOut\(\s*flagPref,\s*\[\.\.\.keepOut\(\), \.\.\.rowBodiesAt\([^)]*\)[^\]]*\],\s*\{ minX: keepOutMinX\(\), blockers: floatingChips, strict: true, alternates: \[flagAlt\] \},?\s*\)/);
     expect(block).toContain("recordKeepOut(keepOutLedger, spotCap);");
     expect(block).toContain("recordKeepOut(keepOutLedger, spotF);");

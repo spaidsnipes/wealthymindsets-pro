@@ -19767,10 +19767,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const capX = Math.min(plotRightE - 6, endC.x) - capW;
               const capAbove = { x: capX, y: Math.max(HEADER_FLOOR_Y + 2, Math.min(endC.y90, endC.y10) - capH - 6), w: capW, h: capH };
               const capBelow = { x: capX, y: Math.min(H * 0.78 - capH, Math.max(endC.y90, endC.y10) + 6), w: capW, h: capH };
+              // Rows stacked off the fan's own end come before any slide along a row (serving NQ1! 15m, Oct 16 one-at-a-
+              // time pass: the caption slid ~400px left of its fan, reading as a stray line).
+              const capRows = [1, 2, 3].flatMap(k => [
+                { ...capAbove, y: Math.max(HEADER_FLOOR_Y + 2, capAbove.y - k * (capH + 4)) },
+                { ...capBelow, y: Math.min(H * 0.78 - capH, capBelow.y + k * (capH + 4)) },
+              ]);
+              const capYs = [capAbove, capBelow, ...capRows].map(q => q.y);
               const spotCap = placeClearOfKeepOut(
                 capAbove,
-                [...keepOut(), ...rowBodiesAt(Math.min(capAbove.y, capBelow.y), Math.max(capAbove.y, capBelow.y) + capH)],
-                { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: [capBelow] },
+                [...keepOut(), ...rowBodiesAt(Math.min(...capYs), Math.max(...capYs) + capH)],
+                { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: [capBelow, ...capRows] },
               );
               // No clear slot: a truth line never paints over another one's home
               // (serving 390 / 430 enforce, c9303a7: this caption sat on the
