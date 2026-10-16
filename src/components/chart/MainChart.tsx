@@ -8171,6 +8171,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // folds into ONE summary line at the end of the frame — each sense still
       // names its state in Tools › Active (§VIII), the glass stays the market's.
       const SILENCE_ROWS_SHOWN = shortPane ? 2 : 3;
+      // The edge beacons' rects from the LAST frame (this frame's are rebuilt later, at the walls pass).
+      const silenceBeacons = [...edgeChipHitRef.current, ...pressureWallHitRef.current.filter(r => r.off)];
       let silenceTaken = 0, silenceFolded = 0;
       const silenceStep = shortPane ? 11 : 14;
       const takeSilenceRow = (): number => {
@@ -8181,6 +8183,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         if (narrowGlass) { silenceFolded++; return -1000; }
         if (silenceTaken >= SILENCE_ROWS_SHOWN) { silenceFolded++; return -1000; }
         silenceTaken++;
+        // L20 (Garden 19, serving e419145 — ETH-USD and CL1! with Walls & Gamma): the bottom edge beacon
+        // ("▼ Put wall 2400 +2 · Show me", painted last, on top) sat on the gamma disclosure line. A row the
+        // last frame's beacons hold is stepped over.
+        const rowBand = (yy: number) => ({ x: Math.max(0, silenceX - 4), y: yy - 7, w: Math.min(W * 0.62, 760), h: 14 });
+        for (let k = 0; k < 6 && silenceBeacons.some(b => { const q = rowBand(silenceRowY); return q.x < b.x + b.w && q.x + q.w > b.x && q.y < b.y + b.h && q.y + q.h > b.y; }); k++) silenceRowY -= silenceStep;
         const y = silenceRowY; silenceRowY -= silenceStep;
         // A soft backing so the words never print bare over candle bodies.
         const prevFill = ctx.fillStyle;
