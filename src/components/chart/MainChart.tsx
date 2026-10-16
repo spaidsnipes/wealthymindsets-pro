@@ -10864,7 +10864,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const nearPaints = att.paints("nearGeometry");
         const nearAll = barsRef.current ?? [];
         const lastBar = nearAll[nearAll.length - 1];
-        if (nearPaints && lastBar) {
+        // PLATE 24 (2026-10-15): with the bid × ask grid up, the NEAR view IS the footprint — the micro-zoom
+        // anatomy (tape dots, important-print callouts, the price path) yields to it; serving 0708039 painted
+        // both, and the callouts and dots sat on the grid.
+        const nearYieldsToGrid = effectiveFP === "bid-ask";
+        if (nearPaints && !nearYieldsToGrid && lastBar) {
           const tsN = chart.timeScale();
           const accN = bigTradePrintAccRef.current;
           const intervalN = getIntervalSec(timeframe);
@@ -10926,7 +10930,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             if (!getBarSubProfile(b.c)) continue;
             const yHc = srs.priceToCoordinate(b.c.high), yLc = srs.priceToCoordinate(b.c.low);
             if (yHc == null || yLc == null) continue;
-            { const gw = effectiveFP === "bid-ask" ? fpGridWidth(colW, bsp) + 8 : colW; const gx0 = effectiveFP === "bid-ask" ? b.cx - Math.floor((gw - 8) / 2) - 4 : b.cx - halfW; fpCells.push({ x: gx0, y: Math.min(+yHc, +yLc), w: gw, h: Math.max(2, Math.abs(+yLc - +yHc)) }); }
+            fpCells.push({ x: b.cx - halfW, y: Math.min(+yHc, +yLc), w: colW, h: Math.max(2, Math.abs(+yLc - +yHc)) });
           }
           const placeNear = (candidates: NearRect[]) => {
             // Only slots inside pane 0's body band (below the header and the

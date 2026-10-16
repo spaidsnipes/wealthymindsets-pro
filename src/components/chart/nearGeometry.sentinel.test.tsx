@@ -223,9 +223,9 @@ describe("NEAR words yield to the footprint's cells (serving, 2026-09-25 14:17 C
     expect(cells).toMatch(/if \(fpRowsFill\) for \(const b of nearBars\) \{/);
     expect(cells).toMatch(/if \(!getBarSubProfile\(b\.c\)\) continue;/);
     expect(cells).toMatch(/const yHc = srs\.priceToCoordinate\(b\.c\.high\), yLc = srs\.priceToCoordinate\(b\.c\.low\);/);
-    // Plate 24: the bid × ask grid is wider than the body — the blocker is the grid's own width.
-    expect(cells).toContain('fpCells.push({ x: gx0, y: Math.min(+yHc, +yLc), w: gw, h: Math.max(2, Math.abs(+yLc - +yHc)) });');
-    expect(cells).toContain('const gw = effectiveFP === "bid-ask" ? fpGridWidth(colW, bsp) + 8 : colW;');
+    // The rows the other cell modes paint (plate 24: with the bid × ask grid up, this whole block yields).
+    expect(cells).toMatch(/fpCells\.push\(\{ x: b\.cx - halfW, y: Math\.min\(\+yHc, \+yLc\), w: colW, h: Math\.max\(2, Math\.abs\(\+yLc - \+yHc\)\) \}\);/);
+    expect(CHART).toContain('if (nearPaints && !nearYieldsToGrid && lastBar) {');
     // The same geometry every row mode paints its cells on. 2026-09-25
     // (footprint canon, M46): Bid × Ask no longer lays a full-column slab
     // under its cells (one tile per TRADED row, a grid, not a slab); the
