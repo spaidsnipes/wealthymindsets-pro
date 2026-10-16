@@ -76,7 +76,7 @@ describe("chips ask for their box; on-top words are named; the teaching card nev
     const marks = [...CHART.matchAll(/onTop\([^\n]*?, "(CROSSHAIR|SELECTION|INSPECT|OPAQUE_CARD|ANSWER)"\);/g)].map(m => m[1]);
     expect(marks.length).toBeGreaterThanOrEqual(6);
     expect([...CHART.matchAll(/\bonTop\(/g)].length).toBe(marks.length);
-    expect(CHART).toContain('reason: "CROSSHAIR" | "SELECTION" | "INSPECT" | "OPAQUE_CARD" | "ANSWER") => wordGate.sovereignPanel(box, reason);');
+    expect(CHART).toContain('reason: "CROSSHAIR" | "SELECTION" | "INSPECT" | "OPAQUE_CARD" | "ANSWER") => { sovereignBoxes.push(box); wordGate.sovereignPanel(box, reason); };');
   });
   it("the trader's own drawings are never withheld", () => {
     expect(CHART).toContain('paneWordGate.beginFrame({ mode: "OBSERVE", dpr });');

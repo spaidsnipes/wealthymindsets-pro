@@ -119,7 +119,10 @@ describe("H-901 regime lighting — the plate's canvas on the real chart", () =>
     // ONE mark, after the cut-out: the title a breaker earns, else the coin.
     const title = at("if (regimeLight.title) {");
     expect(title).toBeGreaterThan(release);
-    expect(block).toMatch(/ds\.regimeLightingMark = `TITLE:\$\{regimeLight\.breaker\}:\$\{spotT\.mode\}`;\s*\} else if \(newestR && xLiveR != null\) \{/);
+    expect(block).toMatch(/ds\.regimeLightingMark = `TITLE:\$\{regimeLight\.breaker\}:\$\{spotT\.mode\}`;\s*\}\s*\} else if \(newestR && xLiveR != null\) \{/);
+    // L20: with no clear row the title is HELD — never painted over the question strip.
+    at('if (spotT.mode === "BLOCKED") {');
+    at("ds.regimeLightingMark = `TITLE:${regimeLight.breaker}:HELD`;");
     // The title sits in the top band below the header floor.
     at("const yT = HEADER_FLOOR_Y + 4;");
     // The coin sits on the live price, at the live edge.

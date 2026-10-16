@@ -7955,7 +7955,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // WORDS MEANT TO SIT ON TOP are named, with the reason, so ENFORCE cannot
       // remove them: the crosshair's words, Inspect / selection words, and the
       // rows of an opaque card.
-      const onTop = (box: { x: number; y: number; w: number; h: number }, reason: "CROSSHAIR" | "SELECTION" | "INSPECT" | "OPAQUE_CARD" | "ANSWER") => wordGate.sovereignPanel(box, reason);
+      // The frame's sovereign panels, kept here too so a placer's last-resort row can still step around them.
+      const sovereignBoxes: { x: number; y: number; w: number; h: number }[] = [];
+      const onTop = (box: { x: number; y: number; w: number; h: number }, reason: "CROSSHAIR" | "SELECTION" | "INSPECT" | "OPAQUE_CARD" | "ANSWER") => { sovereignBoxes.push(box); wordGate.sovereignPanel(box, reason); };
 
       // G7 · EVERY LAYER IS ISOLATED AND NAMED (2026-09-29). A throw in one
       // layer used to either escape the frame (killing every later layer) or
@@ -18915,12 +18917,22 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               minX: keepOutMinX(),
               blockers: floatingChips,
               strict: true,
+              // L20 (Garden 19, serving 46f62ee at 375px): every slot here was taken by the compact question
+              // strip, and the title painted ON it anyway ("TITLE:TREND:BLOCKED" over "“…” 4/4 PAID"). It steps
+              // down a row at a time, left and right; with no clear row it is HELD (the field still lights).
               alternates: [
                 { ...prefT, x: Math.max(keepOutMinX(), 12) },
                 { ...prefT, x: Math.max(keepOutMinX(), plotRight - tw - 12) },
-                { ...prefT, y: yT + th + 4 },
+                ...[1, 2, 3, 4, 5].flatMap(k => [
+                  { ...prefT, y: yT + k * (th + 4) },
+                  { ...prefT, x: Math.max(keepOutMinX(), 12), y: yT + k * (th + 4) },
+                  { ...prefT, x: Math.max(keepOutMinX(), plotRight - tw - 12), y: yT + k * (th + 4) },
+                ]),
               ],
             });
+            if (spotT.mode === "BLOCKED") {
+              ds.regimeLightingMark = `TITLE:${regimeLight.breaker}:HELD`;
+            } else {
             recordKeepOut(keepOutLedger, spotT);
             floatingChips.push(spotT.rect);
             const r = spotT.rect;
@@ -18936,6 +18948,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.fillStyle = "rgba(237,230,211,0.95)";
             ctx.fillText(regimeLight.title, r.x + 15, r.y + r.h / 2 + 0.5);
             ds.regimeLightingMark = `TITLE:${regimeLight.breaker}:${spotT.mode}`;
+            }
           } else if (newestR && xLiveR != null) {
             const yP = yOfR(Number(newestR.close));
             if (yP != null && yP >= HEADER_FLOOR_Y && yP <= pane0Bottom - 10) {
@@ -20604,7 +20617,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     return !(narrowGlass && rowBodiesAt(q.y, q.y + q.h).some(b => q.x < b.x + b.w && q.x + q.w > b.x && q.y < b.y + b.h && q.y + q.h > b.y));
                   };
                   const kClear = near.find(k => offColumn(k) && !over(at(k), [...placed, ...fixedChips]))
-                    ?? [...near, -4, 4, -5, 5, -6, 6].find(k => offColumn(k) && !over(at(k), placed));
+                    ?? [...near, -4, 4, -5, 5, -6, 6].find(k => offColumn(k) && !over(at(k), [...placed, ...sovereignBoxes]));
+                  // L20 (serving 46f62ee at 375px): the last-resort row ignored every other word and set
+                  // "PUT OI 30200 · 505" on the compact question strip. It still steps around the opaque panels.
                   if (kClear === undefined) {
                     displacedNotes.push({ layer: "DERIVATIVES", text: t.text, x: x + tw / 2, y: t.y });
                     oiWordsListed++;
