@@ -361,7 +361,8 @@ const READING_ANCHOR_ROW_BOTTOM = 64 + 24;
 /** Order-line handles and broker tags. An armed price pick takes a press on them as the pick (Founder P0 2026-10-10). */
 const ORDER_LINE_HANDLE_SELECTOR = '[data-testid="draft-line-handle"], [data-testid="broker-line-tag"]';
 /** DOM chips that sit on the pane and must be a keep-out for canvas words. */
-const PANE_DOM_CHIP_SELECTOR = 'button[aria-label="Data window"], .wm-chart-market-standing';
+// + the floating Ask chooser (tablet, Oct 16: "Aggressive: market orders pushing" ran under "Ask · Trap? ▾").
+const PANE_DOM_CHIP_SELECTOR = 'button[aria-label="Data window"], .wm-chart-market-standing, [data-testid="question-lens-chooser"][data-placement="floating"]';
 /**
  * Derivatives Pressure field, at rest: the Founder plate's region fill
  * (Drive 02-market-sense-hedging-profile.svg — long-gamma 0.11, short-gamma 0.10).
