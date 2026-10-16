@@ -13344,13 +13344,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const vpPrice = (p: number) => p.toLocaleString("en-US", { minimumFractionDigits: vpDp, maximumFractionDigits: vpDp });
         const colLeft = vpRight - vpW - 2;
         const vpChipRight = Math.min(plotRight - LEVEL_CHIP_EDGE_GAP, vpRight + 8);
+        let vpEdgeAbove = 0, vpEdgeBelow = 0;
         const vpLevel = (p: number, ink: (a: number) => string, tag: "POC" | "VAH" | "VAL") => {
           const yT = yOf(p + tickSz);
           const yB = yOf(p);
           ctx.save();
-          if (yT == null || yB == null) {
-            // POC is carried by its row; off-screen it has no row to carry.
-            if (tag === "POC") { ctx.restore(); return; }
+          // OFF THE PANE IS OFF-SCREEN (serving NQ1! 15m, Oct 16 one-at-a-time pass: the library still returns a
+          // coordinate for a price above the camera, so "VAH EST 31,610 / POC EST 30,760 / VAL EST 30,240" were
+          // floored into the top row as if they stood there). A row outside the pane takes the edge marker —
+          // POC included, so a value area above the camera is said, not silently dropped.
+          const offPane = yT != null && yB != null && (Math.max(yT, yB) < HEADER_FLOOR_Y || Math.min(yT, yB) > pane0H);
+          if (yT == null || yB == null || offPane) {
             // ── OFF-SCREEN (zoomed in past the level) ─────────────────────────
             // Instead of vanishing, pin a labelled edge marker with a directional
             // arrow so VAH/VAL stay ALWAYS visible. Determine above/below by
@@ -13362,7 +13366,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const above = Number.isFinite(topPrice) ? p > topPrice : true;
             // Above: under the header band (bar clock, zoom plate, INSPECT sit
             // over this column at the top), not in it.
-            const edgeY = above ? HEADER_FLOOR_Y + 4 : H - 9;
+            // Several levels off the same edge stack one row apart instead of printing on one another.
+            const edgeY = above ? HEADER_FLOOR_Y + 4 + 16 * vpEdgeAbove++ : H - 9 - 16 * vpEdgeBelow++;
             ctx.strokeStyle = ink(0.95); ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
             ctx.beginPath();
             ctx.moveTo(colLeft, edgeY);
@@ -20939,7 +20944,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 const srcW = positioningSourceWords(dp.source);
                 // §20: a near-money subset names its scope in place of a climate it cannot claim.
                 const scopeW = chainScopeWords(dp.chainScope);
-                const wallsW = dp.walls.length === 0 ? "NO CURRENT WALL EVENT" : `${dp.walls.length} WALL${dp.walls.length === 1 ? "" : "S"}`;
+                // A count the glass does not draw says where it is drawn (serving NQ1! 15m, Oct 16: Derivatives
+                // Pressure alone read "4 WALLS" over a field with no wall on it — the walls are Brick Walls' to paint).
+                const wallsW = dp.walls.length === 0 ? "NO CURRENT WALL EVENT" : `${dp.walls.length} WALL${dp.walls.length === 1 ? "" : "S"}${wallsOn ? "" : " · DRAWN BY BRICK WALLS"}`;
                 const word = scopeW
                   ? `${fieldOn ? "DERIVATIVES PRESSURE" : "BRICK WALLS"} · ${scopeW} · ${wallsW} · ${srcW.name} · INFERRED`
                   : fieldOn

@@ -31,7 +31,8 @@ describe("classic VP value-area tags (Sentinel)", () => {
   });
 
   it("an off-screen level's marker sits under the header band, not in it", () => {
-    expect(block).toContain("const edgeY = above ? HEADER_FLOOR_Y + 4 : H - 9;");
+    // Restated 2026-10-16: several off-screen levels on one edge stack one row apart, still floored under the band.
+    expect(block).toContain("const edgeY = above ? HEADER_FLOOR_Y + 4 + 16 * vpEdgeAbove++ : H - 9 - 16 * vpEdgeBelow++;");
     expect(block).not.toContain("above ? 9 :");
   });
 
