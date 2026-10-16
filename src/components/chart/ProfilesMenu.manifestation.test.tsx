@@ -30,9 +30,10 @@ describe("activation is not proof of manifestation", () => {
       expect(html).not.toContain("DRAWING");
     }
   });
-  it("a missing receipt claims availability, not a visible object", () => {
+  it("a missing receipt never claims availability or a visible object (plate 23 / L18, 2026-10-15)", () => {
     const html = render();
-    expect(html).toContain("ACTIVE · AVAILABLE");
+    expect(html).not.toContain("ACTIVE · AVAILABLE");
+    expect(html).toContain("ON · THE CHART DOES NOT REPORT THIS TOOL");
     expect(html).not.toContain("DRAWING");
   });
   it("a measured on-camera receipt can report drawing", () => {

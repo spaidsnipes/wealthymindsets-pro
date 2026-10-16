@@ -41,6 +41,7 @@
  * still prints `silentNote` verbatim.
  */
 
+import { type InventionVisibility, rowStatusWords } from "@/lib/chart/inventionVisibility";
 import { CHART_SETTINGS_SECTION_EVENT, subscribeToolDoor, takePendingToolDoor, type ChartSettingsSection } from "@/lib/workspace/toolDoor";
 import { settingsAnchorFor } from "@/lib/workspace/inventionSettingsAnchor";
 import { senseIsQuiet, senseNeedsTradedVolume, SENSE_UNAVAILABLE, SENSE_NOT_ENTITLED, SENSE_BROKEN } from "@/lib/chart/senseEventStates";
@@ -79,6 +80,7 @@ export function ProfilesMenu({
   testId = "profiles-menu-panel",
   columns = 2,
   stateDetail,
+  visibility,
   speciesRefusal,
   symbol,
   feed = null,
@@ -103,6 +105,8 @@ export function ProfilesMenu({
   columns?: 1 | 2;
   /** A switched-on row's own position, printed after DRAWING (e.g. a depth). */
   stateDetail?: Readonly<Partial<Record<ProfileId, string>>>;
+  /** The chart's seven-state receipt per invention (plate 23): a switched-on row says what the glass holds. */
+  visibility?: Readonly<Record<string, InventionVisibility>>;
   /** Species whose selector refused the bars on screen, with its reason (see selectProfileMenu). */
   speciesRefusal?: ProfileMenuInput["speciesRefusal"];
   /** The chart's symbol — a market with no central volume (spot FX) refuses its volume readers before they are switched on. */
@@ -233,7 +237,8 @@ export function ProfilesMenu({
                 ? entry.active
                   ? (stateDetail?.[entry.id]
                     ? (senseIsQuiet(stateDetail[entry.id]) ? `ACTIVE · ${stateDetail[entry.id]}` : `DRAWING · ${stateDetail[entry.id]}`)
-                    : "ACTIVE · AVAILABLE")
+                    // Plate 23 / L18: the chart's own receipt in plain words, never "ACTIVE · AVAILABLE".
+                    : (rowStatusWords(entry.id, visibility) ?? "On · the chart does not report this tool").toUpperCase())
                   : "AVAILABLE"
                 : entry.availability === "WAITING_FOR_BARS"
                   ? "WAITING FOR BARS"

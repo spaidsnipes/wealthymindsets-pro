@@ -1561,6 +1561,8 @@ interface Props {
   onSemanticDepth?: (depth: "FAR" | "MID" | "NEAR" | null) => void;
   /** No silent nothing (master order §VIII): each order-flow sense's state from this frame's receipts, sent on change. */
   onSenseEvents?: (states: Record<string, string>) => void;
+  /** The seven-state Locate Invention receipt ("ID:STATE|…"), published when it changes (plate 23 row status). */
+  onInventionVisibility?: (receipt: string) => void;
   /** H-601 #3 — the fused profile object (or the named refusal), for Inspect. */
   onProfileFusion?: (fused: FusedProfileObject | null, refusal: string | null) => void;
   /** The Visible Range species' own refusal (null when drawn or off), reported on change only. */
@@ -2004,6 +2006,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   onMtfAncestry,
   onSemanticDepth,
   onSenseEvents,
+  onInventionVisibility,
   onProfileFusion,
   onVisibleRangeRefusal,
   onSessionVpRefusal,
@@ -2466,6 +2469,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   useEffect(() => { onSemanticDepthRef.current = onSemanticDepth; }, [onSemanticDepth]);
   const semanticDepthSentRef = useRef<string | undefined>(undefined);
   const onSenseEventsRef = useRef<typeof onSenseEvents>(undefined);
+  const onInventionVisibilityRef = useRef<typeof onInventionVisibility>(undefined);
+  useEffect(() => { onInventionVisibilityRef.current = onInventionVisibility; }, [onInventionVisibility]);
+  const lastVisibilityRef = useRef("");
   useEffect(() => { onSenseEventsRef.current = onSenseEvents; }, [onSenseEvents]);
   const senseEventsSentRef = useRef<string>("");
   /* STRESS GOVERNOR (master order §LXXV): true while the measured paint mean
@@ -27718,6 +27724,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         canvasRef.current.dataset.showMeTargetsAt = [...edgeChipHitRef.current.map(r => `${r.what}@${r.price}:${Math.round(r.x + r.w / 2)},${Math.round(r.y + r.h / 2)}`), ...pressureWallHitRef.current.filter(r => r.off).map(r => `WALL@${r.strike}:${Math.round(r.x + r.w / 2)},${Math.round(r.y + r.h / 2)}`)].join("|") || "NONE";
         canvasRef.current.dataset.inventionVisibility = compileInventionVisibility(canvasRef.current.dataset as Record<string, string | undefined>);
       }
+      // Plate 23: the tool rows read the same receipt — published only when it changes.
+      if (canvasRef.current && canvasRef.current.dataset.inventionVisibility !== lastVisibilityRef.current) { lastVisibilityRef.current = canvasRef.current.dataset.inventionVisibility ?? ""; onInventionVisibilityRef.current?.(lastVisibilityRef.current); }
     };
 
     // Use a continuous loop so the canvas always stays in sync with chart scroll/zoom

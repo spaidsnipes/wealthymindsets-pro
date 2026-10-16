@@ -1,5 +1,6 @@
 "use client";
 
+import { type InventionVisibility, parseInventionVisibility } from "@/lib/chart/inventionVisibility";
 import { createPortal } from "react-dom";
 import { zoneStateWords } from "@/lib/marketData/viewModels/selectZoneLifecycle";
 import { educationIdForSelection, educationTruthLines } from "@/lib/chart/inventionEducation";
@@ -3142,6 +3143,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [semanticDepth, setSemanticDepth] = useState<"FAR" | "MID" | "NEAR" | null>(null);
   // No silent nothing (master order §VIII): each order-flow sense's state, told by the chart from its own receipts.
   const [senseEvents, setSenseEvents] = useState<Record<string, string>>({});
+  // Plate 23 / L18: every tool row reads the chart's own seven-state receipt (never "ACTIVE · AVAILABLE").
+  const [inventionVisibility, setInventionVisibility] = useState<Readonly<Record<string, InventionVisibility>>>({});
+  const onInventionVisibility = useCallback((receipt: string) => setInventionVisibility(parseInventionVisibility(receipt)), []);
   const onMtfAncestry = useCallback((vm: MtfAncestryVM | null) => {
     setMtfAncestryVM(prev => ((prev?.receipt ?? "") === (vm?.receipt ?? "") ? prev : vm));
   }, []);
@@ -4276,6 +4280,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       </div>
       <ProfilesMenu
         symbol={symbol}
+        visibility={inventionVisibility}
         chainScope={optionsChainScope}
         feed={chartCanvasState?.qualityState ?? null}
         barsPresent={chartBars.length > 0}
@@ -4298,6 +4303,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const wStructureNode = (
     <ProfilesMenu
       symbol={symbol}
+      visibility={inventionVisibility}
       chainScope={optionsChainScope}
       feed={chartCanvasState?.qualityState ?? null}
       barsPresent={chartBars.length > 0}
@@ -4314,6 +4320,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const wMemoryNode = (
     <ProfilesMenu
       symbol={symbol}
+      visibility={inventionVisibility}
       chainScope={optionsChainScope}
       feed={chartCanvasState?.qualityState ?? null}
       barsPresent={chartBars.length > 0}
@@ -6808,6 +6815,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               <ProfilePresetBar active={profileMenuActive} onApply={applyPresetKeepingOwn} />
               <ProfilesMenu
                 symbol={symbol}
+                visibility={inventionVisibility}
                 chainScope={optionsChainScope}
                 feed={chartCanvasState?.qualityState ?? null}
                 barsPresent={chartBars.length > 0}
@@ -6830,6 +6838,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   Tools › Order flow. */}
               <ProfilesMenu
                 symbol={symbol}
+                visibility={inventionVisibility}
                 chainScope={optionsChainScope}
                 feed={chartCanvasState?.qualityState ?? null}
                 barsPresent={chartBars.length > 0}
@@ -7584,6 +7593,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       optionFlow={optionFlowVM}
                       onSemanticDepth={setSemanticDepth}
                       onSenseEvents={setSenseEvents}
+                      onInventionVisibility={onInventionVisibility}
                       onSelectPressureWall={strike => actOnChartSelection({ type: "select", selection: { kind: "PRESSURE_WALL", symbol, timeframe, strike } })}
                       selectedPressureWallStrike={activeSelectedWall?.strike ?? null}
                       onSelectPressureFront={() => actOnChartSelection({ type: "select", selection: { kind: "PRESSURE_FRONT", symbol, timeframe } })}
