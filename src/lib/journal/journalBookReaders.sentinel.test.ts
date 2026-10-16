@@ -23,6 +23,7 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "lib/journal/journalRoundTrip.ts": "proof that a save survives a reload — compares records, computes no result",
   "components/layout/shellPanels.tsx": "Export All Data — the whole book, by design",
   "lib/traderMemory/useSessionDecisions.ts": "consumes useJournalBook, whose snapshots are already live; its entries feed the review question only",
+  "components/experience/TradeStageRibbon.tsx": "the REVIEW stage reads today's closes from the whole book — a paper close still asks for its own review (2026-10-16)",
   "components/chart/PnLStatsPanel.tsx": "reads the raw bytes and hands them to compilePnlStats, which leaves paper out",
 };
 

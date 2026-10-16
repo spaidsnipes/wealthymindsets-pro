@@ -272,3 +272,28 @@ describe("§32's RAIL — five stops, one rail, recorded not rewritten (deck can
     }
   });
 });
+
+describe("the journal moves the stage (Founder 2026-10-16)", () => {
+  it("one market, two spellings — never a prefix of another ticker", async () => {
+    const { sameMarketSymbol } = await import("./decisionLifecycle");
+    expect(sameMarketSymbol("NQ1!", "NQ")).toBe(true);
+    expect(sameMarketSymbol("NQ1!", "/NQZ6")).toBe(true);
+    expect(sameMarketSymbol("NQ1!", "NQZ6")).toBe(true);
+    expect(sameMarketSymbol("TSLA", "TSLA")).toBe(true);
+    expect(sameMarketSymbol("T", "TSLA")).toBe(false);
+    expect(sameMarketSymbol("NQ1!", "MNQ")).toBe(false);
+    expect(sameMarketSymbol("ES1!", "NQZ6")).toBe(false);
+  });
+  it("today's journaled close lights REVIEW with its summed result; the live book still outranks it", async () => {
+    const { journalClosedToday, selectCardStage } = await import("./decisionLifecycle");
+    const rows = [{ date: "2026-10-16", symbol: "NQZ6", pnl: 1200 }, { date: "2026-10-16", symbol: "NQ", pnl: -200 }, { date: "2026-10-15", symbol: "NQ", pnl: 999 }];
+    const c = journalClosedToday(rows, "NQ1!", "2026-10-16");
+    expect(c).toEqual({ result: "+$1,000 on 2 trades", journaled: true });
+    const vm = selectCardStage({ verdict: "WAIT", reason: null, book: null, nearZone: null, closedToday: c });
+    expect(vm.stage).toBe("REVIEW");
+    expect(vm.sentence).toBe("Closed +$1,000 on 2 trades today. Review it in your journal.");
+    const live = selectCardStage({ verdict: "WAIT", reason: null, book: { state: "LONG", quantity: 1, averagePrice: 100, protection: "PROTECTED", working: 1 }, nearZone: null, closedToday: c });
+    expect(live.stage).toBe("MANAGE");
+    expect(journalClosedToday(rows, "ES1!", "2026-10-16")).toBeNull();
+  });
+});

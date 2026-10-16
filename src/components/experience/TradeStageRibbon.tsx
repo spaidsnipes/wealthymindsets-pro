@@ -10,7 +10,10 @@ import React, { useEffect, useState } from "react";
 import { useBrokerAudience } from "@/lib/broker/useBrokerAudience";
 import { useBrokerBookStrip } from "@/lib/execution/brokerReadbackStore";
 import { proofFixtureScene } from "@/lib/chart/proofScene";
-import { selectCardStage, CARD_STAGES, CARD_STAGE_LABEL, type CardStageInput } from "@/lib/experience/decisionLifecycle";
+import { selectCardStage, CARD_STAGES, CARD_STAGE_LABEL, journalClosedToday, type CardStageInput } from "@/lib/experience/decisionLifecycle";
+import { useAuth } from "@/contexts/AuthContext";
+import { useJournalBook } from "@/lib/traderMemory/adapters/useJournalSnapshots";
+import { marketDayKey } from "@/lib/journal/localDayKey";
 
 export function TradeStageRibbon({ symbol, verdict, reason, nearZone }: {
   readonly symbol: string;
@@ -25,7 +28,12 @@ export function TradeStageRibbon({ symbol, verdict, reason, nearZone }: {
   const book = owner && !fixture && (strip.state === "FLAT" || strip.state === "LONG" || strip.state === "SHORT")
     ? { state: strip.state, quantity: strip.quantity, averagePrice: strip.averagePrice, protection: strip.protection, working: strip.working }
     : null;
-  const vm = selectCardStage({ verdict, reason, book, nearZone, closedToday: null });
+  // The journal moves the stage too (Founder 2026-10-16): today's closed trade on this market → REVIEW. The
+  // broker's live book still outranks it (a position on is IN TRADE / MANAGE). Never under a fixture scene.
+  const { user } = useAuth();
+  const journal = useJournalBook(owner && !fixture ? user?.id ?? null : null);
+  const closedToday = owner && !fixture ? journalClosedToday(journal.entries, symbol, marketDayKey()) : null;
+  const vm = selectCardStage({ verdict, reason, book, nearZone, closedToday });
   const at = CARD_STAGES.indexOf(vm.stage);
   return (
     <div data-testid="trade-stage" data-stage={vm.stage} role="group" aria-label={`Stage: ${CARD_STAGE_LABEL[vm.stage]}. ${vm.sentence}`}

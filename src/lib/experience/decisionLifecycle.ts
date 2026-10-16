@@ -441,8 +441,9 @@ export interface CardStageInput {
   } | null;
   /** The nearest live zone to price, already measured; null when none is near. */
   readonly nearZone: { readonly side: "SUPPLY" | "DEMAND"; readonly distance: number; readonly unit: string } | null;
-  /** A trade closed today on this symbol, with its result words ("+$1,200"); null when the room does not know. */
-  readonly closedToday: { readonly result: string } | null;
+  /** A trade closed today on this symbol, with its result words ("+$1,200"); null when the room does not know.
+   *  `journaled` — it is already in the trader's journal (the review is there, not "journal it"). */
+  readonly closedToday: { readonly result: string; readonly journaled?: boolean } | null;
   /** Price formatter for the average price. */
   readonly fmtPrice?: (p: number) => string;
 }
@@ -467,7 +468,7 @@ export function selectCardStage(i: CardStageInput): CardStageVM {
     if (b.protection === "PROTECTED") return { stage: "MANAGE", sentence: `${side}${qty}${at}. Stop working — manage the trade.` };
     return { stage: "IN_TRADE", sentence: `${side}${qty}${at}. No stop working — set one.` };
   }
-  if (i.closedToday) return { stage: "REVIEW", sentence: `Closed ${i.closedToday.result} today. Journal it.` };
+  if (i.closedToday) return { stage: "REVIEW", sentence: `Closed ${i.closedToday.result} today. ${i.closedToday.journaled ? "Review it in your journal." : "Journal it."}` };
   if (b && b.state === "FLAT" && b.working > 0) {
     return { stage: "READY", sentence: `${b.working} order${b.working === 1 ? "" : "s"} working. Plan and risk set.` };
   }
@@ -497,4 +498,32 @@ export function nearestLiveZone(
     if (d <= reach && (!best || d < best.distance)) best = { side: z.side, distance: d };
   }
   return best;
+}
+
+/**
+ * ONE MARKET, TWO SPELLINGS (Founder 2026-10-16: "make sure Wait · Watch · Ready · In trade · Manage · Review
+ * actually cycles … if somebody does enter inside of their journal"). The chart says "NQ1!", a journal row may
+ * say "NQ", "/NQZ6" or "NQZ6"; a stock is its ticker. Same root, or the root plus one futures month code (and
+ * an optional year digit), is the same market — "T" never matches "TSLA".
+ */
+export function sameMarketSymbol(chart: string, journal: string): boolean {
+  const root = (s: string) => s.toUpperCase().replace(/^\//, "").replace(/[0-9!=]+$/, "").replace(/[^A-Z]/g, "");
+  const c = root(chart), j = root(journal);
+  if (!c || !j) return false;
+  if (c === j) return true;
+  return j.length === c.length + 1 && j.startsWith(c) && "FGHJKMNQUVXZ".includes(j.slice(-1));
+}
+
+/** Today's closed journal rows for this chart's market, summed into the REVIEW stage's words; null when none. */
+export function journalClosedToday(
+  entries: readonly { readonly date: string; readonly symbol: string; readonly pnl: number }[],
+  chartSymbol: string,
+  todayKey: string,
+): { result: string; journaled: true } | null {
+  const rows = entries.filter(e => e.date === todayKey && sameMarketSymbol(chartSymbol, e.symbol));
+  if (!rows.length) return null;
+  const pnl = rows.reduce((a, e) => a + (Number.isFinite(e.pnl) ? e.pnl : 0), 0);
+  const abs = Math.abs(pnl).toLocaleString("en-US", { maximumFractionDigits: 0 });
+  const result = `${pnl >= 0 ? "+" : "−"}$${abs}${rows.length > 1 ? ` on ${rows.length} trades` : ""}`;
+  return { result, journaled: true };
 }
