@@ -5777,14 +5777,18 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       s?.applyOptions({ title, autoscaleInfoProvider: () => null });
       // A LEVEL STEPS, IT NEVER SLIDES (Founder 2026-10-16, "what is this line … split brain"): where the level
       // changes (a new prior day), the library joined old and new with a vertical dotted wire hanging from the
-      // header. The bar where it steps is left blank, so each day's level stands alone.
+      // header. lightweight-charts 5.2 joins a line ACROSS whitespace (a blank bar did not break it — serving
+      // 457634b), and strokes the segment i-1 → i in point i-1's colour; so the old level's LAST point is
+      // transparent and the step is never drawn. Each day's level stands alone.
       try {
-        const data: ({ time: any; value: number } | { time: any })[] = [];
+        const data: { time: any; value: number; color?: string }[] = [];
         for (let i = 0; i < bars.length; i++) {
           const v = vals[i];
           if (!Number.isFinite(v)) continue;
-          const prev = i > 0 ? vals[i - 1] : NaN;
-          data.push(Number.isFinite(prev) && prev !== v ? { time: bars[i].time as any } : { time: bars[i].time as any, value: v });
+          const next = i + 1 < bars.length ? vals[i + 1] : NaN;
+          data.push(Number.isFinite(next) && next !== v
+            ? { time: bars[i].time as any, value: v, color: "rgba(0,0,0,0)" }
+            : { time: bars[i].time as any, value: v });
         }
         s?.setData(data as never);
       } catch { /* the plain line stands */ }
