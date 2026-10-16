@@ -255,8 +255,29 @@ export function paintWallsGamma(env: WallsGammaGlassEnv): WallsGammaGlassResult 
         for (const r of env.cutRects) clipW.rect(r.x, r.y, r.w, r.h);
         ctx.clip(clipW, "evenodd");
         ctx.setLineDash([]);
-        ctx.fillStyle = `rgba(${rgb},${(0.2 * env.wallsAlpha).toFixed(3)})`;
-        ctx.fillRect(16, y - 3 * env.wallThickness, Math.max(0, plotRight - 72), 6 * env.wallThickness);
+        // Codex plate 01 side by side with serving ES1! 15m (2026-10-16): the band read as a 6px strip at 12% ink
+        // ("walls must occupy price"). It is now a GLOWING BAND — 16px × thickness, a vertical gradient that is
+        // brightest at its two edges, crisp 1.5px edge rules. A strike that is BOTH a call and a put wall splits
+        // its band: call ink on the upper half, put ink on the lower (one band, both truths, never stacked twice).
+        const both = m.kinds.includes("CALL_WALL") && m.kinds.includes("PUT_WALL");
+        const half = 8 * env.wallThickness;
+        const y0 = both ? (call ? y - half : y) : y - half;
+        const y1 = both ? (call ? y : y + half) : y + half;
+        const aW = env.wallsAlpha;
+        const g = ctx.createLinearGradient(0, y0, 0, y1);
+        g.addColorStop(0, `rgba(${rgb},${(0.62 * aW).toFixed(3)})`);
+        g.addColorStop(0.5, `rgba(${rgb},${(0.3 * aW).toFixed(3)})`);
+        g.addColorStop(1, `rgba(${rgb},${(0.62 * aW).toFixed(3)})`);
+        ctx.fillStyle = g;
+        ctx.fillRect(16, y0, Math.max(0, plotRight - 72), y1 - y0);
+        ctx.strokeStyle = `rgba(${rgb},${Math.min(1, 0.95 * aW + 0.05).toFixed(3)})`;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash(call ? [] : [6, 3]);
+        ctx.beginPath();
+        if (!both || call) { ctx.moveTo(16, Math.round(y0) + 0.75); ctx.lineTo(plotRight - 56, Math.round(y0) + 0.75); }
+        if (!both || !call) { ctx.moveTo(16, Math.round(y1) - 0.75); ctx.lineTo(plotRight - 56, Math.round(y1) - 0.75); }
+        ctx.stroke();
+        ctx.setLineDash([]);
         ctx.restore();
       } else if (kind === "GAMMA_CONC_POS" || kind === "GAMMA_CONC_NEG") {
         const posK = kind === "GAMMA_CONC_POS";
