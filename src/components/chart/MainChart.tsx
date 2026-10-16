@@ -19778,10 +19778,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // Provenance with its sample size is evidence (coordinator ruling
               // 2026-10-09): declared truth — never held, never listed.
               wordGate.declareTruth(capT);
-              const capShown = fanPastView ? `${capT} · reaches past this view ↕` : capT;
+              let capShown = fanPastView ? `${capT} · reaches past this view ↕` : capT;
               wordGate.declareTruth(capShown);
               ctx.font = marketFont("FIDELITY");
-              const capW = ctx.measureText(capShown).width + 12, capH = 16;
+              let capW = ctx.measureText(capShown).width + 12;
+              const capH = 16;
               const endC = inView[inView.length - 1];
               const capX = Math.min(plotRightE - 6, endC.x) - capW;
               const capAbove = { x: capX, y: Math.max(HEADER_FLOOR_Y + 2, Math.min(endC.y90, endC.y10) - capH - 6), w: capW, h: capH };
@@ -19793,11 +19794,24 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 { ...capBelow, y: Math.min(H * 0.78 - capH, capBelow.y + k * (capH + 4)) },
               ]);
               const capYs = [capAbove, capBelow, ...capRows].map(q => q.y);
-              const spotCap = placeClearOfKeepOut(
+              let spotCap = placeClearOfKeepOut(
                 capAbove,
                 [...keepOut(), ...rowBodiesAt(Math.min(...capYs), Math.max(...capYs) + capH)],
                 { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: [capBelow, ...capRows] },
               );
+              // THE SHORT NAME STAYS WITH ITS FAN (serving ES1! / TSLA 15m, Oct 16: the full sentence slid ~400px
+              // left and read as a stray line). When the long caption cannot sit by the fan, the short one tries
+              // the fan's own rows; the full provenance stays in Inspect and the receipt.
+              if (spotCap.mode === "BLOCKED" || spotCap.rect.x < capX - 120) {
+                const shortT = `ENVELOPE · n=${nNow} analogues${fanPastView ? " ↕" : ""}`;
+                wordGate.declareTruth(shortT);
+                const sW = ctx.measureText(shortT).width + 12;
+                const sX = Math.min(plotRightE - 6, endC.x) - sW;
+                const sRows = [capAbove, capBelow, ...capRows].map(q => ({ ...q, x: sX, w: sW }));
+                const sSpot = placeClearOfKeepOut(sRows[0], [...keepOut(), ...rowBodiesAt(Math.min(...capYs), Math.max(...capYs) + capH)],
+                  { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: sRows.slice(1) });
+                if (sSpot.mode !== "BLOCKED" && sSpot.rect.x >= sX - 120) { spotCap = sSpot; capShown = shortT; capW = sW; }
+              }
               // No clear slot: a truth line never paints over another one's home
               // (serving 390 / 430 enforce, c9303a7: this caption sat on the
               // "N SENSES SILENT" row). It is said in the silence stack instead.
