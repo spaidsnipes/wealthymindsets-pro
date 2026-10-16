@@ -518,6 +518,7 @@ import {
   organismGlyph,
   tpoPeriodInk,
   tpoPlateRamp,
+  MEMORY_MASS_RGB,
   GLYPH_BOX,
   GLYPH_HALF,
   type OrganismKind,
@@ -799,6 +800,7 @@ import { CALL_WALL_RGB, PUT_WALL_RGB, foldNarrowLine, paintWallsGamma } from "@/
 import { type CameraReveal, applyReveal, askReveal, revealReceipt } from "@/lib/chart/cameraReveal";
 import { DELTA_VIEW_EVENT, type DeltaView, deltaBarPx, deltaBubbleR, deltaScale, readDeltaView } from "@/lib/chart/deltaView";
 import { deltaPaneDivergence } from "@/lib/chart/deltaPanePivots";
+import { memoryMass } from "@/lib/chart/memoryMass";
 import { type BeaconCandidate, beaconKindOf, beaconReceipt, chooseBeacons, paintEdgeBeacons } from "@/components/chart/edgeBeacon";
 import type { IndexFuturesMappingVM } from "@/lib/marketData/viewModels/selectIndexFuturesMapping";
 
@@ -24562,6 +24564,38 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.fillStyle = pk.rgbaAs("WASH", "ANCHOR", Math.max(0.02, 0.07 - (ago - 1) * 0.015));
               ctx.fillRect(x0, Math.min(+yh, +yl), endX - x0, Math.abs(+yl - +yh));
             }
+            /* CODEX PLATE 14 · PROFILE MEMORY HAS A BODY (serving NQ1! 15m Oct 16: a faint box and one dim
+               line — "prior session · filled mass" was missing). S-1's own candle-estimated profile is built
+               from that session's bars (each bar's volume spread evenly over its range — the house's
+               candle-estimate, said in the S-1 chip's EST) and drawn as a lavender silhouette from where the
+               session closed, behind the candles. Nothing beyond the bars on the chart is used. */
+            let memMassRows = 0;
+            {
+              const s1 = mem.levels.find(l => l.sessionsAgo === 1);
+              const s2 = mem.levels.find(l => l.sessionsAgo === 2);
+              if (s1) {
+                const t1 = s1.formedAt, t0 = s2 ? s2.formedAt : t1 - 86400;
+                const massRows = memoryMass(barsM, t0, t1);
+                const xEnd = ts.timeToCoordinate(t1 as any);
+                if (massRows.length && xEnd != null && +xEnd < endX - 20) {
+                  const massW = Math.min(140, Math.max(60, (endX - +xEnd) * 0.35));
+                  const x0m = Math.round(+xEnd) + 2;
+                  const vah1 = mem.levels.find(l => l.sessionsAgo === 1 && l.kind === "VAH")?.price;
+                  const val1 = mem.levels.find(l => l.sessionsAgo === 1 && l.kind === "VAL")?.price;
+                  for (const r of massRows) {
+                    const ya = srs.priceToCoordinate(r.lo), yb = srs.priceToCoordinate(r.hi);
+                    if (ya == null || yb == null) continue;
+                    const top = Math.min(+ya, +yb), hh = Math.max(1, Math.abs(+ya - +yb) - (Math.abs(+ya - +yb) > 3 ? 1 : 0));
+                    const midP = (r.lo + r.hi) / 2;
+                    const inVA = vah1 != null && val1 != null && midP <= vah1 && midP >= val1;
+                    ctx.fillStyle = `rgba(${MEMORY_MASS_RGB},${inVA ? 0.4 : 0.22})`;
+                    ctx.fillRect(x0m, top, Math.max(1, r.share * massW), hh);
+                    memMassRows++;
+                  }
+                }
+              }
+            }
+            ds.profileMemoryMass = memMassRows ? `S-1|ROWS:${memMassRows}` : "NONE";
             let notches = 0;
             for (const l of memLevels) {
               if (l.kind !== "POC") continue;

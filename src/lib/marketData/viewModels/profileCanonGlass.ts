@@ -485,3 +485,6 @@ export function tpoPlateRamp(late01: number): string {
   const c = (k: number) => Math.round(stops[i0][k] + (stops[i0 + 1][k] - stops[i0][k]) * f);
   return `${c(0)},${c(1)},${c(2)}`;
 }
+
+/** CODEX PLATE 14 · Profile Memory's remembered mass — the prior session's silhouette, in the plate's lavender. */
+export const MEMORY_MASS_RGB = "150,152,214";
