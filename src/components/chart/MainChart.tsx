@@ -21077,7 +21077,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // ONE MARK, ONE PLACE (serving NQ1! 15m, Oct 16 one-at-a-time pass: three puts printed in one bar
               // drew three "−"/"+" rings on one spot — seven glyph overlaps). A later mark steps outward along its
               // own side (calls up, puts down) until it clears every mark already placed.
-              const placedFlow: { x: number; y: number; r: number }[] = [];
+              // …at most two steps out; a third mark on the same spot MERGES into the mark it would hit, which then
+              // reads "×n" (his default stack, Oct 16: seven puts in two bars built a column of rings into the volume).
+              const placedFlow: { x: number; y: number; r: number; n: number; rgb: string }[] = [];
               shown.forEach((s, i) => {
                 const rgb = s.e.type === "call" ? "80,190,180" : "214,120,150";
                 const r = 5 + 5 * Math.sqrt(s.e.size / peak);
@@ -21085,8 +21087,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // Offset off the candle body: calls above the close, puts below.
                 const dirF = s.e.type === "call" ? -1 : 1;
                 let cy = s.y + dirF * (r + 8);
-                for (let k = 0; k < 12 && placedFlow.some(q => Math.hypot(q.x - s.x, q.y - cy) < q.r + r + 1); k++) cy += dirF * (r + 2);
-                placedFlow.push({ x: s.x, y: cy, r });
+                const clashAt = (y: number) => placedFlow.find(q => Math.hypot(q.x - s.x, q.y - y) < q.r + r + 1);
+                // Words already on the glass ("NDX 29200 → … · mapped" under a ring, his default stack) are stepped
+                // over too, within the same two steps; a ring that still lands on words keeps its bar's spot.
+                const onWords = (y: number) => floatingChips.some(c => s.x + r > c.x && s.x - r < c.x + c.w && y + r > c.y && y - r < c.y + c.h);
+                for (let k = 0; k < 2 && (clashAt(cy) || onWords(cy)); k++) cy += dirF * (r + 2);
+                const into = clashAt(cy);
+                if (into) { into.n++; return; }
+                placedFlow.push({ x: s.x, y: cy, r, n: 1, rgb });
                 // PRICE SOVEREIGNTY: a mark that would sit on the newest candles'
                 // column (narrow glass) is a small ring at the column's left edge
                 // with a hairline to its bar — still tappable, its ticket intact.
@@ -21144,6 +21152,21 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               });
               // Words after EVERY mark is down, so a later mark never covers
               // an earlier label (serving SPY: "C778 ×2422 SELL" under a mark).
+              // Merged marks say how many prints they hold.
+              for (const q of placedFlow) {
+                if (q.n < 2) continue;
+                ctx.save();
+                ctx.font = marketFont("OBJECT_NAME");
+                ctx.textAlign = "left"; ctx.textBaseline = "middle";
+                const tN = `×${q.n}`;
+                const wN = ctx.measureText(tN).width;
+                ctx.fillStyle = "rgba(11,10,8,0.85)";
+                ctx.fillRect(q.x + q.r + 2, q.y - 6, wN + 4, 12);
+                ctx.fillStyle = `rgba(${q.rgb},0.95)`;
+                ctx.fillText(tN, q.x + q.r + 4, q.y + 0.5);
+                floatingChips.push({ x: q.x + q.r + 2, y: q.y - 6, w: wN + 4, h: 12 });
+                ctx.restore();
+              }
               for (const job of labelJobs) job();
               // COVERAGE: where this lane's prints begin — the provider's
               // per-contract history is its own bound, said once.
