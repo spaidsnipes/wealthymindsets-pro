@@ -252,6 +252,13 @@ const DNA_SPINE_A = 0.6;
 const DNA_BRACKET_A = 0.65;
 /** Profile DNA, salience step 2 (G19, Oct 10): geometry, not alpha — a dark halo and a larger mass diamond. */
 const DNA_HALO = "rgba(8,8,10,0.6)";
+/** Codex Plate 14 — a measured shape's ink and its plain name (Normal gold, Trend blue). */
+const DNA_SHAPE_INK: Record<"P" | "b" | "D" | "ELONGATED", { name: string; rgb: string }> = {
+  D: { name: "Normal", rgb: "233,186,64" },
+  ELONGATED: { name: "Trend", rgb: "74,143,224" },
+  P: { name: "P-shape", rgb: "47,184,128" },
+  b: { name: "b-shape", rgb: "150,110,220" },
+};
 const DNA_DIAMOND_R = 6;
 /** Footprint imbalance cells: outlined, at least this tall (ASK-6). */
 const IMB_CELL_MIN_H = 3;
@@ -22993,6 +23000,69 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             if (dnaAlone && (dnaAlone.measured || dnaAlone.reason === "THIN_SAMPLE")) {
               ds.profileDna = `${dnaAlone.reason}:ALONE`;
               const laneD = stackPlan.lanes.LIVING ?? soloLane(W);
+              /*
+                CODEX PLATE 14 · "EVERY PROFILE HAS AN IDENTITY". Alone, DNA
+                used to be a 1.5px spine and a hollow diamond at the axis — the
+                Founder could not find it (serving NQ1! 15m, Oct 16). The plate
+                draws the session's silhouette FILLED in its shape's ink
+                (Normal gold, Trend blue …) with the spine and mass centre on
+                top. The rows are the Living compiler's own bars (the profile
+                DNA measured), never a second build; only a MEASURED shape
+                takes an ink — a thin sample stays a range. Behind the candles.
+              */
+              const silBars = lp && lp.drawn && dnaAlone.measured && dnaAlone.shape ? lp.bars : [];
+              if (silBars.length >= 2) {
+                const ink = DNA_SHAPE_INK[dnaAlone.shape!];
+                const sorted = [...silBars].sort((a, b) => a.price - b.price);
+                let step = Infinity;
+                for (let i = 1; i < sorted.length; i++) step = Math.min(step, sorted[i].price - sorted[i - 1].price);
+                if (!(step > 0 && Number.isFinite(step))) step = dnaAlone.rowStep ?? 0;
+                const silW = Math.min(Math.max(90, laneD.width), Math.round(W * 0.2));
+                const xR = Math.round(laneD.right - 22);
+                ctx.save(); clipProfileToCandles("DNA");
+                let rowsPainted = 0;
+                for (const b of sorted) {
+                  const y0 = srs.priceToCoordinate(b.price);
+                  const y1 = srs.priceToCoordinate(b.price + step);
+                  if (y0 == null || y1 == null) continue;
+                  const top = Math.min(+y0, +y1), hgt = Math.max(1, Math.abs(+y0 - +y1) - (Math.abs(+y0 - +y1) > 3 ? 1 : 0));
+                  const w = Math.max(1, b.share * silW);
+                  ctx.fillStyle = `rgba(${ink.rgb},${b.insideValueArea ? 0.5 : 0.28})`;
+                  ctx.fillRect(xR - w, top, w, hgt);
+                  rowsPainted++;
+                }
+                ctx.restore();
+                ds.profileDnaBody = `${ink.name}|ROWS:${rowsPainted}|W:${silW}`;
+                // The identity, once, at the body's head — held if refused.
+                const yTop = dnaAlone.hi != null ? srs.priceToCoordinate(dnaAlone.hi) : null;
+                if (yTop != null) {
+                  const label = `${ink.name} profile`;
+                  ctx.save();
+                  ctx.font = marketFont("OBJECT_NAME");
+                  const tw = Math.ceil(ctx.measureText(label).width) + 16;
+                  const prefD = { x: xR - tw, y: Math.round(+yTop) - 40, w: tw, h: 20 };
+                  const spotD = placeClearOfKeepOut(prefD, keepOut(), {
+                    minX: keepOutMinX(), blockers: floatingChips, strict: true,
+                    alternates: [{ ...prefD, y: prefD.y - 24 }, { ...prefD, x: xR - silW, y: prefD.y }],
+                  });
+                  if (spotD.mode !== "BLOCKED") {
+                    ctx.fillStyle = "rgba(10,10,12,0.88)";
+                    ctx.beginPath(); ctx.roundRect(spotD.rect.x, spotD.rect.y, spotD.rect.w, spotD.rect.h, 4); ctx.fill();
+                    ctx.strokeStyle = `rgba(${ink.rgb},0.9)`; ctx.lineWidth = 1; ctx.stroke();
+                    ctx.fillStyle = `rgb(${ink.rgb})`;
+                    ctx.textAlign = "left"; ctx.textBaseline = "middle";
+                    ctx.fillText(label, spotD.rect.x + 8, spotD.rect.y + 10.5);
+                    floatingChips.push({ ...spotD.rect });
+                    ds.profileDnaLabel = label;
+                  } else {
+                    displacedNotes.push({ layer: "PROFILE", text: label, x: prefD.x + tw / 2, y: prefD.y + 10 });
+                    ds.profileDnaLabel = "HELD";
+                  }
+                  ctx.restore();
+                }
+              } else {
+                delete ds.profileDnaBody; delete ds.profileDnaLabel;
+              }
               if (!paintProfileDnaAt(Math.round(laneD.right - 14) + 0.5)) ds.profileDna = "LIVING_PROFILE_NOT_DRAWN";
             } else {
               // With nothing measured, it says so.
