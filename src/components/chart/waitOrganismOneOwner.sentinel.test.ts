@@ -66,8 +66,9 @@ describe("(a) the room composes the tag — it never decides one", () => {
   });
 
   it("hands it to the primary chart only — the compare and pinned panes carry no decision", () => {
-    expect(ROOM.match(/debtTagOnChart=\{debtTagOnChart\}/g) ?? []).toHaveLength(1);
-    const mount = ROOM.indexOf("debtTagOnChart={debtTagOnChart}");
+    // A clean proof scene holds the tag unless on=decision (2026-10-16) — the room still composes it, once.
+    expect(ROOM.match(/debtTagOnChart=\{sceneHoldsDecisionTag \? null : debtTagOnChart\}/g) ?? []).toHaveLength(1);
+    const mount = ROOM.indexOf("debtTagOnChart={sceneHoldsDecisionTag ? null : debtTagOnChart}");
     const permission = ROOM.indexOf("permissionOnChart={chartCanvasVM.oneStory.debt ?");
     // Beside the compiler's other reading on the same <MainChart>.
     expect(Math.abs(mount - permission)).toBeLessThan(900);

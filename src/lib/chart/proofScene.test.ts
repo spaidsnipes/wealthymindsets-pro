@@ -172,3 +172,19 @@ describe("a clean scene holds the market zones unless asked (Founder 2026-10-15)
     expect(proofSceneHoldsZones(parseProofScene("?scene=clean&select=zone"))).toBe(false);
   });
 });
+
+describe("a clean scene starts Exhaustion off (serving 746945f leak)", () => {
+  it("off unless on=exhaustion", () => {
+    expect(proofSceneValue(parseProofScene("?scene=clean&on=fp:delta"), "wm_exhaustion")).toBe(false);
+    expect(proofSceneValue(parseProofScene("?scene=clean&on=exhaustion"), "wm_exhaustion")).toBe(true);
+  });
+});
+
+describe("a clean scene holds the decision's WAIT tag unless asked", () => {
+  it("held in a clean scene, shown with on=decision, untouched on a normal chart", async () => {
+    const { proofSceneHoldsDecisionTag } = await import("./proofScene");
+    expect(proofSceneHoldsDecisionTag(parseProofScene("?scene=clean&on=fp:delta"))).toBe(true);
+    expect(proofSceneHoldsDecisionTag(parseProofScene("?scene=clean&on=decision"))).toBe(false);
+    expect(proofSceneHoldsDecisionTag(parseProofScene("?symbol=NQ1!"))).toBe(false);
+  });
+});

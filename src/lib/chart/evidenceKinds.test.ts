@@ -29,11 +29,20 @@ describe("plate 27 · wedges", () => {
       { time: 1, buy: 90, sell: 10, source: "BAR_SIDES" as const },
       { time: 2, buy: 52, sell: 48, source: "BAR_SIDES" as const },   // not a push
       { time: 3, buy: 5, sell: 95, source: "BAR_SIDES" as const },
-      { time: 4, buy: 30, sell: 20, source: "BAR_SIDES" as const },   // a push, but small against the peak
+      { time: 4, buy: 52, sell: 48, source: "BAR_SIDES" as const },   // not a push either
     ];
     const w = chooseWedges(flows);
     expect(w.map(x => [x.time, x.side])).toEqual([[1, "buy"], [3, "sell"]]);
     expect(w[1].strength).toBeCloseTo(1);
+  });
+  it("one outlier does not silence the rest: the strongest few by rank speak (serving f203fb2)", () => {
+    const flows = [
+      { time: 1, buy: 0, sell: 396, source: "BAR_SIDES" as const },
+      ...[2, 3, 4, 5, 6].map(t => ({ time: t, buy: 80, sell: 20, source: "BAR_SIDES" as const })),
+      { time: 7, buy: 21, sell: 20, source: "BAR_SIDES" as const },
+    ];
+    expect(chooseWedges(flows).length).toBe(3);   // budget for 7 bars
+    expect(chooseWedges(flows).map(w => w.time)).toContain(1);
   });
   it("an estimate never outranks a count", () => {
     const w = chooseWedges([
@@ -81,6 +90,7 @@ describe("plate 27 · shelves", () => {
   it("speaks in plain words", () => {
     expect(shelfWords({ side: "buyers", price: 100, tests: [0, 3, 6], holds: 3, volume: 1240, broken: false })).toBe("Buyers held 3× · 1,240 sold into them");
     expect(shelfWords({ side: "sellers", price: 110, tests: [1, 5], holds: 2, volume: null, broken: false })).toBe("Sellers held 2×");
+    expect(shelfWords({ side: "sellers", price: 110, tests: [1, 5], holds: 3, volume: null, broken: true })).toBe("Sellers held 3×, then broke");
   });
   it("tolerance is two ticks or 8% of the median range", () => {
     expect(shelfTolerance([{ high: 110, low: 100 }], 0.25)).toBeCloseTo(0.8);

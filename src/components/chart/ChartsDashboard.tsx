@@ -16,7 +16,7 @@ import { servedTimeframeFor } from "@/lib/marketData/chartBarRoute";
 import { weatherInspectReading as selectWeatherInspectReading } from "@/lib/chart/weatherLensDrag";
 import { readAppSettings, writeAppSettings } from "@/lib/settings/appSettingsStore";
 
-import { adoptProofSceneSearch, currentProofScene, parseProofScene, pickNewestClosedBar, pickProofSelectObject, proofSceneHoldsWrites, proofSceneHoldsZones, proofSceneValue, proofSelectReceipt, proofSelectObjectVerdict, type ProofSelectKind, proofVerifyOnly } from "@/lib/chart/proofScene";
+import { adoptProofSceneSearch, currentProofScene, parseProofScene, pickNewestClosedBar, pickProofSelectObject, proofSceneHoldsWrites, proofSceneHoldsDecisionTag, proofSceneHoldsZones, proofSceneValue, proofSelectReceipt, proofSelectObjectVerdict, type ProofSelectKind, proofVerifyOnly } from "@/lib/chart/proofScene";
 import { useSearchParams } from "next/navigation";
 import { listenForWatchlist } from "@/lib/os/watchlistDoor";
 import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
@@ -2180,7 +2180,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // A clean proof scene holds the zones and their pins unless asked (proofSceneHoldsZones).
   // Read after mount: the address is a browser fact, and the server render must match.
   const [sceneHoldsZones, setSceneHoldsZones] = React.useState(false);
-  React.useEffect(() => { setSceneHoldsZones(proofSceneHoldsZones()); }, [optionSearchParams]);
+  const [sceneHoldsDecisionTag, setSceneHoldsDecisionTag] = React.useState(false);
+  React.useEffect(() => { setSceneHoldsZones(proofSceneHoldsZones()); setSceneHoldsDecisionTag(proofSceneHoldsDecisionTag()); }, [optionSearchParams]);
   const chartMarketObjectTargets = React.useMemo(() => chartMarketObjects.flatMap(object => {
     const birth = chartBarIdentities.find(identity => identity.barId === object.birthBarId);
     return birth ? [{ object, birthTime: Math.floor(birth.asOf / 1000) }] : [];
@@ -7579,7 +7580,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                           warnLabels: chartCanvasVM.oneStory.debt.warnLabels,
                         },
                       } : null}
-                      debtTagOnChart={debtTagOnChart}
+                      debtTagOnChart={sceneHoldsDecisionTag ? null : debtTagOnChart}
                       scaffoldingDepthOnChart={scaffoldingDepth}
                       anatomyCardsOnChart={anatomyCardsOn}
                       memoryGhostOnChart={memoryGhostOn}

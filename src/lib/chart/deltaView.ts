@@ -8,6 +8,8 @@
  * selling, everywhere.
  */
 
+import { proofSceneHoldsWrites } from "./proofScene";
+
 export const DELTA_VIEWS = ["bars", "ribbon", "bubbles", "number", "heat"] as const;
 export type DeltaView = (typeof DELTA_VIEWS)[number];
 export const DELTA_VIEW_LABEL: Readonly<Record<DeltaView, string>> = {
@@ -20,12 +22,18 @@ export function parseDeltaView(raw: unknown): DeltaView {
   return (DELTA_VIEWS as readonly string[]).includes(String(raw)) ? (raw as DeltaView) : "bars";
 }
 
+/** The view picked while a proof scene holds writes: it changes the glass for this load, never the saved choice. */
+let sceneView: DeltaView | null = null;
+
 export function readDeltaView(): DeltaView {
+  if (sceneView && proofSceneHoldsWrites()) return sceneView;
   try { return parseDeltaView(typeof window === "undefined" ? null : window.localStorage.getItem(DELTA_VIEW_KEY)); } catch { return "bars"; }
 }
 
 export function writeDeltaView(v: DeltaView): void {
-  try { window.localStorage.setItem(DELTA_VIEW_KEY, v); } catch { /* private window: the view still changes this session */ }
+  // Proof scenes never write (serving 746945f: picking Ribbon in scene=clean saved it to the trader's device).
+  if (proofSceneHoldsWrites()) sceneView = v;
+  else { try { window.localStorage.setItem(DELTA_VIEW_KEY, v); } catch { /* private window: the view still changes this session */ } }
   try { window.dispatchEvent(new CustomEvent(DELTA_VIEW_EVENT, { detail: v })); } catch { /* no window */ }
 }
 

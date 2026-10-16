@@ -98,6 +98,7 @@ import { deriveBarOverBarChange, deriveLastBarClose } from "@/lib/marketData/der
 import { chartHeaderPriceFact } from "@/lib/marketData/chartHeaderPriceFact";
 import { requestTastyCandles, tastyStreamState } from "@/lib/broker/tastyQuoteStream";
 import { isQuoteSampleSeries, quoteSampleSentence } from "@/lib/marketData/quoteSampleSeries";
+import { IMBALANCE_ZONE_NAMES_MAX, imbalanceTestWords, imbalanceZoneFate, imbalanceZoneName, imbalanceZonesReceipt, type ImbalanceZone, type ImbalanceZoneState } from "@/lib/chart/imbalanceZones";
 import { barFlow, chooseWedges, estimatedRuns, evidenceReceipt, EVIDENCE_LEGEND, findShelves, shelfTolerance, shelfWords, wedgeWidth, type BarFlow, type EvidenceBar, type Shelf } from "@/lib/chart/evidenceKinds";
 import { MARKET_MONO, MARKET_NUMBER_MIN_PX, MARKET_SANS, crispText, footprintCellPx, marketFont } from "@/lib/chart/marketType";
 import { tastyCandleStreamerFor, tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
@@ -9714,6 +9715,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       try { if (effectiveFP === "imbalance") {
         let rowsTinted = 0, runsFound = 0, runWords = 0;
         const words: { word: string; buy: boolean; bx: number; yMid: number; yTop: number; yBot: number; cx: number }[] = [];
+        const zonesI: { z: ImbalanceZone; x0: number }[] = [];
         ctx.save();
         ctx.globalAlpha = att.alpha("footprint");
         visibleBars.forEach(c => {
@@ -9758,6 +9760,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.stroke();
             runsFound++;
             words.push({ word: imbalanceRunWord(run), buy, bx, yMid: (y0 + y1) / 2, yTop: yH, yBot: yH + fullH, cx });
+            // Plate 28: the run's price span, read back from the rows it painted.
+            const zHi = srs.coordinateToPrice(y0), zLo = srs.coordinateToPrice(y1);
+            if (zHi != null && zLo != null) zonesI.push({ z: { side: run.side, lo: Math.min(+zLo, +zHi), hi: Math.max(+zLo, +zHi), birth: Number(c.time) }, x0: x + colW + 4 });
           }
           forceChips.push({ x: x - 4, y: yH, w: colW + 8, h: fullH });
         });
@@ -9790,7 +9795,52 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           forceChips.push(spot);
           runWords++;
         }
+        /* PLATE 28 · a stacked run becomes a ZONE: from its column to the right until price comes back
+           (imbalanceZones.ts), then the test is marked there. The newest few are named on a card. */
+        const zoneStates: ImbalanceZoneState[] = [];
+        const zoneBarsI = barsRef.current ?? [];
+        const namedFromI = Math.max(0, zonesI.length - IMBALANCE_ZONE_NAMES_MAX);
+        ctx.font = "600 13px Inter, ui-sans-serif, system-ui, sans-serif";
+        zonesI.forEach((zi, k) => {
+          const fate = imbalanceZoneFate(zi.z, zoneBarsI as never);
+          zoneStates.push(fate.state);
+          const yTopZ = srs.priceToCoordinate(zi.z.hi), yBotZ = srs.priceToCoordinate(zi.z.lo);
+          if (yTopZ == null || yBotZ == null) return;
+          const xt = fate.testTime != null ? chart.timeScale().timeToCoordinate(fate.testTime as never) : null;
+          const x1 = Math.min(plotRight - 2, xt != null ? +xt : plotRight - 2);
+          if (x1 - zi.x0 < 4) return;
+          const ink = zi.z.side === "buy" ? buyRgba : sellRgba;
+          const yT = Math.round(+yTopZ), hZ = Math.max(3, Math.round(+yBotZ) - yT);
+          ctx.globalAlpha = att.alpha("footprint");
+          ctx.fillStyle = ink(fate.state === "BROKE" ? 0.08 : 0.16);
+          ctx.fillRect(zi.x0, yT, x1 - zi.x0, hZ);
+          ctx.fillStyle = ink(0.85);
+          ctx.fillRect(zi.x0, yT, x1 - zi.x0, 1);
+          ctx.fillRect(zi.x0, yT + hZ - 1, x1 - zi.x0, 1);
+          if (k < namedFromI) return;
+          const zCard = (words: string, xs: readonly number[], ys: readonly number[]) => {
+            const wC = Math.ceil(ctx.measureText(words).width) + 20, hC = 24;
+            const slots = xs.flatMap(x => ys.map(y => ({ x: Math.round(x), y: Math.round(y), w: wC, h: hC })))
+              .filter(r => r.x >= 2 && r.x + r.w <= plotRight - 2 && r.y >= HEADER_FLOOR_Y && r.y + r.h <= pane0Bottom - 4);
+            const r = slots.find(q => !chipHits(q));
+            if (!r) return;
+            ctx.globalAlpha = att.alpha("footprint");
+            ctx.fillStyle = "rgba(10,14,12,0.94)";
+            ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, 6); ctx.fill();
+            ctx.strokeStyle = ink(0.9); ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.roundRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1, 6); ctx.stroke();
+            onTop(r, "OPAQUE_CARD");
+            ctx.globalAlpha = att.textAlpha("footprint");
+            ctx.fillStyle = "#F3EBDD"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+            ctx.fillText(words, r.x + 10, r.y + r.h / 2 + 0.5);
+            forceChips.push(r);
+          };
+          zCard(imbalanceZoneName(zi.z, pxDp, fate.state), [zi.x0 + 8, zi.x0 + 40], [yT - 30, yT + hZ + 6]);
+          const testWords = imbalanceTestWords(fate.state);
+          if (testWords) zCard(testWords, [x1 - 60, x1 - 120, x1 + 4], [yT + hZ + 6, yT - 30]);
+        });
         ctx.restore();
+        canvas.dataset.imbalanceZones = imbalanceZonesReceipt(zoneStates);
         canvas.dataset.imbalanceRows = String(rowsTinted);
         canvas.dataset.imbalanceCellsSalience = `OUTLINE1|MIN_H${IMB_CELL_MIN_H}`;
         canvas.dataset.imbalanceRuns = String(runsFound);
@@ -9886,7 +9936,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           if (r - l < 8) continue;
           const yy = Math.round(+y) - 3;
           const g = ctx.createLinearGradient(0, yy, 0, yy + 6);
-          g.addColorStop(0, "rgba(236,204,120,0.96)"); g.addColorStop(1, "rgba(176,141,69,0.96)");
+          const shelfA = s.broken ? 0.5 : 0.96;
+          g.addColorStop(0, `rgba(236,204,120,${shelfA})`); g.addColorStop(1, `rgba(176,141,69,${shelfA})`);
           ctx.globalAlpha = att.alpha("bubbles");
           ctx.fillStyle = g; ctx.beginPath(); ctx.roundRect(l, yy, r - l, 6, 2); ctx.fill();
           forceChips.push({ x: l, y: yy, w: r - l, h: 6 });
@@ -9916,16 +9967,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         for (const sa of shelfAt) {
           const words = shelfWords(sa.s, fmtV);
           const wC = Math.ceil(ctx.measureText(words).width) + 20, hC = 24;
-          const below = sa.s.side === "buyers";
-          const cands = [
-            { x: sa.r + 6, y: sa.y - hC / 2 },
-            { x: sa.l - 6 - wC, y: sa.y - hC / 2 },
-            { x: sa.l, y: below ? sa.y + 8 : sa.y - 8 - hC },
-            { x: sa.r - wC, y: below ? sa.y + 8 : sa.y - 8 - hC },
-            { x: sa.l, y: below ? sa.y - 8 - hC : sa.y + 8 },
-          ].map(p => ({ x: Math.round(p.x), y: Math.round(p.y), w: wC, h: hC }))
+          // Beside its own end first, then above / below along the shelf, stepping away from the candles
+          // (serving f203fb2: every first-ring slot touched a candle and the card was laid on one).
+          const away = sa.s.side === "buyers" ? 1 : -1;
+          const xsC = [sa.r + 6, sa.l - 6 - wC, sa.l, sa.r - wC, (sa.l + sa.r) / 2 - wC / 2];
+          const dysC = [0, 8, 36, 64, 92].flatMap(d => (d === 0 ? [-hC / 2] : [away > 0 ? d : -d - hC, away > 0 ? -d - hC : d]));
+          const cands = dysC.flatMap(dy => xsC.map(x => ({ x: Math.round(x), y: Math.round(sa.y + dy), w: wC, h: hC })))
             .filter(r => r.x >= 2 && r.x + r.w <= plotRight - 2 && r.y >= topAP && r.y + r.h <= botAP - 2);
-          const pick = cands.find(r => !hitsAP(r, candleRectsAP) && !hitsAP(r, cardsAP)) ?? cands.find(r => !hitsAP(r, cardsAP));
+          const overlapAP = (r: { x: number; y: number; w: number; h: number }) => candleRectsAP.reduce((a, o) =>
+            a + Math.max(0, Math.min(r.x + r.w, o.x + o.w) - Math.max(r.x, o.x)) * Math.max(0, Math.min(r.y + r.h, o.y + o.h) - Math.max(r.y, o.y)), 0);
+          const free = cands.filter(r => !hitsAP(r, cardsAP));
+          const pick = free.find(r => !hitsAP(r, candleRectsAP)) ?? free.sort((a, b) => overlapAP(a) - overlapAP(b))[0];
           if (pick) cardAP(pick, words);
         }
         for (const e of estHeads) {

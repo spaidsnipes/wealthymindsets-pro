@@ -74,8 +74,10 @@ describe("no mode paints a card", () => {
     // Plate 27 (Founder 2026-10-15) names its shelves and its estimated run in words on a card
     // ("Buyers held 3× · 1,240 sold into them", "Estimated"). That one mode's cards are held below;
     // every other mode stays card-free.
+    // Plate 28 names a stacked-imbalance zone and its test on a card the same way — its one card helper.
     const ap = aggPassive();
-    const r = region().replace(ap, "");
+    const zoneCard = slice("const zCard = (words: string", "zCard(imbalanceZoneName(");
+    const r = region().replace(ap, "").replace(zoneCard, "");
     // Any spelling of a rounded chip (`roundRect(`, `roundRect?.(`, a helper
     // named for it) — measured: `\(`-only let `ctx.roundRect?.(` through.
     expect(r).not.toMatch(/roundRect|\brr\(/);
@@ -165,7 +167,8 @@ describe("Plate 27 · Aggressive, passive, estimated — three shapes, three kin
     const b = aggPassive();
     expect(b).toContain('onTop(r, "OPAQUE_CARD");');
     expect(b).toContain('const CARD_FONT_AP = "600 13px Inter, ui-sans-serif, system-ui, sans-serif";');
-    expect(b).toContain("const pick = cands.find(r => !hitsAP(r, candleRectsAP) && !hitsAP(r, cardsAP)) ?? cands.find(r => !hitsAP(r, cardsAP));");
+    // Off every candle when any slot is; else the slot that covers the least candle.
+    expect(b).toContain("const pick = free.find(r => !hitsAP(r, candleRectsAP)) ?? free.sort((a, b) => overlapAP(a) - overlapAP(b))[0];");
     expect((b.match(/roundRect\(/g) ?? []).length).toBe(4);
   });
 
@@ -231,5 +234,16 @@ describe("per-mode receipts speak only for this frame", () => {
     for (const k of FOOTPRINT_MODE_RECEIPTS) {
       expect(CODE, k).toMatch(new RegExp(`(canvas\\.dataset|dsFp)\\.${k}\\s*=(?!=)`));
     }
+  });
+});
+
+describe("Plate 28 · a stacked imbalance becomes a zone", () => {
+  it("each run is a zone from its column, its fate from the one owner, the newest named, declared opaque", () => {
+    const b = imbalance();
+    expect(b).toContain("zonesI.push({ z: { side: run.side, lo: Math.min(+zLo, +zHi), hi: Math.max(+zLo, +zHi), birth: Number(c.time) }, x0: x + colW + 4 });");
+    expect(b).toContain("const fate = imbalanceZoneFate(zi.z, zoneBarsI as never);");
+    expect(b).toContain("if (k < namedFromI) return;");
+    expect(b).toContain('onTop(r, "OPAQUE_CARD");');
+    expect(b).toContain("const r = slots.find(q => !chipHits(q));");
   });
 });

@@ -61,7 +61,7 @@ const DEFS: readonly { slug: string; title: string; duration: string; tools: rea
   { slug: "effort-response", title: "Effort → Response", duration: "6m", tools: [{ id: "EFFORT_RESPONSE", label: "Effort → Response" }, { id: "EFFORT_MARK", label: "Effort Mark" }] },
   { slug: "footprint", title: "Footprint", duration: "8m", tools: [
     { id: "FP_bid-ask", label: "Bid × Ask" }, { id: "FP_delta", label: "Delta Bubbles" }, { id: "FP_volume-profile", label: "Vol Profile" },
-    { id: "FP_imbalance", label: "Imbalance" }, { id: "FP_aggressive-passive", label: "Agg/Passive Proxy" }, { id: "FP_big-trades", label: "Big Trades" },
+    { id: "FP_imbalance", label: "Imbalance" }, { id: "FP_aggressive-passive", label: "Aggressive · Passive" }, { id: "FP_big-trades", label: "Big Trades" },
   ] },
 ];
 

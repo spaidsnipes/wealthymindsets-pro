@@ -58,8 +58,12 @@ export interface Wedge {
 
 /** A bar's net must be at least this share of its traded volume to count as a push. */
 export const WEDGE_MIN_SHARE = 0.25;
-/** …and at least this share of the strongest push on camera. */
-export const WEDGE_MIN_OF_PEAK = 0.4;
+/**
+ * …and at least this share of the strongest push on camera. 0.4 → 0.15 (serving f203fb2, NQ1! 5m,
+ * 60 bars): one bar at −396 against a field of ±50 left ONE wedge on the glass; the plate shows the
+ * strongest several. The budget below, by rank, keeps it to the few that matter.
+ */
+export const WEDGE_MIN_OF_PEAK = 0.15;
 
 /** How many wedges may speak for `n` bars on camera: about one in six, 3..8. */
 export function wedgeBudget(n: number): number {
@@ -164,7 +168,8 @@ export function findShelves(
 export function shelfWords(s: Shelf, fmtVolume: (v: number) => string = v => Math.round(v).toLocaleString("en-US")): string {
   const who = s.side === "buyers" ? "Buyers" : "Sellers";
   const into = s.volume != null ? ` · ${fmtVolume(s.volume)} ${s.side === "buyers" ? "sold" : "bought"} into them` : "";
-  return `${who} held ${s.holds}×${into}`;
+  // A shelf price later closed through still held those tests — and the words say it did not last.
+  return `${who} held ${s.holds}×${into}${s.broken ? ", then broke" : ""}`;
 }
 
 /* ── ESTIMATED RUNS ─────────────────────────────────────────────────────── */

@@ -853,4 +853,6 @@ export const FOOTPRINT_MODE_RECEIPTS = [
   // Plate 27 (2026-10-15): the wedges / shelves / estimated runs, and the legend kinds on the glass.
   "evidenceKinds",
   "evidenceLegend",
+  // Plate 28 (2026-10-15): the stacked-imbalance zones and their fates.
+  "imbalanceZones",
 ] as const;

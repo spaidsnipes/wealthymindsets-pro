@@ -498,7 +498,8 @@ export const FOOTPRINT_TYPES: { id: FootprintType; label: string; desc: string }
   { id: "delta",              label: "Delta",         desc: "Net buying minus selling for every candle — pick the look in its gear: Bars, Ribbon, Bubbles, Number on candle or Heat strip. Green = net buying, red = net selling" },
   { id: "volume-profile",     label: "Vol Profile",   desc: "Volume-at-price horizontal bars per candle" },
   { id: "imbalance",          label: "Imbalance",     desc: "Highlight cells where one side traded more than 2.5× the other — the ratio only, no positioning is read" },
-  { id: "aggressive-passive", label: "Agg/Passive Proxy", desc: "Aggressor side is observed from tape; passive roles are location-based inferences, not resting-order observations" },
+  // Plate 27 (2026-10-15): three shapes — wedges where market orders pushed, gold shelves at prices that held, hatched where estimated.
+  { id: "aggressive-passive", label: "Aggressive · Passive", desc: "Wedges where market orders pushed (each bar's counted buy vs sell); gold shelves at prices tested and held; hatched bars are estimated from the close, and say so" },
   { id: "big-trades",         label: "Big Trades",       desc: "Large observed trade prints on candles — no claim about participant identity or intent" },
 ];
 
