@@ -596,3 +596,17 @@ describe("the trader's opacity dials (Founder order §5, 2026-10-09)", () => {
     expect(USER_OPACITY_FAMILY.memoryGhost).toBe("MEMORY");
   });
 });
+
+describe("ON MEANS SEEN (Founder 2026-10-16: \"everything is so vague … penciled in\")", () => {
+  it("with the desk's flag, a switched-on layer never paints under its standing's floor; the order holds", async () => {
+    const { ON_MEANS_SEEN_FLOOR } = await import("./selectAttentionGovernor");
+    const light = selectRegimeLighting({ verdict: "BALANCE" });
+    const on = selectAttentionGovernor(input({ regimeLight: light, onMeansSeen: true }));
+    const off = selectAttentionGovernor(input({ regimeLight: light }));
+    expect(on.alpha("valueMigration")).toBeGreaterThanOrEqual(ON_MEANS_SEEN_FLOOR.MEMORY!);
+    expect(on.alpha("expectedEnvelope")).toBeGreaterThanOrEqual(ON_MEANS_SEEN_FLOOR.SUPPORTING!);
+    expect(on.alpha("compositeProfile")).toBeGreaterThanOrEqual(ON_MEANS_SEEN_FLOOR.LIVE!);
+    expect(on.alpha("compositeProfile")).toBeGreaterThanOrEqual(on.alpha("valueMigration"));
+    expect(off.alpha("valueMigration")).toBeLessThan(ON_MEANS_SEEN_FLOOR.MEMORY!);
+  });
+});

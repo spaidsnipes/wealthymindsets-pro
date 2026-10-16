@@ -8792,6 +8792,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         selection: attSelection,
         posture: roomPostureRef.current,
         roles: rolesByLayerRef.current,
+        // ON MEANS SEEN (Founder 2026-10-16: "everything is so vague … penciled in").
+        onMeansSeen: true,
       });
       canvas.dataset.attentionSelection = att.selectionReceipt;
       // ACTIVATION SPOTLIGHT (master order §LXIV: "manifestation gets a brief

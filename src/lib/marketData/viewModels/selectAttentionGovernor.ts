@@ -108,6 +108,15 @@ export const TIER_CEILING: Readonly<Record<AttentionTier, number>> = {
 /** Dim, never delete (F27): no governed layer goes below this. */
 export const ATTENTION_FLOOR = 0.12;
 
+/**
+ * ON MEANS SEEN (Founder 2026-10-16, live walk-through: "everything is so vague … penciled in … scribbled in";
+ * measured on serving: valueMigration 0.35, memoryGhost 0.35, regime fixtures 0.4, composite / envelope / MTF
+ * 0.6 — then each painter's own stroke alpha on top). A layer the trader switched on paints at no less than its
+ * standing's floor; the tiers keep their order (present > context > memory). Only the trader can take it lower:
+ * his opacity dial, a Focus / Hide role, or a selection he is inspecting.
+ */
+export const ON_MEANS_SEEN_FLOOR: Readonly<Partial<Record<AttentionTier, number>>> = { LIVE: 0.85, SUPPORTING: 0.8, MEMORY: 0.75 };
+
 /** The families a trader can dial. */
 export type UserOpacityFamily = "PROFILES" | "WALLS" | "MEMORY";
 export const USER_OPACITY_FAMILY: Readonly<Partial<Record<AttentionLayerKey, UserOpacityFamily>>> = {
@@ -310,6 +319,8 @@ export interface AttentionGovernorInput {
    * chrome and the selection keep their strength.
    */
   readonly posture?: "QUIET" | null;
+  /** The desk chart's ON MEANS SEEN floor (ON_MEANS_SEEN_FLOOR); absent → the room's dimmers alone. */
+  readonly onMeansSeen?: boolean;
   /**
    * The regime breaker's lights, or null when switched off (every light 1).
    * `fixtures` lights the regime's own fixtures; absent, they take the
@@ -491,6 +502,13 @@ export function selectAttentionGovernor(
       // P2-E: context under the present's load (a PRIMARY role is the trader's lead — exempt).
       const share = LOAD_SHARE[spec.tier];
       if (share != null && role !== "PRIMARY" && role !== "LATENT") a = Math.max(ATTENTION_FLOOR, Math.min(a, liveLoadRef * share));
+      // ON MEANS SEEN, last of the room's dimmers: not while he inspects a selection, a lead is set, or a role
+      // quiets / hides the layer; a stale feed still steps it back.
+      const seen = ON_MEANS_SEEN_FLOOR[tier];
+      if (input.onMeansSeen === true && seen != null && !receding && !hasPrimary && role !== "AMBIENT" && role !== "LATENT"
+        && input.narrowGlass !== true && layerQuiet >= 1 && quietCap >= 1) {
+        a = Math.max(a, seen * staleDim);
+      }
     }
     // The trader's dial, last: multiplies, never past the tier's ceiling, never
     // under the readable floor. The selected item and CHROME are not dialled.
