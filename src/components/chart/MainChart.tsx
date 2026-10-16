@@ -28754,10 +28754,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     };
     // Plate 33: a trade line's own label — right-aligned to the line's end, centred on its price, 14px
     // ivory on a solid pill rimmed in the line's colour, declared opaque so the word gate never holds it.
+    // Serving ee23a28 click-through: right-aligned to the box's end, the labels reached back over the candles
+    // and under the drag handles. They start just past the line's end; only a box at the plot's right edge
+    // folds them back inside.
     const lineChip = (txt: string, xEnd: number, y: number, colr: string) => {
       ctx.setLineDash([]); ctx.font = `600 14px ${MARKET_SANS}`;
       const w = Math.ceil(ctx.measureText(txt).width) + 16, h = 22;
-      const x = Math.max(4, xEnd - w);
+      const x = xEnd + 10 + w <= W - 70 ? xEnd + 10 : Math.max(4, xEnd - w - 10);
       ctx.fillStyle = "rgba(10,12,16,0.94)"; roundRect(x, y - h / 2, w, h, 5); ctx.fill();
       ctx.strokeStyle = colr; ctx.lineWidth = 1; roundRect(x + 0.5, y - h / 2 + 0.5, w - 1, h - 1, 5); ctx.stroke();
       ctx.fillStyle = "#F3EBDD"; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(txt, x + 8, y + 0.5);
