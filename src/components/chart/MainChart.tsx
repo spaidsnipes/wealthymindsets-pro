@@ -19464,7 +19464,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.rect(r.x - 2, r.y - 2, r.w + 4, r.h + 4);
                 ctx.clip("evenodd");
               }
-              const GOLD = (a: number) => `rgba(201,165,92,${a})`;
+              // Codex plate 04 · 5 "Expected Envelope" beside serving NQ1! 15m (2026-10-16): the fan read as five
+              // faint dotted gold lines over a 7% wash — "present", not seen. It is the plate's volatility fan now:
+              // steel-blue mass (outer 0.16, inner 0.24), solid crisp outer edges, a clear dashed median.
+              const GOLD = (a: number) => `rgba(86,150,226,${a})`;
               // F03: where the fan opens before NOW it fades in over its first
               // few columns (the plate's fan has no wall at its start).
               const fanInk = (a: number): string | CanvasGradient => {
@@ -19490,8 +19493,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.fillStyle = fanInk(a);
                 ctx.fill();
               };
-              band("y10", "y90", 0.07);
-              band("y25", "y75", 0.08);
+              band("y10", "y90", 0.16);
+              band("y25", "y75", 0.24);
               const edge = (key: "y10" | "y25" | "y50" | "y75" | "y90", dash: number[], a: number, lw: number) => {
                 ctx.setLineDash(dash);
                 ctx.strokeStyle = fanInk(a);
@@ -19500,11 +19503,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 trace(cols.map(c => ({ x: c.x, y: c[key] })), false);
                 ctx.stroke();
               };
-              edge("y90", [5, 4], 0.85, 1.2);
-              edge("y10", [5, 4], 0.85, 1.2);
-              edge("y75", [3, 4], 0.55, 1);
-              edge("y25", [3, 4], 0.55, 1);
-              edge("y50", [2, 4], 0.6, 1);
+              edge("y90", [], 0.95, 1.6);
+              edge("y10", [], 0.95, 1.6);
+              edge("y75", [3, 4], 0.6, 1);
+              edge("y25", [3, 4], 0.6, 1);
+              edge("y50", [7, 4], 0.9, 1.4);
               ctx.setLineDash([]);
               ctx.lineWidth = 1;
               ctx.restore();
