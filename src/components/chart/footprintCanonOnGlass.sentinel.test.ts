@@ -71,7 +71,11 @@ describe("every footprint pixel's loudness comes from the attention governor", (
 
 describe("no mode paints a card", () => {
   it("no rounded chip, pill, 2×2 grid or private ratio word survives in any mode", () => {
-    const r = region();
+    // Plate 27 (Founder 2026-10-15) names its shelves and its estimated run in words on a card
+    // ("Buyers held 3× · 1,240 sold into them", "Estimated"). That one mode's cards are held below;
+    // every other mode stays card-free.
+    const ap = aggPassive();
+    const r = region().replace(ap, "");
     // Any spelling of a rounded chip (`roundRect(`, `roundRect?.(`, a helper
     // named for it) — measured: `\(`-only let `ctx.roundRect?.(` through.
     expect(r).not.toMatch(/roundRect|\brr\(/);
@@ -108,7 +112,8 @@ describe("Plate 24 (2026-10-15, supersedes M46's one-cell text) · Bid × Ask is
 describe("one bar, one delta, one owner", () => {
   it("the column's delta and the NEAR volume-band row read the same function and say it the same way", () => {
     // Plate 25 (2026-10-15): the Delta band is the third reader of the same owner — same numbers in every view.
-    expect(CODE.match(/barTapeDelta\(getBarSubProfile\(c\)\)/g) ?? []).toHaveLength(3);
+    // Plate 27 (2026-10-15): the Aggressive/Passive wedges are the fourth.
+    expect(CODE.match(/barTapeDelta\(getBarSubProfile\(c\)\)/g) ?? []).toHaveLength(4);
     expect(bidAsk()).toContain("const text = signedFlowText(bd.delta, fmtV);");
     expect(slice("const depthD = semanticDensity.depth;", "canvas.dataset.nearBarDelta =")).toContain("const text = signedFlowText(dlt, fmtV);");
   });
@@ -145,15 +150,29 @@ describe("Volume Profile and Imbalance draw with their owners", () => {
   });
 });
 
-describe("the Nectar trail rings sit on real prices and are obstacles", () => {
-  it("Agg/Passive: one ring per zone from the zone owner, sized by the bubble owner against the frame's peak", () => {
+describe("Plate 27 · Aggressive, passive, estimated — three shapes, three kinds of evidence", () => {
+  it("wedges come from each bar's own buy vs sell (the one delta owner, else the bar's sides); shelves from prices that held", () => {
     const b = aggPassive();
-    expect(b).toContain("const zones = getDeltaBubbleLevels(c);");
-    expect(b).toContain("const ring = aggPassiveRing(z.priceLevel, c.low, c.high, z.bid, z.ask);");
-    expect(b).toContain("const apPeak = bubbleFramePeak(ringsAP.map(r => r.volume));");
-    expect(b).toContain("const rad = deltaBubbleRadius(r.volume, apPeak);");
-    expect(b).toContain("const lbl = r.price.toFixed(pxDp);");
-    expect(b).toContain("forceChips.push({ x: r.x - rad - 2, y: r.y - rad - 2, w: 2 * rad + 4, h: 2 * rad + 4 });");
+    expect(b).toContain("const bdAP = barTapeDelta(getBarSubProfile(c));");
+    expect(b).toContain("const wedgesAP = chooseWedges(flowsAP.filter((f): f is BarFlow => f != null));");
+    expect(b).toContain("const shelvesAP = findShelves(evBars, tolAP,");
+    expect(b).toContain("const runsAP = estimatedRuns(flowsAP, evBars.map(b => b.time));");
+    // No rings and no price printed inside a shape (serving 746945f: 17 rings, a price in each).
+    expect(b).not.toMatch(/ctx\.arc\(|aggPassiveRing\(|toFixed\(pxDp\)/);
+  });
+
+  it("its only cards are the evidence words: declared opaque, 13px, never on a candle when a clear spot exists", () => {
+    const b = aggPassive();
+    expect(b).toContain('onTop(r, "OPAQUE_CARD");');
+    expect(b).toContain('const CARD_FONT_AP = "600 13px Inter, ui-sans-serif, system-ui, sans-serif";');
+    expect(b).toContain("const pick = cands.find(r => !hitsAP(r, candleRectsAP) && !hitsAP(r, cardsAP)) ?? cands.find(r => !hitsAP(r, cardsAP));");
+    expect((b.match(/roundRect\(/g) ?? []).length).toBe(4);
+  });
+
+  it("every wedge and shelf is an obstacle for the words that paint after it", () => {
+    const b = aggPassive();
+    expect(b).toContain("forceChips.push(wr); candleRectsAP.push(wr);");
+    expect(b).toContain("forceChips.push({ x: l, y: yy, w: r - l, h: 6 });");
   });
 
   it("Delta Bubbles register every disc that is on the plot", () => {

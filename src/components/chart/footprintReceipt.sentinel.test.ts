@@ -35,7 +35,7 @@ describe("footprint receipt", () => {
 
   it("the ring modes count the bars and rings that reached the glass, and say which form painted", () => {
     expect(CHART).toContain("fpTrailBars.add(b.anchorBarTime);");
-    expect(CHART).toContain("fpTrailBars.add(r.bar);");
+    expect(CHART).toContain("fpTrailBars.add(w.time);");
     expect(CHART).toContain("const fpBars = fpBarsPainted + fpTrailBars.size;");
     expect(CHART).toContain("dsFp.footprintForm = FOOTPRINT_FORM[effectiveFP];");
     expect(CHART).toContain("if (fpRings > 0) dsFp.footprintRings = String(fpRings);");

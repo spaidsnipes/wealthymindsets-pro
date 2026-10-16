@@ -16,7 +16,7 @@ import { servedTimeframeFor } from "@/lib/marketData/chartBarRoute";
 import { weatherInspectReading as selectWeatherInspectReading } from "@/lib/chart/weatherLensDrag";
 import { readAppSettings, writeAppSettings } from "@/lib/settings/appSettingsStore";
 
-import { adoptProofSceneSearch, currentProofScene, parseProofScene, pickNewestClosedBar, pickProofSelectObject, proofSceneHoldsWrites, proofSceneValue, proofSelectReceipt, proofSelectObjectVerdict, type ProofSelectKind, proofVerifyOnly } from "@/lib/chart/proofScene";
+import { adoptProofSceneSearch, currentProofScene, parseProofScene, pickNewestClosedBar, pickProofSelectObject, proofSceneHoldsWrites, proofSceneHoldsZones, proofSceneValue, proofSelectReceipt, proofSelectObjectVerdict, type ProofSelectKind, proofVerifyOnly } from "@/lib/chart/proofScene";
 import { useSearchParams } from "next/navigation";
 import { listenForWatchlist } from "@/lib/os/watchlistDoor";
 import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
@@ -374,6 +374,9 @@ import { useSymbolOwnedState } from "@/lib/marketData/useSymbolOwnedState";
 /** Stable empties for the symbol-owned bar state (a fresh [] per render would re-run every chartBars memo). */
 const NO_LIVE_BARS: LegacyOhlcvTuple[] = [];
 const NO_LIVE_BAR_IDENTITIES: readonly CanonicalBarIdentity[] = [];
+/** What a clean proof scene hands the chart in place of zones / object pins (stable identities). */
+const NO_SCENE_OBJECTS: readonly never[] = [];
+const NO_SCENE_ZONES: readonly never[] = [];
 import { SCAFFOLDING_DEPTHS, type ScaffoldingDepth } from "@/lib/marketData/viewModels/selectScaffoldingRead";
 import selectStructureZoneObjects from "@/lib/marketData/viewModels/selectStructureZoneObjects";
 import { selectLiquidityLifecycle } from "@/lib/marketData/viewModels/selectLiquidityLifecycle";
@@ -2174,6 +2177,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     // Memory layer is on: pins for a layer the trader switched off are noise.
     ...(profileMemoryOn ? selectMemoryMarketObjects({ memory: profileMemoryVM, identities: chartBarIdentities }) : []),
   ], [chartStructureVM, chartBars, chartBarIdentities, chartStructureZones, profileMemoryOn, profileMemoryVM]);
+  // A clean proof scene holds the zones and their pins unless asked (proofSceneHoldsZones).
+  // Read after mount: the address is a browser fact, and the server render must match.
+  const [sceneHoldsZones, setSceneHoldsZones] = React.useState(false);
+  React.useEffect(() => { setSceneHoldsZones(proofSceneHoldsZones()); }, [optionSearchParams]);
   const chartMarketObjectTargets = React.useMemo(() => chartMarketObjects.flatMap(object => {
     const birth = chartBarIdentities.find(identity => identity.barId === object.birthBarId);
     return birth ? [{ object, birthTime: Math.floor(birth.asOf / 1000) }] : [];
@@ -7420,7 +7427,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       onSelectAnatomy={pick => actOnChartSelection({ type: "select", selection: { kind: "ANATOMY", symbol, timeframe, ...pick, lastDrawn: null } })}
                       onAnatomyReading={reading => actOnChartSelection({ type: "resolveAnatomy", reading })}
                       selectedAnatomy={activeSelectedAnatomy}
-                      marketObjectTargets={chartMarketObjectTargets}
+                      marketObjectTargets={sceneHoldsZones ? NO_SCENE_OBJECTS : chartMarketObjectTargets}
                       selectedMarketObjectId={selectedMarketObjectId}
                       activeDecisionId={currentSceneDecision?.decisionId ?? null}
                       auctionVerdict={auctionStateVM?.verdict ?? null}
@@ -7437,7 +7444,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         actOnChartSelection({ type: "clear" });
                         actOnChartSelection({ type: "openInspect" });
                       }}
-                      structureZones={chartStructureZones}
+                      structureZones={sceneHoldsZones ? NO_SCENE_ZONES : chartStructureZones}
                       selectedMarketObjectWait={selectedMarketObjectWait}
                       marketStanding={marketStanding}
                       drawingTool={drawingTool}

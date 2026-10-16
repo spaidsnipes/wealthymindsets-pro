@@ -830,7 +830,7 @@ export const FOOTPRINT_FORM = {
   delta: "TRAIL",
   "volume-profile": "HISTOGRAM",
   imbalance: "TINT",
-  "aggressive-passive": "TRAIL",
+  "aggressive-passive": "SHAPES",
   "big-trades": "BUBBLES",
 } as const satisfies Record<string, string>;
 
@@ -850,6 +850,7 @@ export const FOOTPRINT_MODE_RECEIPTS = [
   "imbalanceRows",
   "imbalanceRuns",
   "imbalanceRunWords",
-  "aggPassiveRings",
-  "aggPassiveIntoExtreme",
+  // Plate 27 (2026-10-15): the wedges / shelves / estimated runs, and the legend kinds on the glass.
+  "evidenceKinds",
+  "evidenceLegend",
 ] as const;

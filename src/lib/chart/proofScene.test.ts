@@ -161,3 +161,14 @@ describe("WALLS & GAMMA in a proof scene (2026-10-10)", () => {
     expect(proofSceneValue(parseProofScene("?scene=verify"), WALLS_GAMMA_SCENE_KEY)).toBeUndefined();
   });
 });
+
+describe("a clean scene holds the market zones unless asked (Founder 2026-10-15)", () => {
+  it("holds them in a clean scene, shows them with on=zones, never touches a normal chart", async () => {
+    const { proofSceneHoldsZones } = await import("./proofScene");
+    expect(proofSceneHoldsZones(parseProofScene("?scene=clean&on=fp:aggressive-passive"))).toBe(true);
+    expect(proofSceneHoldsZones(parseProofScene("?scene=clean&on=zones"))).toBe(false);
+    expect(proofSceneHoldsZones(parseProofScene("?symbol=NQ1!"))).toBe(false);
+    expect(proofSceneHoldsZones(parseProofScene("?bars=40"))).toBe(false);
+    expect(proofSceneHoldsZones(parseProofScene("?scene=clean&select=zone"))).toBe(false);
+  });
+});

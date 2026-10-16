@@ -15,6 +15,7 @@
  *   on=…          switches turned ON for this load. Tokens:
  *                   <Name>        → wm_of<Name>      (LivingProfile, TpoProfile, …)
  *                   sessionVP | fixedVP | absorptionAnatomy | sessionBands | effortResponse | deltaKeel | wisdomLine | rvolTone
+ *                   zones         → market zones + their object pins (held in a clean scene otherwise)
  *                   fvg           → wm_fvg (FVG / Imbalance territory, FVG_3C v1; Garden 19 lane D, 2026-10-07)
  *                   wg:<PART>     → one Walls & Gamma switch for this load (CALL_WALL, PUT_WALL,
  *                                   GAMMA_HEATMAP, GAMMA_POSITIVE, GAMMA_NEGATIVE, GAMMA_FLIP,
@@ -173,6 +174,20 @@ const NON_BOOLEAN_OF_KEYS = new Set([SCAFFOLDING_KEY, "wm_ofStackPrefs", "wm_ofM
 export const WALLS_GAMMA_SCENE_KEY = "wm_wallsGamma";
 const PLAIN_TOGGLES = new Set(["sessionVP", "fixedVP", "absorptionAnatomy", "sessionBands", "effortResponse", "deltaKeel", "wisdomLine", "rvolTone", "fvg", "breathRibbon", "cvdNotch"]);
 
+/** Scene-only marker (never a stored key): `on=zones` lets a clean scene show the market zones. */
+export const SCENE_ZONES_KEY = "wm_sceneZones";
+
+/**
+ * A clean scene shows ONE invention (Founder 2026-10-15: "no more building with every tool
+ * clicked on"). Serving 746945f, `scene=clean&on=fp:aggressive-passive`: the structure zones,
+ * their sentences, their gold pins and the selected zone's WAIT plaque still painted — they
+ * have no layer switch to clear. They are held unless the URL says `on=zones`.
+ */
+export function proofSceneHoldsZones(scene: ProofScene = currentProofScene()): boolean {
+  // select=zone / select=level IS asking for a market object: its pins stay.
+  return scene.clean && scene.overrides[SCENE_ZONES_KEY] !== true && scene.select !== "zone" && scene.select !== "level";
+}
+
 export interface ProofScene {
   readonly active: boolean;
   readonly clean: boolean;
@@ -234,6 +249,10 @@ export function parseProofScene(search: string): ProofScene {
       const part = token.slice(3).toUpperCase();
       const cur = (overrides[WALLS_GAMMA_SCENE_KEY] as Record<string, boolean> | undefined) ?? {};
       overrides[WALLS_GAMMA_SCENE_KEY] = { ...cur, [part]: true };
+    } else if (token === "zones") {
+      // Market zones and their object pins have no layer switch (they speak at MID depth).
+      // A clean scene holds them unless the URL asks: on=zones (Founder 2026-10-15, "one at a time").
+      overrides[SCENE_ZONES_KEY] = true;
     } else if (PLAIN_TOGGLES.has(token)) {
       overrides[`wm_${token}`] = true;
     } else if (/^[A-Z][A-Za-z]+$/.test(token)) {

@@ -98,6 +98,7 @@ import { deriveBarOverBarChange, deriveLastBarClose } from "@/lib/marketData/der
 import { chartHeaderPriceFact } from "@/lib/marketData/chartHeaderPriceFact";
 import { requestTastyCandles, tastyStreamState } from "@/lib/broker/tastyQuoteStream";
 import { isQuoteSampleSeries, quoteSampleSentence } from "@/lib/marketData/quoteSampleSeries";
+import { barFlow, chooseWedges, estimatedRuns, evidenceReceipt, EVIDENCE_LEGEND, findShelves, shelfTolerance, shelfWords, wedgeWidth, type BarFlow, type EvidenceBar, type Shelf } from "@/lib/chart/evidenceKinds";
 import { MARKET_MONO, MARKET_NUMBER_MIN_PX, MARKET_SANS, crispText, footprintCellPx, marketFont } from "@/lib/chart/marketType";
 import { tastyCandleStreamerFor, tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
 import { fetchTastyTimeAndSales } from "@/lib/broker/tastyHistory";
@@ -648,7 +649,6 @@ import {
   BIG_TRADE_BREATH,
   FOOTPRINT_FORM,
   FOOTPRINT_MODE_RECEIPTS,
-  aggPassiveRing,
   barTapeDelta,
   bigTradeCalloutLines,
   bigTradeCalloutSlots,
@@ -9799,86 +9799,178 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
 
       paintLap(9627);
       /* ══════════════════════════════════════════════════════
-         MODE 5: AGG / PASSIVE PROXY — the Nectar trail.
-         One ring per price zone (the delta-zone owner's zones, each at its
-         heaviest REAL tick) for the side that initiated more there, in
-         Appearance's aggressor inks, area ∝ that side's volume against the
-         frame's peak (bubbleDrawGeometry). SOLID = it traded inside the
-         bar; DASHED = it traded into the bar's own extreme fifth (buys into
-         the high, sells into the low) — location only, never a claim about
-         who defended (Garden 12). The zone's price is written inside.
-         No pills, no 2×2 grid, no cells: aggressor rings on price.
+         MODE 5: PLATE 27 · AGGRESSIVE, PASSIVE, ESTIMATED (Founder 2026-10-15).
+         "Different evidence gets a different shape." Serving 746945f painted 17
+         tinted rings on the 3 newest bars with a price inside each — a third
+         bubble type nobody could read. Now three shapes from evidenceKinds.ts:
+         WEDGE  ▲ under the low / ▼ over the high where market orders pushed
+                (the bar's own buy vs sell: held tape, else the provider's bar
+                bid / ask), only the strongest few;
+         SHELF  a gold shelf at a price tested and held ≥2×, named in plain words
+                ("Buyers held 3× · 1,240 sold into them" — the count only when
+                the held tape reaches every test);
+         HATCH  bars with no counted split, estimated from the close, say
+                "Estimated". One legend line names only the kinds on the glass.
       ══════════════════════════════════════════════════════ */
       try { if (effectiveFP === "aggressive-passive") {
-        const ringsAP: { x: number; y: number; side: "buy" | "sell"; volume: number; dashed: boolean; price: number; bar: number }[] = [];
-        visibleBars.forEach(c => {
-          const rawCx = chart.timeScale().timeToCoordinate(c.time as any);
-          if (rawCx == null || rawCx < -colW || rawCx > W + colW) return;
-          const zones = getDeltaBubbleLevels(c);
-          const n = zones.length;
-          zones.forEach((z, i) => {
-            const ring = aggPassiveRing(z.priceLevel, c.low, c.high, z.bid, z.ask);
-            const yz = srs.priceToCoordinate(z.priceLevel);
-            if (!ring || yz == null) return;
-            // Siblings fan across the bar's own slot, never into a neighbour's.
-            const offX = n > 1 ? (i - (n - 1) / 2) * Math.min(18, (bsp * 0.9) / n) : 0;
-            ringsAP.push({ x: +rawCx + offX, y: +yz, side: ring.side, volume: ring.volume, dashed: ring.role !== "AGGRESSIVE", price: z.priceLevel, bar: Number(c.time) });
+        const tsAP = chart.timeScale();
+        const xOfAP = (t: number) => { const x = tsAP.timeToCoordinate(t as never); return x == null ? null : +x; };
+        const evBars: EvidenceBar[] = [];
+        for (const c of visibleBars) {
+          const xc = xOfAP(Number(c.time));
+          if (xc == null || xc < -bsp || xc > plotRight + bsp) continue;
+          const bdAP = barTapeDelta(getBarSubProfile(c));
+          const sidesAP = bdAP ? null : candleSidedRef.current.get(Number(c.time)) ?? null;
+          evBars.push({
+            time: Number(c.time), high: c.high, low: c.low, close: c.close, volume: c.volume ?? 0,
+            counted: bdAP ? { buy: bdAP.buy, sell: bdAP.sell, source: "TAPE" } : sidesAP ? { buy: sidesAP.buy, sell: sidesAP.sell, source: "BAR_SIDES" } : null,
           });
+        }
+        const flowsAP = evBars.map(barFlow);
+        const wedgesAP = chooseWedges(flowsAP.filter((f): f is BarFlow => f != null));
+        const tolAP = shelfTolerance(evBars, instrumentTickFor(symbol, evBars[evBars.length - 1]?.close ?? null) ?? 0);
+        const shelvesAP = findShelves(evBars, tolAP, (t, lo, hi, side) => {
+          const accAP = tickAccRef.current.get(t as never);
+          if (!accAP || accAP.size === 0) return null;
+          let v = 0;
+          for (const [px, rt] of accAP) if (px >= lo && px <= hi) v += side === "buyers" ? rt.bid : rt.ask;
+          return v;
         });
-        const apPeak = bubbleFramePeak(ringsAP.map(r => r.volume));
-        let apDrawn = 0, apInto = 0;
-        ctx.save();
-        for (const r of ringsAP) {
-          if (r.x < -40 || r.x > plotRight + 40) continue;
-          const rad = deltaBubbleRadius(r.volume, apPeak);
-          const core = r.side === "buy" ? flowColorsRef.current.btBuy : flowColorsRef.current.btSell;
+        const runsAP = estimatedRuns(flowsAP, evBars.map(b => b.time));
+        const barAP = new Map(evBars.map(b => [b.time, b]));
+        const topAP = HEADER_FLOOR_Y, botAP = pane0Bottom;
+        // Every candle on camera is an obstacle for a word card.
+        const candleRectsAP = evBars.flatMap(b => {
+          const x = xOfAP(b.time), yh = srs.priceToCoordinate(b.high), yl = srs.priceToCoordinate(b.low);
+          return x == null || yh == null || yl == null ? [] : [{ x: x - Math.max(3, bsp * 0.45), y: +yh - 2, w: Math.max(6, bsp * 0.9), h: +yl - +yh + 4 }];
+        });
+        const hitsAP = (r: { x: number; y: number; w: number; h: number }, list: readonly { x: number; y: number; w: number; h: number }[]) =>
+          list.some(o => r.x < o.x + o.w && r.x + r.w > o.x && r.y < o.y + o.h && r.y + r.h > o.y);
+        const cardsAP: { x: number; y: number; w: number; h: number }[] = [];
+        const CARD_FONT_AP = "600 13px Inter, ui-sans-serif, system-ui, sans-serif";
+        const cardAP = (r: { x: number; y: number; w: number; h: number }, words: string) => {
           ctx.globalAlpha = att.alpha("bubbles");
-          // ATH GLASS + HIERARCHY (2026-10-04, serving BTC 5m): clear 10 % cores
-          // stacked into a tangle of rings with prices printed over each other.
-          // Now the delta bubbles' standard — a lit, side-tinted body; zones
-          // under 12 % of the frame's peak are quiet beads; the price prints
-          // only where it fits inside its own ring.
-          const apQuiet = apPeak > 0 && r.volume / apPeak < 0.12;
-          if (apQuiet) ctx.globalAlpha *= 0.55;
-          const apGlass = ctx.createRadialGradient(r.x - rad * 0.3, r.y - rad * 0.34, rad * 0.05, r.x, r.y, rad);
-          apGlass.addColorStop(0, `rgba(${core},${apQuiet ? 0.22 : 0.36})`);
-          apGlass.addColorStop(0.65, `rgba(${core},${apQuiet ? 0.12 : 0.18})`);
-          apGlass.addColorStop(1, `rgba(${core},${apQuiet ? 0.2 : 0.4})`);
-          ctx.beginPath(); ctx.arc(r.x, r.y, rad, 0, Math.PI * 2);
-          ctx.fillStyle = apGlass; ctx.fill();
-          ctx.setLineDash(r.dashed ? [3, 2] : []);
-          ctx.lineWidth = apQuiet ? 1.1 : 1.6; ctx.strokeStyle = `rgba(${core},0.95)`; ctx.stroke();
-          ctx.setLineDash([]);
-          if (!apQuiet && rad > 6) {
-            ctx.save();
-            ctx.beginPath(); ctx.arc(r.x, r.y, rad - 1, 0, Math.PI * 2); ctx.clip();
-            const apSpec = ctx.createRadialGradient(r.x - rad * 0.36, r.y - rad * 0.42, 0, r.x - rad * 0.36, r.y - rad * 0.42, rad * 0.6);
-            apSpec.addColorStop(0, "rgba(255,255,255,0.3)");
-            apSpec.addColorStop(1, "rgba(255,255,255,0)");
-            ctx.fillStyle = apSpec; ctx.beginPath(); ctx.arc(r.x, r.y, rad, 0, Math.PI * 2); ctx.fill();
-            ctx.restore();
-          }
-          if (!apQuiet && rad >= 7) {
-            const fontPx = Math.max(8, Math.min(12, rad * 0.46));
-            ctx.font = `bold ${fontPx}px Inter, monospace`;
-            const lbl = r.price.toFixed(pxDp);
-            if (ctx.measureText(lbl).width <= 2 * rad - 2) {
+          ctx.fillStyle = "rgba(12,10,8,0.94)";
+          ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, 6); ctx.fill();
+          ctx.strokeStyle = "rgba(212,175,55,0.9)"; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.roundRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1, 6); ctx.stroke();
+          onTop(r, "OPAQUE_CARD");
+          ctx.globalAlpha = att.textAlpha("bubbles");
+          ctx.fillStyle = "#F3EBDD"; ctx.font = CARD_FONT_AP; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+          ctx.fillText(words, r.x + 10, r.y + r.h / 2 + 0.5);
+          cardsAP.push(r);
+          forceChips.push(r);
+        };
+        ctx.save();
+        // 1 · ESTIMATED — hatched, faint, behind the reading.
+        const estHeads: { l: number; r: number }[] = [];
+        for (const run of runsAP) {
+          const x0 = xOfAP(run.from), x1 = xOfAP(run.to);
+          if (x0 == null || x1 == null) continue;
+          const l = Math.max(0, x0 - bsp / 2), r = Math.min(plotRight, x1 + bsp / 2);
+          if (r - l < 2) continue;
+          ctx.save();
+          ctx.globalAlpha = att.alpha("bubbles");
+          ctx.beginPath(); ctx.rect(l, topAP, r - l, botAP - topAP); ctx.clip();
+          ctx.strokeStyle = "rgba(212,175,55,0.16)"; ctx.lineWidth = 1;
+          for (let hx = l - (botAP - topAP); hx < r; hx += 8) { ctx.beginPath(); ctx.moveTo(hx, botAP); ctx.lineTo(hx + (botAP - topAP), topAP); ctx.stroke(); }
+          ctx.restore();
+          estHeads.push({ l, r });
+        }
+        // 2 · SHELVES — prices that held.
+        const shelfAt: { s: Shelf; l: number; r: number; y: number }[] = [];
+        for (const s of shelvesAP) {
+          const y = srs.priceToCoordinate(s.price), xa = xOfAP(s.tests[0]), xb = xOfAP(s.tests[s.tests.length - 1]);
+          if (y == null || xa == null || xb == null) continue;
+          const l = Math.max(0, xa - bsp / 2), r = Math.min(plotRight - 4, xb + bsp * 2.5);
+          if (r - l < 8) continue;
+          const yy = Math.round(+y) - 3;
+          const g = ctx.createLinearGradient(0, yy, 0, yy + 6);
+          g.addColorStop(0, "rgba(236,204,120,0.96)"); g.addColorStop(1, "rgba(176,141,69,0.96)");
+          ctx.globalAlpha = att.alpha("bubbles");
+          ctx.fillStyle = g; ctx.beginPath(); ctx.roundRect(l, yy, r - l, 6, 2); ctx.fill();
+          forceChips.push({ x: l, y: yy, w: r - l, h: 6 });
+          shelfAt.push({ s, l, r, y: +y });
+        }
+        // 3 · WEDGES — where market orders pushed.
+        let wedgesDrawn = 0;
+        for (const w of wedgesAP) {
+          const b = barAP.get(w.time), x = xOfAP(w.time);
+          if (!b || x == null || x < 0 || x > plotRight) continue;
+          const yEdge = srs.priceToCoordinate(w.side === "buy" ? b.low : b.high);
+          if (yEdge == null) continue;
+          const ww = wedgeWidth(w.strength, bsp), wh = Math.round(ww * 0.9), gapW = 6;
+          const yNear = w.side === "buy" ? +yEdge + gapW : +yEdge - gapW;
+          const yFar = w.side === "buy" ? yNear + wh : yNear - wh;
+          ctx.globalAlpha = att.alpha("bubbles");
+          ctx.beginPath(); ctx.moveTo(x, yNear); ctx.lineTo(x + ww / 2, yFar); ctx.lineTo(x - ww / 2, yFar); ctx.closePath();
+          ctx.fillStyle = (w.side === "buy" ? buyRgba : sellRgba)(w.estimated ? 0.55 : 0.95); ctx.fill();
+          ctx.lineWidth = 1; ctx.strokeStyle = "rgba(8,7,5,0.9)"; ctx.stroke();
+          const wr = { x: x - ww / 2 - 2, y: Math.min(yNear, yFar) - 2, w: ww + 4, h: wh + 4 };
+          forceChips.push(wr); candleRectsAP.push(wr);
+          fpTrailBars.add(w.time);
+          wedgesDrawn++;
+        }
+        // 4 · WORDS — each shelf names itself beside its own end, never on a candle.
+        ctx.font = CARD_FONT_AP;
+        for (const sa of shelfAt) {
+          const words = shelfWords(sa.s, fmtV);
+          const wC = Math.ceil(ctx.measureText(words).width) + 20, hC = 24;
+          const below = sa.s.side === "buyers";
+          const cands = [
+            { x: sa.r + 6, y: sa.y - hC / 2 },
+            { x: sa.l - 6 - wC, y: sa.y - hC / 2 },
+            { x: sa.l, y: below ? sa.y + 8 : sa.y - 8 - hC },
+            { x: sa.r - wC, y: below ? sa.y + 8 : sa.y - 8 - hC },
+            { x: sa.l, y: below ? sa.y - 8 - hC : sa.y + 8 },
+          ].map(p => ({ x: Math.round(p.x), y: Math.round(p.y), w: wC, h: hC }))
+            .filter(r => r.x >= 2 && r.x + r.w <= plotRight - 2 && r.y >= topAP && r.y + r.h <= botAP - 2);
+          const pick = cands.find(r => !hitsAP(r, candleRectsAP) && !hitsAP(r, cardsAP)) ?? cands.find(r => !hitsAP(r, cardsAP));
+          if (pick) cardAP(pick, words);
+        }
+        for (const e of estHeads) {
+          const wC = Math.ceil(ctx.measureText(EVIDENCE_LEGEND.estimated).width) + 20;
+          const r = { x: Math.round(Math.max(2, Math.min(plotRight - wC - 2, (e.l + e.r) / 2 - wC / 2))), y: topAP + 8, w: wC, h: 24 };
+          if (!hitsAP(r, cardsAP)) cardAP(r, EVIDENCE_LEGEND.estimated);
+        }
+        // 5 · LEGEND — one line, only the kinds on the glass, bottom-left over the volume strip.
+        const kindsAP = [
+          ...(wedgesDrawn > 0 ? ["wedge" as const] : []),
+          ...(shelfAt.length > 0 ? ["shelf" as const] : []),
+          ...(estHeads.length > 0 ? ["estimated" as const] : []),
+        ];
+        if (kindsAP.length > 0) {
+          const glyphW = 14, sepW = 18;
+          const parts = kindsAP.map(k => ({ k, words: EVIDENCE_LEGEND[k], w: glyphW + 6 + Math.ceil(ctx.measureText(EVIDENCE_LEGEND[k]).width) }));
+          const wL = parts.reduce((s, p) => s + p.w, 0) + sepW * (parts.length - 1) + 20;
+          const rL = { x: 8, y: botAP - 34, w: Math.min(wL, plotRight - 16), h: 26 };
+          if (!hitsAP(rL, cardsAP)) {
+            cardAP(rL, "");
+            let gx = rL.x + 10;
+            const gy = rL.y + rL.h / 2;
+            for (const p of parts) {
+              ctx.globalAlpha = att.alpha("bubbles");
+              if (p.k === "wedge") {
+                ctx.fillStyle = buyRgba(0.95); ctx.beginPath(); ctx.moveTo(gx + 3.5, gy - 6); ctx.lineTo(gx + 7, gy + 5); ctx.lineTo(gx, gy + 5); ctx.closePath(); ctx.fill();
+                ctx.fillStyle = sellRgba(0.95); ctx.beginPath(); ctx.moveTo(gx + 10.5, gy + 6); ctx.lineTo(gx + 14, gy - 5); ctx.lineTo(gx + 7, gy - 5); ctx.closePath(); ctx.fill();
+              } else if (p.k === "shelf") {
+                ctx.fillStyle = "rgba(220,186,100,0.96)"; ctx.beginPath(); ctx.roundRect(gx, gy - 3, glyphW, 6, 2); ctx.fill();
+              } else {
+                ctx.save(); ctx.beginPath(); ctx.rect(gx, gy - 7, glyphW, 14); ctx.clip();
+                ctx.strokeStyle = "rgba(212,175,55,0.8)"; ctx.lineWidth = 1;
+                for (let hx = gx - 14; hx < gx + glyphW; hx += 4) { ctx.beginPath(); ctx.moveTo(hx, gy + 7); ctx.lineTo(hx + 14, gy - 7); ctx.stroke(); }
+                ctx.restore();
+              }
               ctx.globalAlpha = att.textAlpha("bubbles");
-              ctx.textAlign = "center"; ctx.textBaseline = "middle";
-              ctx.lineWidth = Math.max(2, fontPx * 0.22); ctx.strokeStyle = "rgba(0,0,0,0.88)";
-              ctx.strokeText(lbl, r.x, r.y);
-              ctx.fillStyle = "rgba(255,255,255,0.99)"; ctx.fillText(lbl, r.x, r.y);
+              ctx.fillStyle = "#F3EBDD"; ctx.font = CARD_FONT_AP; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+              ctx.fillText(p.words, gx + glyphW + 6, gy + 0.5);
+              gx += p.w + sepW;
             }
           }
-          forceChips.push({ x: r.x - rad - 2, y: r.y - rad - 2, w: 2 * rad + 4, h: 2 * rad + 4 });
-          fpTrailBars.add(r.bar);
-          apDrawn++;
-          if (r.dashed) apInto++;
         }
         ctx.restore();
-        fpRings += apDrawn;
-        canvas.dataset.aggPassiveRings = String(apDrawn);
-        canvas.dataset.aggPassiveIntoExtreme = String(apInto);
+        canvas.dataset.evidenceKinds = evidenceReceipt(wedgesAP.slice(0, wedgesDrawn), shelfAt.map(x => x.s), runsAP);
+        canvas.dataset.evidenceLegend = kindsAP.join(",") || "NONE";
       } } catch (err) { layerFault("FP_AGG_PASSIVE", err); }
 
       paintLap(9710);
@@ -27038,7 +27130,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // the bars before it faintly hatched (they carry bar totals, not per-price prints), a dashed gold
           // line, "Real tape from here" at its head and "Before here: bar totals only" on the hatched side.
           // Never estimated cells: the provider holds no per-price history for those bars.
-          if (startsInView && firstSided && fpOn) {
+          // Plate 27: under Aggressive/Passive a hatch means "Estimated" — the seam's hatch over counted bar totals would lie.
+          // Plate 25: Delta reads every bar's own total (tape, else the bar's sides), so it has no seam to tell
+          // (serving 746945f: the seam's chip sat on the order-flow status line).
+          const seamModeT = (canvas.dataset.footprint ?? "").split(":")[0];
+          if (startsInView && firstSided && fpOn && seamModeT !== "aggressive-passive" && seamModeT !== "delta") {
             const bx = Math.round(firstSided.x - bsp * 0.6);
             const top = HEADER_FLOOR_Y, bot = pane0Bottom;
             ctx.save();
