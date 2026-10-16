@@ -3519,6 +3519,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // reload / refolds on a timeframe switch — the Tape CVD's "since" may never
   // claim earlier than this.
   const tickAccStartedAtRef = useRef<number | null>(null);
+  /**
+   * §6.10 / §15 SPEED (Garden 19): "a new print appears on the chart within 250 ms of arrival". The newest
+   * print's exchange time and its arrival time here, and the ages each new print had when it first reached
+   * the glass (arrival → glass is this device's own processing; exchange → glass includes the network).
+   */
+  const newestPrintRef = useRef<{ timeMs: number; arrivedMs: number } | null>(null);
+  const printGlassRef = useRef<{ last: number; arrival: number[]; exchange: number[] }>({ last: 0, arrival: [], exchange: [] });
   // Big Trades is NOT a price-level reading. Keep the individual executions
   // beside (not inside) the footprint accumulator so two prints at one price
   // remain two bubbles with two timestamps and two canonical event ids.
@@ -3695,6 +3702,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     }
     const priceLevel = +(Math.round(tick.price / minTick) * minTick).toFixed(dp);
     if (!bigTradePrintAccRef.current.has(barTime)) bigTradePrintAccRef.current.set(barTime, []);
+    if (Number.isFinite(tick.time) && (!newestPrintRef.current || tick.time > newestPrintRef.current.timeMs)) newestPrintRef.current = { timeMs: tick.time, arrivedMs: Date.now() };
     bigTradePrintAccRef.current.get(barTime)!.push({
       price: tick.price,
       bid: tick.side === "sell" ? tick.size : 0,
@@ -28297,6 +28305,18 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       if (layerFaults.length) canvas.dataset.layerFaults = `${layerFaults.length}:${layerFaults.slice(0, 4).join(" | ")}`;
       else delete canvas.dataset.layerFaults;
       paintLap(27593);
+      // §15: each NEW print's age when it first reaches the glass (rolling 40), published as p50 / p95.
+      try {
+        const np = newestPrintRef.current, pg = printGlassRef.current;
+        if (np && np.timeMs !== pg.last) {
+          pg.last = np.timeMs;
+          const now = Date.now();
+          pg.arrival.push(now - np.arrivedMs); pg.exchange.push(now - np.timeMs);
+          if (pg.arrival.length > 40) { pg.arrival.shift(); pg.exchange.shift(); }
+          const q = (a: number[], f: number) => { const s2 = [...a].sort((x, y) => x - y); return s2[Math.min(s2.length - 1, Math.floor(f * s2.length))]; };
+          canvas.dataset.printToGlass = `N:${pg.arrival.length}|ARRIVAL p50:${q(pg.arrival, 0.5)} p95:${q(pg.arrival, 0.95)}|EXCHANGE p50:${q(pg.exchange, 0.5)} p95:${q(pg.exchange, 0.95)}`;
+        }
+      } catch (err) { layerFault("PRINT_TO_GLASS", err); }
       // EDGE BEACONS (plate 22b): one pill per edge for the levels beyond the camera, painted last so
       // nothing covers it; the pill is the Show-me target (a wall's pill also selects the wall).
       const paintBeaconsFrame = () => {
