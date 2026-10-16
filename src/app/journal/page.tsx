@@ -1753,7 +1753,11 @@ Trade the system, trust the process, winners every day 🚀`,
   // `bg-wm-black` painted the sanctuary's atmosphere out; transparent
   // lets it through so /journal is the same room as /command-deck.
   return (
-    <div style={{ display:"flex", flexDirection:"column", width:"100%", height:"100%", overflow:"hidden" }}>
+    // Founder-path proof 2026-10-16 (desk 1920×786, 3 entries): the summaries above the body (edge, process ×
+    // outcome, broker truth, Mirror) grew with the journal and this fixed-height column squeezed the body —
+    // the entry list and the New Entry form — to 0px; Save sat under Mirror and could not be clicked. The body
+    // now keeps a floor and the room scrolls past the summaries to reach it.
+    <div style={{ display:"flex", flexDirection:"column", width:"100%", height:"100%", overflowY:"auto", overflowX:"hidden" }}>
 
       {/* ── Header ─────────────────────────────────────────── */}
       {/*
@@ -2604,7 +2608,7 @@ Trade the system, trust the process, winners every day 🚀`,
       )}
 
       {/* ── Journal body ─────────────────────────────────────── */}
-      {mainTab === "journal" && <div className="wm-journal-body" style={{ flex:1, display:"flex", overflow:"hidden", minHeight:0 }}>
+      {mainTab === "journal" && <div className="wm-journal-body" style={{ flex:1, display:"flex", overflow:"hidden", minHeight:560 }}>
 
         {/* Left: list */}
         <div className={clsx(
