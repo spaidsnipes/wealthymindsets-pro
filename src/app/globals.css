@@ -2429,6 +2429,17 @@ input[type=range]::-moz-range-track { height: 4px; background: #26262d; border-r
   [data-legend-group="ohlc"] { flex-shrink: 1 !important; min-width: 0; flex-wrap: wrap; row-gap: 0; white-space: normal !important; }
 }
 
+/* Serving f7b37c9 on his ~2100px desk with the Tools panel open (Oct 16): the legend band was wider
+   than 1200px, so the rule above did not apply — the clock group was squeezed to ~105px and "BAR OPENED
+   12:15 PM CDT · FORMING" wrapped three lines down over the depth plate ("…CDT.173 bars"). At EVERY
+   width the clock keeps its width on one line; the O/H/L/NOW group is the one that yields. */
+@media (min-width: 641px) {
+  .wm-legend-recency-wide { white-space: nowrap; }
+  .wm-legend-status { flex-shrink: 0; min-width: max-content; }
+  [data-legend-group="price"] ~ div:has(.wm-legend-status) { flex-shrink: 0; min-width: max-content; }
+  [data-legend-group="ohlc"] { flex-shrink: 1; min-width: 0; flex-wrap: wrap; row-gap: 0; }
+}
+
 /* SpaidBot's panel stands ABOVE the chart's own chrome (cert lane, serving 390,
    2026-10-07 night: the "· 16 symbols" evidence chip (z 57) and the D button
    painted over the panel's welcome text — the panel was z 50). Chart chrome
