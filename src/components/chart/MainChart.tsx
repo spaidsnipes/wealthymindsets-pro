@@ -10556,7 +10556,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         if (survivors.length > cap) {
           const byNew = [...survivors].sort((a, z) => z.born - a.born);
           const keep = new Set(byNew.slice(0, Math.min(5, cap)));
-          for (const b of [...survivors].sort((a, z) => Math.abs(z.value) - Math.abs(a.value))) {
+          // Each bar's largest print first (biggest bars first), so one burst cannot take every seat; then the rest.
+          const bySize = [...survivors].sort((a, z) => Math.abs(z.value) - Math.abs(a.value));
+          const barLead = new Map<number, Bubble>();
+          for (const b of bySize) if (!barLead.has(b.anchorBarTime)) barLead.set(b.anchorBarTime, b);
+          for (const b of [...barLead.values(), ...bySize]) {
             if (keep.size >= cap) break;
             keep.add(b);
           }
