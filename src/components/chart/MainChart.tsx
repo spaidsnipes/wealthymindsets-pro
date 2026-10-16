@@ -22598,6 +22598,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             }
             ctx.fillStyle = ink;
             ctx.fillRect(r.x, r.y, r.w, r.h);
+            // A dark rim parts the chip from a body in its own ink (Founder 2026-10-16: the teal CMP chips sank
+            // into the teal composite bars).
+            ctx.strokeStyle = "rgba(11,10,8,0.9)"; ctx.lineWidth = 1; ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
             ctx.fillStyle = "rgba(11,10,8,0.95)";
           }
           ctx.textAlign = "center";
