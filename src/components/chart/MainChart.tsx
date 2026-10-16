@@ -24103,8 +24103,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.lineWidth = 1;
             const maxLetters = Math.max(1, ...disp.map(r => r.letters.length));
             // A row never runs past the column: the cell is the column divided by the busiest row.
-            const cellW = Math.min(10, colMax / maxLetters);
-            const fontPx = Math.max(9, Math.min(12, rowH - 2));
+            // Founder 2026-10-16 ("TPO … vague, half-ass"): a cell a letter can stand in, type a screen can read.
+            const cellW = Math.min(14, colMax / maxLetters);
+            const fontPx = Math.max(11, Math.min(14, rowH - 1));
             ctx.font = `700 ${fontPx}px ui-monospace, SFMono-Regular, Menlo, monospace`;
             const asText = rowH >= 11 && cellW >= ctx.measureText("M").width;
             const lastL = Math.max(1, ...disp.map(r => r.letters.charCodeAt(r.letters.length - 1) - 65));
@@ -24132,7 +24133,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 const rgb = tpoPlateRamp(late);
                 if (asText) {
                   // The letter on a tile tinted its own period: the shape survives with every word hidden.
-                  ctx.fillStyle = ink(rgb, r.isPoc ? 0.42 : 0.24 * base);
+                  ctx.fillStyle = ink(rgb, r.isPoc ? 0.55 : 0.4 * base);
                   ctx.fillRect(x, y, cellW - 1, h);
                   ctx.fillStyle = ink(rgb, base);
                   ctx.fillText(r.letters[k], x, y + h / 2 + 0.5);

@@ -44,7 +44,7 @@ describe("profile family glass honesty", () => {
 
   it("TPO rows fit their column, letters only at NEAR where a glyph fits, blocks are time-coloured squares", () => {
     expect(CHART).not.toMatch(/Math\.max\(3, Math\.min\(8, Math\.floor\(colMax/);
-    expect(CHART).toMatch(/const cellW = Math\.min\(10, colMax \/ maxLetters\);/); // plate 14 letters (2026-10-16)
+    expect(CHART).toMatch(/const cellW = Math\.min\(14, colMax \/ maxLetters\);/); // plate 14 letters; 14px cell since 2026-10-16 ("TPO … vague")
     expect(CHART).toMatch(/cellW >= ctx\.measureText\("M"\)\.width/);
     // Pin updated 2026-09-26 (Garden 11 recognition test: letter-only TPO
     // vanished with labels hidden). Blocks were a ≤0.25 tint only because they
