@@ -30526,7 +30526,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   }, [logicalToPixel, marketObjectTargets, rangeVer, selectedMarketObjectId]);
   useEffect(() => {
     // The visible diamond is ≤ 13px; 18px keeps a plate's edge off its corners.
-    marketObjectPinRectsRef.current = projectedMarketObjects.map(t => ({ x: t.point.x - 9, y: t.point.y - 9, w: 18, h: 18 }));
+    marketObjectPinRectsRef.current = projectedMarketObjects.map(t => ({ x: t.point.x - 14, y: t.point.y - 14, w: 28, h: 28 })); // the button's own 28px box (an 18px record let a pin sit on "dPOC … -4.00", ES1! Oct 16)
   }, [projectedMarketObjects]);
   // THE INSPECT / PASSPORT SHEET IS A KEEP-OUT for the selected object's plaque
   // (Sheriff, serving 390 c9303a7 and e8ca9f2: the plaque took its BELOW spot
