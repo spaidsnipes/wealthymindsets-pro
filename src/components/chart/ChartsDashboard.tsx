@@ -755,6 +755,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // The Alpaca paper ticket, still one tap away from the Trade panel.
   const [paperOpen,       setPaperOpen]       = useState(false);
   const [optionSelection, setOptionSelection] = useState<{ underlying: string; owner: string; contract: OptionContract; source: OptionChainSource; fidelity: OptionChainFidelity; providerPath: string | null; rightsPolicyId: string | null } | null>(null);
+  // PLATE 33: the chosen option, as the chart's trade lines read it (premium ≈ from its own quote and Greeks).
+  const optionLegForLines = useMemo(() => optionSelection ? {
+    underlying: optionSelection.underlying, contractType: optionSelection.contract.contractType, strike: optionSelection.contract.strike,
+    bid: optionSelection.contract.bid, ask: optionSelection.contract.ask, last: optionSelection.contract.last,
+    delta: optionSelection.contract.delta, gamma: optionSelection.contract.gamma,
+  } : null, [optionSelection]);
   const clearOptionSelection = useCallback(() => setOptionSelection(null), []);
   const [pineBuilderOpen, setPineBuilderOpen] = useState(false);
   const [footprintType,   setFootprintType]   = useState<FootprintType>(() => lsGet("wm_footprint", "bid-ask") as FootprintType);
@@ -7630,6 +7636,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       onFlowLadder={onFlowLadder}
                       onBarSides={setBarSides}
                       lensInRail={!narrowViewport && !optionsOpen}
+                      optionLeg={optionLegForLines}
                       questionChoiceOnChart={questionChoice}
                       rawOnChart={rawOn}
                       continuationOnChart={continuationHealthVM ? { health: continuationHealthVM.health, reason: continuationHealthVM.reason } : null}

@@ -54,3 +54,47 @@ export function tradeLineLabels(
     stop: stop != null ? `Stop ${fmtPx(stop, dp)}${unit(stop)}` : null,
   };
 }
+
+/**
+ * PLATE 33 · OPTIONS — "premium plus the stock trigger" (Options · TSLA 250C · on the stock chart).
+ * With an option chosen in the room for THIS underlying, the drawn position reads in the option's terms:
+ * the entry line is the stock TRIGGER ("Trigger 248.50 · buy call"), and target / stop say the premium the
+ * contract would carry there. The premium is an ESTIMATE from the contract's own quote and Greeks
+ * (mid + Δ·move + ½Γ·move², never under intrinsic) — marked "≈", and absent when the quote or Δ is missing.
+ */
+export interface OptionLegForLines {
+  readonly underlying: string;
+  readonly contractType: "call" | "put";
+  readonly strike: number;
+  readonly bid?: number; readonly ask?: number; readonly last?: number;
+  readonly delta?: number; readonly gamma?: number;
+}
+
+const finite = (v: number | undefined): v is number => typeof v === "number" && Number.isFinite(v);
+
+/** The contract's premium now: the mid when both sides quote, else the last trade; null when neither. */
+export function optionPremiumNow(o: OptionLegForLines): number | null {
+  if (finite(o.bid) && finite(o.ask) && o.bid > 0 && o.ask >= o.bid) return (o.bid + o.ask) / 2;
+  return finite(o.last) && o.last > 0 ? o.last : null;
+}
+
+/** Estimated premium with the stock at `price`, from the stock at `entry`; null without a premium or Δ. */
+export function optionPremiumAt(o: OptionLegForLines, entry: number, price: number): number | null {
+  const p0 = optionPremiumNow(o);
+  if (p0 == null || !finite(o.delta)) return null;
+  const m = price - entry;
+  const est = p0 + o.delta * m + 0.5 * (finite(o.gamma) ? o.gamma : 0) * m * m;
+  const intrinsic = o.contractType === "call" ? Math.max(0, price - o.strike) : Math.max(0, o.strike - price);
+  return Math.max(0.01, intrinsic, est);
+}
+
+export function optionTradeLineLabels(
+  o: OptionLegForLines, entry: number, target: number | null, stop: number | null, dp: number,
+): TradeLineLabels {
+  const prem = (p: number) => { const v = optionPremiumAt(o, entry, p); return v == null ? "" : ` · premium ≈ ${v.toFixed(2)}`; };
+  return {
+    entry: `Trigger ${fmtPx(entry, dp)} · buy ${o.contractType}`,
+    target: target != null ? `Target ${fmtPx(target, dp)}${prem(target)}` : null,
+    stop: stop != null ? `Stop ${fmtPx(stop, dp)}${prem(stop)}` : null,
+  };
+}

@@ -101,7 +101,7 @@ import { isQuoteSampleSeries, quoteSampleSentence } from "@/lib/marketData/quote
 import { IMBALANCE_ZONE_NAMES_MAX, imbalanceTestWords, imbalanceZoneFate, imbalanceZoneName, imbalanceZonesReceipt, type ImbalanceZone, type ImbalanceZoneState } from "@/lib/chart/imbalanceZones";
 import { paneTitle, paneValueWords } from "@/lib/chart/paneNames";
 import { wheelZoomRange } from "@/lib/chart/wheelZoom";
-import { tradeLineLabels } from "@/lib/chart/tradeLines";
+import { optionTradeLineLabels, tradeLineLabels, type OptionLegForLines } from "@/lib/chart/tradeLines";
 import { spotLegsFor } from "@/lib/marketData/spotFuturesRoute";
 import { absorptionMeter, deltaVelocity, deltaVelocityWords, volumePace } from "@/lib/chart/flowIndicators";
 import { bigTradePressure, bigTradePressureWords, findSweeps, medianOf, sizeCuts, sizeMixWords, sweepWords, TAPE_FAST_MULTIPLE, tapeSpeed, tapeSpeedWords, tradeSizeMix, type Sweep } from "@/lib/chart/tapeIndicators";
@@ -1465,6 +1465,8 @@ interface Props {
    */
   onQuestionLensRead?: (lens: QuestionLensVM | null) => void;
   lensInRail?: boolean;
+  /** PLATE 33 · the option chosen in the room — a drawn position on its underlying reads as trigger + premium. */
+  optionLeg?: OptionLegForLines | null;
   /**
    * F06A · the rail's ABSORPTION row — this chart's own newest absorption
    * zone, published only when it changes (null when the layer is off).
@@ -1980,6 +1982,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   questionChoiceOnChart = "AUTO",
   onQuestionLensRead,
   lensInRail = false,
+  optionLeg = null,
   onAbsorptionRead,
   onTapeFootprint,
   onFlowLadder,
@@ -2658,6 +2661,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   onQuestionLensReadRef.current = onQuestionLensRead;
   const lensInRailRef = useRef(lensInRail);
   lensInRailRef.current = lensInRail;
+  const optionLegRef = useRef(optionLeg);
+  optionLegRef.current = optionLeg;
   const lensReadKeyRef = useRef<string>("");
   const onAbsorptionReadRef = useRef(onAbsorptionRead);
   onAbsorptionReadRef.current = onAbsorptionRead;
@@ -26389,12 +26394,18 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.font = `600 9px ${MARKET_SANS}`;
             ctx.textBaseline = "top";
             const heldAt = ringPoint(L, SCALE_HEAVY_T, LENS_BEZEL_W + 6), movedAt = ringPoint(L, SCALE_THIN_T, LENS_BEZEL_W + 6);
-            ctx.textAlign = "right";
-            ctx.fillStyle = heatRampColor(1);
-            ctx.fillText("HELD", heldAt.x, heldAt.y);
+            // L20 (serving ca7dd71 at 768): the scale words were placed blind — "MOVED" sat on "━ ABSORBING".
+            // Each paints only where no chip holds its box, and then claims it.
+            const scaleWord = (t: string, x: number, y: number, right: boolean, ink: string) => {
+              const w = ctx.measureText(t).width + 4, r = { x: right ? x - w : x, y, w, h: 14 };
+              if (floatingChips.some(c => r.x < c.x + c.w && r.x + r.w > c.x && r.y < c.y + c.h && r.y + r.h > c.y)) return;
+              ctx.textAlign = right ? "right" : "left"; ctx.fillStyle = ink;
+              ctx.fillText(t, x, y);
+              floatingChips.push(r);
+            };
+            scaleWord("HELD", heldAt.x, heldAt.y, true, heatRampColor(1));
+            scaleWord("MOVED", movedAt.x, movedAt.y, false, heatRampColor(0));
             ctx.textAlign = "left";
-            ctx.fillStyle = heatRampColor(0);
-            ctx.fillText("MOVED", movedAt.x, movedAt.y);
 
             // ── The lens status readout, attached to the ring.
             const gauge = heat.gauge;
@@ -29277,7 +29288,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       else if (t === "price-range") { if (A && B) { const dp = d.pts[1].price - d.pts[0].price, pct = d.pts[0].price ? dp / Math.abs(d.pts[0].price) * 100 : 0, up = dp >= 0, c2 = up ? "#00C076" : "#FF4D67"; ctx.fillStyle = c2 + "22"; ctx.fillRect(Math.min(A.x, B.x), Math.min(A.y, B.y), Math.abs(B.x - A.x), Math.abs(B.y - A.y)); ctx.strokeStyle = c2; seg({ x: B.x, y: A.y }, { x: B.x, y: B.y }); arrowHead({ x: B.x, y: A.y }, { x: B.x, y: B.y }); arrowHead({ x: B.x, y: B.y }, { x: B.x, y: A.y }); chip(`${dp >= 0 ? "+" : ""}${dp.toFixed(dec)} (${pct.toFixed(2)}%)`, B.x + 6, (A.y + B.y) / 2, c2); } }
       else if (t === "date-range") { if (A && B) { const t0 = Math.min(d.pts[0].time, d.pts[1].time), t1 = Math.max(d.pts[0].time, d.pts[1].time); const nb = (barsRef.current || []).filter((x: any) => x.time >= t0 && x.time <= t1).length; ctx.strokeStyle = col; seg({ x: A.x, y: B.y }, { x: B.x, y: B.y }); arrowHead({ x: A.x, y: B.y }, { x: B.x, y: B.y }); arrowHead({ x: B.x, y: B.y }, { x: A.x, y: B.y }); chip(`${nb} bars`, (A.x + B.x) / 2 - 18, B.y - 4, col); } }
       else if (t === "date-price-range" || t === "measure") { if (A && B) { const dp = d.pts[1].price - d.pts[0].price, pct = d.pts[0].price ? dp / Math.abs(d.pts[0].price) * 100 : 0, up = dp >= 0, c2 = up ? "#00C076" : "#FF4D67"; const t0 = Math.min(d.pts[0].time, d.pts[1].time), t1 = Math.max(d.pts[0].time, d.pts[1].time); const nb = (barsRef.current || []).filter((x: any) => x.time >= t0 && x.time <= t1).length; const rx = Math.min(A.x, B.x), ry = Math.min(A.y, B.y), rw = Math.abs(B.x - A.x), rh = Math.abs(B.y - A.y); ctx.fillStyle = c2 + "22"; ctx.fillRect(rx, ry, rw, rh); ctx.strokeStyle = c2; ctx.strokeRect(rx, ry, rw, rh); chip(`${dp >= 0 ? "+" : ""}${dp.toFixed(dec)} (${pct.toFixed(2)}%)  ${nb} bars`, rx + 4, ry - 2, c2); } }
-      else if (t === "long-position" || t === "short-position") { if (A) { const xr = Math.max(A.x, B ? B.x : A.x, C ? C.x : A.x) + 40; ctx.setLineDash([]); if (B) { ctx.fillStyle = "#00C07622"; ctx.fillRect(A.x, Math.min(A.y, B.y), xr - A.x, Math.abs(B.y - A.y)); } if (C) { ctx.fillStyle = "#FF4D6722"; ctx.fillRect(A.x, Math.min(A.y, C.y), xr - A.x, Math.abs(C.y - A.y)); } ctx.strokeStyle = col; seg({ x: A.x, y: A.y }, { x: xr, y: A.y }); if (B) { ctx.strokeStyle = "#00C076"; seg({ x: A.x, y: B.y }, { x: xr, y: B.y }); } if (C) { ctx.strokeStyle = "#FF4D67"; seg({ x: A.x, y: C.y }, { x: xr, y: C.y }); } /* PLATE 33: every line names itself at its right end, in the market's units (tradeLines.ts). */ const tl = tradeLineLabels(symbol, t === "long-position" ? "LONG" : "SHORT", d.pts[0].price, B ? d.pts[1].price : null, C ? d.pts[2].price : null, dec); lineChip(tl.entry, xr, A.y, col); if (B && tl.target) lineChip(tl.target, xr, B.y, "#00C076"); if (C && tl.stop) lineChip(tl.stop, xr, C.y, "#FF4D67"); } }
+      else if (t === "long-position" || t === "short-position") { if (A) { const xr = Math.max(A.x, B ? B.x : A.x, C ? C.x : A.x) + 40; ctx.setLineDash([]); if (B) { ctx.fillStyle = "#00C07622"; ctx.fillRect(A.x, Math.min(A.y, B.y), xr - A.x, Math.abs(B.y - A.y)); } if (C) { ctx.fillStyle = "#FF4D6722"; ctx.fillRect(A.x, Math.min(A.y, C.y), xr - A.x, Math.abs(C.y - A.y)); } ctx.strokeStyle = col; seg({ x: A.x, y: A.y }, { x: xr, y: A.y }); if (B) { ctx.strokeStyle = "#00C076"; seg({ x: A.x, y: B.y }, { x: xr, y: B.y }); } if (C) { ctx.strokeStyle = "#FF4D67"; seg({ x: A.x, y: C.y }, { x: xr, y: C.y }); } /* PLATE 33: every line names itself at its right end, in the market's units (tradeLines.ts). */ const legTL = optionLegRef.current; const tl = legTL && legTL.underlying.toUpperCase() === symbol.toUpperCase() ? optionTradeLineLabels(legTL, d.pts[0].price, B ? d.pts[1].price : null, C ? d.pts[2].price : null, dec) : tradeLineLabels(symbol, t === "long-position" ? "LONG" : "SHORT", d.pts[0].price, B ? d.pts[1].price : null, C ? d.pts[2].price : null, dec); lineChip(tl.entry, xr, A.y, col); if (B && tl.target) lineChip(tl.target, xr, B.y, "#00C076"); if (C && tl.stop) lineChip(tl.stop, xr, C.y, "#FF4D67"); } }
       // ── FREEHAND / POLYLINE ──
       else if (t === "brush" || t === "highlighter" || t === "polyline" || t === "path") { const Q = P.filter(Boolean) as Pt[]; if (t === "highlighter") { ctx.globalAlpha = 0.35; ctx.lineWidth = Math.max(8, s.width); } if (Q.length >= 2) { ctx.beginPath(); Q.forEach((q, i) => i === 0 ? ctx.moveTo(q.x, q.y) : ctx.lineTo(q.x, q.y)); ctx.stroke(); } else if (Q.length === 1) { ctx.beginPath(); ctx.arc(Q[0].x, Q[0].y, 2, 0, Math.PI * 2); ctx.fill(); } }
       // ── TEXT & MARKERS ──
