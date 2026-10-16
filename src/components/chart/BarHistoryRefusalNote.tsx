@@ -33,6 +33,7 @@ export default function BarHistoryRefusalNote({
   cfdDoor = null,
   timeframeDoor = null,
   onTimeframe,
+  legDoors = null,
 }: {
   readonly vm: BarHistoryRefusalVM;
   /** A catalogued continuous contract for a bare futures root ("NQ" → "NQ1!"). */
@@ -42,6 +43,8 @@ export default function BarHistoryRefusalNote({
   /** The shortest timeframe that has history, when this one has none by nature (spot FX seconds). */
   readonly timeframeDoor?: { readonly timeframe: string; readonly words: string } | null;
   readonly onTimeframe?: (tf: string) => void;
+  /** L14 (Garden 19): a spot cross with no single future — its legs' CME futures, each a door. */
+  readonly legDoors?: readonly string[] | null;
 }) {
   // A served chart explains nothing — the bars are the explanation.
   if (vm.served) return null;
@@ -106,6 +109,24 @@ export default function BarHistoryRefusalNote({
             </li>
           ))}
         </ul>
+      )}
+      {legDoors && legDoors.length > 0 && !cfdDoor && !futuresHint && (
+        <div data-testid="bar-history-leg-doors" style={{ marginTop: 12, color: BODY, fontSize: 14, lineHeight: 1.5 }}>
+          A cross has no single future — its legs trade as CME futures:{" "}
+          {legDoors.map(sym => (
+            <button
+              key={sym}
+              type="button"
+              data-testid={`bar-history-leg-door-${sym}`}
+              onClick={() => {
+                try { window.location.assign(symbolDoorHref(window.location.href, sym)); } catch { /* no window */ }
+              }}
+              style={{ marginLeft: 6, padding: "5px 12px", borderRadius: 6, border: "1px solid rgba(240,180,41,0.55)", background: "rgba(240,180,41,0.10)", color: QUIET, fontSize: 14, fontWeight: 600, cursor: "pointer", pointerEvents: "auto" }}
+            >
+              Open {sym} →
+            </button>
+          ))}
+        </div>
       )}
       {cfdDoor && !futuresHint && (
         <div style={{ marginTop: 12, color: BODY, fontSize: 12, lineHeight: 1.5 }}>

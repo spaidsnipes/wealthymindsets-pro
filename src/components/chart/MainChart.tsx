@@ -102,6 +102,7 @@ import { IMBALANCE_ZONE_NAMES_MAX, imbalanceTestWords, imbalanceZoneFate, imbala
 import { paneTitle, paneValueWords } from "@/lib/chart/paneNames";
 import { wheelZoomRange } from "@/lib/chart/wheelZoom";
 import { tradeLineLabels } from "@/lib/chart/tradeLines";
+import { spotLegsFor } from "@/lib/marketData/spotFuturesRoute";
 import { absorptionMeter, deltaVelocity, deltaVelocityWords, volumePace } from "@/lib/chart/flowIndicators";
 import { bigTradePressure, bigTradePressureWords, findSweeps, medianOf, sizeCuts, sizeMixWords, sweepWords, TAPE_FAST_MULTIPLE, tapeSpeed, tapeSpeedWords, tradeSizeMix, type Sweep } from "@/lib/chart/tapeIndicators";
 import { barFlow, chooseWedges, estimatedRuns, evidenceReceipt, EVIDENCE_LEGEND, findShelves, shelfTolerance, shelfWords, wedgeWidth, type BarFlow, type EvidenceBar, type Shelf } from "@/lib/chart/evidenceKinds";
@@ -30163,7 +30164,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           quote forms a bar or two (spot EURUSD at 15s, 2026-10-01: one live
           bar hid the note and the glass read blank). */}
       {barRefusal && (candles.length === 0 || (!barRefusal.served && candles.length < 3)) && (
-        <BarHistoryRefusalNote vm={barRefusal} futuresHint={futuresFormHint(symbol)} cfdDoor={cfdDoorFor(symbol)} timeframeDoor={historyTimeframeDoor(symbol, timeframe)} onTimeframe={setTimeframe} />
+        <BarHistoryRefusalNote vm={barRefusal} futuresHint={futuresFormHint(symbol)} cfdDoor={cfdDoorFor(symbol)} timeframeDoor={historyTimeframeDoor(symbol, timeframe)} onTimeframe={setTimeframe} legDoors={spotLegsFor(symbol)} />
       )}
       {/* TICK BARS: where the held tape begins, or why there are none. */}
       {tickNote && (
