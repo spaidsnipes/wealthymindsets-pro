@@ -15841,6 +15841,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // The card is the selection's: it asks as the selected item.
               const selCard = anatomySelReading && anatomyReadingDrawn(anatomySelReading) && att.paints("anatomyCards", { selectedItem: true }) ? anatomySelReading.card : null;
               if (!selCard) {
+                // NO SILENT NOTHING (serving NQ1! 15m, Oct 16 one-at-a-time pass: Anatomy Cards on alone painted
+                // nothing and said nothing). The card is the selection's — the glass says how to get one.
+                if (att.paints("anatomyCards")) {
+                  ctx.save();
+                  ctx.font = marketFont("OBJECT_NAME");
+                  ctx.fillStyle = "rgba(200,192,174,0.85)";
+                  ctx.textAlign = "left"; ctx.textBaseline = "middle";
+                  ctx.fillText(fitSilence("ANATOMY CARDS · ON · SELECT A SHELF OR MARK TO READ ITS CARD"), silenceX, takeSilenceRow());
+                  ctx.restore();
+                }
                 ds.anatomyCards = "AT_REST";
                 delete ds.anatomyCardsCandleHits;
                 delete ds.anatomyCardsLayout;
@@ -25389,7 +25399,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const tsS = chart.timeScale();
             const INK = "rgba(237,230,211,0.95)", INK_SOFT = "rgba(214,206,188,0.8)";
             let painted = 0, lettered = 0, onCamera = 0;
-            const marks: { kind: "HIGH" | "LOW"; x: number; y: number; isLast: boolean; label: string | null; price: number }[] = [];
+            const marks: { kind: "HIGH" | "LOW"; x: number; y: number; isLast: boolean; label: string | null; price: number; time: number }[] = [];
             for (const p of ms.pivots) {
               const xr = tsS.timeToCoordinate(p.time as any);
               const yr = srs.priceToCoordinate(p.price);
@@ -25400,7 +25410,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // H-501 · FAR's form is MAJOR STRUCTURE ONLY: the swings the FAR
               // envelope measured as major, each with the owner's letter.
               if (farMajorPivots && !farMajorPivots.has(`${p.kind}:${p.time}`)) continue;
-              marks.push({ kind: p.kind, x, y, isLast: p.isLast, label: p.label, price: p.price });
+              marks.push({ kind: p.kind, x, y, isLast: p.isLast, label: p.label, price: p.price, time: Number(p.time) });
             }
 
             // THE LEVEL RULES — the last swing high and low, from the swing to
@@ -25409,6 +25419,22 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const msSpeaks = att.speaks("marketStructure");
             const lastMarks = msSpeaks ? marks.filter(m => m.isLast) : [];
             const levels: string[] = [];
+            // A BROKEN LEVEL ENDS WHERE IT BROKE (serving NQ1! 15m, Oct 16 one-at-a-time pass: price fell 700
+            // points through SWING LOW 30063 and its rule still ran to the axis as if it held). The first bar
+            // that CLOSED through the level after its swing ends the rule there; the name says BROKEN at that
+            // bar. A stated close, not a pivot — the detector's confirmation rule is untouched.
+            const brokeAt = new Map<(typeof marks)[number], number>();
+            for (const m of lastMarks) {
+              for (const b of barsRef.current ?? []) {
+                if (Number(b.time) <= m.time) continue;
+                const c = Number(b.close);
+                if (m.kind === "LOW" ? c < m.price : c > m.price) {
+                  const xb = tsS.timeToCoordinate(b.time as never);
+                  if (xb != null && +xb > m.x && +xb < plotRightS) brokeAt.set(m, +xb);
+                  break;
+                }
+              }
+            }
             if (lastMarks.length) {
               const vrS = tsS.getVisibleLogicalRange();
               const cutS = new Path2D();
@@ -25426,7 +25452,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.lineWidth = 1;
               for (const m of lastMarks) {
                 const yy = Math.round(m.y) + 0.5;
-                ctx.beginPath(); ctx.moveTo(m.x, yy); ctx.lineTo(plotRightS - 2, yy); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(m.x, yy); ctx.lineTo(brokeAt.get(m) ?? plotRightS - 2, yy); ctx.stroke();
               }
               ctx.setLineDash([]);
               ctx.restore();
@@ -25526,11 +25552,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.textAlign = "left";
             const named: { x: number; y: number; w: number; h: number }[] = [];
             for (const m of lastMarks) {
-              const t = `${m.kind === "HIGH" ? "SWING HIGH" : "SWING LOW"} ${m.price.toFixed(pxDp)}`;
+              const bx = brokeAt.get(m);
+              const t = `${m.kind === "HIGH" ? "SWING HIGH" : "SWING LOW"} ${m.price.toFixed(pxDp)}` + (bx != null ? " · BROKEN" : "");
               ctx.font = marketFont("OBJECT_NAME");
               const tw = ctx.measureText(t).width + 10, th = 14;
-              const y = m.kind === "HIGH" ? m.y - th - 2 : m.y + 2;
-              const pref = { x: plotRightS - 6 - tw, y: Math.max(HEADER_FLOOR_Y + 2, Math.min(paneBotS - th, y)), w: tw, h: th };
+              // A broken level is named at its break, on the side price left it from.
+              const y = bx != null ? (m.kind === "HIGH" ? m.y + 2 : m.y - th - 2) : m.kind === "HIGH" ? m.y - th - 2 : m.y + 2;
+              const pref = { x: bx != null ? Math.max(m.x, bx - tw - 4) : plotRightS - 6 - tw, y: Math.max(HEADER_FLOOR_Y + 2, Math.min(paneBotS - th, y)), w: tw, h: th };
               const spot = placeClearOfKeepOut(pref, [...keepOut(), ...rowBodiesAt(pref.y, pref.y + th)], { minX: Math.max(keepOutMinX(), m.x), blockers: floatingChips, strict: true });
               recordKeepOut(keepOutLedger, spot);
               // A BLOCKED name is NOT painted (serving ES1! 15m, 2026-09-26:
@@ -25547,7 +25575,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               if (chipBox(t, { x: spot.rect.x, y: spot.rect.y, w: tw, h: th })) ctx.fillRect(spot.rect.x, spot.rect.y, tw, th);
               ctx.fillStyle = INK;
               ctx.fillText(t, spot.rect.x + 5, spot.rect.y + th / 2 + 0.5);
-              levels.push(`${m.kind === "HIGH" ? "H" : "L"}:${m.price.toFixed(pxDp)}:${spot.mode}`);
+              levels.push(`${m.kind === "HIGH" ? "H" : "L"}:${m.price.toFixed(pxDp)}:${spot.mode}${bx != null ? ":BROKEN" : ""}`);
             }
 
             if (ms.bias !== "UNCLEAR" && msSpeaks) {

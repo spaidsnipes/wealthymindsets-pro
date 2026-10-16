@@ -82,6 +82,10 @@ export function senseEventStates(r: Receipts, market?: { readonly symbol?: strin
   if (effort === "DRAWN") out.EFFORT_MARK = SENSE_ON_CAMERA;
   // ORDINARY:<why> = the mark read the bar and found nothing remarkable (2026-10-04).
   else if (effort === "UNREAD" || (effort ?? "").startsWith("ORDINARY")) out.EFFORT_MARK = SENSE_NO_EVENT;
+  // The newest bar can be ordinary while the camera holds marks (serving NQ1! 15m, Oct 16: 19 marks drawn,
+  // the rail said "NOTHING ON THIS CAMERA"). The drawn-marks receipt "<drawn>/<considered>" wins.
+  const effortDrawn = Number(/^(\d+)\/\d+$/.exec(r.effortMarks ?? "")?.[1] ?? 0);
+  if (effortDrawn > 0) out.EFFORT_MARK = `${SENSE_ON_CAMERA} · ${effortDrawn} MARK${effortDrawn === 1 ? "" : "S"}`;
   // A renderer fault overrides an older successful receipt from the same
   // frame. Fault text identifies the layer; it never proves missing entitlement.
   const faultOwners: Record<string, string> = {

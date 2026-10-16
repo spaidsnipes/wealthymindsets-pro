@@ -117,7 +117,10 @@ describe("anatomy cards: only the selected object's card", () => {
     const rest = cards.slice(cards.indexOf("if (!selCard) {"), cards.indexOf("} else {", cards.indexOf("if (!selCard) {")));
     expect(rest).toContain('ds.anatomyCards = "AT_REST";');
     expect(rest).toMatch(/delete ds\.anatomyCardsCandleHits;\s*delete ds\.anatomyCardsLayout;\s*delete ds\.anatomyCardsScale;/);
-    expect(rest).not.toMatch(/fillText|fillRect|floatingChips/);
+    // Restated 2026-10-16 (no silent nothing, serving NQ1! 15m): at rest it may NAME its silence — one line
+    // through the shared silence stack (fitSilence / takeSilenceRow) — and still never paints a card.
+    const restNoSilence = rest.replace(/ctx\.fillText\(fitSilence\("ANATOMY CARDS · ON · [^"]*"\), silenceX, takeSilenceRow\(\)\);/, "");
+    expect(restNoSilence).not.toMatch(/fillText|fillRect|floatingChips/);
   });
 
   it("the receipt names the selected object", () => {

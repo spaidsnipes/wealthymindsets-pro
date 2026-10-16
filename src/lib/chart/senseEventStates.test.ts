@@ -61,3 +61,10 @@ describe("clarity and flow current have words (2026-10-04)", () => {
     expect(senseEventStates({ flowCurrent: "NO_SIDED_TAPE" }).FLOW_CURRENT).toBe(SENSE_UNAVAILABLE);
   });
 });
+
+describe("drawn effort marks are on camera even when the newest bar is ordinary (2026-10-16)", () => {
+  it("reads the drawn-marks receipt", () => {
+    expect(senseEventStates({ effortMark: "ORDINARY:PROPORTIONATE", effortMarks: "19/150" }).EFFORT_MARK).toBe(`${SENSE_ON_CAMERA} · 19 MARKS`);
+    expect(senseEventStates({ effortMark: "ORDINARY:PROPORTIONATE", effortMarks: "0/150" }).EFFORT_MARK).toBe(SENSE_NO_EVENT);
+  });
+});
