@@ -92,9 +92,9 @@ describe("Plate 24 (2026-10-15, supersedes M46's one-cell text) · Bid × Ask is
   it("an untraded row is blank; bid in the left half on the sell ink, ask in the right half on the buy ink; a number that does not fit is dropped", () => {
     const b = bidAsk();
     expect(b).toContain("if (!(lv.total > 0)) return;");
-    expect(b).toContain("cellNum(fmtV(lv.bid), gx + halfC - 5, rowY + rH / 2, \"right\", fsG);");
-    expect(b).toContain("cellNum(fmtV(lv.ask), gx + halfC + 5, rowY + rH / 2, \"left\", fsG);");
-    expect(b).toContain("numbersFit = gridLevels.every(l => ctx.measureText(fmtV(l.bid)).width <= halfC - 6 && ctx.measureText(fmtV(l.ask)).width <= halfC - 6);");
+    expect(b).toContain("if (fitsHalf(bt)) { cellNum(bt, gx + halfC - 4, rowY + rH / 2, \"right\", fsG); cellText++; }");
+    expect(b).toContain("if (fitsHalf(at)) { cellNum(at, gx + halfC + 4, rowY + rH / 2, \"left\", fsG); cellText++; }");
+    expect(b).toContain("const fitsHalf = (t: string) => numbersFit && ctx.measureText(t).width <= halfC - 5;");
     expect(b).toContain("const askImb = !!below && imb(lv.ask, below.bid);");
   });
 

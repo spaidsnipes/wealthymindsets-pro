@@ -1898,7 +1898,7 @@ const FP_GRID_ROW_PX = 18;
 const FP_GRID_MAX_W = 112;
 const FP_IMBALANCE_RATIO = 3;
 /** The NEAR grid's width for a bar: wider than the candle body (two numbers side by side), never past FP_GRID_MAX_W. */
-function fpGridWidth(colW: number, barSpacing: number): number { return Math.max(colW, Math.min(FP_GRID_MAX_W, Math.floor(barSpacing * 0.88))); }
+function fpGridWidth(colW: number, barSpacing: number): number { return Math.max(colW, Math.min(FP_GRID_MAX_W, Math.floor(barSpacing - 6))); }
 
 /** Plate 26 (2026-10-15): Big Trades are clear water; no words are written inside the disc. */
 const BIG_TRADE_WORDS_INSIDE = false;
@@ -9215,9 +9215,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const halfC = Math.floor(cellW / 2);
           const maxSide = Math.max(1e-12, ...gridLevels.map(l => Math.max(l.bid, l.ask)));
           const gPoc = gridLevels.reduce((mi, l, i, arr) => l.total > arr[mi].total ? i : mi, 0);
-          const fsG = gRowH >= FP_GRID_ROW_PX - 1 ? Math.min(14, Math.floor(gRowH - 4)) : 0;
-          let numbersFit = fpNumbers && fsG >= MARKET_NUMBER_MIN_PX;
-          if (numbersFit) { ctx.font = marketFont("FOOTPRINT_NUMBER", fsG); numbersFit = gridLevels.every(l => ctx.measureText(fmtV(l.bid)).width <= halfC - 6 && ctx.measureText(fmtV(l.ask)).width <= halfC - 6); }
+          const fsG = gRowH >= FP_GRID_ROW_PX - 1 ? 13 : 0;
+          const numbersFit = fpNumbers && fsG >= MARKET_NUMBER_MIN_PX;
+          // Each number is judged alone: one that does not fit its half is dropped, never shrunk.
+          if (numbersFit) ctx.font = marketFont("FOOTPRINT_NUMBER", fsG);
+          const fitsHalf = (t: string) => numbersFit && ctx.measureText(t).width <= halfC - 5;
           const imb = (a: number, b: number) => a > 0 && a >= FP_IMBALANCE_RATIO * Math.max(b, 1);
           gridLevels.forEach((lv, li) => {
             if (!(lv.total > 0)) return;
@@ -9233,9 +9235,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.fillStyle = buyRgba((askImb ? 0.8 : 0.1 + 0.45 * (lv.ask / maxSide)).toFixed(2));
             ctx.fillRect(gx + halfC, rowY, cellW - halfC, rH);
             if (numbersFit) {
-              cellNum(fmtV(lv.bid), gx + halfC - 5, rowY + rH / 2, "right", fsG);
-              cellNum(fmtV(lv.ask), gx + halfC + 5, rowY + rH / 2, "left", fsG);
-              cellText += 2;
+              ctx.font = marketFont("FOOTPRINT_NUMBER", fsG);
+              const bt = fmtV(lv.bid), at = fmtV(lv.ask);
+              if (fitsHalf(bt)) { cellNum(bt, gx + halfC - 4, rowY + rH / 2, "right", fsG); cellText++; }
+              if (fitsHalf(at)) { cellNum(at, gx + halfC + 4, rowY + rH / 2, "left", fsG); cellText++; }
             }
           });
           if (gridLevels[gPoc] && gridLevels[gPoc].total > 0) {

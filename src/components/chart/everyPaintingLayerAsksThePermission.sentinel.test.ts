@@ -74,7 +74,7 @@ const WORD_GATES = [
   "if (vpSpeaks) {",
   'for (const wd of att.speaks("liquidityLifecycle") ? words : []) {',
   'const fpNumbers = att.speaks("footprint");',
-  "let numbersFit = fpNumbers && fsG >= MARKET_NUMBER_MIN_PX;",
+  "const numbersFit = fpNumbers && fsG >= MARKET_NUMBER_MIN_PX;",
   "const bd = fpNumbers ? barTapeDelta(getBarSubProfile(c)) : null;",
   "if (!fpNumbers) break;",
   'if (!att.speaks("dataGaps") && g.emptyIntervals < 3) continue;',
