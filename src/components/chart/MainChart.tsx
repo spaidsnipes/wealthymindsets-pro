@@ -24974,18 +24974,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const rightX = W - 84;
             const did = activeDecisionIdRef.current;
             const short = did && did.length > 0 ? (did.length > 20 ? `${did.slice(0, 20)}…` : did) : null;
-            const lines: { t: string; c: string }[] = [
-              { t: `${zoom.visibleBarCount} bars`, c: "rgba(138,130,113,0.85)" },
-            ];
-            // What this depth lets speak — the plate's own words, not a hint.
-            if (semanticDensity.speaking) lines.push({ t: semanticDensity.speaking, c: "rgba(237,230,211,0.85)" });
-            /*
-              DECISION_ID CHROME — one identity per camera. Canon:
-              "One market. One camera. One truth. One Decision_ID."
-              Printed under the semantic-zoom tag so a trader reading FAR /
-              MID / NEAR sees which identity every layer is bound to.
-            */
-            if (short) lines.push({ t: `DECISION_ID ${short}`, c: "rgba(194,184,146,0.8)" });
+            // PLATE 21 (serving f203fb2 at 1440×900, 2026-10-16): the plate printed 13px words at a 10px
+            // pitch — "MID" sat on "63 bars", the depth sentence on the DECISION_ID line, and the evidence
+            // chip on all of it. Now ONE line, "MID · 63 bars", plus the SILENT HERE line when a layer the
+            // trader turned on is held at this depth. The depth sentence and the Decision_ID are not market
+            // words; they stay in the receipts (zoomPlateSpeaking, activeDecisionId), off the glass.
+            const lines: { t: string; c: string }[] = [];
+            if (semanticDensity.speaking) ds.zoomPlateSpeaking = semanticDensity.speaking; else delete ds.zoomPlateSpeaking;
+            void short;
             // ZERO GHOSTS: a layer the trader switched ON that this depth
             // silences is NAMED here (serving BTC 1m FAR: Liquidity Weather on,
             // nothing drawn, only the receipt said SILENT:FAR). Read from the
@@ -25001,19 +24997,24 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ds.semanticSilencedOn = named.join("|");
               } else delete ds.semanticSilencedOn;
             }
-            const pw = Math.max(ctx.measureText(zoom.tag).width, ...lines.map(l => ctx.measureText(l.t).width)) + 12;
+            const headT = `${zoom.tag} · ${zoom.visibleBarCount} bars`;
+            const pw = Math.max(ctx.measureText(headT).width, ...lines.map(l => ctx.measureText(l.t).width)) + 12;
             // The plate ENDS ABOVE the INSPECT chip's row (DOM, top 64): at a
             // 12px pitch the fourth line (DECISION_ID) printed under the
             // translucent chip and read as smeared glyphs (serving BTC-USD 5m,
             // 2026-09-29). A 10px pitch keeps all four lines on the plate.
-            const top = 24, pitch = 10;
+            const top = 24, pitch = 16;
             const plateH = Math.min((lines.length + 1) * pitch + 3, READING_ANCHOR_ROW_BOTTOM - 24 - (top - 3));
             ctx.fillStyle = "rgba(11,10,8,0.82)";
             ctx.fillRect(rightX - pw + 6, top - 3, pw, plateH);
             // Chrome is an obstacle too: later readings step around the plate.
             floatingChips.push({ x: rightX - pw + 6, y: top - 3, w: pw, h: plateH });
+            // The depth word in brass (house hardware), its bar count beside it in muted ivory — one line.
+            const barsT = ` · ${zoom.visibleBarCount} bars`;
+            ctx.fillStyle = "rgba(138,130,113,0.9)";
+            ctx.fillText(barsT, rightX, top);
             ctx.fillStyle = "rgba(201,165,92,0.85)";
-            ctx.fillText(zoom.tag, rightX, top);
+            ctx.fillText(zoom.tag, rightX - ctx.measureText(barsT).width, top);
             lines.forEach((l, i) => {
               ctx.fillStyle = l.c;
               ctx.fillText(l.t, rightX, top + (i + 1) * pitch);

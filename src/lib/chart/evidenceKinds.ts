@@ -56,8 +56,12 @@ export interface Wedge {
   readonly estimated: boolean;
 }
 
-/** A bar's net must be at least this share of its traded volume to count as a push. */
-export const WEDGE_MIN_SHARE = 0.25;
+/**
+ * A bar's net must be at least this share of its traded volume to count as a push. 0.25 → 0.06
+ * (serving 517532a, NQ1! 5m, 60 bars: futures bars net a few % of their volume, so one bar passed and
+ * the glass showed one wedge). Rank against the frame's strongest push picks the few that speak.
+ */
+export const WEDGE_MIN_SHARE = 0.06;
 /**
  * …and at least this share of the strongest push on camera. 0.4 → 0.15 (serving f203fb2, NQ1! 5m,
  * 60 bars): one bar at −396 against a field of ±50 left ONE wedge on the glass; the plate shows the

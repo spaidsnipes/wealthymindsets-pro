@@ -44,6 +44,10 @@ describe("plate 27 · wedges", () => {
     expect(chooseWedges(flows).length).toBe(3);   // budget for 7 bars
     expect(chooseWedges(flows).map(w => w.time)).toContain(1);
   });
+  it("a futures bar netting 10% of its volume is a push (serving 517532a: one wedge on 60 bars)", () => {
+    const flows = [1, 2, 3, 4, 5, 6].map(t => ({ time: t, buy: 550 + t * 5, sell: 450, source: "BAR_SIDES" as const }));
+    expect(chooseWedges(flows).length).toBe(3);
+  });
   it("an estimate never outranks a count", () => {
     const w = chooseWedges([
       { time: 1, buy: 900, sell: 0, source: "ESTIMATED" },

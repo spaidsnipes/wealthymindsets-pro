@@ -2416,6 +2416,18 @@ input[type=range]::-moz-range-track { height: 4px; background: #26262d; border-r
   .wm-fidelity-badge--chrome { height: auto !important; white-space: normal; max-width: 15ch; line-height: 1.1; padding: 2px 6px !important; text-align: left; }
 }
 .wm-legend-recency-narrow { display: none; }
+/* Serving f203fb2 at 1440×900 beside the decision rail (legend band 1115px): price + O/H/L/NOW +
+   DAY BIAS filled the row, the bar clock's group was crushed to 4px, and "BAR OPENED 01:10 AM CDT ·
+   FORMING" wrapped two lines down onto the plot, over the depth word and the bar count. Up to 1200px
+   of band the clock reads its short form and keeps its width; the O/H/L/NOW line yields by wrapping
+   inside its own box. Every word stays on the glass. */
+@container wm-legend (max-width: 1200px) {
+  .wm-legend-recency-wide { display: none !important; }
+  .wm-legend-recency-narrow { display: inline-block !important; white-space: nowrap; }
+  .wm-legend-status:has([data-recency-narrow]) { flex-shrink: 0; min-width: max-content; }
+  [data-legend-group="price"] ~ div:has(.wm-legend-status [data-recency-narrow]) { flex-shrink: 0 !important; min-width: max-content; }
+  [data-legend-group="ohlc"] { flex-shrink: 1 !important; min-width: 0; flex-wrap: wrap; row-gap: 0; white-space: normal !important; }
+}
 
 /* SpaidBot's panel stands ABOVE the chart's own chrome (cert lane, serving 390,
    2026-10-07 night: the "· 16 symbols" evidence chip (z 57) and the D button
