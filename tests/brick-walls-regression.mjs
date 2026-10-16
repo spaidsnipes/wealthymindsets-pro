@@ -158,9 +158,9 @@ await expectWalls(page, "10 sustained 60 s");
 await page.goto(scene("1m", ",DerivativesPressure"), { waitUntil: "domcontentloaded", timeout: 90000 });
 await settle(page);
 {
-  const before = await page.evaluate(() => { const ov = [...document.querySelectorAll("canvas")].find(c => "brickWalls" in c.dataset); if (!ov) return null; const r = ov.getBoundingClientRect(); const hits = String(ov.dataset.pressureWallHitAt || ""); const off = String(ov.dataset.brickWallsOffCamera || ""); return { x: r.x, y: r.y, hits, off, at: ov.dataset.brickWallsAt || "" }; });
-  const above = before && /ABOVE:[1-9]/.test(before.off);
-  const target = above ? before.hits.split("|").map(h => { const [strike, xy] = h.split("@"); const [x, y] = xy.split(",").map(Number); return { strike: Number(strike), x, y }; }).filter(h => !before.at.includes(`${h.strike}:`))[0] : null;
+  // Plate 22b: the off-camera wall is a beacon pill; its centre comes from data-show-me-targets-at ("WALL@strike:x,y").
+  const before = await page.evaluate(() => { const ov = [...document.querySelectorAll("canvas")].find(c => "brickWalls" in c.dataset); if (!ov) return null; const r = ov.getBoundingClientRect(); return { x: r.x, y: r.y, off: String(ov.dataset.brickWallsOffCamera || ""), at: ov.dataset.brickWallsAt || "", beacons: String(ov.dataset.edgeBeacons || ""), targets: String(ov.dataset.showMeTargetsAt || "") }; });
+  const target = before ? before.targets.split("|").map(s => { const m = s.match(/^WALL@([\d.]+):(-?\d+),(-?\d+)$/); return m ? { strike: Number(m[1]), x: Number(m[2]), y: Number(m[3]) } : null; }).find(Boolean) : null;
   if (!target) record("11 show me", false, `no off-camera wall to ask for — ${JSON.stringify(before)}`);
   else {
     await page.mouse.click(before.x + target.x, before.y + target.y);

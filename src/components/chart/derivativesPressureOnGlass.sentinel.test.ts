@@ -133,11 +133,13 @@ describe("a pressure proof scene is not live, so live index-mapped walls stay of
   });
 });
 
-describe("the camera holds the walls it is showing (Garden 16 reconstruction §11)", () => {
-  it("with the pressure world on, the nearest wall above/below (≤ WALL_CAMERA_REACH of price) joins the price range", () => {
-    expect(MC).toContain("const WALL_CAMERA_REACH = 0.04;");
-    expect(MC).toContain("if ((layerOnRef.current?.derivativesPressure === true || layerOnRef.current?.brickWalls === true) && dpCam && dpCam.drawn) {");
-    expect(MC).toContain("const near = dpCam.walls.map(w => w.strike).filter(k => Math.abs(k - last) / last <= WALL_CAMERA_REACH);");
+describe("the camera fits the candles on camera (Garden 19 plate 22, supersedes the Garden 16 §11 wall hold)", () => {
+  it("no wall joins the autoscale range; only an explicit Show-me reveal widens it", () => {
+    const rng = MC.slice(MC.indexOf("const robustVisibleRange = useRef("), MC.indexOf("const autoscaleProviderRef = useRef("));
+    expect(rng).toContain("THE CAMERA FITS THE CANDLES ON CAMERA");
+    expect(rng).not.toContain("WALL_CAMERA_REACH");
+    expect(rng).not.toContain("derivativesPressureRef");
+    expect(rng).toContain("const rv = applyReveal({ lo, hi }, cameraRevealRef.current, Date.now());");
     expect(MC).toContain("return { priceRange: { minValue: lo - span * (wallBottom ? 0.3 : 0.06), maxValue: hi + span * (wallTop ? 0.34 : 0.06) } };");
   });
 });
@@ -191,21 +193,23 @@ describe("the zero-gamma name keeps out of the TPO column (serving ETH 15m, 2026
   });
 });
 
-describe("a held wall never crushes the candles (§XIV, NDX 5m 2026-10-01)", () => {
-  it("joins the camera only while the candles keep their share", () => {
-    expect(MC).toContain("const WALL_CAMERA_CANDLE_SHARE = 0.45;");
-    expect(MC).toContain("if (above != null && fits(above, lo)) { hi = above; wallTop = true; }");
+describe("a wall never crushes the candles (§XIV, NDX 5m 2026-10-01; plate 22, 2026-10-15)", () => {
+  it("no wall is ever held by the camera — the §XIV share rule is retired with the hold itself", () => {
+    expect(MC).not.toContain("WALL_CAMERA_CANDLE_SHARE");
+    expect(MC).not.toContain("if (above != null && fits(above, lo)) { hi = above; wallTop = true; }");
   });
 });
 
 describe("show me (Garden 19 order §4): a tap on an off-camera edge brick reveals the wall", () => {
   it("edge bricks are marked off, the tap asks the camera, the provider applies it, the overlay says so", () => {
-    expect(MC).toContain("pressureWallHitRef.current.push({ strike: o.strike, x: x0 - 10, y: y - 4, w: bl + 12, h: bh + 8, off: true });");
+    // Plate 22b: the off-camera wall is a beacon pill; the pill is the hit, marked off.
+    expect(MC).toContain("if (lead.wallStrike != null) pressureWallHitRef.current.push({ strike: lead.wallStrike, x: p.x, y: p.y, w: p.w, h: p.h, off: true });");
+    expect(MC).toContain('try { paintBeaconsFrame(); } catch (err) { layerFault("EDGE_BEACONS", err); }');
     expect(MC).toContain('cameraRevealRef.current = askReveal(wallHit.strike, "WALL", Date.now());');
     expect(MC).toContain("const rv = applyReveal({ lo, hi }, cameraRevealRef.current, Date.now());");
     expect(MC).toContain("canvasRef.current.dataset.cameraReveal = revealReceipt(cameraRevealRef.current, Date.now());");
     // The walls/gamma edge chips are targets too (universal across the walls family).
-    expect(MC).toContain('edgeChipHitRef.current.push({ price: lead.price, what: lead.kinds[0] ?? "MARK"');
+    expect(MC).toContain("else edgeChipHitRef.current.push({ price: lead.price, what: lead.what, x: p.x, y: p.y, w: p.w, h: p.h });");
     expect(MC).toContain("cameraRevealRef.current = askReveal(chipHit.price, chipHit.what, Date.now());");
     expect(MC).toContain("canvasRef.current.dataset.showMeTargets = String(");
   });

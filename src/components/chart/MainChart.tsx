@@ -195,8 +195,6 @@ const CHART_SWING_LOOKBACK = STRUCTURE_DEFAULT_LOOKBACK;
 const LIQUIDITY_SWEEP_LOOKBACK = 4;
 /** Appearance › Crosshair › Line style → Lightweight Charts LineStyle (0 solid · 1 dotted · 2 dashed). */
 const CROSSHAIR_LINE_STYLE = { solid: 0, dotted: 1, dashed: 2 } as const;
-/** How far from the last close a pressure wall may pull the price camera to hold it (share of price). */
-const WALL_CAMERA_REACH = 0.04;
 /** How long a live quote may go unrefreshed before the header speaks the bar close. */
 const HEADER_LIVE_FRESH_MS = 120_000;
 /** Delta Levels never paints below this — a lane nobody can see is not a reading on glass. */
@@ -279,8 +277,6 @@ const STORM_CLEAR_BARS = 4;
 const STORM_CLEAR_THIN = 0.5;
 /** The loupe can be taken by hand from this width up (iPad portrait 768+; below, the loupe yields to a small pane). */
 const LENS_DRAG_MIN_WIDTH = 768;
-/** The share of the camera's span the candles keep when a wall joins it (§XIV). */
-const WALL_CAMERA_CANDLE_SHARE = 0.45;
 
 /**
  * THE PRICE LEGEND'S RESERVED HEADROOM, WITH ONE OWNER.
@@ -784,8 +780,9 @@ import type { OptionsBarrierEvidenceVM } from "@/lib/marketData/viewModels/selec
 import { composeWallsGammaMarks, WALLS_GAMMA_OFF, type WallsGammaSelection } from "@/lib/marketData/wallsGammaFamily";
 import { gexBucketAt, gexScopeWords, gexWords, type GammaExposureVM } from "@/lib/marketData/gammaExposure";
 import { GAMMA_HEAT_PRESET_EVENT, gammaHeatPreset, gammaHeatStores, readGammaHeatPreset } from "@/lib/chart/gammaHeatAppearance";
-import { CALL_WALL_RGB, PUT_WALL_RGB, edgeChipWords, foldNarrowLine, offCameraShortWords, paintWallsGamma } from "@/components/chart/wallsGammaGlass";
+import { CALL_WALL_RGB, PUT_WALL_RGB, foldNarrowLine, paintWallsGamma } from "@/components/chart/wallsGammaGlass";
 import { type CameraReveal, applyReveal, askReveal, revealReceipt } from "@/lib/chart/cameraReveal";
+import { type BeaconCandidate, beaconKindOf, beaconReceipt, chooseBeacons, paintEdgeBeacons } from "@/components/chart/edgeBeacon";
 import type { IndexFuturesMappingVM } from "@/lib/marketData/viewModels/selectIndexFuturesMapping";
 
 /* ── Symbol base prices — verified against MooMoo/TradingView Jun 16 2026 ── */
@@ -2530,6 +2527,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const cameraAnswerRef = useRef<{ lo: number; hi: number; applied: boolean; at: number } | null>(null);
   // The walls/gamma edge chips ("▲ CALL WALL …") this frame, each a "show me" target carrying its lead price.
   const edgeChipHitRef = useRef<{ price: number; what: string; x: number; y: number; w: number; h: number }[]>([]);
+  // EDGE BEACONS (plate 22b): this frame's off-camera levels, painted once at the end of draw().
+  const edgeBeaconCandsRef = useRef<BeaconCandidate[]>([]);
+  const edgeBeaconFrameRef = useRef<{ plotLeft: number; plotRight: number; top: number; bottom: number; spot: number } | null>(null);
   /** Options Flow marks on this frame (for a tap), and the one a tap pinned (touch has no hover). */
   const flowHitRef = useRef<{ id: string; x: number; y: number; r: number }[]>([]);
   const pinnedFlowRef = useRef<string | null>(null);
@@ -2752,40 +2752,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       let hi = Math.min(his[his.length - 1], p98Hi + band * 1.5);
       let lo = Math.max(los[0],              p02Lo - band * 1.5);
       if (!(hi > lo)) return fallback;
-      // THE CAMERA HOLDS THE WALLS IT IS SHOWING (Garden 16 reconstruction §11,
-      // serving SPY/TSLA 1h 2026-09-27: both walls sat just above the candles'
-      // range, under the header, and were only NAMED as off-camera). With the
-      // pressure world on, the nearest wall above and below price — each within
-      // WALL_CAMERA_REACH of the last close — joins the range, with headroom so
-      // the masonry clears the header. Off → the candles alone, as before.
-      // The masonry is ~60px and the header band ~100px: a held wall needs room
-      // on ITS side (serving SPY 5m: 775 held with 14% headroom still sat
-      // under the header and read OFF_CAMERA).
+      // THE CAMERA FITS THE CANDLES ON CAMERA (Garden 19 finish-line plate 22, Founder 2026-10-15,
+      // supersedes the Garden 16 §11 wall hold): serving NQ1! 15m showed an axis of 28,600–31,000
+      // with price near 30,100 — walls within 4% joined the range and earned 30% headroom, so the
+      // candles were crushed into a line. Walls, gamma levels and zones beyond the candles are now
+      // EDGE BEACONS ("▲ Call wall 30,900 · Show me"); only an explicit Show-me ask widens the camera.
       let wallTop = false, wallBottom = false;
-      const dpCam = derivativesPressureRef.current;
-      if ((layerOnRef.current?.derivativesPressure === true || layerOnRef.current?.brickWalls === true) && dpCam && dpCam.drawn) {
-        const last = slice[slice.length - 1]?.close;
-        if (Number.isFinite(last) && last > 0) {
-          const near = dpCam.walls.map(w => w.strike).filter(k => Math.abs(k - last) / last <= WALL_CAMERA_REACH);
-          const above = near.filter(k => k > hi).sort((a, b) => a - b)[0];
-          const below = near.filter(k => k < lo).sort((a, b) => b - a)[0];
-          // PRICE SOVEREIGNTY (Garden 18 §XIV, cross-market run NDX 5m: a wall
-          // 2% below price pulled the scale 1,200 points down and crushed the
-          // candles into the top quarter). A wall joins the camera only while
-          // the candles keep WALL_CAMERA_CANDLE_SHARE of the span; a farther
-          // wall stays named by its off-camera edge marker.
-          const candleSpan = hi - lo;
-          const fits = (nh: number, nl: number) => candleSpan > 0 && candleSpan / (nh - nl) >= WALL_CAMERA_CANDLE_SHARE;
-          if (above != null && fits(above, lo)) { hi = above; wallTop = true; }
-          if (below != null && fits(hi, below)) { lo = below; wallBottom = true; }
-          // A wall INSIDE the range but at its very edge sits under the header
-          // (serving TSLA 1h: 385 at the top of the candles' range read
-          // OFF_CAMERA) — it earns the same headroom.
-          const edge = (hi - lo) * 0.1;
-          if (near.some(k => k <= hi && k >= hi - edge)) wallTop = true;
-          if (near.some(k => k >= lo && k <= lo + edge)) wallBottom = true;
-        }
-      }
       // SHOW ME (Garden 19 order §4): an explicit ask — a tap on an off-camera edge
       // brick — extends the camera to that level for a few seconds, outranking the
       // share rule above; a drag or wheel (manual range) or the timer lets it go.
@@ -19116,6 +19088,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         delete ds.derivativesPressurePainted;
         pressureWallHitRef.current = [];
         edgeChipHitRef.current = [];
+        edgeBeaconCandsRef.current = [];
+        edgeBeaconFrameRef.current = null;
         pressureFrontHitRef.current = null;
         // G7 · the pressure world is ISOLATED: a throw inside it is named
         // (derivativesPressureFault) and every later layer still paints.
@@ -19402,7 +19376,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const wallWords: { word: string; x: number; y: number }[] = [];
               const offCamera: string[] = [];
               // ASK-1: the off-camera walls as objects, for the edge brick stack.
-              const offWalls: { strike: number; share: number; up: boolean }[] = [];
+              const offWalls: { strike: number; share: number; up: boolean; put: boolean }[] = [];
               // The masonry each drawn wall occupies — no pressure chip may sit
               // on the bricks (serving BTC: off-camera wall chips landed on the 85,000 wall).
               const masonryRects: { x: number; y: number; w: number; h: number }[] = [];
@@ -19424,7 +19398,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 const edgeUp = yc < HEADER_FLOOR_Y + WALL_EDGE_BODY_PX;
                 if (edgeUp || yc > paneBotD - WALL_EDGE_BODY_PX) {
                   offCamera.push(`${edgeUp ? "▲" : "▼"} WALL ${fmtD(w.strike)} · ${wallLifeWord(w.life)}`);
-                  offWalls.push({ strike: w.strike, share: Number.isFinite(w.share) ? w.share : 0, up: edgeUp });
+                  offWalls.push({ strike: w.strike, share: Number.isFinite(w.share) ? w.share : 0, up: edgeUp, put: w.polarity === "PUT_HEAVY" });
                   painted.push(`WALL@${w.strike}:${w.life}:OFF_CAMERA`);
                   continue;
                 }
@@ -19820,42 +19794,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 painted.push(`WALL@${w.strike}:${w.life}:${w.tests}`);
               }
               void strikesSorted;
-              /* ASK-1 (erasure, 2026-10-07) · OFF-CAMERA WALLS AS AN EDGE BRICK
-                 STACK. On the pane edge the walls lie beyond (top = above, bottom
-                 = below), one brick per wall in the wall's own brick ink, length
-                 ∝ its share of gross exposure, nearest wall closest to the edge,
-                 a chevron pointing off camera. Wordless, drawn whenever the walls
-                 are on (not only when the layer speaks); each brick is a hit
-                 target that selects its wall → Inspect (the wall ticket). */
+              /* OFF-CAMERA WALLS → EDGE BEACONS (plate 22b, supersedes the ASK-1 wordless brick stack):
+                 each wall beyond the pane edge is a beacon candidate; the end of draw() paints one
+                 "▲ Call wall 30,900 · Show me" pill per edge, and the pill selects the wall and asks the
+                 camera to reveal it. */
               {
-                let nUp = 0, nDown = 0;
-                for (const up of [true, false]) {
-                  const same = offWalls.filter(o => o.up === up).sort((a, b) => Math.abs(a.strike - dp.spot) - Math.abs(b.strike - dp.spot));
-                  same.slice(0, 4).forEach((o, k) => {
-                    const bl = Math.round(Math.min(90, 18 + o.share * 420));
-                    const bh = 5;
-                    const x1 = plotRightD - 6, x0 = x1 - bl;
-                    const y = up ? HEADER_FLOOR_Y + 4 + k * (bh + 2) : paneBotD - 4 - bh - k * (bh + 2);
-                    ctx.fillStyle = `rgba(214,176,112,${0.8 * baseA})`;
-                    ctx.fillRect(x0, y, bl, bh);
-                    // Mortar: a course joint every brick-length, like the wall.
-                    ctx.fillStyle = `rgba(20,14,8,${0.6 * baseA})`;
-                    for (let jx = x1 - 13; jx > x0 + 2; jx -= 13) ctx.fillRect(jx, y, 1, bh);
-                    if (k === 0) {
-                      // Chevron off camera, left of the nearest brick.
-                      const cx = x0 - 6, cy = up ? y + 1 : y + bh - 1;
-                      ctx.strokeStyle = `rgba(214,176,112,${0.9 * baseA})`;
-                      ctx.lineWidth = 1.2;
-                      ctx.beginPath();
-                      ctx.moveTo(cx - 3, cy + (up ? 3 : -3)); ctx.lineTo(cx, cy); ctx.lineTo(cx + 3, cy + (up ? 3 : -3));
-                      ctx.stroke();
-                    }
-                    masonryRects.push({ x: x0 - 10, y: y - 1, w: bl + 12, h: bh + 2 });
-                    // Generous on touch: the hit row is 12px tall around a 5px brick.
-                    pressureWallHitRef.current.push({ strike: o.strike, x: x0 - 10, y: y - 4, w: bl + 12, h: bh + 8, off: true });
-                    if (up) nUp++; else nDown++;
-                  });
-                }
+                const nUp = offWalls.filter(o => o.up).length, nDown = offWalls.length - nUp;
+                for (const o of offWalls) edgeBeaconCandsRef.current.push({ dir: o.up ? "above" : "below", price: o.strike, what: o.put ? "PUT_WALL" : "CALL_WALL", priceText: fmtD(o.strike), wallStrike: o.strike });
+                if (offWalls.length) edgeBeaconFrameRef.current = { plotLeft: 0, plotRight: plotRightD, top: HEADER_FLOOR_Y, bottom: paneBotD, spot: dp.spot };
                 ds.pressureWallsOffCamera = `UP:${nUp}|DOWN:${nDown}`;
                 ds.brickWallsOffCamera = `ABOVE:${nUp}|BELOW:${nDown}|MARK:${nUp + nDown > 0 ? "DRAWN" : "NONE"}`;
               }
@@ -20615,7 +20561,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.save();
               ctx.font = marketFont("OBJECT_NAME");
               ctx.textAlign = "left"; ctx.textBaseline = "middle";
-              const rowsN = foldNarrowLine([...wgNarrowTruth, ...offCameraShortWords(out.offCamera)], Math.max(80, plotRightG - silenceX - 10), t => ctx.measureText(t).width);
+              const rowsN = foldNarrowLine([...wgNarrowTruth], Math.max(80, plotRightG - silenceX - 10), t => ctx.measureText(t).width);
               const RH = 13;
               const boxAt = (y0: number, i: number) => ({ x: silenceX - 3, y: y0 + i * RH, w: Math.max(...rowsN.map(r => ctx.measureText(r).width)) + 6, h: RH });
               // PRICE SOVEREIGNTY: never on a candle body either — the volume floor is tried first.
@@ -20639,40 +20585,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               } else ds.wallsGammaNarrow = rowsN.length ? "NO_CLEAR_ROWS" : "NONE";
               ctx.restore();
             } else delete ds.wallsGammaNarrow;
-            if (wordsSpeak && !narrowGlass) {
-              ctx.save();
-              ctx.font = marketFont("OBJECT_NAME");
-              ctx.textAlign = "left"; ctx.textBaseline = "middle";
-              const edgeA = Math.max(att.textAlpha("gammaHeatmap"), att.textAlpha("callWall"));
-              // DOM tap targets (zone pins, book strip — `.wm-tap-slop`) sit ABOVE this canvas and would eat a
-              // tap meant for a chip under them (serving SPY 5m 2026-10-15: the ▲ CALL WALL chip under a zone
-              // pin's slop opened the zone passport). Their rects join the keep-out so the slot steps clear.
-              {
-                const host = canvas.parentElement; const hr = host?.getBoundingClientRect();
-                if (host && hr) for (const el of host.querySelectorAll(".wm-tap-slop")) { const b = el.getBoundingClientRect(); if (b.width > 0 && b.height > 0) floatingChips.push({ x: b.left - hr.left, y: b.top - hr.top, w: b.width, h: b.height }); }
-              }
-              for (const dir of ["above", "below"] as const) {
-                const raw = edgeChipWords(dir, out.offCamera[dir]);
-                if (!raw) continue;
-                let words = raw;
-                const maxW = Math.max(60, plotRightG - 24);
-                while (words.length > 8 && ctx.measureText(words).width > maxW) words = words.slice(0, -2);
-                if (words !== raw) words = words.replace(/.$/, "…");
-                const tw = ctx.measureText(words).width;
-                const rows = Array.from({ length: 8 }, (_, i) => (dir === "above" ? HEADER_FLOOR_Y + 44 + i * 16 : paneBotG - 12 - i * 16));
-                const slot = rows.map(yC => ({ x: plotRightG - tw - 12, y: yC - 7, w: tw + 8, h: 14 })).find(q => !floatingChips.some(r => q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y) && !onNewestColumn(q.x, q.y, q.w, q.h));
-                if (!slot) { displacedNotes.push({ layer: "DERIVATIVES", text: words, x: plotRightG - tw / 2, y: rows[0] }); continue; }
-                const lead = out.offCamera[dir][0];
-                const rgb = lead.kinds.includes("CALL_WALL") ? "80,190,180" : lead.kinds.includes("PUT_WALL") ? "214,120,150" : lead.kinds.includes("GAMMA_CONC_NEG") ? preset.negRgb : lead.kinds.includes("GAMMA_CONC_POS") ? preset.posRgb : "236,222,190";
-                ctx.fillStyle = `rgba(11,10,8,${(0.88 * edgeA).toFixed(3)})`;
-                if (chipBox(words, slot)) ctx.fillRect(slot.x, slot.y, slot.w, slot.h);
-                ctx.fillStyle = `rgba(${rgb},${(0.95 * edgeA).toFixed(3)})`;
-                ctx.fillText(words, slot.x + 4, slot.y + 7.5);
-                floatingChips.push(slot);
-                // SHOW ME (order §4): the chip is a tap target — the camera reveals its lead level.
-                edgeChipHitRef.current.push({ price: lead.price, what: lead.kinds[0] ?? "MARK", x: slot.x - 4, y: slot.y - 4, w: slot.w + 8, h: slot.h + 8 });
-              }
-              ctx.restore();
+            // OFF-CAMERA MARKS → EDGE BEACONS (plate 22b): every walls/gamma mark beyond the camera is a
+            // candidate; the end of draw() paints one pill per edge (whether or not the family speaks).
+            for (const dir of ["above", "below"] as const) for (const m of out.offCamera[dir]) {
+              edgeBeaconCandsRef.current.push({ dir, price: m.price, what: beaconKindOf(m.kinds), priceText: fmtG(m.price) });
+            }
+            if (out.offCamera.above.length + out.offCamera.below.length > 0 && !edgeBeaconFrameRef.current) {
+              const lastG = barsG[barsG.length - 1]?.close;
+              edgeBeaconFrameRef.current = { plotLeft: 0, plotRight: plotRightG, top: HEADER_FLOOR_Y, bottom: paneBotG, spot: Number.isFinite(lastG) ? Number(lastG) : 0 };
             }
             // INSPECT — the bucket under the crosshair: strike, expiry, GEX, OI, IV, source, as-of.
             const cpG = crosshairPointRef.current;
@@ -27737,6 +27657,22 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       if (layerFaults.length) canvas.dataset.layerFaults = `${layerFaults.length}:${layerFaults.slice(0, 4).join(" | ")}`;
       else delete canvas.dataset.layerFaults;
       paintLap(27593);
+      // EDGE BEACONS (plate 22b): one pill per edge for the levels beyond the camera, painted last so
+      // nothing covers it; the pill is the Show-me target (a wall's pill also selects the wall).
+      const paintBeaconsFrame = () => {
+        const fr = edgeBeaconFrameRef.current, dsB = canvasRef.current?.dataset;
+        if (!fr || !edgeBeaconCandsRef.current.length) { if (dsB) dsB.edgeBeacons = "NONE"; return; }
+        const host = canvas.parentElement, hr = host?.getBoundingClientRect();
+        const slops = host && hr ? [...host.querySelectorAll(".wm-tap-slop")].map(el => el.getBoundingClientRect()).filter(b => b.width > 0 && b.height > 0).map(b => ({ x: b.left - hr.left, y: b.top - hr.top, w: b.width, h: b.height })) : [];
+        const placed = paintEdgeBeacons(ctx, chooseBeacons(edgeBeaconCandsRef.current, fr.spot), fr, slops);
+        for (const p of placed) {
+          const lead = p.choice.lead;
+          if (lead.wallStrike != null) pressureWallHitRef.current.push({ strike: lead.wallStrike, x: p.x, y: p.y, w: p.w, h: p.h, off: true });
+          else edgeChipHitRef.current.push({ price: lead.price, what: lead.what, x: p.x, y: p.y, w: p.w, h: p.h });
+        }
+        if (dsB) dsB.edgeBeacons = beaconReceipt(placed);
+      };
+      try { paintBeaconsFrame(); } catch (err) { layerFault("EDGE_BEACONS", err); }
       // LOCATE INVENTION (order §4): the seven states per invention, compiled from the receipts this
       // frame just published — one line the harness, the ticket and the "show me" door read; beside it
       // the show-me targets, each "WHAT@price:x,y" in glass px (the data-pressure-wall-hit-at grammar).
