@@ -77,7 +77,10 @@ describe("no mode paints a card", () => {
     // Plate 28 names a stacked-imbalance zone and its test on a card the same way — its one card helper.
     const ap = aggPassive();
     const zoneCard = slice("const zCard = (words: string", "zCard(imbalanceZoneName(");
-    const r = region().replace(ap, "").replace(zoneCard, "");
+    // Codex Plate 08 names the two ends of a delta divergence on tags ("Higher high",
+    // "Delta: lower high") — its one tag helper.
+    const divTag = slice("const divPill = (txt: string", "const nP = divPill(");
+    const r = region().replace(ap, "").replace(zoneCard, "").replace(divTag, "");
     // Any spelling of a rounded chip (`roundRect(`, `roundRect?.(`, a helper
     // named for it) — measured: `\(`-only let `ctx.roundRect?.(` through.
     expect(r).not.toMatch(/roundRect|\brr\(/);

@@ -797,6 +797,7 @@ import { GAMMA_HEAT_PRESET_EVENT, gammaHeatPreset, gammaHeatStores, readGammaHea
 import { CALL_WALL_RGB, PUT_WALL_RGB, foldNarrowLine, paintWallsGamma } from "@/components/chart/wallsGammaGlass";
 import { type CameraReveal, applyReveal, askReveal, revealReceipt } from "@/lib/chart/cameraReveal";
 import { DELTA_VIEW_EVENT, type DeltaView, deltaBarPx, deltaBubbleR, deltaScale, readDeltaView } from "@/lib/chart/deltaView";
+import { deltaPaneDivergence } from "@/lib/chart/deltaPanePivots";
 import { type BeaconCandidate, beaconKindOf, beaconReceipt, chooseBeacons, paintEdgeBeacons } from "@/components/chart/edgeBeacon";
 import type { IndexFuturesMappingVM } from "@/lib/marketData/viewModels/selectIndexFuturesMapping";
 
@@ -9522,14 +9523,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         try { const t = chart.priceScale("vol").options().scaleMargins?.top; if (Number.isFinite(t)) volTopB = t as number; } catch { /* default */ }
         const bTop = Math.max(HEADER_FLOOR_Y + 40, Math.round(pane0Bottom * volTopB) - 6), bBot = pane0Bottom - 4;
         const bMid = Math.round((bTop + bBot) / 2), half = Math.max(8, Math.floor((bBot - bTop) / 2) - 3);
-        const pts: { x: number; d: number }[] = [];
+        const pts: { x: number; d: number; time: number; high: number; low: number }[] = [];
         for (const c of visibleBars) {
           const xr = chart.timeScale().timeToCoordinate(c.time as never);
           if (xr == null || +xr < 0 || +xr > plotRight) continue;
           const bd = barTapeDelta(getBarSubProfile(c));
           const sides = bd ? null : candleSidedRef.current.get(Number(c.time)) ?? null;
           if (!bd && !sides) continue;
-          pts.push({ x: +xr, d: bd ? bd.delta : sides!.buy - sides!.sell });
+          pts.push({ x: +xr, d: bd ? bd.delta : sides!.buy - sides!.sell, time: Number(c.time), high: c.high, low: c.low });
           // Plate 35 (serving e419145, ETH-USD 1m, 40 bars): the band drew and the receipt still read
           // 'delta:NO_EXECUTIONS' — so the glass also said 'NO CURRENT EVENT: DELTA' over the drawn band.
           // A bar the band painted counts as a footprint bar.
@@ -9545,7 +9546,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ctx.fillStyle = "rgba(200,192,174,0.22)";
           ctx.fillRect(0, bMid, plotRight, 1);
         }
-        const bw = Math.max(2, Math.floor(colW * 0.8));
+        // Codex Plate 08: FILLED bars at the candle's pitch around the zero line — the
+        // footprint column width (≈1px in trail form) drew hairlines (serving NQ1! 5m, Oct 16).
+        const bw = Math.max(2, Math.floor(Math.max(colW, bsp * 0.7)));
         if (view === "bars") {
           for (const p of pts) { const h = deltaBarPx(p.d, scale, half); ctx.fillStyle = ink(p.d, 0.92); ctx.fillRect(Math.round(p.x - bw / 2), h >= 0 ? bMid - h : bMid, bw, Math.max(1, Math.abs(h))); }
         } else if (view === "heat") {
@@ -9577,6 +9580,58 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             lastR = p.x + w / 2;
           }
         }
+        // Plate 08 · the pane names itself, top-left, like every order-flow pane (Plate 29).
+        if (pts.length && view !== "number") {
+          const paneName = `Delta (${view === "bars" ? "Bars" : view === "ribbon" ? "Ribbon" : view === "bubbles" ? "Bubbles" : "Heat"})`;
+          ctx.font = marketFont("OBJECT_NAME"); ctx.textAlign = "left"; ctx.textBaseline = "middle";
+          crispText(ctx, paneName, 10, bTop + 10, { fill: "rgba(226,214,186,0.95)", outline: true, align: "left" });
+        }
+        /* CODEX PLATE 08 · THE DIVERGENCE ON THE SAME TIME ANCHORS. The two most recent swing
+           pivots on the camera against the band's own bars under them (deltaPanePivots — stated
+           rules, no second data source). A dashed join on price, a dashed join on the band, each
+           end named. No qualifying pair → nothing, and the receipt says NONE. */
+        const paneDiv = view !== "number" && view !== "heat" && pts.length ? deltaPaneDivergence(pts.map(p => ({ time: p.time, high: p.high, low: p.low, delta: p.d })), scale) : null;
+        if (paneDiv) {
+          const xA = chart.timeScale().timeToCoordinate(paneDiv.prior.time as never);
+          const xB = chart.timeScale().timeToCoordinate(paneDiv.recent.time as never);
+          const yA = srs.priceToCoordinate(paneDiv.prior.price), yB = srs.priceToCoordinate(paneDiv.recent.price);
+          if (xA != null && xB != null && yA != null && yB != null) {
+            const hi = paneDiv.kind === "BEARISH", off = hi ? -7 : 7;
+            const pA = { x: +xA, y: +yA + off }, pB = { x: +xB, y: +yB + off };
+            const dA = { x: +xA, y: bMid - deltaBarPx(paneDiv.prior.delta, scale, half) }, dB = { x: +xB, y: bMid - deltaBarPx(paneDiv.recent.delta, scale, half) };
+            const joinInk = "rgba(236,226,200,0.92)";
+            for (const [a, b] of [[pA, pB], [dA, dB]] as const) {
+              ctx.save();
+              ctx.strokeStyle = "rgba(0,0,0,0.75)"; ctx.lineWidth = 3; ctx.setLineDash([4, 3]);
+              ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+              ctx.strokeStyle = joinInk; ctx.lineWidth = 1.25;
+              ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+              ctx.setLineDash([]);
+              for (const q of [a, b]) { ctx.beginPath(); ctx.arc(q.x, q.y, 3.5, 0, Math.PI * 2); ctx.fillStyle = "#f4ecd8"; ctx.fill(); ctx.strokeStyle = "rgba(0,0,0,0.8)"; ctx.lineWidth = 1; ctx.stroke(); }
+              ctx.restore();
+            }
+            const divPill = (txt: string, cx: number, cy: number, above: boolean) => {
+              ctx.font = marketFont("OBJECT_NAME");
+              const w = Math.ceil(ctx.measureText(txt).width) + 14, h = 20;
+              const tries = [0, -w / 2 - 10, w / 2 + 10];
+              for (const dx of tries) {
+                const r = { x: Math.round(Math.min(plotRight - w - 4, Math.max(4, cx - w / 2 + dx))), y: Math.round(above ? cy - h - 6 : cy + 6), w, h };
+                if (r.y < HEADER_FLOOR_Y || chipHits(r)) continue;
+                ctx.fillStyle = "rgba(10,9,7,0.92)";
+                ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, 4); ctx.fill();
+                ctx.strokeStyle = "rgba(214,180,100,0.9)"; ctx.lineWidth = 1; ctx.stroke();
+                ctx.fillStyle = "#f1e4c2"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+                ctx.fillText(txt, r.x + 7, r.y + 10.5);
+                forceChips.push(r);
+                return true;
+              }
+              return false;
+            };
+            const nP = divPill(hi ? "Higher high" : "Lower low", pB.x, pB.y, hi);
+            const nD = divPill(hi ? "Delta: lower high" : "Delta: higher low", dB.x, Math.min(dB.y, bMid), true);
+            canvas.dataset.deltaPaneDivergence = `${paneDiv.kind}|${Math.round(paneDiv.prior.price)}>${Math.round(paneDiv.recent.price)}|D:${Math.round(paneDiv.prior.delta)}>${Math.round(paneDiv.recent.delta)}|WORDS:${nP ? "P" : "-"}${nD ? "D" : "-"}`;
+          } else canvas.dataset.deltaPaneDivergence = "OFF_CAMERA";
+        } else canvas.dataset.deltaPaneDivergence = "NONE";
         if (pts.length && view !== "number") {
           ctx.font = marketFont("MICRO_NUMBER", 13); ctx.textAlign = "right"; ctx.textBaseline = "middle";
           crispText(ctx, `+${fmtV(scale)}`, plotRight - 6, bTop + 9, { fill: ink(1, 0.98), outline: true, align: "right" });
@@ -9585,7 +9640,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         ctx.restore();
         if (pts.length) forceChips.push({ x: 0, y: bTop, w: plotRight, h: bBot - bTop });
         canvas.dataset.deltaView = `${view}|BARS:${pts.length}|SCALE:${Math.round(scale)}`;
-      } else delete canvas.dataset.deltaView; } catch (err) { layerFault("DELTA_VIEW", err); }
+      } else { delete canvas.dataset.deltaView; delete canvas.dataset.deltaPaneDivergence; } } catch (err) { layerFault("DELTA_VIEW", err); }
 
       /* ══════════════════════════════════════════════════════
          MODE 2: WM DELTA BUBBLES — the Founder-preserved Nectar trail.
