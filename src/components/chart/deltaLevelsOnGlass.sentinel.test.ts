@@ -86,15 +86,17 @@ describe("A RUNG IS A PRICE, and only a price", () => {
     expect(block).toMatch(/ds\.deltaLevelsRungs = String\(drawnRungs\)/);
   });
 
-  it("never reads the tempting size fields — the compiler emits none", () => {
-    // `selectDeltaLevelsGlass` deliberately does not carry `delta`, `vol`, or
-    // `maxAbsDelta`; this file must not try to fish them out anyway.
+  it("never fishes raw fields out of the window, and a size reaches only WORDS, never a coordinate", () => {
+    // Codex plate 03 (2026-10-16): the band names its signed size ("+2.8K"). The compiler now carries the rung's
+    // `delta` for those words — it may reach signedFlowText, never priceToCoordinate.
     expect(block).not.toMatch(/\bdl\.(?:levels|maxAbsDelta|balanced)\b/);
-    expect(block).not.toMatch(/r\.(?:delta|vol)\b/);
+    expect(block).not.toMatch(/r\.vol\b/);
+    expect(block).not.toMatch(/priceToCoordinate\([^)]*delta/);
+    expect(block).toContain("signedFlowText(b.r.delta, fmtV)");
   });
 });
 
-describe("§9 — the two sides are told apart by lane, never by hue", () => {
+describe("§9 — the two sides are told apart by form, never by a literal hue", () => {
   it("chooses no colour from the side", () => {
     expect(block).not.toMatch(/r\.side\s*===\s*"BUY"\s*\?\s*"#/);
     expect(block).not.toMatch(/-wm-green|-wm-red/);
@@ -110,8 +112,11 @@ describe("§9 — the two sides are told apart by lane, never by hue", () => {
     }
   });
 
-  it("takes the side from the verdict and only chooses direction from it", () => {
-    expect(block).toMatch(/r\.side === "BUY" \? centerX \+ len : centerX - len/);
+  it("takes the side from the verdict: the house delta ink and the form (solid / hatched)", () => {
+    // Codex plate 03 (2026-10-16) supersedes lane direction: bands across price, in the same dBuy / dSell
+    // ink the Delta views use (never a literal green / red), with the sell side hatched.
+    expect(block).toMatch(/r\.side === "BUY" \? flowColorsRef\.current\.dBuy : flowColorsRef\.current\.dSell/);
+    expect(block).toContain('if (r.side === "SELL") {');
   });
 });
 

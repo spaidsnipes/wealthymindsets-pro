@@ -77,10 +77,10 @@ describe("price sovereignty asks from the Sheriff re-run (ASK-8 / ASK-9, 2026-10
   });
 });
 
-describe("ASK-4 (2026-10-08): Delta Levels' sign survives erasure by FORM, never hue (§9)", () => {
-  it("BUY rungs solid, SELL rungs hollow, one ink, receipt names the form", () => {
-    expect(CHART).toContain('ds.deltaLevelsSides = `BUY:${buyRungs}|SELL:${sellRungs}|FORM:SOLID_BUY+HOLLOW_SELL`;');
-    expect(CHART).toContain("ctx.strokeRect(Math.min(centerX, xEnd) + 0.5, Math.round(y - rungPx / 2) + 0.5, Math.max(1, len - 1), Math.max(2, rungPx - 1));");
+describe("ASK-4 (2026-10-08) → Codex plate 03 (2026-10-16): Delta Levels' sign survives erasure by FORM", () => {
+  it("BUY bands solid, SELL bands hatched (the house delta ink too, never hue alone), receipt names the form", () => {
+    expect(CHART).toContain('ds.deltaLevelsSides = `BUY:${buyRungs}|SELL:${sellRungs}|FORM:SOLID_BUY+HATCHED_SELL`;');
+    expect(CHART).toContain("for (let hx = x0 - bandH; hx < x0 + len; hx += 6) { ctx.moveTo(hx, y + bandH / 2); ctx.lineTo(hx + bandH, y - bandH / 2); }");
   });
 });
 

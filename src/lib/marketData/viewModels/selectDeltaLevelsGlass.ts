@@ -65,6 +65,8 @@ export interface DeltaLaneRung {
    * fixed width in the chrome. It is not a price and never becomes one.
    */
   readonly weight: number;
+  /** Signed net aggressor delta at this level, in contracts / shares — a SIZE for the band's words, never a price. */
+  readonly delta: number;
 }
 
 export type DeltaLevelsGlass =
@@ -125,6 +127,7 @@ export function selectDeltaLevelsGlass(
       price: l.price,
       side: l.delta > 0 ? "BUY" : "SELL",
       weight: Math.min(1, Math.abs(l.delta) / vm.maxAbsDelta),
+      delta: l.delta,
     }))
     .sort((a, b) => b.weight - a.weight)
     .slice(0, MAX_LANE_RUNGS)

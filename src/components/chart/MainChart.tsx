@@ -18623,102 +18623,94 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ds.deltaLevels = on ? (dl ? dl.reason : "NO_READING") : dlNarrowSilent ? "SILENT:NARROW_GLASS" : att.offWord(layerOnRef.current.deltaLevels);
 
           if (on && dl?.drawn) {
-            // VISIBILITY FLOOR (serving NQ1! 1m, 2026-10-01 21:15 CDT): DRAWN
-            // read as three 2px grey dashes beside the live bar — a sense
-            // nobody could see. The lane now has a floor of its own: rungs as
-            // thick as the level spacing allows (3..8px), a longer lane, a
-            // backing strip so it reads over candles, and its name on top.
+            /* CODEX PLATE 03 · 11 "DELTA LEVELS" (Garden 19, 2026-10-16 — plate beside serving NQ1! 5m): the
+               reading was a 56px lane of ivory rungs at the plot's edge ("← SELL · Δ LEVELS · BUY →") that no one
+               could read as levels. Flow becomes geometry: each level is a BAND across price, ending at the plot's
+               right edge, length and ink by its weight, in the house delta ink (the same dBuy / dSell the Delta
+               views use), and the side is FORM as well — buy solid, sell hatched — so it never rests on hue. The
+               strongest four say their signed size ("+2.8K", "−6.2K") on a chip at the band's end. Candles are
+               cut out of every band; the chips go through the chip ledger and never sit on the newest column. */
             ctx.save(); ctx.globalAlpha = Math.max(DELTA_LEVELS_ALPHA_FLOOR, att.alpha("deltaLevels"));
-            // NARROW PANE (phone / desk quarter, 2026-10-02): a shorter lane,
-            // and the caption only where it clears the words already placed.
-            const dlNarrow = W < 640;
-            const laneMax = dlNarrow ? 32 : 56;
-            // PLACEMENT (same serving read): `W - 96` sat ON the newest
-            // candles and ran the caption under the price axis. The lane hugs
-            // the plot's right edge, and steps to the left edge of the plot
-            // whenever the newest bars would sit under it — never on candles.
             const dlAxisW = (() => {
               try { const w = chart.priceScale("right").width(); if (Number.isFinite(w) && w > 0) return Math.ceil(w); } catch { /* fallback */ }
               return 90;
             })();
             const dlPlotRight = Math.max(8, W - dlAxisW);
-            let dlNewestX: number | null = null;
-            try {
-              const bl = barsRef.current || [];
-              const nb = bl[bl.length - 1];
-              const xr = nb ? chart.timeScale().timeToCoordinate(nb.time as any) : null;
-              if (xr != null && Number.isFinite(+xr)) dlNewestX = +xr;
-            } catch { /* unknown → right edge */ }
-            const rightCenter = dlPlotRight - laneMax - 10;
-            const centerX = dlNewestX != null && dlNewestX > rightCenter - laneMax - 12
-              // clear of the countdown chip, and of the Delta Divergence lane
-              // (64..150) when that sense is on — two lanes never share x.
-              ? (layerOnRef.current.divergence ? 64 + 86 + 16 : 64) + laneMax
-              : rightCenter;
-            ds.deltaLevelsLane = centerX === rightCenter ? "RIGHT_EDGE" : "LEFT_EDGE";
             const ys: number[] = [];
-            for (const r of dl.rungs) {
-              const yr = srs.priceToCoordinate(r.price);
-              if (yr != null) ys.push(+yr);
-            }
+            for (const r of dl.rungs) { const yr = srs.priceToCoordinate(r.price); if (yr != null) ys.push(+yr); }
             ys.sort((a, b) => a - b);
             let gap = Infinity;
             for (let i = 1; i < ys.length; i++) { const g = ys[i]! - ys[i - 1]!; if (g > 0.5 && g < gap) gap = g; }
-            const rungPx = Math.max(3, Math.min(8, Number.isFinite(gap) ? Math.floor(gap * 0.7) : 4));
-            if (ys.length) {
-              const top = Math.max(8, ys[0]! - 18), bot = Math.min(H - 8, ys[ys.length - 1]! + 8);
-              ctx.fillStyle = "rgba(10,11,16,0.55)";
-              ctx.fillRect(centerX - laneMax - 4, top, laneMax * 2 + 8, bot - top);
-              ctx.font = marketFont("FIDELITY");
-              ctx.textAlign = "center"; ctx.textBaseline = "top";
-              ctx.fillStyle = "rgba(237,230,211,0.9)";
-              const dlCaption = "\u2190 SELL \u00b7 \u0394 LEVELS \u00b7 BUY \u2192";
-              const capW = ctx.measureText(dlCaption).width + 6;
-              const capRect = { x: centerX - capW / 2, y: top + 1, w: capW, h: 12 };
-              const capClear = !dlNarrow && !floatingChips.some(r => capRect.x < r.x + r.w && capRect.x + capRect.w > r.x && capRect.y < r.y + r.h && capRect.y + capRect.h > r.y);
-              if (capClear) ctx.fillText(dlCaption, centerX, top + 3);
-              ds.deltaLevelsCaption = capClear ? "SHOWN" : dlNarrow ? "NARROW" : "YIELDED";
-              // The lane is on the glass now: later words step around it.
-              floatingChips.push({ x: centerX - laneMax - 4, y: top, w: laneMax * 2 + 8, h: bot - top });
-            }
+            const bandH = Math.max(6, Math.min(16, Number.isFinite(gap) ? Math.floor(gap * 0.8) : 10));
+            const bandMax = Math.max(80, Math.min(520, dlPlotRight * 0.42));
+            const tsDL = chart.timeScale();
+            const vrDL = tsDL.getVisibleLogicalRange();
+            const cutsDL = candleCutOutRects(barsRef.current ?? [], {
+              visible: vrDL ? { from: +vrDL.from, to: +vrDL.to } : null,
+              barSpacing: bsp,
+              timeToX: t => { const xk = tsDL.timeToCoordinate(t as never); return xk == null ? null : +xk; },
+              priceToY: p => { const yk = srs.priceToCoordinate(p); return yk == null ? null : +yk; },
+            }, 0, dlPlotRight);
+            ctx.save();
+            const clipDL = new Path2D();
+            clipDL.rect(0, HEADER_FLOOR_Y, dlPlotRight, Math.max(0, pane0Bottom - HEADER_FLOOR_Y));
+            for (const r of cutsDL) clipDL.rect(r.x, r.y, r.w, r.h);
+            ctx.clip(clipDL, "evenodd");
             let drawnRungs = 0, buyRungs = 0, sellRungs = 0;
+            const bandsDL: { y: number; x0: number; rgb: string; r: (typeof dl.rungs)[number] }[] = [];
             for (const r of dl.rungs) {
               const yr = srs.priceToCoordinate(r.price);
               if (yr == null) continue;
-              const y = Math.round(+yr) + 0.5;
-              const len = Math.max(4, Math.round(r.weight * laneMax));
-              ctx.strokeStyle = "rgba(237,230,211,0.92)";
-              const xEnd = r.side === "BUY" ? centerX + len : centerX - len;
-              // ASK-4 (Sheriff re-run 69fb204: with the caption erased the sign
-              // of each rung was gone). §9 keeps hue out of the sides, so the
-              // sign is FORM: a BUY rung is solid, a SELL rung is hollow — the
-              // same ivory, the same lane direction, readable with no words.
-              if (r.side === "BUY") {
-                ctx.lineWidth = rungPx;
-                ctx.lineCap = "butt";
+              const y = Math.round(+yr);
+              const len = Math.round(60 + (bandMax - 60) * r.weight);
+              const x0 = dlPlotRight - 6 - len;
+              const rgb = r.side === "BUY" ? flowColorsRef.current.dBuy : flowColorsRef.current.dSell;
+              const g = ctx.createLinearGradient(x0, 0, dlPlotRight - 6, 0);
+              g.addColorStop(0, `rgba(${rgb},0.06)`);
+              g.addColorStop(1, `rgba(${rgb},${(0.28 + 0.5 * r.weight).toFixed(3)})`);
+              ctx.fillStyle = g;
+              ctx.fillRect(x0, y - bandH / 2, len, bandH);
+              ctx.strokeStyle = `rgba(${rgb},${(0.55 + 0.4 * r.weight).toFixed(3)})`;
+              ctx.lineWidth = 1;
+              ctx.strokeRect(x0 + 0.5, Math.round(y - bandH / 2) + 0.5, len - 1, bandH - 1);
+              if (r.side === "SELL") {
+                // Hatched: the side read by form, never by hue alone.
+                ctx.save();
+                ctx.beginPath(); ctx.rect(x0, y - bandH / 2, len, bandH); ctx.clip();
+                ctx.strokeStyle = `rgba(${rgb},${(0.35 + 0.35 * r.weight).toFixed(3)})`;
                 ctx.beginPath();
-                ctx.moveTo(centerX, y);
-                ctx.lineTo(xEnd, y);
+                for (let hx = x0 - bandH; hx < x0 + len; hx += 6) { ctx.moveTo(hx, y + bandH / 2); ctx.lineTo(hx + bandH, y - bandH / 2); }
                 ctx.stroke();
-                buyRungs++;
-              } else {
-                ctx.lineWidth = 1;
-                ctx.strokeRect(Math.min(centerX, xEnd) + 0.5, Math.round(y - rungPx / 2) + 0.5, Math.max(1, len - 1), Math.max(2, rungPx - 1));
+                ctx.restore();
                 sellRungs++;
-              }
+              } else buyRungs++;
+              bandsDL.push({ y, x0, rgb, r });
               drawnRungs++;
             }
-            ds.deltaLevelsSides = `BUY:${buyRungs}|SELL:${sellRungs}|FORM:SOLID_BUY+HOLLOW_SELL`;
-            // Hairline centre so the trader can see the axis the lanes grow
-            // from, even when only one side has rungs on screen.
-            ctx.strokeStyle = "rgba(214,178,94,0.7)";
-            ctx.lineWidth = 1;
-            ctx.setLineDash([2, 3]);
-            ctx.beginPath();
-            ctx.moveTo(centerX + 0.5, 8);
-            ctx.lineTo(centerX + 0.5, H - 8);
-            ctx.stroke();
-            ctx.setLineDash([]);
+            ctx.restore(); // the candle cut-out
+            // The strongest four say their size, at the band's right end.
+            let chipsDL = 0;
+            ctx.font = marketFont("MICRO_NUMBER", 13);
+            ctx.textBaseline = "middle"; ctx.textAlign = "left";
+            for (const b of [...bandsDL].sort((p, q) => q.r.weight - p.r.weight).slice(0, 4)) {
+              const t = signedFlowText(b.r.delta, fmtV);
+              const tw = Math.ceil(ctx.measureText(t).width) + 12, th = 18;
+              const box = { x: dlPlotRight - 6 - tw - 4, y: Math.round(b.y - th / 2), w: tw, h: th };
+              if (onNewestColumn(box.x, box.y, box.w, box.h)) box.x = Math.max(4, b.x0 - tw - 6);
+              if (floatingChips.some(q => box.x < q.x + q.w && box.x + box.w > q.x && box.y < q.y + q.h && box.y + box.h > q.y)) continue;
+              if (onNewestColumn(box.x, box.y, box.w, box.h)) continue;
+              ctx.fillStyle = "rgba(11,10,8,0.88)";
+              if (chipBox(t, box)) ctx.fillRect(box.x, box.y, box.w, box.h);
+              ctx.strokeStyle = `rgba(${b.rgb},0.95)`; ctx.lineWidth = 1;
+              ctx.strokeRect(box.x + 0.5, box.y + 0.5, box.w - 1, box.h - 1);
+              ctx.fillStyle = `rgba(${b.rgb},1)`;
+              ctx.fillText(t, box.x + 6, box.y + th / 2 + 0.5);
+              floatingChips.push(box);
+              chipsDL++;
+            }
+            ds.deltaLevelsLane = "BANDS";
+            ds.deltaLevelsCaption = `CHIPS:${chipsDL}`;
+            ds.deltaLevelsSides = `BUY:${buyRungs}|SELL:${sellRungs}|FORM:SOLID_BUY+HATCHED_SELL`;
             ctx.restore();
             if (drawnRungs > 0) ds.deltaLevelsRungs = String(drawnRungs);
             else delete ds.deltaLevelsRungs;
