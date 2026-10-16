@@ -386,7 +386,7 @@ describe("price sovereignty on narrow glass — every painter consults the one k
     expect(i).toBeGreaterThan(0);
     expect(CHART.slice(i, i + 1200)).toContain("flowHitRef.current.push({ id: s.e.id, x: xs, y: cy, r: rs + 6 });");
     expect(CHART).toContain("if (narrowGlass && (onNewestColumn(box.x, box.y, box.w, box.h) || rowBodiesAt(box.y, box.y + box.h).some(");
-    expect(CHART).toContain("return !(narrowGlass && rowBodiesAt(q.y, q.y + q.h).some(b => q.x < b.x + b.w && q.x + q.w > b.x && q.y < b.y + b.h && q.y + q.h > b.y));");
+    expect(CHART).toContain("return !rowBodiesAt(q.y, q.y + q.h).some(b => q.x < b.x + b.w && q.x + q.w > b.x && q.y < b.y + b.h && q.y + q.h > b.y);"); // every width since 2026-10-16
   });
   it("the WAIT plate has a slot clear of the column and every body, or it folds to the WAIT strip with a receipt", () => {
     expect(CHART).toContain('if ((narrowGlass && (spotT.mode === "BLOCKED" || spotT.onCandles || onNewestColumn(spotT.rect.x, spotT.rect.y, spotT.rect.w, spotT.rect.h))) || !chipBox(tagT.word, spotT.rect)) {');

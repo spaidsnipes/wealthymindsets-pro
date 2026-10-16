@@ -20706,8 +20706,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   const offColumn = (k: number) => {
                     const q = at(k);
                     if (onNewestColumn(q.x, q.y, q.w, q.h)) return false;
-                    // PRICE SOVEREIGNTY (narrow glass): nor on any candle body on its row.
-                    return !(narrowGlass && rowBodiesAt(q.y, q.y + q.h).some(b => q.x < b.x + b.w && q.x + q.w > b.x && q.y < b.y + b.h && q.y + q.h > b.y));
+                    // PRICE SOVEREIGNTY: nor on any candle body on its row — at EVERY width (serving c59a885, his
+                    // 1632px desk: "NDX 29550 → 29751 · CALL OI · MAPPED" lay across the newest candles' bodies).
+                    return !rowBodiesAt(q.y, q.y + q.h).some(b => q.x < b.x + b.w && q.x + q.w > b.x && q.y < b.y + b.h && q.y + q.h > b.y);
                   };
                   const kClear = near.find(k => offColumn(k) && !over(at(k), [...placed, ...fixedChips]))
                     ?? [...near, -4, 4, -5, 5, -6, 6].find(k => offColumn(k) && !over(at(k), [...placed, ...sovereignBoxes]));
@@ -21132,8 +21133,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const isHeat = (t: { kinds: readonly string[] }) => t.kinds.some(k => k === "GAMMA_HEAT_POS" || k === "GAMMA_HEAT_NEG");
               const heatPct = (t: { text: string }) => Number((t.text.match(/(\d+)%$/) ?? [])[1] ?? 0);
               const keptHeat = new Set(out.labels.filter(isHeat).sort((a, b) => heatPct(b) - heatPct(a)).slice(0, 2));
+              // ONE STRIKE, ONE NAME (canon: "never draw the same line six times under different labels"; serving
+              // c59a885 his default stack: 'PUT WALL 29750.00 · BREAKING ×1' from Brick Walls AND 'Call + put wall
+              // 29750 · 265 / 943 OI'). A strike Brick Walls already named on the glass keeps its band, not a 2nd name.
+              const namedByPressure = new Set(pressureWallHitRef.current.filter(r => !r.off).map(r => r.strike));
+              const yieldsToPressure = (t: { kinds: readonly string[]; price?: number }) =>
+                t.price != null && namedByPressure.has(t.price) && t.kinds.every(k => k === "CALL_WALL" || k === "PUT_WALL");
               const ordered = [
-                ...out.labels.filter(t => !isHeat(t)).sort((a, b) => a.y - b.y),
+                ...out.labels.filter(t => !isHeat(t) && !yieldsToPressure(t)).sort((a, b) => a.y - b.y),
                 ...out.labels.filter(t => keptHeat.has(t)).sort((a, b) => a.y - b.y),
               ];
               for (const t of ordered) {

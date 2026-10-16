@@ -53,7 +53,7 @@ export interface WallsGammaGlassEnv {
   readonly putRgb?: string;
 }
 
-export interface WallsGammaLabelJob { readonly y: number; readonly text: string; readonly rgb: string; readonly kinds: readonly string[] }
+export interface WallsGammaLabelJob { readonly y: number; readonly text: string; readonly rgb: string; readonly kinds: readonly string[]; readonly price?: number }
 
 export interface WallsGammaGlassResult {
   readonly heat: string;
@@ -326,7 +326,7 @@ export function paintWallsGamma(env: WallsGammaGlassEnv): WallsGammaGlassResult 
       }
       ctx.restore();
     }
-    labels.push({ y, text: m.glass ?? m.label, rgb, kinds: m.kinds });
+    labels.push({ y, text: m.glass ?? m.label, rgb, kinds: m.kinds, price: m.price });
     markWords.push(`${m.kinds.join("+")}@${m.price}`);
   }
   // Nearest the camera first.
