@@ -688,6 +688,28 @@ export const INDICATOR_EDUCATION: Readonly<Record<string, IndicatorEducation>> =
     appears: OWN_PANE("Candles of the running total (each body spans that bar's change)"),
     read: "Each print adds its size when the buyer crossed the spread and subtracts it when the seller did. Sides are as the feed labelled them; the first bar is hollow; bars before the tape stay empty.",
   }),
+  // Plate 29 (2026-10-15): the tape's own readers. They exist only on bars the tape reached.
+  "Tape Speed": rec({
+    what: "Prints per second in each bar the tape reached",
+    q: "Is the tape printing faster or slower than usual right now?",
+    src: "tape", win: null,
+    appears: OWN_PANE("Bars; gold where a bar printed at twice the median speed or more"),
+    read: "Counts executions, not size: many small prints read fast. 'fast' means at least twice the median of the bars the tape reached. Bars before the tape stay empty.",
+  }),
+  "Trade Size Mix": rec({
+    what: "Each bar's volume split into large, mid and small prints",
+    q: "Is this bar's volume coming from a few big prints or many small ones?",
+    src: "tape", win: null,
+    appears: OWN_PANE("Stacked bars: small (grey) at the floor, mid (blue), large (gold) on top"),
+    read: "Small is under the session's median print size; large is its top tenth. Shares are of the bar's volume. It needs 20 prints before it can cut sizes; bars before the tape stay empty.",
+  }),
+  "Sweeps": rec({
+    what: "One buyer or seller walking through 3+ prices in a burst",
+    q: "Did an aggressor take several price levels at once?",
+    src: "tape", win: null,
+    appears: "A card on price at the bar where it happened: ⚡ Buy sweep · 4 levels. At most three, the largest.",
+    read: "Prints of one side, each within 300 ms of the last, moving one way through at least three prices. Untimed prints are not read; bars before the tape show none.",
+  }),
   "Order Block Finder": rec({
     what: "The last opposite-colour candle body before a move of more than 2 average ranges in 3 bars",
     q: "Which candles came right before a large 3-bar move the other way?",

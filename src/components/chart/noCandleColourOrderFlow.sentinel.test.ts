@@ -39,7 +39,6 @@ const RETIRED = [
   "Volume Delta",
   "Trade Flow",
   "Speed of Tape",
-  "Tape Speed",
   "Buy/Sell Volume Columns",
   "Large Trade Filter",
   "Absorption Detector",
@@ -49,6 +48,17 @@ const RETIRED = [
 describe("no order flow minted from candle colour", () => {
   it.each(RETIRED)("the indicator engine does not paint %s", name => {
     expect(CHART).not.toContain(`inds.has("${name}")`);
+  });
+
+  // Plate 29 (2026-10-15) brings "Tape Speed" back — read from the PRINTS (one row per execution),
+  // never from a candle. Its pane is created empty and filled only by fillTapePanesRef from the print store.
+  it("Tape Speed returns only as a reading of the prints", () => {
+    const build = CHART.slice(CHART.indexOf('if (inds.has("Tape Speed")) {'), CHART.indexOf('if (inds.has("Trade Size Mix")) {'));
+    expect(build).not.toMatch(/setData|\.volume|b\.close|b\.open/);
+    const fill = CHART.slice(CHART.indexOf("fillTapePanesRef.current = () => {"), CHART.indexOf("useEffect(() => { fillTapePanesRef.current(); }"));
+    expect(fill).toContain("const acc = bigTradePrintAccRef.current;");
+    expect(fill).toContain("tapeSpeed(acc.get(t) ?? [],");
+    expect(fill).not.toMatch(/barsRef|candles|\.volume/);
   });
 
   it("no picker offers the candle-based absorption or exhaustion duplicates", () => {

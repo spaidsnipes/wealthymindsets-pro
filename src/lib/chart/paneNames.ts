@@ -63,6 +63,8 @@ export const PANE_INDICATORS: Readonly<Record<string, readonly string[]>> = {
   stddev: ["Standard Deviation"],
   stoch: ["Stochastic"],
   stoprun: ["Stop Run Alert"],
+  tapespeed: ["Tape Speed"],
+  sizemix: ["Trade Size Mix"],
   tapecvd: ["Tape CVD"],
   trix: ["TRIX"],
   tsi: ["TSI"],

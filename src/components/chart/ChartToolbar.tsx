@@ -480,6 +480,9 @@ const INDICATORS = [
   { cat:"Structure", name:"Supply/Demand Zones", desc:"Boxes at swing highs and swing lows of the last 200 bars — price structure only" },
   { cat:"Structure", name:"Stop Run Alert", desc:"Bars that broke the prior 5 bars' high or low and closed back inside — price only" },
   { cat:"Order Flow", name:"Tape CVD", desc:"Cumulative signed tape — only bars the tape was heard on" },
+  { cat:"Order Flow", name:"Tape Speed", desc:"Prints per second in each bar the tape reached" },
+  { cat:"Order Flow", name:"Trade Size Mix", desc:"Each bar's volume split into large, mid and small prints" },
+  { cat:"Order Flow", name:"Sweeps", desc:"One buyer or seller walking through 3+ prices in a burst" },
   // ─── Smart Money ──────────────────────────────────────
   { cat:"Smart Money", name:"Order Block Finder", desc:"The last opposite-colour candle body before a move of more than 2 average ranges in 3 bars" },
   // "Fair Value Gaps" RETIRED 2026-10-07 (Garden 19 FVG lane D) — Tools › Find "FVG / Imbalance" is its one door now.

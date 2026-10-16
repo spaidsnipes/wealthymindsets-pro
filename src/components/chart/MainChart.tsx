@@ -101,6 +101,7 @@ import { isQuoteSampleSeries, quoteSampleSentence } from "@/lib/marketData/quote
 import { IMBALANCE_ZONE_NAMES_MAX, imbalanceTestWords, imbalanceZoneFate, imbalanceZoneName, imbalanceZonesReceipt, type ImbalanceZone, type ImbalanceZoneState } from "@/lib/chart/imbalanceZones";
 import { paneTitle, paneValueWords } from "@/lib/chart/paneNames";
 import { volumePace } from "@/lib/chart/flowIndicators";
+import { findSweeps, medianOf, sizeCuts, sizeMixWords, sweepWords, TAPE_FAST_MULTIPLE, tapeSpeed, tapeSpeedWords, tradeSizeMix, type Sweep } from "@/lib/chart/tapeIndicators";
 import { barFlow, chooseWedges, estimatedRuns, evidenceReceipt, EVIDENCE_LEGEND, findShelves, shelfTolerance, shelfWords, wedgeWidth, type BarFlow, type EvidenceBar, type Shelf } from "@/lib/chart/evidenceKinds";
 import { MARKET_MONO, MARKET_NUMBER_MIN_PX, MARKET_SANS, crispText, footprintCellPx, marketFont } from "@/lib/chart/marketType";
 import { tastyCandleStreamerFor, tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
@@ -2120,6 +2121,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const indSeriesRef  = useRef<any[]>([]);
   /** Plate 29: the first series each indicator pane received (its corner value), and the indicators on. */
   const paneSeriesRef = useRef<Map<string, any>>(new Map());
+  /** Each pane's corner value, recorded when the pane is built — never read back from the series per frame. */
+  const paneLastRef = useRef<Map<string, number>>(new Map());
   const paneActiveIndsRef = useRef<ReadonlySet<string>>(new Set());
   // Tape CVD pane (H-701): the one lawful cumulative delta. Its series, and
   // the selector's last verdict the overlay captions and receipts from.
@@ -4087,6 +4090,49 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const candlesKey = candles.length ? `${candles.length}:${candles[0].time}` : "";
   useEffect(() => { fillTapeCvdRef.current(); }, [sessionTapeTick, timeframe, tapeSource, canonicalSym, ready, candlesKey]);
 
+  // ── PLATE 29 · the tape's own panes (Tape Speed, Trade Size Mix), refilled as prints arrive ──
+  // They read the individual prints the chart holds (bigTradePrintAccRef: one row per execution, its
+  // own time), so they exist only on bars the tape reached — never estimated from bars.
+  const tapeSpeedSeriesRef = useRef<any>(null);
+  const sizeMixSeriesRef = useRef<any[] | null>(null);
+  /** The corner words a tape pane says ("31 prints/sec · fast", "Large 22% · Mid 26% · Small 52%"). */
+  const tapePaneWordsRef = useRef<Map<string, string>>(new Map());
+  const fillTapePanesRef = useRef<() => void>(() => {});
+  fillTapePanesRef.current = () => {
+    const acc = bigTradePrintAccRef.current;
+    const barSec = getIntervalSec(timeframe);
+    const nowSec = Date.now() / 1000;
+    const times = [...acc.keys()].sort((a, b) => a - b);
+    const words = tapePaneWordsRef.current;
+    const sp = tapeSpeedSeriesRef.current;
+    if (sp) {
+      const speeds = times.map(t => ({ t, v: tapeSpeed(acc.get(t) ?? [], Math.max(1, Math.min(barSec, nowSec - t))) }));
+      const med = medianOf(speeds.map(x => x.v ?? NaN));
+      try {
+        sp.setData(speeds.filter(x => x.v != null).map(x => ({
+          time: x.t as never, value: x.v as number,
+          color: med != null && (x.v as number) >= med * TAPE_FAST_MULTIPLE ? "rgba(240,160,40,0.95)" : "rgba(200,192,174,0.6)",
+        })));
+      } catch { /* series removed mid-flush; the next build refills */ }
+      const w = tapeSpeedWords(speeds.length ? speeds[speeds.length - 1].v : null, med);
+      if (w) words.set("tapespeed", w); else words.delete("tapespeed");
+    } else words.delete("tapespeed");
+    const mx = sizeMixSeriesRef.current;
+    if (mx) {
+      const cuts = sizeCuts(acc.values());
+      const mixes = cuts ? times.map(t => ({ t, m: tradeSizeMix(acc.get(t) ?? [], cuts) })).filter(x => x.m != null) : [];
+      try {
+        // Stacked from the floor: small (grey) · mid (blue) · large (gold) on top, as the plate draws it.
+        mx[0].setData(mixes.map(x => ({ time: x.t as never, value: 100 })));
+        mx[1].setData(mixes.map(x => ({ time: x.t as never, value: (x.m!.small + x.m!.mid) * 100 })));
+        mx[2].setData(mixes.map(x => ({ time: x.t as never, value: x.m!.small * 100 })));
+      } catch { /* series removed mid-flush */ }
+      const w = cuts ? sizeMixWords(mixes.length ? mixes[mixes.length - 1].m : null) : "needs 20 prints";
+      if (w) words.set("sizemix", w); else words.delete("sizemix");
+    } else words.delete("sizemix");
+  };
+  useEffect(() => { fillTapePanesRef.current(); }, [sessionTapeTick, timeframe, canonicalSym, ready, candlesKey]);
+
   // Keep the canvas-loop-readable candle-timer flag in sync with settings.
   // Not while replaying: the timer counts down the LIVE forming bar against the
   // wall clock, and a wall clock beside a replayed candle is the exact confusion
@@ -5605,7 +5651,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     volGateRef.current = volGate;
     const inds   = new Set<string>([...(activeInds ?? new Set<string>())].filter(n => !volGate.withheld.includes(n)));
     paneSeriesRef.current = new Map();
+    paneLastRef.current = new Map();
     paneActiveIndsRef.current = inds;
+    tapeSpeedSeriesRef.current = null; sizeMixSeriesRef.current = null;
     // Per-indicator custom params (length / mult / color) merged with defaults
     const ip = (name: string) => resolveParams(name, indSettings);
 
@@ -5662,7 +5710,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const s = chart.addSeries(LW.LineSeries, { color, lineWidth: width, lineStyle: dashed ? LW.LineStyle.Dashed : LW.LineStyle.Solid, priceLineVisible: false, lastValueVisible: !dashed, crosshairMarkerVisible: false }, paneFor(scaleId));
         s.setData(bars.map((b, i) => ({ time: b.time as any, value: vals[i] })).filter(d => isFinite(d.value)));
         indSeriesRef.current.push(s);
-        if (!dashed && !paneSeriesRef.current.has(scaleId)) paneSeriesRef.current.set(scaleId, s);
+        if (!dashed && !paneSeriesRef.current.has(scaleId)) { paneSeriesRef.current.set(scaleId, s); const lv = [...vals].reverse().find(v => isFinite(v)); if (lv != null) paneLastRef.current.set(scaleId, lv); }
         return s;
       } catch { return null; }
     };
@@ -5673,7 +5721,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const s = chart.addSeries(LW.HistogramSeries, { priceLineVisible: false, lastValueVisible: true }, paneFor(scaleId));
         s.setData(bars.map((b, i) => ({ time: b.time as any, value: vals[i], color: Array.isArray(colors) ? colors[i] : colors })).filter(d => isFinite(d.value)));
         indSeriesRef.current.push(s);
-        if (!paneSeriesRef.current.has(scaleId)) paneSeriesRef.current.set(scaleId, s);
+        if (!paneSeriesRef.current.has(scaleId)) { paneSeriesRef.current.set(scaleId, s); const lv = [...vals].reverse().find(v => isFinite(v)); if (lv != null) paneLastRef.current.set(scaleId, lv); }
         return s;
       } catch { return null; }
     };
@@ -6173,6 +6221,22 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       } catch { tapeCvdSeriesRef.current = null; tapeCvdDataRef.current = null; }
     }
 
+    // ── PLATE 29 · Tape Speed and Trade Size Mix — panes the tape fills (fillTapePanesRef) ──
+    if (inds.has("Tape Speed")) {
+      try {
+        const s = chart.addSeries(LW.HistogramSeries, { priceLineVisible: false, lastValueVisible: true }, paneFor("tapespeed"));
+        indSeriesRef.current.push(s); tapeSpeedSeriesRef.current = s; paneSeriesRef.current.set("tapespeed", s);
+      } catch { tapeSpeedSeriesRef.current = null; }
+    }
+    if (inds.has("Trade Size Mix")) {
+      try {
+        const mk = (color: string) => chart.addSeries(LW.HistogramSeries, { color, priceLineVisible: false, lastValueVisible: false }, paneFor("sizemix"));
+        const sm = [mk("rgba(236,204,120,0.95)"), mk("rgba(70,150,190,0.9)"), mk("rgba(120,114,100,0.85)")];
+        sm.forEach(x => indSeriesRef.current.push(x)); sizeMixSeriesRef.current = sm; paneSeriesRef.current.set("sizemix", sm[0]);
+      } catch { sizeMixSeriesRef.current = null; }
+    }
+    if (tapeSpeedSeriesRef.current || sizeMixSeriesRef.current) fillTapePanesRef.current();
+
     // ── PLATE 29 · Volume Pace — this bar's volume against the median of the 20 before it ──
     if (inds.has("Volume Pace")) {
       try {
@@ -6185,6 +6249,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         s.createPriceLine({ price: 1, color: "rgba(200,192,174,0.5)", lineWidth: 1, lineStyle: LW.LineStyle.Dashed, axisLabelVisible: false, title: "normal" });
         indSeriesRef.current.push(s);
         paneSeriesRef.current.set("vpace", s);
+        { const lv = [...pace].reverse().find(v => isFinite(v)); if (lv != null) paneLastRef.current.set("vpace", lv); }
       } catch { /* the pane returns on the next build */ }
     }
 
@@ -28050,9 +28115,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           if (paneIdx < 1) continue;
           let topP = 0;
           for (let i = 0; i < paneIdx; i++) topP += (chart.paneSize(i)?.height ?? 0) + 1;
-          const dataP = ser.data?.() ?? [];
-          const lastP = dataP.length ? dataP[dataP.length - 1] : null;
-          const valueP = paneValueWords(paneId, lastP == null ? null : (lastP.value ?? lastP.close ?? null));
+          // PERF (serving e151b80: paint mean 2.8 → 11.1 ms): series.data() copied every point of every
+          // pane each frame (the CVD holds thousands). The value is recorded when the pane is built; the
+          // CVD's comes from its own last fill.
+          const cvdTail = paneId === "tapecvd" ? tapeCvdDataRef.current : null;
+          const lastNum = cvdTail && cvdTail.length ? Number(cvdTail[cvdTail.length - 1].close) : paneLastRef.current.get(paneId) ?? null;
+          const valueP = tapePaneWordsRef.current.get(paneId) ?? paneValueWords(paneId, lastNum);
           const nameP = paneTitle(paneId, paneActiveIndsRef.current);
           ctx.save();
           ctx.font = `600 14px ${MARKET_SANS}`;
@@ -28077,6 +28145,48 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
         if (titled.length) canvas.dataset.paneTitles = titled.join("|"); else delete canvas.dataset.paneTitles;
       } catch (err) { layerFault("PANE_TITLES", err); }
+      // ── PLATE 29 · SWEEPS on price: one aggressor walking ≥3 prices in a burst, at most 3 named ──
+      try {
+        if (paneActiveIndsRef.current.has("Sweeps") && srs) {
+          const tickS = instrumentTickFor(symbol, barsRef.current?.[barsRef.current.length - 1]?.close ?? null) ?? 0;
+          const found: { sw: Sweep; x: number }[] = [];
+          for (const [bt, prints] of bigTradePrintAccRef.current) {
+            const xb = chart.timeScale().timeToCoordinate(bt as never);
+            if (xb == null || +xb < 0 || +xb > plotRight) continue;
+            for (const sw of findSweeps(prints, tickS)) found.push({ sw, x: +xb });
+          }
+          found.sort((a, b) => b.sw.size - a.sw.size);
+          let named = 0;
+          ctx.save();
+          ctx.font = `600 13px ${MARKET_SANS}`;
+          for (const f of found) {
+            if (named >= 3) break;
+            const yS = srs.priceToCoordinate(f.sw.to);
+            if (yS == null) continue;
+            const words = sweepWords(f.sw);
+            const wS = Math.ceil(ctx.measureText(words).width) + 18, hS = 24;
+            const slots = [
+              { x: f.x + 10, y: +yS - hS / 2 }, { x: f.x - 10 - wS, y: +yS - hS / 2 },
+              { x: f.x - wS / 2, y: f.sw.side === "buy" ? +yS - hS - 14 : +yS + 14 },
+            ].map(r => ({ x: Math.round(r.x), y: Math.round(r.y), w: wS, h: hS }))
+              .filter(r => r.x >= 2 && r.x + r.w <= plotRight - 2 && r.y >= HEADER_FLOOR_Y && r.y + r.h <= pane0Bottom - 2);
+            const r = slots.find(q => !forceChips.some(o => q.x < o.x + o.w && q.x + q.w > o.x && q.y < o.y + o.h && q.y + q.h > o.y));
+            if (!r) continue;
+            const inkS = f.sw.side === "buy" ? "52,211,153" : "244,114,128";
+            ctx.fillStyle = "rgba(10,12,11,0.94)";
+            ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, 6); ctx.fill();
+            ctx.strokeStyle = `rgba(${inkS},0.95)`; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.roundRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1, 6); ctx.stroke();
+            onTop(r, "OPAQUE_CARD");
+            ctx.fillStyle = `rgba(${inkS},1)`; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+            ctx.fillText(words, r.x + 9, r.y + r.h / 2 + 0.5);
+            forceChips.push(r);
+            named++;
+          }
+          ctx.restore();
+          canvas.dataset.sweeps = `${found.length}:${named}`;
+        } else delete canvas.dataset.sweeps;
+      } catch (err) { layerFault("SWEEPS", err); }
       if (layerFaults.length) canvas.dataset.layerFaults = `${layerFaults.length}:${layerFaults.slice(0, 4).join(" | ")}`;
       else delete canvas.dataset.layerFaults;
       paintLap(27593);
