@@ -55,3 +55,16 @@ describe("compileInventionVisibility — the serving receipts of 2026-10-15 10:0
     expect(m.BRICK_WALLS).toBe("RENDER_FAULT");
   });
 });
+
+describe("plain status words for tool rows (plate 23, L18)", () => {
+  it("a row reads the chart's receipt in plain words; an unreported tool answers null, never ACTIVE · AVAILABLE", async () => {
+    const { rowStatusWords, VISIBILITY_WORDS } = await import("./inventionVisibility");
+    const vis = { BRICK_WALLS: "VISIBLE", GAMMA_HEATMAP: "MISSING_EVIDENCE", CALL_PUT_WALLS: "NO_EVENT", GAMMA_REGIONS: "UNSUPPORTED" } as const;
+    expect(rowStatusWords("BRICK_WALLS", vis)).toBe("On chart");
+    expect(rowStatusWords("GAMMA_HEATMAP", vis)).toBe("Waiting for data");
+    expect(rowStatusWords("PUT_WALL", vis)).toBe("No event right now");
+    expect(rowStatusWords("GAMMA_NEGATIVE", vis)).toBe("Not possible on this symbol");
+    expect(rowStatusWords("SCAFFOLDING", vis)).toBeNull();
+    expect(Object.values(VISIBILITY_WORDS).some(w => /AVAILABLE/i.test(w))).toBe(false);
+  });
+});

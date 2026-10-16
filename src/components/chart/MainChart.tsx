@@ -1885,6 +1885,12 @@ function paintStackCell(ctx: CanvasRenderingContext2D, a: { x0: number; x1: numb
   ctx.strokeRect(x + 0.5, y - h / 2 + 0.5, Math.max(0, w - 1), h - 1);
 }
 
+/**
+ * The plot's header band (OHLC line, bar clock, reading chips) in px — the same line as draw()'s
+ * HEADER_FLOOR_Y plus a breath. The camera keeps the highest candle under it (plate 22b).
+ */
+const HEADER_CLEAR_PX = 96;
+
 /** The candle pane's top margin: room under the phone's top chrome band. */
 function candleTopMargin(paneWidthPx: number): number {
   return paneWidthPx > 0 && paneWidthPx < 640 ? 0.22 : 0.06;
@@ -2523,6 +2529,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const pressureWallHitRef = useRef<{ strike: number; x: number; y: number; w: number; h: number; off?: boolean }[]>([]);
   // SHOW ME (order §4): the level the trader asked the camera to reveal, for a few seconds.
   const cameraRevealRef = useRef<CameraReveal | null>(null);
+  // The candle pane's size as the last frame measured it — the camera reserves the header band in px.
+  const paneGeomRef = useRef<{ w: number; h: number } | null>(null);
   // The autoscale provider's last answer (receipt `data-camera-range`): what the camera was told, and when.
   const cameraAnswerRef = useRef<{ lo: number; hi: number; applied: boolean; at: number } | null>(null);
   // The walls/gamma edge chips ("▲ CALL WALL …") this frame, each a "show me" target carrying its lead price.
@@ -2765,7 +2773,19 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       if (rv.applied) { lo = rv.lo; hi = rv.hi; wallTop = wallTop || rv.top; wallBottom = wallBottom || rv.bottom; }
       cameraAnswerRef.current = { lo, hi, applied: rv.applied, at: Date.now() };
       const span = hi - lo;
-      return { priceRange: { minValue: lo - span * (wallBottom ? 0.3 : 0.06), maxValue: hi + span * (wallTop ? 0.34 : 0.06) } };
+      const minV = lo - span * (wallBottom ? 0.3 : 0.06);
+      let maxV = hi + span * (wallTop ? 0.34 : 0.06);
+      // THE NEWEST CANDLES STAND UNDER THE HEADER LINE (plate 22b; serving 82e12a2 NQ1! 15m: once the
+      // camera fit the candles, price sat in the top 90px under the DAY BIAS / QUESTION chips). With
+      // margins m (top) and b (bottom) of pane height H, the highest candle lands at or below
+      // HEADER_CLEAR_PX when (max − hi) / (max − min) ≥ R = (HEADER_CLEAR_PX − mH) / ((1 − m − b)H).
+      const g = paneGeomRef.current;
+      if (g && g.h > 0) {
+        const m = candleTopMargin(g.w), b = candleBottomMargin(g.w);
+        const R = (HEADER_CLEAR_PX - m * g.h) / ((1 - m - b) * g.h);
+        if (R > 0 && R < 0.6) maxV = Math.max(maxV, (hi - R * minV) / (1 - R));
+      }
+      return { priceRange: { minValue: minV, maxValue: maxV } };
     } catch { return fallback; }
   });
 
@@ -8129,6 +8149,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const ps = (chart as any).paneSize?.(0);
         if (ps && Number.isFinite(ps.height) && ps.height > 0) pane0Bottom = Math.ceil(ps.height);
       } catch {}
+      paneGeomRef.current = { w: W, h: pane0Bottom };
       ctx.save();
       ctx.beginPath();
       ctx.rect(0, 0, plotRight, pane0Bottom);

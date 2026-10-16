@@ -140,7 +140,9 @@ describe("the camera fits the candles on camera (Garden 19 plate 22, supersedes 
     expect(rng).not.toContain("WALL_CAMERA_REACH");
     expect(rng).not.toContain("derivativesPressureRef");
     expect(rng).toContain("const rv = applyReveal({ lo, hi }, cameraRevealRef.current, Date.now());");
-    expect(MC).toContain("return { priceRange: { minValue: lo - span * (wallBottom ? 0.3 : 0.06), maxValue: hi + span * (wallTop ? 0.34 : 0.06) } };");
+    expect(MC).toContain("let maxV = hi + span * (wallTop ? 0.34 : 0.06);");
+    // …and the newest candles stand under the header line (plate 22b).
+    expect(MC).toContain("if (R > 0 && R < 0.6) maxV = Math.max(maxV, (hi - R * minV) / (1 - R));");
   });
 });
 

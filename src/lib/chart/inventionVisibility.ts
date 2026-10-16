@@ -90,3 +90,38 @@ export function parseInventionVisibility(receipt: string): Readonly<Record<strin
   }
   return out;
 }
+
+/**
+ * PLAIN STATUS WORDS (Garden 19 finish-line plate 23, live click-through L18, Founder 2026-10-15):
+ * a tool row says in plain words whether it is on the chart, waiting, quiet, or not possible here —
+ * never "ACTIVE · AVAILABLE" while nothing is painted (repro: Gamma said ACTIVE · AVAILABLE while the
+ * chart said "no options chain for NQ1!").
+ */
+export const VISIBILITY_WORDS: Readonly<Record<InventionVisibility, string>> = {
+  VISIBLE: "On chart",
+  OFF_CAMERA: "Beyond the camera · Show me at the edge",
+  NO_EVENT: "No event right now",
+  MISSING_EVIDENCE: "Waiting for data",
+  RENDER_FAULT: "Error — this layer failed to draw",
+  DISABLED: "Starting…",
+  UNSUPPORTED: "Not possible on this symbol",
+};
+
+/** The Locate-Invention id a tool row reads its state from (rows and receipts mostly share ids). */
+const ROW_TO_RECEIPT: Readonly<Record<string, string>> = {
+  CALL_WALL: "CALL_PUT_WALLS",
+  PUT_WALL: "CALL_PUT_WALLS",
+  GAMMA_POSITIVE: "GAMMA_REGIONS",
+  GAMMA_NEGATIVE: "GAMMA_REGIONS",
+  SESSION: "SESSION_VP",
+};
+
+export function receiptIdForRow(rowId: string): string {
+  return ROW_TO_RECEIPT[rowId] ?? rowId;
+}
+
+/** A switched-on row's plain status from the chart's receipt, or null when the chart does not report this tool. */
+export function rowStatusWords(rowId: string, vis: Readonly<Record<string, InventionVisibility>> | null | undefined): string | null {
+  const s = vis?.[receiptIdForRow(rowId)];
+  return s ? VISIBILITY_WORDS[s] : null;
+}
