@@ -134,10 +134,10 @@ describe("one bar, one delta, one owner", () => {
 describe("Volume Profile and Imbalance draw with their owners", () => {
   it("the histogram row is the VP owner's length and split; the POC is the family's POC ink; numbers wait for NEAR", () => {
     const b = vp();
-    expect(b).toContain("const hr = footprintHistogramRow(lv, maxTot, colW);");
+    expect(b).toContain("const hr = footprintHistogramRow(lv, maxTot, histW);");
     expect(b).toContain('ctx.fillStyle = pk.rgba("POC", 0.9);');
     expect(b).toContain("if (vpNumbers && rH >= 11) {");
-    expect(b).toContain("if (tx + tw <= x + bsp - 2) {");
+    expect(b).toContain("if (tx + tw <= cx + bsp - 2) {");
   });
 
   it("imbalance leans by the stacked owner's rule; words only for runs, placed after every column is on the glass", () => {

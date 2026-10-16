@@ -9863,15 +9863,19 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // volume traded at the low is painted at the top of the candle.
           const levels = fpLevels(c, numLevels).reverse();
           if (levels.length === 0) return;
-          const x = cx - halfW;
+          // CODEX PLATE 07 "Read the bid and the ask" beside serving NQ1! 1m: the histogram was drawn inside the
+          // body's own width (colW), a thin tint ON the candle. It now grows out of the candle's centre line across
+          // the gap to the next candle (82% of the bar spacing), bid / ask split, the candle outlined on top.
+          const histW = Math.max(colW, Math.floor(bsp * 0.82));
+          const x = cx + 1;
           const maxTot = Math.max(...levels.map(l => l.total));
           const pocIdx = levels.reduce((mi, l, i, a) => l.total > a[mi].total ? i : mi, 0);
-          let right = x + colW;
+          let right = x + histW;
           levels.forEach((lv, li) => {
             if (!(lv.total > 0)) return;
             const rowY = Math.round(yH + li * rowH);
             const rH   = Math.max(1, Math.round(yH + (li + 1) * rowH) - rowY - 1);
-            const hr = footprintHistogramRow(lv, maxTot, colW);
+            const hr = footprintHistogramRow(lv, maxTot, histW);
             // G19 (Oct 10, FF-07): on serving the split read as brass on
             // brass — the profile VP gear's up / down rest as two brasses (by
             // design, "not a rainbow"), so buy vs sell inside a candle could
@@ -9895,7 +9899,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const fs = cellFs(rH), txt = fmtV(lv.total);
               const tx = x + hr.width + 3, tw = measureCell(txt, fs);
               // The number ends before the next candle's column begins.
-              if (tx + tw <= x + bsp - 2) {
+              if (tx + tw <= cx + bsp - 2) {
                 cellNum(txt, tx, rowY + rH / 2, "left", fs);
                 right = Math.max(right, tx + tw);
                 rowNumbers++;
