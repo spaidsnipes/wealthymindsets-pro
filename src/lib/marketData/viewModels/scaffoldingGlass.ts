@@ -208,7 +208,8 @@ export const SCAFFOLD_CARD_BOX = {
   // conclusion "WAIT FOR CONFIRMAT…" — a student card that cuts its own words is not the plate.
   FOUNDATION: { w: 560, h: 271 },
   FOUNDATION_COMPACT: { w: 340, h: 151 },
-  INTERMEDIATE: { w: 252, h: 112 },
+  // 380 since 2026-10-16: at 252 every line cut its own words ("a confirmed swing cl…", "pushing into a s…").
+  INTERMEDIATE: { w: 380, h: 112 },
 } as const;
 /** The Pro plaque: crumb, small-caps title, the big ratio, the grade marks, the grade line. */
 export const PRO_PLAQUE = { w: 212, h: 74 } as const;
