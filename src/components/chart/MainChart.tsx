@@ -23991,7 +23991,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ds.tpoChipsOffCamera = String(tpoChipsAll - tpoChips.length);
             for (const c of tpoChips) levelChip(c.y, c.text, c.ink, { leftX: leftEdge + colMax + 8, minX: leftEdge + colMax + 4 });
             // ⑩ BLOCKS — the organism glyph at the head of the column.
-            if (Number.isFinite(tpoTop)) paintOrganismGlyph("TPO", leftEdge + 8, tpoTop - 12, pk.rgba("ANCHOR", 0.95), floatingChips);
+            if (Number.isFinite(tpoTop)) paintOrganismGlyph("TPO", leftEdge + 8, tpoTop - 18, pk.rgba("ANCHOR", 0.95), floatingChips);
             ctx.restore();
             ds.tpoCellsYielded = String(tpoCellsYielded);
             ds.tpoProfileRows = String(drawnRows);
@@ -24101,14 +24101,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // 0.2 inside the cube box). Every width now takes the crisp
                 // form — desktop one step quieter than the phone — with the
                 // bright leading edge that makes each row a row.
-                if (narrowGlass) {
-                  ctx.fillStyle = r.isPoc ? pk.rgba("POC", 0.9) : r.insideValueArea ? pk.rgba("VALUE", 0.62) : pk.rgba("TAIL", 0.4);
-                } else {
-                  ctx.fillStyle = r.isPoc ? pk.rgba("POC", 0.82) : r.insideValueArea ? pk.rgba("VALUE", 0.54) : pk.rgba("TAIL", 0.32);
-                }
+                // CODEX PLATE 14 · Structure Profile "distribution anchored to swing": the rows wear the leg's
+                // position ramp — the top of the leg blue, through green and gold, to red at its foot (grey rows
+                // read as one more haze, serving NQ1! 15m Oct 16). POC stays brass. The ink owner holds the ramp.
+                const legT = bot > top ? (y - top) / (bot - top) : 0.5;
+                const legRgb = tpoPlateRamp(legT);
+                const rowA = r.insideValueArea ? (narrowGlass ? 0.7 : 0.62) : (narrowGlass ? 0.46 : 0.4);
+                ctx.fillStyle = r.isPoc ? pk.rgba("POC", narrowGlass ? 0.9 : 0.86) : `rgba(${legRgb},${rowA})`;
                 ctx.fillRect(histX, y, w, Math.max(1, rowH - 1));
                 if (w >= 3) {
-                  ctx.fillStyle = r.isPoc ? pk.rgba("POC", 1) : r.insideValueArea ? pk.rgba("VALUE", 0.95) : pk.rgba("TAIL", 0.75);
+                  ctx.fillStyle = r.isPoc ? pk.rgba("POC", 1) : `rgba(${legRgb},0.95)`;
                   ctx.fillRect(histX + w - 1, y, 1, Math.max(1, rowH - 1));
                 }
                 drawnRows++;

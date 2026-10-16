@@ -485,13 +485,14 @@ describe("phone, evening pass: type floor, figure cap, crisp profile rows (Found
     expect(CHART).toContain("const FH0 = narrowGlass ? ABSORPTION_FIGURE_NARROW_H : spacingB >= 12 ? 150 : spacingB >= 7 ? 116 : 92;");
   });
   it("Structure Profile rows are stronger and edged on narrow glass; the desk's inks are untouched", () => {
-    expect(CHART).toContain('ctx.fillStyle = r.isPoc ? pk.rgba("POC", 0.9) : r.insideValueArea ? pk.rgba("VALUE", 0.62) : pk.rgba("TAIL", 0.4);');
+    // Restated 2026-10-16 (Codex plate 14): rows wear the leg ramp; the phone step stays stronger than the desk.
+    expect(CHART).toContain('const rowA = r.insideValueArea ? (narrowGlass ? 0.7 : 0.62) : (narrowGlass ? 0.46 : 0.4);');
     expect(CHART).toContain("ctx.fillRect(histX + w - 1, y, 1, Math.max(1, rowH - 1));");
     // Pin updated 2026-10-10 (Founder, "white-line profiles without adequate
     // visual embodiment"; coordinator ruling to the profiles lane): the desk
     // left its 0.7 / 0.4 / 0.2 haze for the crisp form, one step quieter than
     // the phone, edged at every width (profileSalienceStep2.sentinel.test.ts).
-    expect(CHART).toContain('ctx.fillStyle = r.isPoc ? pk.rgba("POC", 0.82) : r.insideValueArea ? pk.rgba("VALUE", 0.54) : pk.rgba("TAIL", 0.32);');
+    expect(CHART).toContain('ctx.fillStyle = r.isPoc ? pk.rgba("POC", narrowGlass ? 0.9 : 0.86) : `rgba(${legRgb},${rowA})`;');
   });
 });
 

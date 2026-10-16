@@ -63,7 +63,8 @@ describe("Structure Profile rows are crisp at every width", () => {
 
   it("desktop rows are one step quieter than the phone, never the old haze", () => {
     expect(ST.length).toBeGreaterThan(400);
-    expect(ST).toContain('ctx.fillStyle = r.isPoc ? pk.rgba("POC", 0.82) : r.insideValueArea ? pk.rgba("VALUE", 0.54) : pk.rgba("TAIL", 0.32);');
+    // Restated 2026-10-16 (Codex plate 14): the leg ramp carries the rows; desk a step under the phone.
+    expect(ST).toContain('const rowA = r.insideValueArea ? (narrowGlass ? 0.7 : 0.62) : (narrowGlass ? 0.46 : 0.4);');
     expect(ST).not.toContain('pk.rgba("TAIL", 0.2)');
   });
 
