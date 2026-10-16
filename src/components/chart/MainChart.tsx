@@ -19138,12 +19138,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.clip();
                 // The plate's hatch: 45° strokes inside the channel only.
                 const hTop = Math.min(yUA, yUB), hBot = Math.max(yLA, yLB), span = hBot - hTop;
-                ctx.strokeStyle = "rgba(237,230,211,0.14)"; ctx.lineWidth = 1;
+                ctx.strokeStyle = "rgba(237,230,211,0.22)"; ctx.lineWidth = 1;
                 ctx.beginPath();
                 for (let hx = xA - span; hx < xB; hx += 9) { ctx.moveTo(hx, hBot); ctx.lineTo(hx + span, hTop); }
                 ctx.stroke();
                 ctx.restore();
-                ctx.strokeStyle = "rgba(237,230,211,0.85)"; ctx.lineWidth = 1;
+                ctx.strokeStyle = "rgba(237,230,211,0.95)"; ctx.lineWidth = 1.5;
                 for (const [ya, yb, dash] of [[yLA, yLB, [6, 4]], [yCA, yCB, [2, 4]], [yUA, yUB, [6, 4]]] as [number, number, number[]][]) {
                   ctx.setLineDash(dash);
                   ctx.beginPath(); ctx.moveTo(xA, ya); ctx.lineTo(xB, yb); ctx.stroke();
@@ -19169,7 +19169,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 if (y < HEADER_FLOOR_Y || y > pane0Bottom) { edgeR(y); continue; }
                 const yy = Math.round(y) + 0.5;
                 ctx.setLineDash(lv.k === 0 ? [8, 3] : Math.abs(lv.k) === 1 ? [4, 4] : [2, 4]);
-                ctx.lineWidth = lv.k === 0 ? 1.25 : 1;
+                // Founder 2026-10-16: "regime lighting looks like it was penciled in" — the magnets carry weight.
+                ctx.lineWidth = lv.k === 0 ? 2 : 1.5;
                 ctx.beginPath(); ctx.moveTo(xA, yy); ctx.lineTo(xB, yy); ctx.stroke();
                 magnetLines++;
                 nameAt(lv.k === 0 ? `☆ MEAN ${lv.price.toFixed(pxDp)}` : `☆ ${lv.label}`, yy, "rgba(201,165,92,1)", "regimeMagnets");
@@ -19317,11 +19318,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // the plate's 0.18 ceiling × the governor left the candles near
             // zero). The ghost now reads at no less than 0.55; age and the
             // governor may lower it only above that floor.
-            ctx.globalAlpha = Math.max(0.55, Math.min(ghost.opacity, att.alpha("memoryGhost")));
+            // 0.8 since 2026-10-16 (Founder: "memory … you can barely see it").
+            ctx.globalAlpha = Math.max(0.8, Math.min(ghost.opacity, att.alpha("memoryGhost")));
             // Cert lane (2026-10-08): the ghost names its own stroke alpha against
             // the plate's 0.18 ceiling — the §XXXVI 0.55 floor overrides it, and
             // the receipt says so rather than leaving the gap to be measured.
-            canvas.dataset.memoryGhostStrokeAlpha = `${ctx.globalAlpha.toFixed(2)}|PLATE_MAX:0.18|FLOOR:0.55`;
+            canvas.dataset.memoryGhostStrokeAlpha = `${ctx.globalAlpha.toFixed(2)}|PLATE_MAX:0.18|FLOOR:0.8`;
             // Below this slot width a hollow ghost body cannot be told from its
             // neighbours or from the live body it sits on, so the path speaks.
             const GHOST_CANDLE_MIN_SPACING = 8;
@@ -21780,11 +21782,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.save();
                 ctx.clip(cutM, "evenodd");
                 clipChips();
-                ctx.fillStyle = "rgba(76,175,96,0.16)";
+                // Founder 2026-10-16: "MTF … you can barely see it."
+                ctx.fillStyle = "rgba(76,175,96,0.26)";
                 ctx.fillRect(x0, top, x1 - x0, h);
                 ctx.restore();
-                ctx.strokeStyle = "rgba(96,196,112,0.75)";
-                ctx.lineWidth = 1;
+                ctx.strokeStyle = "rgba(110,214,128,0.95)";
+                ctx.lineWidth = 1.5;
                 ctx.strokeRect(x0 + 0.5, top + 0.5, x1 - x0 - 1, h - 1);
                 // The tag places first (it confirms the body); the name yields to it.
                 tag("4H", top + h / 2, "rgba(120,210,132,1)", "rgba(12,32,18,0.9)", x0);
@@ -21806,19 +21809,19 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.save();
                 ctx.clip(cutM, "evenodd");
                 clipChips();
-                ctx.fillStyle = "rgba(150,156,168,0.12)";
+                ctx.fillStyle = "rgba(170,176,188,0.2)";
                 ctx.fillRect(x0, top, x1 - x0, h);
                 ctx.beginPath();
                 ctx.rect(x0, top, x1 - x0, h);
                 ctx.clip();
-                ctx.strokeStyle = "rgba(186,192,204,0.55)";
+                ctx.strokeStyle = "rgba(206,212,224,0.75)";
                 ctx.lineWidth = 1;
                 ctx.beginPath();
                 for (let hx = x0 - h; hx < x1; hx += 6) { ctx.moveTo(hx, top + h); ctx.lineTo(hx + h, top); }
                 ctx.stroke();
                 ctx.restore();
-                ctx.strokeStyle = "rgba(196,202,214,0.9)";
-                ctx.lineWidth = 1.25;
+                ctx.strokeStyle = "rgba(226,230,238,1)";
+                ctx.lineWidth = 1.5;
                 ctx.strokeRect(x0 + 0.5, top + 0.5, x1 - x0 - 1, h - 1);
                 ctx.lineWidth = 1;
                 tag("1H", top + h / 2, "rgba(206,210,220,1)", "rgba(24,26,32,0.9)", x0);

@@ -86,7 +86,7 @@ describe("memory ghost candles", () => {
     expect(alphas.length).toBeGreaterThan(0);
     // Garden 18 §XXXVI (2026-10-01): a visibility floor of 0.55 under the
     // owner's ceiling and the governor — the ghost alone read near zero.
-    for (const a of alphas) expect(a).toBe('globalAlpha = Math.max(0.55, Math.min(ghost.opacity, att.alpha("memoryGhost")));');
+    for (const a of alphas) expect(a).toBe('globalAlpha = Math.max(0.8, Math.min(ghost.opacity, att.alpha("memoryGhost")));');
     expect(b).not.toMatch(/ghost\.opacity \*/);
   });
 

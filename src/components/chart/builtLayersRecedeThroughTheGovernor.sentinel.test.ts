@@ -151,7 +151,7 @@ describe("ASK-14 (2026-10-08): footprint cells too narrow to read are said, not 
 
 describe("Memory Ghost names its stroke alpha against the plate (cert lane, 2026-10-08)", () => {
   it("receipt memoryGhostStrokeAlpha carries the painted alpha, the plate max and the floor", () => {
-    expect(CHART).toContain("canvas.dataset.memoryGhostStrokeAlpha = `${ctx.globalAlpha.toFixed(2)}|PLATE_MAX:0.18|FLOOR:0.55`;");
+    expect(CHART).toContain("canvas.dataset.memoryGhostStrokeAlpha = `${ctx.globalAlpha.toFixed(2)}|PLATE_MAX:0.18|FLOOR:0.8`;");
   });
 });
 
