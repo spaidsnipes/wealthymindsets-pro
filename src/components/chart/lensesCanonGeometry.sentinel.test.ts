@@ -153,7 +153,7 @@ const PINS: Pin[] = [
       b.structure.includes("ctx.lineTo(m.x - s, tipY + dir * s * 1.3);") &&
       b.structure.includes('if (spot.mode === "BLOCKED" || Math.abs(spot.rect.x - pref.x) > 10) continue;') &&
       b.structure.includes('ctx.clip(cutS, "evenodd");') &&
-      b.structure.includes('`${m.kind === "HIGH" ? "SWING HIGH" : "SWING LOW"} ${m.price.toFixed(pxDp)}`') },
+      b.structure.includes('`${m.kind === "HIGH" ? "SWING HIGH" : "SWING LOW"} ${gPx(m.price)}`') },
   { name: "H-704 bias word through the keep-out owner, never in the header band", holds: b =>
       b.structure.length > 0 &&
       !b.structure.includes("W - 168") &&

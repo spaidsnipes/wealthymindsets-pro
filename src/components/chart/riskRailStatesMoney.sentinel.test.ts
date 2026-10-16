@@ -80,6 +80,6 @@ describe("the rail's receipts leave with every frame (Sheriff review, 2026-09-26
   });
 
   it("the STOP header names its unit so it cannot be read as dollars", () => {
-    expect(SRC).toMatch(/· risk \$\{rv\.riskPerUnit\.toFixed\(pxDp\)\} pts \(/);
+    expect(SRC).toMatch(/· risk \$\{gPx\(rv\.riskPerUnit\)\} pts \(/);
   });
 });

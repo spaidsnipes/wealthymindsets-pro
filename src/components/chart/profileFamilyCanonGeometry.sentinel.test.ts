@@ -315,7 +315,7 @@ describe("8 · live defects, serving 2026-09-26 03:59–04:00 CDT", () => {
 
   it("Structure: the silence chip stays inside the plot right of the left chrome; its LEG POC is a level chip", () => {
     expect(STRUCTURE).toContain("const cx = Math.max(LEFT_CHROME_RIGHT, Math.min(x, maxX >= LEFT_CHROME_RIGHT ? maxX : plotRight - LEVEL_CHIP_EDGE_GAP - w));");
-    between(STRUCTURE, "chip(silence, x0 + 4,", "levelChip(+ypS, `LEG POC ${sp.poc.toFixed(pxDp)}`, pk.rgba(\"POC\", 0.95));", "ds.structureProfileSilence = form;");
+    between(STRUCTURE, "chip(silence, x0 + 4,", "levelChip(+ypS, `LEG POC ${gPx(sp.poc)}`, pk.rgba(\"POC\", 0.95));", "ds.structureProfileSilence = form;");
   });
 
   it("Composite sits against the axis: Living is the outermost lane whenever it shares the edge", () => {
@@ -333,7 +333,7 @@ describe("8 · live defects, serving 2026-09-26 03:59–04:00 CDT", () => {
     expect(FUSED).toContain("const autoPair: StackSpecies[] | null = fusionAutoPair;");
     expect(FUSED).toContain("const fr = fuseProfiles(source(pair[0]), source(pair[1]));");
     expect(FUSED).toContain("const fusedTips = fusedRows.map((q, k) => ({ x: spanR - fusedW[k], y: q.y }));");
-    expect(FUSED).toContain('line(f.poc, `FUSED POC ${f.poc.toFixed(pxDp)}`, [], pk.rgba("POC", 0.95));');
+    expect(FUSED).toContain('line(f.poc, `FUSED POC ${gPx(f.poc)}`, [], pk.rgba("POC", 0.95));');
     expect(FUSED).not.toContain("levelChip(+y, label, `rgba(${flowColorsRef.current.fused},1)`);");
     expect(CHART).toContain("fusedParents: fusionObjectRef.current ? (stackPrefsRef.current.fusion ?? fusionObjectRef.current.sources.map(s => s.species as StackSpecies)) : [],");
   });

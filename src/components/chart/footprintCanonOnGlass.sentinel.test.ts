@@ -190,7 +190,7 @@ describe("F07A · G04 · F06 — Big Trades on price", () => {
   it("the words are fitted INSIDE the disc: SIZE / TIME / ↑PRICE, the price at the market's precision", () => {
     const b = bigTrades();
     expect(b).toContain("const inscription = fitBubbleInscription(b.r, bigTradeInscriptionLines(b.r,");
-    expect(b).toContain("`${buy ? \"↑\" : \"↓\"} ${b.anchorPrice.toFixed(pxDp)}`");
+    expect(b).toContain("`${buy ? \"↑\" : \"↓\"} ${gPx(b.anchorPrice)}`");
     expect(b).toContain("ctx.fillText(l.text, b.x, b.y + l.dy);");
   });
 

@@ -114,7 +114,7 @@ describe("the one G04 callout stays on the plot, clear of the candles, in its ow
     // percentile compares prints, never a sum of prints against single prints.
     expect(b).toMatch(/const rank = sessionSizePercentile\(bigTradeRankSize\(b\.value, bigClusterOf\.get\(b\.spawnKey\)\), bigTradePrintAccRef\.current\.values\(\)\);/);
     expect(b).toContain("const words = bigTradeCalloutLines({");
-    expect(b).toContain("priceText: b.anchorPrice.toFixed(pxDp)");
+    expect(b).toContain("priceText: gPx(b.anchorPrice)");
     expect(b).not.toMatch(/AGGRESSIVE|SIDE INFERRED|PERCENTILE/);
   });
 

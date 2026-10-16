@@ -115,7 +115,7 @@ describe("ADVANCED / PRO — the plate's resistance rule and plaque hierarchy", 
     expect(pro).toMatch(/if \(sc\.pushingInto\) \{\s*const lvlR = sc\.pushingInto === "SWING ABOVE" \? sc\.swingAbove : sc\.swingBelow;\s*const yR = lvlR == null \? null : yOf\(lvlR\);/);
     expect(pro).toMatch(/const x0R = first\.x - hb, x1R = ax \+ 4;/);
     expect(pro).toMatch(/ctx\.moveTo\(x0R, yyR\); ctx\.lineTo\(x1R, yyR\);/);
-    expect(pro).toMatch(/const wordR = `\$\{sc\.pushingInto\} · \$\{lvlR\.toFixed\(pxDp\)\}`;/);
+    expect(pro).toMatch(/const wordR = `\$\{sc\.pushingInto\} · \$\{gPx\(lvlR\)\}`;/);
     expect(code).not.toMatch(/HTF/);
     // Inked by the cell that meets it — maroon when the push stopped paying.
     expect(pro).toMatch(/const meetConv = sleeve\.segments\.at\(-1\)\?\.conversion \?\? null;/);
@@ -204,7 +204,7 @@ describe("every depth", () => {
   it("the swings stay ON PRICE, dashed from the bar that made them, with a □ on that bar", () => {
     expect(code).toMatch(/ctx\.moveTo\(xp != null && xp > 0 \? xp : 0, yy\); ctx\.lineTo\(W - 76, yy\);/);
     expect(code).toMatch(/ctx\.strokeRect\(Math\.round\(xp\) - 4\.5, kind === "LOW" \? yy \+ 4 : yy - 13, 9, 9\);/);
-    expect(code).toContain("const t = `${tag} · ${lvl.toFixed(pxDp)}`;");
+    expect(code).toContain("const t = `${tag} · ${gPx(lvl)}`;");
   });
 
   it("the scaffolding ink asks the attention governor", () => {

@@ -49,7 +49,7 @@ describe("profile-family level names quote the same precision", () => {
     // first (EURUSD read 1.139212 from the grid detector alone). Not weakened:
     // the same site, a stricter owner.
     expect(CHART).toContain("const pxDp = displayPrecisionFor(symbol, barsRef.current ?? []);");
-    for (const s of ["`TPO POC ${tpo.poc?.toFixed(pxDp)", "`CMP POC ${cp.poc?.toFixed(pxDp)}`", "`VRP POC ${vrpVM.poc?.toFixed(pxDp)}`", "`FUSED POC ${f.poc.toFixed(pxDp)}`", "`LEG POC ${sp.poc.toFixed(pxDp)}`", "`dPOC ${last.poc.toFixed(pxDp)}"]) {
+    for (const s of ["`TPO POC ${gPx(tpo.poc)", "`CMP POC ${gPx(cp.poc)}`", "`VRP POC ${gPx(vrpVM.poc)}`", "`FUSED POC ${gPx(f.poc)}`", "`LEG POC ${gPx(sp.poc)}`", "`dPOC ${gPx(last.poc)}"]) {
       expect(CHART, s).toContain(s);
     }
     expect(CHART).not.toMatch(/`TPO (POC|VAH|VAL) \$\{tpo\.\w+\?\.toFixed\(2\)/);
@@ -107,9 +107,9 @@ describe("GP12 §27 — calculation precision is not display precision", () => {
   });
 
   it("the risk callout prints prices at the market's precision (R and % stay 2 dp)", () => {
-    expect(CHART).toContain("STOP / INVALIDATION ${rv.stop.toFixed(pxDp)} · risk ${rv.riskPerUnit.toFixed(pxDp)}");
-    expect(CHART).toContain("`ENTRY ${rv.entry.toFixed(pxDp)}");
-    expect(CHART).toContain("`TARGET ${rv.target.toFixed(pxDp)}");
+    expect(CHART).toContain("STOP / INVALIDATION ${gPx(rv.stop)} · risk ${gPx(rv.riskPerUnit)}");
+    expect(CHART).toContain("`ENTRY ${gPx(rv.entry)}");
+    expect(CHART).toContain("`TARGET ${gPx(rv.target)}");
   });
 
   it("the drawing magnet snaps to the market's grid, not a guessed tick", () => {
@@ -136,11 +136,11 @@ describe("every other price named on the glass quotes the same precision", () =>
   });
 
   it("the Question Lens band tag, the scaffolding swings and the selected zone's range", () => {
-    expect(CHART).toContain("`${tagWord} · ${lens.bandLow.toFixed(pxDp)}–${lens.bandHigh.toFixed(pxDp)}`");
-    expect(CHART).toContain("`${tagWord} · ${lens.bandLow.toFixed(pxDp)}`");
-    expect(CHART).toContain("const t = `${tag} · ${lvl.toFixed(pxDp)}`;");
+    expect(CHART).toContain("`${tagWord} · ${gPx(lens.bandLow)}–${gPx(lens.bandHigh)}`");
+    expect(CHART).toContain("`${tagWord} · ${gPx(lens.bandLow)}`");
+    expect(CHART).toContain("const t = `${tag} · ${gPx(lvl)}`;");
     // 2026-10-07 (A9): the state word is the Passport's (zoneStateWords); the precision pin is unchanged.
-    expect(CHART).toContain("`${z.side} · ${z.object.priceLow.toFixed(pxDp)} – ${z.object.priceHigh.toFixed(pxDp)} · ${zoneStateWords(z.lifecycle.state)}`");
+    expect(CHART).toContain("`${z.side} · ${gPx(z.object.priceLow)} – ${gPx(z.object.priceHigh)} · ${zoneStateWords(z.lifecycle.state)}`");
     expect(CHART).not.toMatch(/lens\.band(Low|High)\.toFixed\(2\)|lvl\.toFixed\(2\)|z\.object\.price(Low|High)\.toFixed\(2\)/);
   });
 });
@@ -183,5 +183,14 @@ describe("GP12 §27 — ONE display-precision owner (2026-09-26)", () => {
   it("the room's Inspect ticket asks the same owner; no grid-detector call remains there", () => {
     expect(DASH).toContain("displayPrecisionFor(symbol, chartBars)");
     expect(DASH).not.toContain("pricePrecisionFromBars(");
+  });
+});
+
+describe("a price named on the glass reads like a price (Founder 2026-10-16: \"should say 80,000 … look like the Matrix\")", () => {
+  it("every painted price goes through gPx (grouped, the market's decimals); only receipts keep bare digits", () => {
+    expect(CHART).toContain("const gPx = (v: number | null | undefined): string => (v == null || !Number.isFinite(v) ? \"—\" : groupedPrice(v, pxDp));");
+    const raw = CHART.split("\n").filter(l => l.includes(".toFixed(pxDp)"));
+    for (const l of raw) expect(l, "a raw price outside a receipt").toMatch(/\bds\.|levels\.push\(/);
+    expect((CHART.match(/gPx\(/g) ?? []).length).toBeGreaterThan(30);
   });
 });

@@ -1942,6 +1942,15 @@ function phonePane(paneWidthPx: number): boolean { return paneWidthPx > 0 && pan
 function candleBottomMargin(paneWidthPx: number): number { return phonePane(paneWidthPx) ? 0.12 : 0.18; }
 function volumeTopMargin(paneWidthPx: number): number { return phonePane(paneWidthPx) ? 0.88 : 0.78; }
 
+
+/** A price as a reader reads it: thousands grouped, the market's own decimals. One formatter per precision. */
+const GROUPED_PRICE = new Map<number, Intl.NumberFormat>();
+function groupedPrice(v: number, dp: number): string {
+  let f = GROUPED_PRICE.get(dp);
+  if (!f) { f = new Intl.NumberFormat("en-US", { minimumFractionDigits: dp, maximumFractionDigits: dp }); GROUPED_PRICE.set(dp, f); }
+  return f.format(v);
+}
+
 export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTimeframe, footprintType, footprintEnabled = true, candleType = "candles", pineOutput, pineCode, onBarsReady,
   drawingTool = "cursor", drawingStyle = DEFAULT_DRAWING_STYLE, magnetActive = false, lockDrawings = false,
   onCreatePriceAlert,
@@ -8294,6 +8303,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // was two decimals naming two different prices (serving, 2026-09-25).
       // Read once, before the first layer that names a price (the bubbles).
       const pxDp = displayPrecisionFor(symbol, barsRef.current ?? []);
+      // A price NAMED on the glass reads like a price ("29,303.25", Founder 2026-10-16: "should say 80,000 …
+      // extra numbers look like the Matrix"); receipts keep the bare digits.
+      const gPx = (v: number | null | undefined): string => (v == null || !Number.isFinite(v) ? "—" : groupedPrice(v, pxDp));
       // Guard so the WM VP layer draws exactly once per frame regardless of which
       // call site fires first (big-trades mode draws VP early, under the bubbles).
       let vpDrawn = false;
@@ -10910,7 +10922,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const inscription = fitBubbleInscription(b.r, bigTradeInscriptionLines(b.r,
             formatBubbleVolume(Math.abs(b.value)),
             formatBubbleClock(b.anchorTime, tzRef.current, clock24hRef.current),
-            `${buy ? "↑" : "↓"} ${b.anchorPrice.toFixed(pxDp)}`,
+            `${buy ? "↑" : "↓"} ${gPx(b.anchorPrice)}`,
             bigClusterOf.get(b.spawnKey)?.members.length ?? 1), measureInscription);
           // F07A vs the ACTIVE CANDLE (serving NQ1! 5m, 2026-10-06 08:39 CDT):
           // the forming bar's column is cut out of the disc, and it cut the
@@ -10978,7 +10990,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const b = pick.target.b;
             const rank = sessionSizePercentile(bigTradeRankSize(b.value, bigClusterOf.get(b.spawnKey)), bigTradePrintAccRef.current.values());
             const words = bigTradeCalloutLines({
-              bid: b.bid, ask: b.ask, price: b.anchorPrice, priceText: b.anchorPrice.toFixed(pxDp),
+              bid: b.bid, ask: b.ask, price: b.anchorPrice, priceText: gPx(b.anchorPrice),
               aggressorMethod: b.aggressorMethod, pct: rank.pct, prints: rank.prints,
               cluster: bigClusterOf.has(b.spawnKey) ? { n: bigClusterOf.get(b.spawnKey)!.members.length, total: Math.abs(b.value) } : null,
               clusterRankOf: "LARGEST",
@@ -11685,7 +11697,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const inferredSide = p.d.fidelity !== "OBSERVED";
               const lines = [
                 "IMPORTANT PRINT",
-                `${new Date(p.d.timeMs).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })} · ${p.d.price.toFixed(pxDp)}`,
+                `${new Date(p.d.timeMs).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })} · ${gPx(p.d.price)}`,
                 `${sz(p.d.size)} @ ${p.d.buy ? "ASK" : "BID"}${inferredSide ? " · inferred" : ""}`,
               ];
               ctx.font = marketFont("MICRO_NUMBER", 10);
@@ -16271,7 +16283,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     // Both lines are the lens's numbers; no trend is claimed.
                     const tagCol = lens.kind === "EXHAUSTION" ? "rgba(226,92,92,1)" : "rgba(226,92,92,0.95)";
                     const tagWord = lens.kind === "EXHAUSTION" ? "EXHAUSTION ZONE" : lens.kind === "CONTINUATION" ? "THE LEG" : lens.kind === "TRAP" ? "BROKEN SWING" : lens.kind === "HOLD" ? "LEVEL ASKED" : "ABSORPTION ZONE";
-                    const tag = lens.bandLow === lens.bandHigh ? `${tagWord} · ${lens.bandLow.toFixed(pxDp)}` : `${tagWord} · ${lens.bandLow.toFixed(pxDp)}–${lens.bandHigh.toFixed(pxDp)}`;
+                    const tag = lens.bandLow === lens.bandHigh ? `${tagWord} · ${gPx(lens.bandLow)}` : `${tagWord} · ${gPx(lens.bandLow)}–${gPx(lens.bandHigh)}`;
                     ctx.font = `700 10px ${MARKET_SANS}`;
                     const tw = ctx.measureText(tag).width + 16;
                     // The PLOT's right edge, not the container's: the price
@@ -16828,7 +16840,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     swingMarks++;
                   }
                   ctx.font = font(700, 8);
-                  const t = `${tag} · ${lvl.toFixed(pxDp)}`;
+                  const t = `${tag} · ${gPx(lvl)}`;
                   const tw = ctx.measureText(t).width;
                   // The tag sits at a fixed place by the axis; when that place is the
                   // newest candles' column (serving 390 + 834 all-on, 92895d6,
@@ -17071,7 +17083,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                         // Its name sits on the pushing side, at the window's start
                         // (the plate's top-left caption), or at its right end.
                         ctx.font = font(700, 8);
-                        const wordR = `${sc.pushingInto} · ${lvlR.toFixed(pxDp)}`;
+                        const wordR = `${sc.pushingInto} · ${gPx(lvlR)}`;
                         const twR = ctx.measureText(wordR).width + 4;
                         const lyR = sc.pushingInto === "SWING ABOVE" ? yyR - 14 : yyR + 3;
                         const labR = placeClearOfKeepOut({ x: x0R, y: lyR, w: twR, h: 11 }, [...keepOut(), ...rowBodiesAt(lyR, lyR + 11)], {
@@ -19209,7 +19221,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.lineWidth = lv.k === 0 ? 2 : 1.5;
                 ctx.beginPath(); ctx.moveTo(xA, yy); ctx.lineTo(xB, yy); ctx.stroke();
                 magnetLines++;
-                nameAt(lv.k === 0 ? `☆ MEAN ${lv.price.toFixed(pxDp)}` : `☆ ${lv.label}`, yy, "rgba(201,165,92,1)", "regimeMagnets");
+                nameAt(lv.k === 0 ? `☆ MEAN ${gPx(lv.price)}` : `☆ ${lv.label}`, yy, "rgba(201,165,92,1)", "regimeMagnets");
               }
               ctx.setLineDash([]); ctx.lineWidth = 1;
               ds.regimeLightingMagnets = `${regimeLight.fixtureState.magnets}|a=${aM.toFixed(2)}|lines=${magnetLines}|mean=${fx.magnets.mean.toFixed(pxDp)}|sigma=${fx.magnets.sigma.toFixed(pxDp)}`;
@@ -22212,7 +22224,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.fillStyle = "rgba(200,192,174,0.85)";
               ctx.textAlign = "left";
               const t = cv.state === "UNRESOLVED"
-                ? `CONTRADICTION · UNRESOLVED at ${cv.bandLow?.toFixed(pxDp) ?? "—"}–${cv.bandHigh?.toFixed(pxDp) ?? "—"} — the zone is off camera · ${cv.posture}`
+                ? `CONTRADICTION · UNRESOLVED at ${gPx(cv.bandLow) ?? "—"}–${gPx(cv.bandHigh) ?? "—"} — the zone is off camera · ${cv.posture}`
                 : cv.state === "AGREE"
                 ? `CONTRADICTION · none at price — ${cv.up.length + cv.down.length} families lean ${cv.up.length ? "up" : "down"} · still your read`
                 : `CONTRADICTION · not enough families lean (${cv.silent.map(x => x.family.toLowerCase()).join(", ")} silent)`;
@@ -23303,9 +23315,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             let livingChips = 0;
             levelChipGroup = [];
             try {
-              if (lp.poc != null) label(lp.poc, `${tag}POC ${lp.poc.toFixed(pxDp)}`, pk.rgba("POC", 0.95));
-              if (lp.vah != null) label(lp.vah, `${tag}VAH ${lp.vah.toFixed(pxDp)}`, pk.rgbaAs("EDGE_HIGH", "ANCHOR", 0.9));
-              if (lp.val != null) label(lp.val, `${tag}VAL ${lp.val.toFixed(pxDp)}`, pk.rgbaAs("EDGE_LOW", "ANCHOR", 0.9));
+              if (lp.poc != null) label(lp.poc, `${tag}POC ${gPx(lp.poc)}`, pk.rgba("POC", 0.95));
+              if (lp.vah != null) label(lp.vah, `${tag}VAH ${gPx(lp.vah)}`, pk.rgbaAs("EDGE_HIGH", "ANCHOR", 0.9));
+              if (lp.val != null) label(lp.val, `${tag}VAL ${gPx(lp.val)}`, pk.rgbaAs("EDGE_LOW", "ANCHOR", 0.9));
             } finally { flushLevelChipGroup(); }
             ds.livingProfileLabels = `CHIPS:${livingChips}`;
             // ① LIVING (a pulse) — the organism glyph at the head of the body.
@@ -23635,9 +23647,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // Price order survives the stack (off-camera levels stacked POC above VAH, serving NQ1! 15m Oct 16).
               levelChipGroup = [];
               try {
-                lab(cp.poc, `CMP POC ${cp.poc?.toFixed(pxDp)}`, pk.rgba("POC", 0.95));
-                lab(cp.vah, `CMP VAH ${cp.vah?.toFixed(pxDp)}`, pk.rgbaAs("EDGE_HIGH", "VALUE", 0.88));
-                lab(cp.val, `CMP VAL ${cp.val?.toFixed(pxDp)}`, pk.rgbaAs("EDGE_LOW", "VALUE", 0.88));
+                lab(cp.poc, `CMP POC ${gPx(cp.poc)}`, pk.rgba("POC", 0.95));
+                lab(cp.vah, `CMP VAH ${gPx(cp.vah)}`, pk.rgbaAs("EDGE_HIGH", "VALUE", 0.88));
+                lab(cp.val, `CMP VAL ${gPx(cp.val)}`, pk.rgbaAs("EDGE_LOW", "VALUE", 0.88));
               } finally { flushLevelChipGroup(); }
               // ⑨ COMPOSITE (a grid) — the organism glyph at the head of the lane
               // (geometry, not words: it paints wherever the lane paints).
@@ -23814,9 +23826,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // Price order survives the stack (off-camera levels stacked POC above VAH, serving NQ1! 15m Oct 16).
             levelChipGroup = [];
             try {
-              lab(vrpVM.poc, `VRP POC ${vrpVM.poc?.toFixed(pxDp)}`, pk.rgba("POC", 0.95));
-              lab(vrpVM.vah, `VRP VAH ${vrpVM.vah?.toFixed(pxDp)}`, pk.rgba("EDGE_HIGH", 0.85));
-              lab(vrpVM.val, `VRP VAL ${vrpVM.val?.toFixed(pxDp)}`, pk.rgba("EDGE_LOW", 0.85));
+              lab(vrpVM.poc, `VRP POC ${gPx(vrpVM.poc)}`, pk.rgba("POC", 0.95));
+              lab(vrpVM.vah, `VRP VAH ${gPx(vrpVM.vah)}`, pk.rgba("EDGE_HIGH", 0.85));
+              lab(vrpVM.val, `VRP VAL ${gPx(vrpVM.val)}`, pk.rgba("EDGE_LOW", 0.85));
             } finally { flushLevelChipGroup(); }
             // ⑦ VRP (a target) — the organism glyph at the head of the lane
             // (geometry, not words: it paints wherever the lane paints).
@@ -24012,10 +24024,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 if (att.speaks("fusedObject")) levelChip(+y, label, chipInk);
               };
               ctx.lineWidth = 2;
-              line(f.poc, `FUSED POC ${f.poc.toFixed(pxDp)}`, [], pk.rgba("POC", 0.95));
+              line(f.poc, `FUSED POC ${gPx(f.poc)}`, [], pk.rgba("POC", 0.95));
               ctx.lineWidth = 1;
-              line(f.vah, `FUSED VAH ${f.vah.toFixed(pxDp)}`, [4, 3], pk.rgbaAs("EDGE_HIGH", "ANCHOR", 0.9));
-              line(f.val, `FUSED VAL ${f.val.toFixed(pxDp)}`, [4, 3], pk.rgbaAs("EDGE_LOW", "ANCHOR", 0.9));
+              line(f.vah, `FUSED VAH ${gPx(f.vah)}`, [4, 3], pk.rgbaAs("EDGE_HIGH", "ANCHOR", 0.9));
+              line(f.val, `FUSED VAL ${gPx(f.val)}`, [4, 3], pk.rgbaAs("EDGE_LOW", "ANCHOR", 0.9));
               ctx.restore();
             }
             // G16 §23 · A REFUSED PAIR SAYS WHY ON THE GLASS (the pair and the
@@ -24228,9 +24240,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.setLineDash([]);
               tpoChips.push({ y, text, ink });
             };
-            ref(tpo.poc, `TPO POC ${tpo.poc?.toFixed(pxDp) ?? ""}`, pk.rgba("POC", 0.95), false);
-            ref(tpo.vah, `TPO VAH ${tpo.vah?.toFixed(pxDp) ?? ""}`, pk.rgbaAs("EDGE_HIGH", "ANCHOR", 0.88), true);
-            ref(tpo.val, `TPO VAL ${tpo.val?.toFixed(pxDp) ?? ""}`, pk.rgbaAs("EDGE_LOW", "ANCHOR", 0.88), true);
+            ref(tpo.poc, `TPO POC ${gPx(tpo.poc) ?? ""}`, pk.rgba("POC", 0.95), false);
+            ref(tpo.vah, `TPO VAH ${gPx(tpo.vah) ?? ""}`, pk.rgbaAs("EDGE_HIGH", "ANCHOR", 0.88), true);
+            ref(tpo.val, `TPO VAL ${gPx(tpo.val) ?? ""}`, pk.rgbaAs("EDGE_LOW", "ANCHOR", 0.88), true);
 
             ctx.restore(); // releases TPO's chrome + candle clips
             // The chips print outside the clips (a chip is placed clear of the
@@ -24563,18 +24575,18 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               chip(silence, x0 + 4, Math.max(HEADER_FLOOR_Y + 12, (legDrawn ? top : 0) - 4), true);
               if (sp.poc != null) {
                 const ypS = srs.priceToCoordinate(sp.poc);
-                if (ypS != null) levelChip(+ypS, `LEG POC ${sp.poc.toFixed(pxDp)}`, pk.rgba("POC", 0.95));
+                if (ypS != null) levelChip(+ypS, `LEG POC ${gPx(sp.poc)}`, pk.rgba("POC", 0.95));
               }
               ds.structureProfileSilence = form;
             } else {
               chip(
-                `STRUCTURE · FROM ${kind} ${sp.anchor.price.toFixed(pxDp)} · ${sp.legBars} BARS${est}`,
+                `STRUCTURE · FROM ${kind} ${gPx(sp.anchor.price)} · ${sp.legBars} BARS${est}`,
                 // The chip's box is y−12…y+2: its top never rises into the header chrome.
                 x0 + 4, Math.max(HEADER_FLOOR_Y + 12, top - 4),
               );
               if (sp.poc != null) {
                 const yp = srs.priceToCoordinate(sp.poc);
-                if (yp != null) chip(`LEG POC ${sp.poc.toFixed(pxDp)}`, x0 + 4, Math.round(+yp) + 16);
+                if (yp != null) chip(`LEG POC ${gPx(sp.poc)}`, x0 + 4, Math.round(+yp) + 16);
               }
               delete ds.structureProfileSilence;
             }
@@ -24943,7 +24955,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               if (y < PRICE_LEGEND_OVERLAY_H + 7) continue;
               // G16 §20: remembered value is bar-built (Value Migration →
               // candle-estimated), so the chip's level name says EST.
-              const text = `S-${l.sessionsAgo} ${profileLevelTag(l.kind, mem.quality)} ${l.price.toFixed(pxDp)} · ${l.naked ? "NAKED" : `${l.tests} TEST${l.tests === 1 ? "" : "S"}`} · ${l.life}`;
+              const text = `S-${l.sessionsAgo} ${profileLevelTag(l.kind, mem.quality)} ${gPx(l.price)} · ${l.naked ? "NAKED" : `${l.tests} TEST${l.tests === 1 ? "" : "S"}`} · ${l.life}`;
               const w = Math.ceil(ctx.measureText(text).width) + 8;
               const lx = endX - w - 4;
               // The label ends where its line ends — at the live edge. It
@@ -25129,7 +25141,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             delete ds.valueMigrationLabel;
             if (lx != null && ly != null && vm.latestPocTravel != null) {
               const t = vm.latestPocTravel;
-              const text = `dPOC ${last.poc.toFixed(pxDp)} · ${t >= 0 ? "+" : ""}${t.toFixed(pxDp)} THIS SESSION · EST`;
+              const text = `dPOC ${gPx(last.poc)} · ${t >= 0 ? "+" : ""}${gPx(t)} THIS SESSION · EST`;
               ctx.font = marketFont("FIDELITY");
               const w = Math.ceil(ctx.measureText(text).width) + 8;
               const x = Math.max(4, Math.round(+lx) - w - 6);
@@ -25461,7 +25473,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // above the zone on a leader to its middle — what it is, then its
               // side, range and measured state.
               const l1 = "SELECTED ZONE";
-              const l2 = `${z.side} · ${z.object.priceLow.toFixed(pxDp)} – ${z.object.priceHigh.toFixed(pxDp)} · ${zoneStateWords(z.lifecycle.state)}`;
+              const l2 = `${z.side} · ${gPx(z.object.priceLow)} – ${gPx(z.object.priceHigh)} · ${zoneStateWords(z.lifecycle.state)}`;
               ctx.font = `700 11px ${MARKET_SANS}`;
               const w1 = ctx.measureText(l1).width;
               ctx.font = `700 10px ${MARKET_SANS}`;
@@ -25736,7 +25748,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const named: { x: number; y: number; w: number; h: number }[] = [];
             for (const m of lastMarks) {
               const bx = brokeAt.get(m);
-              const t = `${m.kind === "HIGH" ? "SWING HIGH" : "SWING LOW"} ${m.price.toFixed(pxDp)}` + (bx != null ? " · BROKEN" : "");
+              const t = `${m.kind === "HIGH" ? "SWING HIGH" : "SWING LOW"} ${gPx(m.price)}` + (bx != null ? " · BROKEN" : "");
               ctx.font = marketFont("OBJECT_NAME");
               const tw = ctx.measureText(t).width + 10, th = 14;
               // A broken level is named at its break, on the side price left it from.
@@ -27899,18 +27911,18 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // contract with no published point value says so; never 1x.
               const econR = selectRiskEconomics(symbol, { entry: rv.entry, stop: rv.stop, target: rv.target });
               ds.riskEconomics = econR.receipt;
-              callout(+yS, `STOP / INVALIDATION ${rv.stop.toFixed(pxDp)} · risk ${rv.riskPerUnit.toFixed(pxDp)} pts (${rv.riskPct?.toFixed(2)}%)`, RISK, true, econR.words);
+              callout(+yS, `STOP / INVALIDATION ${gPx(rv.stop)} · risk ${gPx(rv.riskPerUnit)} pts (${rv.riskPct?.toFixed(2)}%)`, RISK, true, econR.words);
               // The refusals ride under the entry, in words: the chart holds no
               // size, no account and no fill, so none of them is estimated.
-              callout(+yE, `ENTRY ${rv.entry.toFixed(pxDp)} · ${rv.side} · PLAN · ${stateTxt}`, STEEL, true, "size · equity risk · fill — not on this chart");
-              if (yT != null && rv.target != null) callout(+yT, `TARGET ${rv.target.toFixed(pxDp)} · ${rv.rr?.toFixed(2)} R`, REWARD, true, econR.rewardWords ?? undefined);
+              callout(+yE, `ENTRY ${gPx(rv.entry)} · ${rv.side} · PLAN · ${stateTxt}`, STEEL, true, "size · equity risk · fill — not on this chart");
+              if (yT != null && rv.target != null) callout(+yT, `TARGET ${gPx(rv.target)} · ${rv.rr?.toFixed(2)} R`, REWARD, true, econR.rewardWords ?? undefined);
               // LIVE: the chart's last price on the rail, in R.
               if (rv.live) {
                 const yL = srs.priceToCoordinate(rv.live.price);
                 if (yL != null) {
                   ctx.fillStyle = "rgba(240,190,70,1)";
                   ctx.beginPath(); ctx.moveTo(railX + 4, +yL); ctx.lineTo(railX + 12, +yL - 5); ctx.lineTo(railX + 12, +yL + 5); ctx.fill();
-                  const lt = `LIVE ${rv.live.r >= 0 ? "+" : ""}${rv.live.r.toFixed(2)} R · ${rv.live.toStop.toFixed(pxDp)} to stop`;
+                  const lt = `LIVE ${rv.live.r >= 0 ? "+" : ""}${rv.live.r.toFixed(2)} R · ${gPx(rv.live.toStop)} to stop`;
                   const ly = Math.abs(+yL - +yE) < 18 ? +yE + (+yL >= +yE ? 18 : -18) : +yL;
                   callout(ly, lt, "rgba(240,190,70,1)", false);
                 }
@@ -28334,8 +28346,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // The two prices, at the rules' left ends, clear of every body.
             ctx.font = marketFont("FIDELITY"); ctx.textBaseline = "middle"; ctx.textAlign = "left";
             const words: [string, number, number][] = [
-              [`TRUTH HIGH ${ib.high.toFixed(pxDp)}`, mark.ceiling.y, -1],
-              [`TRUTH LOW ${ib.low.toFixed(pxDp)}`, mark.floor.y, 1],
+              [`TRUTH HIGH ${gPx(ib.high)}`, mark.ceiling.y, -1],
+              [`TRUTH LOW ${gPx(ib.low)}`, mark.floor.y, 1],
             ];
             for (const [t, y, dir] of words) {
               const tw = Math.ceil(ctx.measureText(t).width) + 8, th = 14;
