@@ -44,14 +44,15 @@ describe("profile family glass honesty", () => {
 
   it("TPO rows fit their column, letters only at NEAR where a glyph fits, blocks are time-coloured squares", () => {
     expect(CHART).not.toMatch(/Math\.max\(3, Math\.min\(8, Math\.floor\(colMax/);
-    expect(CHART).toMatch(/const cellW = Math\.min\(8, colMax \/ maxLetters\);/);
+    expect(CHART).toMatch(/const cellW = Math\.min\(10, colMax \/ maxLetters\);/); // plate 14 letters (2026-10-16)
     expect(CHART).toMatch(/cellW >= ctx\.measureText\("M"\)\.width/);
     // Pin updated 2026-09-26 (Garden 11 recognition test: letter-only TPO
     // vanished with labels hidden). Blocks were a ≤0.25 tint only because they
     // sat ON the oldest candles; every cell a candle stands on is now withheld
     // (tpoCellsYielded), so the blocks are legible squares whose colour is
     // their period — recess (early) → brass (late) — from the pure owner.
-    expect(CHART).toMatch(/ink\(tpoPeriodInk\(pk\.role\.TAIL, pk\.role\.ANCHOR, late\), base \* \(0\.45 \+ 0\.45 \* late\)\)/);
+    // 2026-10-16: the period ramp is the plate's (blue → red), held by the ink owner (tpoPlateRamp).
+    expect(CHART).toMatch(/const rgb = tpoPlateRamp\(late\);/);
     // 2026-09-29: the same square, batched into its ink's Path2D.
     expect(CHART).toContain("bp.rect(x, y + (h - side) / 2, side, side);");
   });

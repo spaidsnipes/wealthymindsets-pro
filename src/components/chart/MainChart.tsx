@@ -517,6 +517,7 @@ import {
   smoothBodyWidths,
   organismGlyph,
   tpoPeriodInk,
+  tpoPlateRamp,
   GLYPH_BOX,
   GLYPH_HALF,
   type OrganismKind,
@@ -23379,9 +23380,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 if (yr == null) return;
                 levelChip(+yr, text, ink);
               };
-              lab(cp.poc, `CMP POC ${cp.poc?.toFixed(pxDp)}`, pk.rgba("POC", 0.95));
-              lab(cp.vah, `CMP VAH ${cp.vah?.toFixed(pxDp)}`, pk.rgbaAs("EDGE_HIGH", "VALUE", 0.88));
-              lab(cp.val, `CMP VAL ${cp.val?.toFixed(pxDp)}`, pk.rgbaAs("EDGE_LOW", "VALUE", 0.88));
+              // Price order survives the stack (off-camera levels stacked POC above VAH, serving NQ1! 15m Oct 16).
+              levelChipGroup = [];
+              try {
+                lab(cp.poc, `CMP POC ${cp.poc?.toFixed(pxDp)}`, pk.rgba("POC", 0.95));
+                lab(cp.vah, `CMP VAH ${cp.vah?.toFixed(pxDp)}`, pk.rgbaAs("EDGE_HIGH", "VALUE", 0.88));
+                lab(cp.val, `CMP VAL ${cp.val?.toFixed(pxDp)}`, pk.rgbaAs("EDGE_LOW", "VALUE", 0.88));
+              } finally { flushLevelChipGroup(); }
               // ⑨ COMPOSITE (a grid) — the organism glyph at the head of the lane
               // (geometry, not words: it paints wherever the lane paints).
               if (Number.isFinite(top)) paintOrganismGlyph("COMPOSITE", right - width / 2, top - 12, pk.rgba("VALUE", 0.95), floatingChips);
@@ -23554,9 +23559,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               if (yr == null) return;
               levelChip(+yr, text, ink);
             };
-            lab(vrpVM.poc, `VRP POC ${vrpVM.poc?.toFixed(pxDp)}`, pk.rgba("POC", 0.95));
-            lab(vrpVM.vah, `VRP VAH ${vrpVM.vah?.toFixed(pxDp)}`, pk.rgba("EDGE_HIGH", 0.85));
-            lab(vrpVM.val, `VRP VAL ${vrpVM.val?.toFixed(pxDp)}`, pk.rgba("EDGE_LOW", 0.85));
+            // Price order survives the stack (off-camera levels stacked POC above VAH, serving NQ1! 15m Oct 16).
+            levelChipGroup = [];
+            try {
+              lab(vrpVM.poc, `VRP POC ${vrpVM.poc?.toFixed(pxDp)}`, pk.rgba("POC", 0.95));
+              lab(vrpVM.vah, `VRP VAH ${vrpVM.vah?.toFixed(pxDp)}`, pk.rgba("EDGE_HIGH", 0.85));
+              lab(vrpVM.val, `VRP VAL ${vrpVM.val?.toFixed(pxDp)}`, pk.rgba("EDGE_LOW", 0.85));
+            } finally { flushLevelChipGroup(); }
             // ⑦ VRP (a target) — the organism glyph at the head of the lane
             // (geometry, not words: it paints wherever the lane paints).
             if (Number.isFinite(top)) paintOrganismGlyph("VRP", right - width / 2, top - 14, pk.rgbaAs("ANCHOR", "VALUE", 0.95), floatingChips);
@@ -23857,51 +23866,53 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
 
             // Row height from on-screen spacing between successive grid rows,
             // same rule as the volume histogram so the two read at one scale.
-            const ys: number[] = [];
-            for (const r of tpo.rows) {
-              const yr = srs.priceToCoordinate(r.price);
-              if (yr != null) ys.push(+yr);
-            }
-            let rowH = 2;
-            if (ys.length >= 2) {
-              const sorted = [...ys].sort((a, b) => a - b);
+            /* CODEX PLATE 14 · TPO READS AS LETTERS (serving NQ1! 15m, Oct 16: ~80 grid rows in 300px gave
+               4px rows, so every period letter collapsed into a 2px dash — "a column of dashes", not a TPO).
+               The grid's rows are AGGREGATED on screen until a display row is at least TPO_ROW_MIN px tall;
+               a display row prints every period letter that visited any of its prices (union, in order), so
+               the letters are the real brackets — nothing invented, only the price step widened for the eye.
+               Colour runs early → late (blue → green → gold → red), the plate's period ramp. */
+            const TPO_ROW_MIN = 13;
+            const rowsPx = tpo.rows
+              .map(r => ({ r, y: srs.priceToCoordinate(r.price) }))
+              .filter((e): e is { r: typeof tpo.rows[number]; y: number } => e.y != null)
+              .map(e => ({ r: e.r, y: +e.y }))
+              .sort((a, b) => a.y - b.y);
+            let gridH = 2;
+            if (rowsPx.length >= 2) {
               const gaps: number[] = [];
-              for (let i = 1; i < sorted.length; i++) gaps.push(sorted[i] - sorted[i - 1]);
-              const g = gaps.sort((a, b) => a - b)[Math.floor(gaps.length / 2)] || 2;
-              rowH = Math.max(2, Math.min(12, Math.round(g)));
+              for (let i = 1; i < rowsPx.length; i++) gaps.push(rowsPx[i].y - rowsPx[i - 1].y);
+              gridH = Math.max(1, gaps.sort((a, b) => a - b)[Math.floor(gaps.length / 2)] || 2);
             }
+            const per = Math.max(1, Math.ceil(TPO_ROW_MIN / gridH));
+            const disp: { y: number; letters: string; isPoc: boolean; insideValueArea: boolean; single: boolean }[] = [];
+            for (let i = 0; i < rowsPx.length; i += per) {
+              const grp = rowsPx.slice(i, i + per);
+              const set = new Set<string>();
+              for (const e of grp) for (const ch of e.r.letters) set.add(ch);
+              const letters = [...set].sort().join("");
+              if (!letters) continue;
+              disp.push({
+                y: grp.reduce((a, e) => a + e.y, 0) / grp.length,
+                letters,
+                isPoc: grp.some(e => e.r.isPoc),
+                insideValueArea: grp.some(e => e.r.insideValueArea),
+                single: grp.every(e => e.r.single) && letters.length === 1,
+              });
+            }
+            const rowH = Math.max(2, Math.round(gridH * per));
 
             let drawnRows = 0;
             let drawnSingles = 0;
             ctx.lineWidth = 1;
-            // GARDEN 12 · TPO READS AS TIME, NOT AS ANOTHER VOLUME BAR. Each
-            // row prints the time brackets that visited it, in order — A is
-            // the window's earliest — early letters dim, late letters bright,
-            // so the auction's migration through time is visible in the
-            // letters themselves. Rows too thin for type become one block per
-            // letter. POC row brass, value area parchment, outside quieter.
-            const maxLetters = Math.max(1, ...tpo.rows.map(r => r.letters.length));
-            // A row never runs past the column: the cell is the column divided
-            // by the busiest row, not a floor that let 26 letters × 3px spill
-            // into the TPO labels on a phone.
-            const cellW = Math.min(8, colMax / maxLetters);
-            ctx.font = `700 ${Math.min(10, rowH)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
-            // Letters only at NEAR, where a glyph fits its own cell. At MID and
-            // FAR TPO is TIME-COLOURED BLOCKS (2026-09-26, Garden 11 recognition
-            // test: with labels hidden the letter-only TPO vanished): one square
-            // per TPO cell, its period read as colour — early in the family's
-            // recessed voice, late in brass (tpoPeriodInk) — so the auction's
-            // migration through time survives every word being hidden. The
-            // blocks yield to the candles cell by cell (below), so they no
-            // longer need to stay a faint tint to leave the candles readable.
-            // H-501: the depth rule is the ONE permission table's — letters only where
-            // it grants NEAR geometry. TPO itself is SILENT at NEAR in that table
-            // ([X, S, X]), so on today's glass TPO is always its blocks.
-            const asText = att.permission.paints("nearGeometry") && rowH >= 7 && cellW >= ctx.measureText("M").width;
-            // Brightness runs early → late across THIS window's brackets (the
-            // newest one is full weight even when there are fewer than 26).
-            const lastL = Math.max(1, ...tpo.rows.map(r => r.letters.length ? r.letters.charCodeAt(r.letters.length - 1) - 65 : 0));
-            ds.tpoGeometry = `${asText ? "LETTERS" : "BLOCKS"}:${maxLetters}:${tpo.barsPerLetter}BPL`;
+            const maxLetters = Math.max(1, ...disp.map(r => r.letters.length));
+            // A row never runs past the column: the cell is the column divided by the busiest row.
+            const cellW = Math.min(10, colMax / maxLetters);
+            const fontPx = Math.max(9, Math.min(12, rowH - 2));
+            ctx.font = `700 ${fontPx}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+            const asText = rowH >= 11 && cellW >= ctx.measureText("M").width;
+            const lastL = Math.max(1, ...disp.map(r => r.letters.charCodeAt(r.letters.length - 1) - 65));
+            ds.tpoGeometry = `${asText ? "LETTERS" : "BLOCKS"}:${maxLetters}:${tpo.barsPerLetter}BPL|ROW:${rowH}|AGG:${per}`;
             ctx.textAlign = "left"; ctx.textBaseline = "middle";
             const inkCache = new Map<string, string>();
             const ink = (rgb: string, a: number) => {
@@ -23910,39 +23921,33 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               if (!v) { v = `rgba(${rgb},${a.toFixed(2)})`; inkCache.set(key, v); }
               return v;
             };
-            // A square cell: as wide as the column allows, never taller than its row.
             const side = Math.max(1, Math.min(cellW - (cellW >= 3 ? 1 : 0), Math.max(1, rowH - 1)));
-            // BLOCKS batched by ink (performance pass 2026-09-29): one path per
-            // colour, filled once, instead of a fillStyle switch per cell — same
-            // pixels, a fraction of the canvas calls on a ~3,000-cell column.
             const blockBatches = new Map<string, Path2D>();
-            for (const r of tpo.rows) {
-              const yr = srs.priceToCoordinate(r.price);
-              if (yr == null) continue;
-              const y = Math.round(+yr) - Math.floor(rowH / 2);
+            for (const r of disp) {
+              const y = Math.round(r.y) - Math.floor(rowH / 2);
               const h = Math.max(1, rowH - 1);
               tpoTop = Math.min(tpoTop, y);
-              const rgb = r.isPoc ? pk.rgb("POC") : r.insideValueArea ? pk.rgb("VALUE") : pk.rgb("TAIL");
-              const base = r.isPoc ? 1 : r.insideValueArea ? 0.9 : 0.55;
+              const base = r.isPoc ? 1 : r.insideValueArea ? 0.92 : 0.6;
               for (let k = 0; k < r.letters.length; k++) {
                 const L = r.letters.charCodeAt(k) - 65;
                 const late = Math.min(1, L / lastL);
                 const x = leftEdge + k * cellW;
                 if (onCandle(x, y, cellW, h)) { tpoCellsYielded++; continue; }
+                const rgb = tpoPlateRamp(late);
                 if (asText) {
-                  ctx.fillStyle = ink(rgb, base * (0.35 + 0.65 * late));
+                  // The letter on a tile tinted its own period: the shape survives with every word hidden.
+                  ctx.fillStyle = ink(rgb, r.isPoc ? 0.42 : 0.24 * base);
+                  ctx.fillRect(x, y, cellW - 1, h);
+                  ctx.fillStyle = ink(rgb, base);
                   ctx.fillText(r.letters[k], x, y + h / 2 + 0.5);
                 } else {
-                  const st = ink(tpoPeriodInk(pk.role.TAIL, pk.role.ANCHOR, late), base * (0.45 + 0.45 * late));
+                  const st = ink(rgb, base * 0.9);
                   let bp = blockBatches.get(st);
                   if (!bp) { bp = new Path2D(); blockBatches.set(st, bp); }
                   bp.rect(x, y + (h - side) / 2, side, side);
                 }
               }
               drawnRows++;
-              // SINGLE PRINT — the auction passed through once and never
-              // returned. A short brass tick OUTSIDE the column, so it reads
-              // as a mark on the row and not as a longer bar.
               if (r.single && !onCandle(leftEdge - 6, y, 3, h)) {
                 ctx.fillStyle = pk.rgba("ANCHOR", 0.85);
                 ctx.fillRect(leftEdge - 6, y, 3, h);

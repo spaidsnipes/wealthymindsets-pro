@@ -371,13 +371,16 @@ describe("9 · every species wears its organism glyph (Garden 11 recognition tes
     expect(FUSED).toContain('paintOrganismGlyph("FUSION", mx, my, `rgba(${FU},0.95)`, floatingChips, "FUSION_LINK");');
   });
 
-  it("TPO paints NO fillText at MID/FAR: letters are gated on NEAR; otherwise time-coloured blocks", () => {
-    expect(TPO).toContain('const asText = att.permission.paints("nearGeometry") && rowH >= 7 && cellW >= ctx.measureText("M").width;');
+  it("TPO reads as LETTERS (Codex plate 14, 2026-10-16): rows aggregate to a readable height, each letter on its period tile", () => {
+    // Restated 2026-10-16 (serving NQ1! 15m: 4px grid rows collapsed every letter into a 2px dash). The
+    // Garden 11 recognition concern holds: the tile under each letter is tinted its period, so the TPO's
+    // shape survives &proof=nolabels; blocks remain the form only where a row cannot carry a glyph.
+    expect(TPO).toContain("const TPO_ROW_MIN = 13;");
+    expect(TPO).toContain('const asText = rowH >= 11 && cellW >= ctx.measureText("M").width;');
     const texts = [...TPO.matchAll(/ctx\.fillText\(/g)];
-    expect(texts.length, "TPO's only fillText is the NEAR letter").toBe(1);
+    expect(texts.length, "TPO's only fillText is the period letter").toBe(1);
     between(TPO, "if (asText) {", "ctx.fillText(r.letters[k], x, y + h / 2 + 0.5);", "} else {");
-    // 2026-09-29: blocks are batched by ink (one Path2D per colour) — same ink formula.
-    expect(TPO).toContain("const st = ink(tpoPeriodInk(pk.role.TAIL, pk.role.ANCHOR, late), base * (0.45 + 0.45 * late));");
+    expect(TPO).toContain("const rgb = tpoPlateRamp(late);");
     expect(TPO).toContain("for (const [st, bp] of blockBatches) { ctx.fillStyle = st; ctx.fill(bp); }");
   });
 

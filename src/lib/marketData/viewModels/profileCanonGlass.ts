@@ -473,3 +473,15 @@ export function tpoPeriodInk(tail: readonly [number, number, number], anchor: re
   const c = (i: number) => Math.round(tail[i] + (anchor[i] - tail[i]) * t);
   return `${c(0)},${c(1)},${c(2)}`;
 }
+
+/**
+ * CODEX PLATE 14 · the TPO period ramp — early blue → green → gold → late red, as the plate's TPO panel
+ * colours its letters A → O. The profile family's one ink owner holds it (never a hue typed at the paint site).
+ */
+export function tpoPlateRamp(late01: number): string {
+  const stops: readonly (readonly [number, number, number])[] = [[86, 140, 214], [72, 178, 120], [226, 186, 72], [214, 82, 72]];
+  const t = Math.max(0, Math.min(1, Number.isFinite(late01) ? late01 : 0)) * (stops.length - 1);
+  const i0 = Math.min(stops.length - 2, Math.floor(t)), f = t - i0;
+  const c = (k: number) => Math.round(stops[i0][k] + (stops[i0 + 1][k] - stops[i0][k]) * f);
+  return `${c(0)},${c(1)},${c(2)}`;
+}
