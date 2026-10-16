@@ -141,7 +141,11 @@ export const NEEDS_TRADED_VOLUME = "NEEDS TRADED VOLUME";
 /** "NEEDS TRADED VOLUME · SPOT FX HAS NONE" — or null when the market has central volume. */
 export function needsTradedVolumeWords(symbol: string): string | null {
   const noun = hasNoCentralVolume(symbol);
-  return noun ? `${NEEDS_TRADED_VOLUME} · ${noun.toUpperCase()} HAS NONE` : null;
+  if (noun) return `${NEEDS_TRADED_VOLUME} · ${noun.toUpperCase()} HAS NONE`;
+  // Plate 35 (serving 66265dd, SPX): Big Trades read "WAITING FOR SIDED PRINTS" over an index — a wait
+  // that can never end. A cash index is calculated, not traded: no print will ever arrive.
+  if (isUsCashIndexSymbol(symbol)) return `NOT POSSIBLE HERE · AN INDEX IS CALCULATED, NOT TRADED — ITS FUTURES CARRY THE TAPE`;
+  return null;
 }
 
 /** The same state as a clause inside a sentence: "needs traded volume — spot FX has none". */
