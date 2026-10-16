@@ -21758,7 +21758,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   // that has to slide steps around the one already placed.
                   for (const [key, grp, anchorX] of [["down", gDown, g.down.x], ["crack", gCrack, g.crack.cx], ["up", gUp, g.up.x]] as const) {
                     const pref = row[key];
-                    const spot = placeClearOfKeepOut(pref, koC, { minX: keepOutMinX(), blockers: floatingChips, strict: true });
+                    const spot = placeClearOfKeepOut(pref, koC, { minX: keepOutMinX(), blockers: [...floatingChips, ...silenceBeacons], strict: true });
                     modes.push(`${key.toUpperCase()}:${spot.mode}`);
                     // L20 (Garden 19, serving 46f62ee at 768px): with no clear slot the group painted at its
                     // preferred spot anyway — "ZONE (UP)" inside the big-trade card ("18 prints · 54 contracts
@@ -28195,7 +28195,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             if (sp.mode === "BLOCKED") {
               const onAnchor = (q: { x: number; y: number; w: number; h: number }) =>
                 anchorRects.some(o => q.x < o.x + o.w + 6 && q.x + q.w + 6 > o.x && q.y < o.y + o.h + 2 && q.y + q.h + 2 > o.y)
-                || wordRectsNow.some(o => q.x < o.x + o.w + 2 && q.x + q.w + 2 > o.x && q.y < o.y + o.h + 1 && q.y + q.h + 1 > o.y);
+                || wordRectsNow.some(o => q.x < o.x + o.w + 2 && q.x + q.w + 2 > o.x && q.y < o.y + o.h + 1 && q.y + q.h + 1 > o.y)
+                // L20 (serving 27969ea desk 803px): the top-row fallback IS the compact question strip's row — a
+                // sovereign panel, whose words never enter the registry — and "2 events · Show list" sat on the
+                // asked question. The frame's sovereign panels block the fallback too.
+                || sovereignBoxes.some(o => q.x < o.x + o.w + 2 && q.x + q.w + 2 > o.x && q.y < o.y + o.h + 1 && q.y + q.h + 1 > o.y);
               const leftMost = Math.max(4, keepOutMinX());
               for (let g = 0; g < 12 && onAnchor(r); g++) {
                 r = r.x - (w + 8) >= leftMost ? { ...r, x: r.x - (w + 8) } : { ...r, x: Math.max(leftMost, Math.min(plotRight - w - 4, pref.x)), y: r.y + h + 4 };
@@ -28206,7 +28210,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // gives up its words and becomes the quiet 12px pip at its cluster —
             // a tap still lists everything it holds.
             let pipForm = single;
-            if (!single && wordRectsNow.some(o => r.x < o.x + o.w + 2 && r.x + r.w + 2 > o.x && r.y < o.y + o.h + 1 && r.y + r.h + 1 > o.y)) {
+            if (!single && [...wordRectsNow, ...sovereignBoxes].some(o => r.x < o.x + o.w + 2 && r.x + r.w + 2 > o.x && r.y < o.y + o.h + 1 && r.y + r.h + 1 > o.y)) {
               pipForm = true; crowdedToPip++;
               r = { x: Math.max(4, Math.min(plotRight - 16, a.x - 6)), y: clampY(a.y - 6), w: 12, h: 12 };
             }
