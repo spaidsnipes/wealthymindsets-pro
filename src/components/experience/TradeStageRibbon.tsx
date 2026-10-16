@@ -29,11 +29,13 @@ export function TradeStageRibbon({ symbol, verdict, reason, nearZone }: {
   const at = CARD_STAGES.indexOf(vm.stage);
   return (
     <div data-testid="trade-stage" data-stage={vm.stage} role="group" aria-label={`Stage: ${CARD_STAGE_LABEL[vm.stage]}. ${vm.sentence}`}
-      style={{ display: "flex", flexDirection: "column", gap: 6, padding: "8px 2px 2px" }}>
-      <ol aria-hidden="true" style={{ display: "flex", gap: 3, margin: 0, padding: 0, listStyle: "none" }}>
+      style={{ display: "flex", flexDirection: "column", gap: 6, padding: "8px 2px 2px", width: "100%", minWidth: 0, boxSizing: "border-box" }}>
+      {/* 3 × 2, not one row (serving cb57e0a, 1440 rail: six 13px stage names ran 12px past the card and
+          clipped the sentence to "rice is 28 points…"). */}
+      <ol aria-hidden="true" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 3, margin: 0, padding: 0, listStyle: "none" }}>
         {CARD_STAGES.map((s, i) => (
           <li key={s} data-stage-step={s} style={{
-            flex: "1 1 0", minWidth: 0, textAlign: "center", padding: "4px 0", borderRadius: 5,
+            minWidth: 0, textAlign: "center", padding: "4px 0", borderRadius: 5,
             font: `${i === at ? 700 : 500} 13px/1.1 Georgia, 'Times New Roman', serif`,
             color: i === at ? "#F3D78A" : i < at ? "#a99f86" : "#6f6a5c",
             border: `1px solid ${i === at ? "rgba(232,198,104,0.9)" : "rgba(196,165,116,0.18)"}`,
@@ -42,7 +44,7 @@ export function TradeStageRibbon({ symbol, verdict, reason, nearZone }: {
           }}>{CARD_STAGE_LABEL[s]}</li>
         ))}
       </ol>
-      <span data-testid="trade-stage-sentence" style={{ font: "500 14px/1.35 ui-sans-serif, system-ui, sans-serif", color: "#EDE6D3", textAlign: "center" }}>
+      <span data-testid="trade-stage-sentence" style={{ font: "500 14px/1.35 ui-sans-serif, system-ui, sans-serif", color: "#EDE6D3", textAlign: "center", whiteSpace: "normal", overflowWrap: "anywhere" }}>
         {vm.sentence}
       </span>
     </div>

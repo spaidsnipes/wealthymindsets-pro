@@ -303,7 +303,8 @@ export function ProfilesMenu({
                       </span>
                     )}
                     <span
-                      className="min-w-0 truncate text-[16px] font-semibold"
+                      // Wraps, never clips (serving 172eb3a, 316px panel: "Absorption Sh…", "Stacked Imbalan…").
+                      className="min-w-0 break-words text-[16px] font-semibold leading-tight"
                       style={{ color: entry.active ? "#F3EBDD" : "#C9CCDA" }}
                     >
                       {entry.label}
