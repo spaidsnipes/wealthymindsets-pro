@@ -10,7 +10,8 @@ const TOOLBAR = readFileSync(join(ROOT, "src/components/chart/ChartToolbar.tsx")
 describe("Profiles equipment keeps MARKET visible", () => {
   it("uses a compact instrument grid instead of one prose card per reading", () => {
     expect(MENU).toContain('data-profile-layout="instrument-grid"');
-    expect(MENU).toContain("grid grid-cols-2");
+    // Restated 2026-10-16: still a compact grid — two columns where a name fits whole (≥220px each), else one.
+    expect(MENU).toContain("grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))]");
     expect(MENU).not.toMatch(/className="mt-0\.5 pl-3\.5[^\n]*"[\s\S]*?\{entry\.what\}/);
   });
 

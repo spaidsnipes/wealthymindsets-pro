@@ -234,7 +234,9 @@ export function ProfilesMenu({
             </div>
           </div>
 
-          <div className={columns === 1 ? "grid grid-cols-1 gap-1" : "grid grid-cols-2 gap-1"} data-testid={testId === "profiles-menu-panel" ? "profiles-instrument-grid" : `${testId}-grid`}>
+          {/* Two columns only where a name fits whole (serving his desk, Oct 16: the Chart tools drawer split "Living
+              Profile" into "Livi ng Prof ile" across a 50px name column). */}
+          <div className={columns === 1 ? "grid grid-cols-1 gap-1" : "grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-1"} data-testid={testId === "profiles-menu-panel" ? "profiles-instrument-grid" : `${testId}-grid`}>
             {(groups ? [
               ...groups.flatMap(g => g.ids.map(id => vm.entries.find(e => e.id === id)).filter((e): e is NonNullable<typeof e> => !!e)),
               ...vm.entries.filter(e => !groups.some(g => g.ids.includes(e.id))),
