@@ -125,7 +125,9 @@ export function selectRegimeLighting(
   regime: { readonly verdict: RegimeVerdict } | null | undefined,
 ): RegimeLightingVM {
   const vm = lightByBreaker(regime);
-  if (vm.verdict === "COMPRESSION" || vm.verdict === "EXPANSION") {
+  // BALANCE too (serving NQ1! 15m, 2026-10-16: the header read "TAPE REGIME BALANCE" while the glass read
+  // "TAPE REGIME · RANGE · channel capped" — one fact, two words on one screen). The header's word wins.
+  if (vm.verdict === "COMPRESSION" || vm.verdict === "EXPANSION" || vm.verdict === "BALANCE") {
     const word = vm.verdict;
     return {
       ...vm,

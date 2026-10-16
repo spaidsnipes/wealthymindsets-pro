@@ -33,7 +33,7 @@ describe("F15A × F14 — one camera, named scopes, contradictions named", () =>
   it("bars too few to breathe: scoped, and the receipt says the bars were not read", () => {
     const s = scopeRegimeLighting(selectRegimeLighting({ verdict: "BALANCE" }), null, "5m")!;
     expect(s.receipt).toBe("BARS_UNREAD");
-    expect(s.vm.title).toBe("TAPE REGIME · RANGE · channel capped");
+    expect(s.vm.title).toBe("TAPE REGIME · BALANCE · channel capped");
   });
 
   it("no verdict, no title: nothing invented", () => {

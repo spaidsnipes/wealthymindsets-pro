@@ -124,8 +124,9 @@ describe("H-901 v2 — the plate's own fixtures, lit by the one breaker", () => 
     for (const verdict of ALL) {
       const v = L(verdict);
       if (v.breaker) {
-        // The title names the VERDICT (COMPRESSION / EXPANSION keep their own word); the breaker's word otherwise.
-        const word = verdict === "COMPRESSION" || verdict === "EXPANSION" ? verdict : v.breaker;
+        // The title names the VERDICT (COMPRESSION / EXPANSION / BALANCE keep their own word — BALANCE since
+        // 2026-10-16, as the header says it); the breaker's word otherwise.
+        const word = verdict === "COMPRESSION" || verdict === "EXPANSION" || verdict === "BALANCE" ? verdict : v.breaker;
         expect(v.title).toMatch(new RegExp(`^REGIME · ${word} · `));
         expect(v.title!.length).toBeLessThan(48);
       } else {
@@ -145,7 +146,8 @@ describe("the words name the verdict; the light is the breaker's (serving BTC 1m
     const e = L("EXPANSION");
     expect(e.breaker).toBe("TRANSITION");
     expect(e.title).toBe("REGIME · EXPANSION · all fixtures dimmed");
-    expect(L("BALANCE").title).toBe("REGIME · RANGE · channel capped");
+    // 2026-10-16: the verdict's own word, as the header says it.
+    expect(L("BALANCE").title).toBe("REGIME · BALANCE · channel capped");
     expect(L("TRANSITION").title).toBe("REGIME · TRANSITION · all fixtures dimmed");
   });
 });

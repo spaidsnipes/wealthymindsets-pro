@@ -17303,9 +17303,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                       ry += rowH;
                     }
                     ctx.strokeStyle = HAIR; ctx.strokeRect(8.5, ry + 4.5, w - 17, 20);
-                    ctx.font = font(700, 8.5); ctx.fillStyle = GOLD;
+                    ctx.fillStyle = GOLD;
                     ctx.textAlign = "center";
-                    ctx.fillText(clip(`CONCLUSION: ${sc.conclusion}`, w - 30), w / 2, ry + 14.5);
+                    // The conclusion reads whole: its type steps down (8.5 → 7) before a word is ever cut.
+                    const concl = `CONCLUSION: ${sc.conclusion}`;
+                    let cfs = 8.5;
+                    ctx.font = font(700, cfs);
+                    while (cfs > 7 && ctx.measureText(concl).width > w - 30) { cfs -= 0.5; ctx.font = font(700, cfs); }
+                    ctx.fillText(clip(concl, w - 30), w / 2, ry + 14.5);
                     ctx.textAlign = "left";
                   } else if (depth === "FOUNDATION") {
                     // Same six steps, one line each: the number, the step, its verdict.
