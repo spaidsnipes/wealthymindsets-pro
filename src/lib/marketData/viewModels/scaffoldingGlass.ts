@@ -204,7 +204,9 @@ const countHits = countRectHits;
  * one plaque is keep-out placed, so nothing reserves room for it.
  */
 export const SCAFFOLD_CARD_BOX = {
-  FOUNDATION: { w: 470, h: 271 },
+  // 560 (2026-10-16 one-at-a-time pass, serving NQ1! 15m): at 470 the verdicts read "DISPLACEMENT STE…" and the
+  // conclusion "WAIT FOR CONFIRMAT…" — a student card that cuts its own words is not the plate.
+  FOUNDATION: { w: 560, h: 271 },
   FOUNDATION_COMPACT: { w: 340, h: 151 },
   INTERMEDIATE: { w: 252, h: 112 },
 } as const;

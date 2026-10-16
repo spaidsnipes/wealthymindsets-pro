@@ -16799,7 +16799,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // The column an active Question Lens holds, the header band
                 // and the pane floor bound every scaffolding box.
                 const minX = Math.max(12, keepOutMinX() + (lensColumnActive ? 2 : 8));
-                const floorY = pane0Bottom - 8;
+                // …and the volume band: price's territory ends where volume's begins (serving NQ1! 15m, Oct 16
+                // one-at-a-time pass: the Pro plaque stood on the volume bars under the newest candles).
+                let volTopScaf = pane0Bottom;
+                try {
+                  const vt = Number((chart.priceScale("vol").options() as { scaleMargins?: { top?: number } }).scaleMargins?.top);
+                  if (Number.isFinite(vt) && vt > 0 && vt < 1) volTopScaf = pane0Bottom * vt;
+                } catch { /* no volume scale: the pane */ }
+                const floorY = Math.min(pane0Bottom, volTopScaf) - 8;
 
                 if (depth === "PRO") {
                   /* ADVANCED / PRO — "Geometry & Efficiency Only". */
@@ -17246,10 +17253,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                       ctx.font = font(700, 13); ctx.fillStyle = GOLD;
                       ctx.fillText(String(st.n), 12, ry + rowH / 2);
                       ctx.font = font(700, 9); ctx.fillStyle = CREAM;
-                      ctx.fillText(clip(st.title, 230), 30, ry + 10);
+                      ctx.fillText(clip(st.title, w - 196 - 48), 30, ry + 10);
                       ctx.font = font(500, 8); ctx.fillStyle = DIM;
-                      ctx.fillText(clip(st.evidence, 262), 30, ry + 22);
-                      const cw = 160, cx = w - cw - 10;
+                      const cw = 196, cx = w - cw - 10;
+                      ctx.fillText(clip(st.evidence, cx - 38), 30, ry + 22);
                       ctx.strokeStyle = HAIR; ctx.strokeRect(cx + 0.5, ry + 4.5, cw, rowH - 9);
                       ctx.font = font(700, 8); ctx.fillStyle = CREAM;
                       ctx.textAlign = "center";
@@ -20491,6 +20498,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                      HELD      contact, then this bar pulled back ≥ a quarter of
                                its own range from the wall — a fact about this
                                bar, never a forecast. */
+                let heldThisBar = false;
                 if (!broken) {
                   const lb = (barsRef.current ?? [])[(barsRef.current ?? []).length - 1];
                   const xl = lb ? tsD.timeToCoordinate(lb.time as never) : null;
@@ -20542,7 +20550,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                         }
                         ctx.globalAlpha = prevDustA;
                       }
-                      if (pulledBack && dpSpeaks) wallWords.push({ word: `HELD · ${fmtD(w.strike)}`, x: ix + 30, y: faceY + (above ? 10 : -10) });
+                      // ONE WALL, ONE NAME (serving NQ1! 15m, Oct 16 one-at-a-time pass: "PUT WALL 29400.00 ·
+                      // BREAKING" and a second chip "HELD · 29400.00" spoke for the same wall in two verdicts). The
+                      // bar's pullback is said inside the wall's own name, as a fact about this bar.
+                      if (pulledBack) heldThisBar = true;
                     }
                     painted.push(`CONTACT@${w.strike}:${state}:${prox.toFixed(2)}`);
                   }
@@ -20550,7 +20561,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.restore();
                 masonryRects.push({ x: x0, y: top - 2, w: len + 2, h: wallH + 4 });
                 const seenW = wallTestSpanWords(dp.testSpanSec);
-                if (wallsSpeak) wallWords.push({ word: `${w.polarity === "PUT_HEAVY" ? "PUT" : "CALL"} WALL ${fmtD(w.strike)} · ${wallLifeWord(w.life)}${w.tests ? ` ×${w.tests}` : ""}${seenW ? ` · ${seenW}` : ""}`, x: x0, y: top + wallH / 2 });
+                if (wallsSpeak) wallWords.push({ word: `${w.polarity === "PUT_HEAVY" ? "PUT" : "CALL"} WALL ${fmtD(w.strike)} · ${wallLifeWord(w.life)}${w.tests ? ` ×${w.tests}` : ""}${heldThisBar ? " · PULLED BACK THIS BAR" : ""}${seenW ? ` · ${seenW}` : ""}`, x: x0, y: top + wallH / 2 });
                 painted.push(`WALL@${w.strike}:${w.life}:${w.tests}`);
               }
               void strikesSorted;
