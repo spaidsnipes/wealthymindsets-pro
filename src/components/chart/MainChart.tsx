@@ -66,7 +66,7 @@ import { GLASS_NAME_MIN_PX, installTypeFloor } from "@/lib/chart/typeFloor";
 import { partitionVolumeIndicators } from "@/lib/chart/volumeIndicatorTruth";
 import { createLongPress } from "@/lib/chart/longPress";
 import { clampBubbleScale, clampWallThickness, footprintNumberPx, lawfulOrderLineLooks, lawfulSettings, volumeInk } from "@/lib/chart/appearanceLaw";
-import { drawingSpeciesAlpha, inksDistinct, lawfulSpeciesInks, layerDialOpacity } from "@/lib/chart/appearanceLaw";
+import { drawingSpeciesAlpha, inksDistinct, lawfulSpeciesInks, layerDialOpacity, SPECIES_INK_DEFAULTS } from "@/lib/chart/appearanceLaw";
 import { DEFAULT_CHART_SETTINGS, FLOW_COLOR_DEFAULTS, VOLUME_COLOR_PICKER_DEFAULTS } from "./ChartSettingsModal";
 import { currentProofScene, proofCaptureOpen, proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { inspectedBarMark } from "@/lib/chart/inspectedBarMark";
@@ -3494,7 +3494,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           val: val ?? VP_DEFAULT_TRIPLETS.val,
         };
         const pv = vpColorsRef.current.poc;
-        const speciesInks = lawfulSpeciesInks(speciesInkSrcRef.current, {
+        const speciesInks = lawfulSpeciesInks({ ...SPECIES_INK_DEFAULTS, ...((speciesInkSrcRef.current && typeof speciesInkSrcRef.current === "object") ? speciesInkSrcRef.current as Record<string, unknown> : {}) }, {
           field: chartSettingsRef.current?.background ?? MARKET_FIELD_DEFAULT,
           poc: [`rgb(${pv[0]},${pv[1]},${pv[2]})`, `rgb(${PROFILE_INK_AT_REST.rgb("POC")})`],
         }).inks;
@@ -22174,6 +22174,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             levelChipsTruthKept++;
             truthChipSolid = true;
           }
+          // Codex plate 13 beside serving (NQ1! 15m, Living + Composite + Visible Range): with every seat refused
+          // the chip still painted at its preferred spot — "CMP VAH" under "LIVING VAH", "…OC 30260" cut by its
+          // neighbour. A refused (BLOCKED) chip keeps its level's tick and is listed with the event notes.
+          if (!truthChipSolid && spotL.mode === "BLOCKED") {
+            ctx.fillStyle = ink;
+            ctx.fillRect(Math.round(plotRight - 7), Math.round(y) - 1, 5, 2);
+            ctx.restore();
+            displacedNotes.push({ layer: "PROFILE", text, x: Math.max(8, rightX - cw / 2), y });
+            levelChipsYielded++;
+            return;
+          }
           if (W >= 640 && onNewestColumn(spotL.rect.x, spotL.rect.y, spotL.rect.w, spotL.rect.h)) {
             ctx.fillStyle = ink;
             ctx.fillRect(Math.round(plotRight - 7), Math.round(y) - 1, 5, 2);
@@ -31847,7 +31858,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const d = drawingsRef.current[selectedIdx];
           const bump = () => { setEditBump(v => v + 1); setRangeVer(v => v + 1); };
           const toolName = d.tool.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
-          const row: React.CSSProperties = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, minHeight: 36 };
+          const row: React.CSSProperties = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, minHeight: 36, flexShrink: 0 };
           const lab: React.CSSProperties = { font: `500 14px ${MARKET_SANS}`, color: "#c9bfa6" };
           const chip = (active: boolean): React.CSSProperties => ({
             minWidth: 36, height: 30, padding: "0 8px", borderRadius: 6, cursor: "pointer",
@@ -31868,14 +31879,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               role="dialog"
               aria-label={`Drawing settings: ${toolName}`}
               style={{
-                position: "absolute", left: 8, top: 96, zIndex: 130, width: 268, maxHeight: "calc(100% - 112px)", overflowY: "auto",
+                // Ends above the floating Ask chip (its top: min(532px, 100% − 96px)); scrolls when the pane is short.
+                position: "absolute", left: 8, top: 96, zIndex: 130, width: 268, maxHeight: "calc(100% - 208px)", minHeight: 160, overflowY: "auto",
                 display: "flex", flexDirection: "column", gap: 4, padding: "12px 14px",
                 background: "rgba(14,12,9,0.96)", border: "1px solid rgba(212,175,55,0.45)", borderRadius: 12,
                 boxShadow: "0 10px 30px rgba(0,0,0,0.6)",
               }}
               onPointerDown={(e) => e.stopPropagation()}
             >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, flexShrink: 0 }}>
                 <span style={{ font: "600 18px Georgia, 'Times New Roman', serif", color: "#F3D78A" }}>{toolName}</span>
                 <button aria-label="Close drawing settings" onClick={() => { setSelectedIdx(null); setDrawPopover(null); }}
                   style={{ width: 36, height: 36, borderRadius: 8, cursor: "pointer", background: "transparent", color: "#ede6d3",
@@ -31935,7 +31947,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   <button onClick={() => setTextEdit({ idx: selectedIdx })} style={chip(false)}>Edit text</button>
                 </div>
               )}
-              <div style={{ borderTop: "1px solid rgba(212,175,55,0.2)", marginTop: 4, paddingTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+              <div style={{ borderTop: "1px solid rgba(212,175,55,0.2)", marginTop: 4, paddingTop: 8, display: "flex", flexDirection: "column", gap: 4, flexShrink: 0 }}>
                 <span style={{ ...lab, color: "#F3D78A" }}>Coordinates</span>
                 {d.pts.map((pt, i) => (
                   <span key={i} style={{ font: `500 13px ${MARKET_SANS}`, color: "#ede6d3", fontVariantNumeric: "tabular-nums" }}>
@@ -31944,7 +31956,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ))}
               </div>
               <button onClick={() => { drawingsRef.current.splice(selectedIdx, 1); setSelectedIdx(null); setRangeVer(v => v + 1); }}
-                style={{ marginTop: 8, minHeight: 40, borderRadius: 8, cursor: "pointer", background: "rgba(160,40,40,0.25)",
+                style={{ marginTop: 8, minHeight: 40, flexShrink: 0, borderRadius: 8, cursor: "pointer", background: "rgba(160,40,40,0.25)",
                   color: "#ffb3b3", border: "1px solid rgba(226,92,92,0.6)", font: `600 14px ${MARKET_SANS}` }}>
                 Remove drawing
               </button>

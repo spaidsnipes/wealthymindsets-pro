@@ -388,6 +388,16 @@ export function drawingSpeciesAlpha(siteAlpha: number, dial: unknown): number {
        named in `refused`, so the settings can say why.
    Session · Classic VP and Bid/Ask Split are coloured by their own palettes
    (VP gear, delta inks) and take no body ink here. ───────────────────────── */
+/**
+ * CODEX PLATE 13 "Profiles need breathing room" (Garden 19, 2026-10-16): at rest every species wore the family
+ * gold, so Living, Composite and Visible Range stacked as one gold-grey mass. The plate's legend gives each its own
+ * identity — Living gold (the family), Composite teal, Visible Range blue. These are the AT-REST species inks; a
+ * trader's stored choice wins, and every ink still passes the law below.
+ */
+export const SPECIES_INK_DEFAULTS: Readonly<Partial<Record<string, string>>> = Object.freeze({
+  COMPOSITE: "#2fb89a",
+  VISIBLE_RANGE: "#4a8fe0",
+});
 export const SPECIES_INK_KEYS: readonly ProfileSpeciesKey[] = PROFILE_SPECIES.filter(sp => sp !== "SESSION_CLASSIC" && sp !== "BID_ASK");
 export interface LawfulSpeciesInks {
   /** Kept inks as [r,g,b], keyed by species. */
