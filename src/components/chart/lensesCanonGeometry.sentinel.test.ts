@@ -83,6 +83,8 @@ const PINS: Pin[] = [
   { name: "H-401 words through the keep-out owner, ledger and chips", holds: b =>
       b.contradiction.includes("const spot = placeClearOfKeepOut(pref, koC, { minX: keepOutMinX(), blockers: floatingChips, strict: true });") &&
       b.contradiction.includes("recordKeepOut(keepOutLedger, spot);") &&
+      // L20: a blocked group is listed with the event notes, never painted where it was refused.
+      b.contradiction.includes('displacedNotes.push({ layer: "CONTRADICTION"') &&
       b.contradiction.includes("ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spot, 0.85)})`;") &&
       b.contradiction.includes("const fits = (y: number) => y >= HEADER_FLOOR_Y + 2 && y + tallest <= SAFE_BOT;") },
   { name: "H-401 no cards: no LEANS columns, no evidence text on glass", holds: b =>
@@ -189,7 +191,7 @@ const MUTATIONS: { pin: string; from: string | RegExp; to: string }[] = [
   { pin: "H-401 arrows and crack from the glyph owner", from: "crackStrokes(g.crack).forEach(", to: "[].forEach(" },
   { pin: "H-401 candles cut out of the zone, arrows and crack", from: 'ctx.clip(cutC, "evenodd");', to: "" },
   { pin: "H-401 minimal words: family names, (UP)/(DOWN), UNRESOLVED", from: 'group(cv.up.map(l => l.family), "(UP)")', to: 'group(cv.up.map(l => l.evidence), "LEANS UP")' },
-  { pin: "H-401 words through the keep-out owner, ledger and chips", from: "blockers: floatingChips, strict: true });\n                    recordKeepOut(keepOutLedger, spot);", to: "blockers: floatingChips });\n                    recordKeepOut(keepOutLedger, spot);" },
+  { pin: "H-401 words through the keep-out owner, ledger and chips", from: "const spot = placeClearOfKeepOut(pref, koC, { minX: keepOutMinX(), blockers: floatingChips, strict: true });\n                    modes.push", to: "const spot = placeClearOfKeepOut(pref, koC, { minX: keepOutMinX(), blockers: floatingChips });\n                    modes.push" },
   { pin: "H-401 no cards: no LEANS columns, no evidence text on glass", from: "ctx.textAlign = \"left\";\n                  // THE ZONE IS AN OBSTACLE TOO", to: "ctx.fillText(\"LEANS UP\", 0, 0);\n                  // THE ZONE IS AN OBSTACLE TOO" },
   { pin: "H-401 the zone (box ∪ arrows ∪ crack) joins the chip ledger after its words", from: "floatingChips.push(zoneChip);", to: "" },
   { pin: "H-401 prices in the market's decimals, receipts withdrawn each frame", from: "            dp: pxDp,\n", to: "" },

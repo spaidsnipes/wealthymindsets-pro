@@ -17016,7 +17016,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                       ctx.stroke();
                       ctx.font = font(700, 7); ctx.fillStyle = DIM;
                       ctx.textAlign = "right";
-                      ctx.fillText(`${sc.window.length} BARS READ`, xb + bsp / 2, by + 7);
+                      // L20 (Garden 19, serving 46f62ee at 1440): "20 BARS READ" printed through a shelf card and two
+                      // option-wall ticks — the caption was placed blind. It paints only where the glass is free (the
+                      // bracket itself still marks the window) and then claims its box.
+                      const brT = `${sc.window.length} BARS READ`;
+                      const brW = Math.ceil(ctx.measureText(brT).width) + 4;
+                      const brR = { x: xb + bsp / 2 - brW, y: by, w: brW, h: 15 };
+                      if (!floatingChips.some(q => brR.x < q.x + q.w && brR.x + brR.w > q.x && brR.y < q.y + q.h && brR.y + brR.h > q.y)) {
+                        ctx.fillText(brT, xb + bsp / 2, by + 7);
+                        floatingChips.push(brR);
+                      }
                       ctx.textAlign = "left";
                     }
                   }
@@ -18816,16 +18825,24 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               if (!att.speaks(key)) return;
               if (xA == null || y < HEADER_FLOOR_Y || y > pane0Bottom - 6 || wordsTaken.some(t => Math.abs(t - y) < 11)) return;
               ctx.font = `700 9px ${MARKET_SANS}`;
+              // L20 (Garden 19, serving 46f62ee at 768px): "☆ +2σ" painted on the asked question's strip and
+              // "☆ −σ" under the candle countdown — the name was boxed at 9px (the floor paints it at 13), took
+              // its preferred spot when every slot was blocked, and never joined the chip ledger. Boxed as it
+              // paints, held when blocked, registered when placed.
               const w = ctx.measureText(text).width + 4;
               const x0 = Math.max(xA, keepOutMinX()) + 4;
-              const pref = { x: x0, y: y - 5, w, h: 10 };
+              const hN = 14;
+              const pref = { x: x0, y: y - hN / 2, w, h: hN };
               // Words take the first slot along their own row that clears the
               // candle bodies; otherwise the cut-out keeps the candle on top.
-              const spot = placeClearOfKeepOut(pref, [...rowBodiesAt(y - 5, y + 5), ...newestColumnRects()], {
+              const spot = placeClearOfKeepOut(pref, [...rowBodiesAt(y - hN / 2, y + hN / 2), ...newestColumnRects()], {
                 minX: keepOutMinX(),
                 blockers: floatingChips,
+                strict: true,
                 alternates: [1, 2, 3, 4, 5, 6].map(i => ({ ...pref, x: x0 + i * 34 })),
               });
+              if (spot.mode === "BLOCKED") return;
+              floatingChips.push(spot.rect);
               ctx.fillStyle = color;
               ctx.textAlign = "left"; ctx.textBaseline = "middle";
               // A dimmed fixture's NAME keeps the governor's legibility floor.
@@ -21664,9 +21681,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   for (const [key, grp, anchorX] of [["down", gDown, g.down.x], ["crack", gCrack, g.crack.cx], ["up", gUp, g.up.x]] as const) {
                     const pref = row[key];
                     const spot = placeClearOfKeepOut(pref, koC, { minX: keepOutMinX(), blockers: floatingChips, strict: true });
+                    modes.push(`${key.toUpperCase()}:${spot.mode}`);
+                    // L20 (Garden 19, serving 46f62ee at 768px): with no clear slot the group painted at its
+                    // preferred spot anyway — "ZONE (UP)" inside the big-trade card ("18 prints · 54 contracts
+                    // at 30152.00"). A blocked group is listed with the event notes instead; its glyph stays.
+                    if (spot.mode === "BLOCKED") {
+                      displacedNotes.push({ layer: "CONTRADICTION", text: grp.lines.map(l => l.t).join(" "), x: anchorX, y: pref.y + grp.h / 2 });
+                      continue;
+                    }
                     recordKeepOut(keepOutLedger, spot);
                     floatingChips.push({ x: spot.rect.x, y: spot.rect.y, w: grp.w, h: grp.h });
-                    modes.push(`${key.toUpperCase()}:${spot.mode}`);
                     const r = spot.rect;
                     // A group that had to slide keeps a hairline to its mark.
                     if (Math.abs(r.x + grp.w / 2 - anchorX) > 12) {
@@ -26353,12 +26377,22 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               { x: L.cx - rw / 2, y: L.cy - L.ry - 24 - rh, w: rw, h: rh },
             ].filter(inPlot);
             const quietIn = (sl: { x: number; y: number; w: number; h: number }[]) => sl.find(r => !chipHit(r) && !bodyHit(r) && rectHits(r, keepOut()) === 0);
-            const largeSlots = slotsFor(208, 8 + 4 * 16 + 6);
+            // L20 (Garden 19, serving 46f62ee at 768px): the card was laid out for 9–11px type, and the 13px
+            // glass floor raises its labels as they are set — "PERSISTENCE" ran under "1.00" and "WEATHER LENS"
+            // under "● STEADY", the 11px rows overlapped. The value column now starts after the widest label
+            // AS IT WILL PAINT, rows are ≥ 15px, and the card grows to hold its widest value.
+            const roTitle = titleYields ? "WEATHER LENS" : "LENS STATUS";
+            const roMeasure = (font: string, texts: readonly string[]) => { ctx.font = font; return Math.ceil(Math.max(0, ...texts.map(t => ctx.measureText(t).width))); };
+            const roLabelW = (px: number) => roMeasure(marketFont("OBJECT_NAME", px), [roTitle, ...readRows.map(r => r.k)]);
+            const roValueW = (px: number) => Math.max(roMeasure(marketFont("OBJECT_NAME", px), [`● ${glass.stage}`]), roMeasure(marketFont("MICRO_NUMBER", px), readRows.map(r => r.v)));
+            const roValX = (bigCard: boolean) => Math.max(bigCard ? 100 : 74, roLabelW(bigCard ? 10 : 9) + 14);
+            const roW = (bigCard: boolean) => Math.max(bigCard ? 208 : 178, roValX(bigCard) + roValueW(bigCard ? 11 : 9) + 8 + (bigCard ? 46 : 34) + 6);
+            const largeSlots = slotsFor(roW(true), 8 + 4 * 16 + 6);
             const largeQuiet = quietIn(largeSlots);
             const big = largeQuiet != null;
-            const RO_ROW = big ? 16 : 11, RO_VAL_X = big ? 100 : 74, RO_BAR = big ? 46 : 34;
+            const RO_ROW = big ? 16 : 15, RO_VAL_X = roValX(big), RO_BAR = big ? 46 : 34;
             const RO_LABEL_PX = big ? 10 : 9, RO_VALUE_PX = big ? 11 : 9, RO_TITLE_PX = big ? 11 : 9;
-            const slots = big ? largeSlots : slotsFor(178, 6 + 4 * 11 + 4);
+            const slots = big ? largeSlots : slotsFor(roW(false), 6 + 4 * 15 + 4);
             const quiet = big ? largeQuiet : quietIn(slots);
             const spot = quiet
               ? { mode: quiet === slots[0] ? "CLEAR" as const : "MOVED" as const, rect: quiet, onCandles: false, displaced: quiet !== slots[0] }
