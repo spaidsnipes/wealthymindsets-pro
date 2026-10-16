@@ -20490,7 +20490,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.restore();
               ctx.save();
               if (dpSpeaks) {
-                ctx.globalAlpha = att.textAlpha("derivativesPressure");
+                // Plate law "no faint text" (serving 1da89f6, his default stack: "HELD · 29550.00" and
+                // "PUT WALL 29500.00 · BORN" at the governor's dimmed alpha). A wall's name keeps a reading
+                // floor; the governor's say over it is whether it speaks (dpSpeaks / placement), not how grey.
+                ctx.globalAlpha = Math.max(0.85, att.textAlpha("derivativesPressure"));
                 ctx.font = marketFont("OBJECT_NAME");
                 const chip = (word: string, pref: { x: number; y: number }, alts: { x: number; y: number }[]) => {
                   const ww = ctx.measureText(word).width + 10;
@@ -20730,8 +20733,26 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.lineTo(plotRightD, y);
                   ctx.stroke();
                   ctx.setLineDash([]);
-                  tickWords.push({ y, text: `${im.index} ${lv.indexLevel} → ${Number.isInteger(lv.futuresLevel) ? lv.futuresLevel : fmtD(lv.futuresLevel)} · ${lv.kind === "CALL_OI" ? "CALL" : "PUT"} OI · MAPPED`, rgb, a: 0.92 * baseA });
                   marks.push(`${lv.kind}@${lv.indexLevel}->${lv.futuresLevel}`);
+                }
+                // ONE STRIKE, ONE NAME (serving 1da89f6, his default stack: "NDX 29325 → 29521.75 · CALL OI ·
+                // MAPPED" and "… · PUT OI · MAPPED" stacked four lines deep over the volume floor). Call and put
+                // concentrations at the same index strike share one mapped level — they speak once.
+                const byStrike = new Map<number, { futuresLevel: number; kinds: Set<string> }>();
+                for (const lv of im.levels) {
+                  const e = byStrike.get(lv.indexLevel) ?? { futuresLevel: lv.futuresLevel, kinds: new Set<string>() };
+                  e.kinds.add(lv.kind);
+                  byStrike.set(lv.indexLevel, e);
+                }
+                for (const [indexLevel, e] of byStrike) {
+                  const y = yOfD(e.futuresLevel);
+                  if (y == null) continue;
+                  const both = e.kinds.size > 1;
+                  const call = e.kinds.has("CALL_OI");
+                  const rgb = both ? "226,214,186" : call ? "80,190,180" : "214,120,150";
+                  const side = both ? "call + put OI" : call ? "call OI" : "put OI";
+                  const fut = Number.isInteger(e.futuresLevel) ? e.futuresLevel : fmtD(e.futuresLevel);
+                  tickWords.push({ y, text: `${im.index} ${indexLevel} → ${fut} · ${side} · mapped`, rgb, a: 0.92 * baseA });
                 }
                 ctx.textAlign = "left";
                 ds.indexMappedWalls = marks.join("|") || "NONE";
