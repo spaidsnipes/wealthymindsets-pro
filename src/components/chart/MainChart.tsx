@@ -5775,6 +5775,19 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     const addLevel = (vals: number[], color: string, title: string) => {
       const s = addLine(vals, color, 2, 2, true);
       s?.applyOptions({ title, autoscaleInfoProvider: () => null });
+      // A LEVEL STEPS, IT NEVER SLIDES (Founder 2026-10-16, "what is this line … split brain"): where the level
+      // changes (a new prior day), the library joined old and new with a vertical dotted wire hanging from the
+      // header. The bar where it steps is left blank, so each day's level stands alone.
+      try {
+        const data: ({ time: any; value: number } | { time: any })[] = [];
+        for (let i = 0; i < bars.length; i++) {
+          const v = vals[i];
+          if (!Number.isFinite(v)) continue;
+          const prev = i > 0 ? vals[i - 1] : NaN;
+          data.push(Number.isFinite(prev) && prev !== v ? { time: bars[i].time as any } : { time: bars[i].time as any, value: v });
+        }
+        s?.setData(data as never);
+      } catch { /* the plain line stands */ }
       // The library paints the level's NAME just left of the axis; canvas words must step around it.
       for (let i = vals.length - 1; i >= 0; i--) if (Number.isFinite(vals[i])) { if (s) levelTitlesRef.current.push({ title, value: vals[i] }); break; }
       return s;
