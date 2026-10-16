@@ -13,7 +13,8 @@ function render(detail?: string) {
 describe("activation is not proof of manifestation", () => {
   it("a no-event receipt remains available without claiming it is drawing, including the accessible name", () => {
     const html = render("NO CURRENT EVENT");
-    expect(html).toContain("ACTIVE · NO CURRENT EVENT");
+    // Plate 23 (2026-10-15): five plain states, sentence case.
+    expect(html).toContain("No event right now");
     expect(html).toContain("All 1 available");
     expect(html).not.toContain("drawing");
     expect(html).not.toContain("DRAWING");
@@ -33,10 +34,10 @@ describe("activation is not proof of manifestation", () => {
   it("a missing receipt never claims availability or a visible object (plate 23 / L18, 2026-10-15)", () => {
     const html = render();
     expect(html).not.toContain("ACTIVE · AVAILABLE");
-    expect(html).toContain("ON · THE CHART DOES NOT REPORT THIS TOOL");
+    expect(html).toContain("On · the chart does not report this tool");
     expect(html).not.toContain("DRAWING");
   });
   it("a measured on-camera receipt can report drawing", () => {
-    expect(render("ON CAMERA · 2 ZONES")).toContain("DRAWING · ON CAMERA · 2 ZONES");
+    expect(render("ON CAMERA · 2 ZONES")).toContain("On chart · on camera · 2 zones");
   });
 });

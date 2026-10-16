@@ -90,8 +90,9 @@ describe("Profiles equipment keeps MARKET visible", () => {
 
   it("shows one shared silence receipt and a concise state on every instrument", () => {
     expect(MENU).toContain('data-testid="profiles-silence-summary"');
-    expect(MENU).toContain("SILENT · TAPE REQUIRED");
-    expect(MENU).toContain("WAITING FOR BARS");
+    // Plate 23 (2026-10-15): the plain states.
+    expect(MENU).toContain("Not possible here · needs sided tape");
+    expect(MENU).toContain("Waiting for bars");
     expect(MENU).toContain("Hover a reading for full provenance");
   });
 });

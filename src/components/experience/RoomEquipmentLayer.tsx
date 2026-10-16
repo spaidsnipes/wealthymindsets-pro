@@ -266,6 +266,10 @@ export function RoomEquipmentLayer({
   if (stage === "closed" || equipmentId !== content.equipmentId) return null;
 
   const marketDock = placement === "market-dock" && stage !== "full";
+  // PLATE 23 (Founder 2026-10-15): a TOOL-FAMILY door is a real panel — "Same frame as the left panels.
+  // One X closes it." Serving 746945f: "WM SMART MONEY TOOLS · READING [OPEN DRAWER] [✕ CLOSE]" — a
+  // second depth nobody needed, a vague verdict, and two exits. The door's switches are its depth.
+  const toolDoor = marketDock && !!content.renderPreviewTools;
   const shell: React.CSSProperties =
     stage === "full"
       ? {
@@ -391,7 +395,12 @@ export function RoomEquipmentLayer({
         }}
       >
         <span
-          style={{
+          data-testid="equipment-title"
+          style={toolDoor ? {
+            font: "600 19px/1.2 'Cormorant Garamond', Georgia, 'Times New Roman', serif",
+            color: GOLD,
+            whiteSpace: "nowrap",
+          } : {
             fontSize: 10,
             letterSpacing: 1.1,
             textTransform: "uppercase",
@@ -406,7 +415,9 @@ export function RoomEquipmentLayer({
             which market the canvas is about. Handed in; never resolved here. */}
         <span
           data-testid="equipment-subject"
-          style={{ fontSize: 11, letterSpacing: 0.4, color: PEARL, whiteSpace: "nowrap" }}
+          style={toolDoor
+            ? { font: "500 14px ui-monospace, SFMono-Regular, Menlo, monospace", color: PEARL, whiteSpace: "nowrap" }
+            : { fontSize: 11, letterSpacing: 0.4, color: PEARL, whiteSpace: "nowrap" }}
         >
           {subject.symbol}
           <span style={{ color: MUTED }}> · {subject.timeframe}</span>
@@ -414,7 +425,7 @@ export function RoomEquipmentLayer({
         {/* The verdict word as the trader reads it: an enum's underscore is
             the machinery's spelling ("NOT_EVALUATED" was measured on the
             glass 2026-09-26). The word is unchanged; only its spelling is. */}
-        {content.verdict !== null ? (
+        {content.verdict !== null && !toolDoor ? (
           <span
             data-testid="equipment-verdict"
             style={{ fontSize: 10, letterSpacing: 0.5, color: MUTED, textTransform: "uppercase", whiteSpace: "nowrap" }}
@@ -423,7 +434,23 @@ export function RoomEquipmentLayer({
           </span>
         ) : null}
         <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-          {stage === "full" ? (
+          {toolDoor ? (
+            // ONE X — the only way this panel closes (plate 23). 44 × 44, named for the reader.
+            <button
+              type="button"
+              onClick={onClose}
+              data-testid="equipment-close"
+              aria-label={`Close ${content.title}`}
+              title="Close"
+              style={{
+                width: 44, height: 44, display: "inline-flex", alignItems: "center", justifyContent: "center",
+                border: `1px solid ${HAIR}`, borderRadius: 8, background: "rgba(255,255,255,0.03)",
+                color: PEARL, font: "400 22px/1 system-ui, sans-serif", cursor: "pointer",
+              }}
+            >
+              <span aria-hidden="true">✕</span>
+            </button>
+          ) : stage === "full" ? (
             // RETURN is the promise the whole grammar rests on, so it is the
             // emphasised control in the full experience — not a back-arrow
             // the trader has to find.

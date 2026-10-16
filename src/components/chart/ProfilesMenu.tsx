@@ -233,23 +233,27 @@ export function ProfilesMenu({
               const ready = entry.availability === "READY";
               // Human states (master order §VI/§VIII): AVAILABLE · DRAWING ·
               // WAITING · UNAVAILABLE ON THIS FEED — never a bare "READY".
+              // PLATE 23 (Founder 2026-10-15): five plain states, sentence case — On chart · Waiting for
+              // data · No event right now · Not possible here (why) · Error. Never a code ("ACTIVE ·
+              // AVAILABLE", "SILENT · TAPE REQUIRED") and never a state the chart did not report.
+              const lc = (t: string) => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
               const stateLabel = ready
                 ? entry.active
                   ? (stateDetail?.[entry.id]
-                    ? (senseIsQuiet(stateDetail[entry.id]) ? `ACTIVE · ${stateDetail[entry.id]}` : `DRAWING · ${stateDetail[entry.id]}`)
+                    ? (senseIsQuiet(stateDetail[entry.id]) ? "No event right now" : `On chart · ${(stateDetail[entry.id] ?? "").toLowerCase()}`)
                     // Plate 23 / L18: the chart's own receipt in plain words, never "ACTIVE · AVAILABLE".
-                    : (rowStatusWords(entry.id, visibility) ?? "On · the chart does not report this tool").toUpperCase())
-                  : "AVAILABLE"
+                    : (rowStatusWords(entry.id, visibility) ?? "On · the chart does not report this tool"))
+                  : "Off · can show here"
                 : entry.availability === "WAITING_FOR_BARS"
-                  ? "WAITING FOR BARS"
+                  ? "Waiting for bars"
                   : entry.availability === "WAITING_FOR_PRINTS"
-                    ? "WAITING FOR PRINTS"
+                    ? "Waiting for prints"
                     // A fact about the MARKET (spot FX has no traded volume), not this feed.
                     : entry.stateWords
-                      ? entry.active ? `SILENT · ${entry.stateWords}` : entry.stateWords
+                      ? `Not possible here · ${lc(entry.stateWords)}`
                     : entry.availability === "REFUSED_BY_DATA"
-                      ? entry.active ? "SILENT · UNAVAILABLE ON THIS FEED" : "UNAVAILABLE ON THIS FEED"
-                      : entry.active ? "SILENT · TAPE REQUIRED" : "UNAVAILABLE ON THIS FEED · NEEDS SIDED TAPE";
+                      ? "Not possible here · this feed does not carry it"
+                      : "Not possible here · needs sided tape";
 
               return (
                 <React.Fragment key={entry.id}>
@@ -310,8 +314,8 @@ export function ProfilesMenu({
                         truncates ("REA…" read as nothing). The levels list is
                         detail — it yields, and stays whole in the tooltip. */}
                     <span
-                      className="shrink-0 whitespace-nowrap text-[9px] font-semibold uppercase tracking-[0.08em]"
-                      style={{ color: AVAILABILITY_DOT[entry.availability] }}
+                      className="shrink-0 whitespace-nowrap rounded border px-1.5 py-0.5 text-[13px] font-semibold"
+                      style={{ color: AVAILABILITY_DOT[entry.availability], borderColor: "currentColor" }}
                       data-testid={`profile-note-${entry.id}`}
                     >
                       {stateLabel}

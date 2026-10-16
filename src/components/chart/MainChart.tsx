@@ -28156,6 +28156,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             for (const sw of findSweeps(prints, tickS)) found.push({ sw, x: +xb });
           }
           found.sort((a, b) => b.sw.size - a.sw.size);
+          // Candles are obstacles too (serving 7b0282e, BTC-USD 1m: a sweep card sat against a doji).
+          const candleRectsS: { x: number; y: number; w: number; h: number }[] = [];
+          for (const c of barsRef.current?.slice(-400) ?? []) {
+            const xc = chart.timeScale().timeToCoordinate(c.time as never), yh = srs.priceToCoordinate(c.high), yl = srs.priceToCoordinate(c.low);
+            if (xc == null || yh == null || yl == null || +xc < -20 || +xc > plotRight + 20) continue;
+            candleRectsS.push({ x: +xc - 5, y: +yh - 2, w: 10, h: +yl - +yh + 4 });
+          }
+          const blockedS = (q: { x: number; y: number; w: number; h: number }) =>
+            [...forceChips, ...candleRectsS].some(o => q.x < o.x + o.w && q.x + q.w > o.x && q.y < o.y + o.h && q.y + q.h > o.y);
           let named = 0;
           ctx.save();
           ctx.font = `600 13px ${MARKET_SANS}`;
@@ -28165,12 +28174,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             if (yS == null) continue;
             const words = sweepWords(f.sw);
             const wS = Math.ceil(ctx.measureText(words).width) + 18, hS = 24;
-            const slots = [
-              { x: f.x + 10, y: +yS - hS / 2 }, { x: f.x - 10 - wS, y: +yS - hS / 2 },
-              { x: f.x - wS / 2, y: f.sw.side === "buy" ? +yS - hS - 14 : +yS + 14 },
-            ].map(r => ({ x: Math.round(r.x), y: Math.round(r.y), w: wS, h: hS }))
+            const awayS = f.sw.side === "buy" ? -1 : 1;
+            const slots = [0, 18, 40, 64].flatMap(d => [
+              { x: f.x + 10, y: +yS - hS / 2 + awayS * d }, { x: f.x - 10 - wS, y: +yS - hS / 2 + awayS * d },
+              { x: f.x - wS / 2, y: +yS + (awayS < 0 ? -hS - 14 : 14) + awayS * d },
+            ]).map(r => ({ x: Math.round(r.x), y: Math.round(r.y), w: wS, h: hS }))
               .filter(r => r.x >= 2 && r.x + r.w <= plotRight - 2 && r.y >= HEADER_FLOOR_Y && r.y + r.h <= pane0Bottom - 2);
-            const r = slots.find(q => !forceChips.some(o => q.x < o.x + o.w && q.x + q.w > o.x && q.y < o.y + o.h && q.y + q.h > o.y));
+            const r = slots.find(q => !blockedS(q));
             if (!r) continue;
             const inkS = f.sw.side === "buy" ? "52,211,153" : "244,114,128";
             ctx.fillStyle = "rgba(10,12,11,0.94)";
