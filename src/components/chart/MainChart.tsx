@@ -21231,9 +21231,18 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.moveTo(lx, t.y); ctx.lineTo(lx, k < 0 ? box.y + box.h : box.y); ctx.stroke();
                   ctx.beginPath(); ctx.arc(lx, t.y, 2.5, 0, Math.PI * 2); ctx.fillStyle = `rgba(${t.rgb},${(0.9 * textA).toFixed(3)})`; ctx.fill();
                 }
-                ctx.fillStyle = `rgba(11,10,8,${(0.86 * textA).toFixed(3)})`;
-                if (chipBox(t.text, box)) ctx.fillRect(box.x, box.y, box.w, box.h);
-                ctx.fillStyle = `rgba(${t.rgb},${(0.95 * textA).toFixed(3)})`;
+                // Codex plate 15 beside serving NQ1! 15m (Oct 16): pink words at the governor's text
+                // alpha on a red band read as mush. A named level is a fact the trader acts on — the
+                // chip keeps a reading floor (0.85, like the OI tick words), the wall's ink moves to
+                // the chip's edge, and the words are ivory.
+                const labelA = Math.max(0.85, textA);
+                ctx.fillStyle = `rgba(11,10,8,${(0.92 * labelA).toFixed(3)})`;
+                if (chipBox(t.text, box)) {
+                  ctx.fillRect(box.x, box.y, box.w, box.h);
+                  ctx.strokeStyle = `rgba(${t.rgb},${(0.9 * labelA).toFixed(3)})`; ctx.lineWidth = 1;
+                  ctx.strokeRect(box.x + 0.5, box.y + 0.5, box.w - 1, box.h - 1);
+                }
+                ctx.fillStyle = `rgba(240,230,206,${labelA.toFixed(3)})`;
                 ctx.fillText(t.text, x, box.y + 12);
                 placed.push(box); floatingChips.push(box);
               }

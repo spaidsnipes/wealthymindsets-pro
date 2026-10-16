@@ -162,6 +162,11 @@ describe("WALLS & GAMMA in a proof scene (2026-10-10)", () => {
     const s = parseProofScene("?symbol=SPY&scene=clean&on=wg:CALL_WALL,wg:gamma_heatmap,BrickWalls");
     expect(proofSceneValue(s, WALLS_GAMMA_SCENE_KEY)).toEqual({ CALL_WALL: true, GAMMA_HEATMAP: true });
   });
+  it("an unknown wg: part switches nothing (wg:GAMMA read as a silent glass, Oct 16)", async () => {
+    const { parseProofScene, proofSceneValue, WALLS_GAMMA_SCENE_KEY } = await import("./proofScene");
+    const s = parseProofScene("?scene=clean&on=wg:GAMMA,wg:WALLS,wg:PUT_WALL");
+    expect(proofSceneValue(s, WALLS_GAMMA_SCENE_KEY)).toEqual({ PUT_WALL: true });
+  });
   it("a clean scene ignores the saved switches (reads {}), and a verify scene leaves them to the saved value", async () => {
     const { parseProofScene, proofSceneValue, WALLS_GAMMA_SCENE_KEY } = await import("./proofScene");
     expect(proofSceneValue(parseProofScene("?scene=clean"), WALLS_GAMMA_SCENE_KEY)).toEqual({});

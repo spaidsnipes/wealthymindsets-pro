@@ -58,6 +58,7 @@
  * left them. Drop the parameters and reload to return to the saved chart.
  */
 
+import { WALLS_GAMMA_PARTS } from "@/lib/marketData/wallsGammaFamily";
 export const SCENE_PARAM = "scene";
 export const ON_PARAM = "on";
 export const BARS_PARAM = "bars";
@@ -214,6 +215,8 @@ export interface ProofScene {
 export const NO_PROOF_SCENE: ProofScene = { active: false, clean: false, overrides: {}, bars: null, select: null, selectObject: null };
 
 /** The footprint modes a scene may ask for (ChartsDashboard's FootprintType). */
+/** The Walls & Gamma parts a `wg:` token may name — the family's own list; anything else switches nothing. */
+const WG_SCENE_PARTS: ReadonlySet<string> = new Set(WALLS_GAMMA_PARTS);
 export const FOOTPRINT_MODE_TOKENS: ReadonlySet<string> = new Set(["bid-ask", "delta", "volume-profile", "imbalance", "aggressive-passive", "big-trades"]);
 
 export function parseProofScene(search: string): ProofScene {
@@ -262,9 +265,13 @@ export function parseProofScene(search: string): ProofScene {
       // wg:<PART> — a WALLS & GAMMA switch for this load (CALL_WALL, PUT_WALL,
       // GAMMA_HEATMAP, GAMMA_POSITIVE, GAMMA_NEGATIVE, GAMMA_FLIP,
       // GAMMA_CONCENTRATION); repeat the token for several. Read, never written.
+      // An unknown part is ignored (as fp: is): `wg:GAMMA` used to be accepted, switched
+      // nothing on, and the proof read a silent glass as "no gamma here" (Oct 16).
       const part = token.slice(3).toUpperCase();
-      const cur = (overrides[WALLS_GAMMA_SCENE_KEY] as Record<string, boolean> | undefined) ?? {};
-      overrides[WALLS_GAMMA_SCENE_KEY] = { ...cur, [part]: true };
+      if (WG_SCENE_PARTS.has(part)) {
+        const cur = (overrides[WALLS_GAMMA_SCENE_KEY] as Record<string, boolean> | undefined) ?? {};
+        overrides[WALLS_GAMMA_SCENE_KEY] = { ...cur, [part]: true };
+      }
     } else if (token === "decision") {
       // The decision compiler's WAIT tag on the event candle (H-101) — held in a clean scene unless asked.
       overrides[SCENE_DECISION_KEY] = true;
