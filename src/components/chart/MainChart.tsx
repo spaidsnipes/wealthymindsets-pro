@@ -782,6 +782,7 @@ import { gexBucketAt, gexScopeWords, gexWords, type GammaExposureVM } from "@/li
 import { GAMMA_HEAT_PRESET_EVENT, gammaHeatPreset, gammaHeatStores, readGammaHeatPreset } from "@/lib/chart/gammaHeatAppearance";
 import { CALL_WALL_RGB, PUT_WALL_RGB, foldNarrowLine, paintWallsGamma } from "@/components/chart/wallsGammaGlass";
 import { type CameraReveal, applyReveal, askReveal, revealReceipt } from "@/lib/chart/cameraReveal";
+import { DELTA_VIEW_EVENT, type DeltaView, deltaBarPx, deltaBubbleR, deltaScale, readDeltaView } from "@/lib/chart/deltaView";
 import { type BeaconCandidate, beaconKindOf, beaconReceipt, chooseBeacons, paintEdgeBeacons } from "@/components/chart/edgeBeacon";
 import type { IndexFuturesMappingVM } from "@/lib/marketData/viewModels/selectIndexFuturesMapping";
 
@@ -2545,6 +2546,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const pressureWallHitRef = useRef<{ strike: number; x: number; y: number; w: number; h: number; off?: boolean }[]>([]);
   // SHOW ME (order §4): the level the trader asked the camera to reveal, for a few seconds.
   const cameraRevealRef = useRef<CameraReveal | null>(null);
+  // Plate 25: the trader's Delta view (Bars · Ribbon · Bubbles · Number on candle · Heat strip).
+  const deltaViewRef = useRef<DeltaView>("bars");
+  useEffect(() => {
+    deltaViewRef.current = readDeltaView();
+    const onView = () => { deltaViewRef.current = readDeltaView(); };
+    window.addEventListener(DELTA_VIEW_EVENT, onView);
+    window.addEventListener("storage", onView);
+    return () => { window.removeEventListener(DELTA_VIEW_EVENT, onView); window.removeEventListener("storage", onView); };
+  }, []);
   // The candle pane's size as the last frame measured it — the camera reserves the header band in px.
   const paneGeomRef = useRef<{ w: number; h: number } | null>(null);
   // The autoscale provider's last answer (receipt `data-camera-range`): what the camera was told, and when.
@@ -3403,7 +3413,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // back to the legacy shared keys, then to the Royal Blue / Purple defaults, so
   // existing saved colors keep working.
   type OFPair = { buy: [number,number,number]; sell: [number,number,number] };
-  const OF_DEFAULT: OFPair = { buy: [37, 99, 235], sell: [106, 13, 173] };
+  // Plates 24/25 (2026-10-15): "green = net buying, red = net selling, everywhere" — the default pair; a trader's
+  // own saved colours still win.
+  const OF_DEFAULT: OFPair = { buy: [34, 197, 94], sell: [239, 68, 68] };
   const OF_TOOL_IDS = ["bid-ask", "delta", "volume-profile", "imbalance", "aggressive-passive"];
   const ofColorsRef = useRef<Record<string, OFPair>>({});
   const [rangeVer,    setRangeVer]    = useState(0); // bumped on chart scroll/zoom → redraws canvas
@@ -9228,7 +9240,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const below = gridLevels[li + 1], above = gridLevels[li - 1];
             const askImb = !!below && imb(lv.ask, below.bid);
             const bidImb = !!above && imb(lv.bid, above.ask);
-            ctx.fillStyle = "rgba(10,9,7,0.85)";
+            // Opaque base: the full candle body never shows through the grid (the slim candle beside it is the candle).
+            ctx.fillStyle = "rgba(10,9,7,1)";
             ctx.fillRect(gx, rowY, cellW, rH);
             ctx.fillStyle = sellRgba((bidImb ? 0.8 : 0.1 + 0.45 * (lv.bid / maxSide)).toFixed(2));
             ctx.fillRect(gx, rowY, halfC - 1, rH);
@@ -9284,6 +9297,80 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
 
       paintLap(9203);
       /* ══════════════════════════════════════════════════════
+         PLATE 25 · DELTA — ONE TOOL, FIVE VIEWS (Founder 2026-10-15). Every visible bar's net aggressive
+         delta from its ONE owner (the held tape where it reaches, the provider's bar-level bid / ask
+         elsewhere — the NEAR row reads the same), in the band over the volume strip, in the view the
+         trader picked: Bars · Ribbon · Bubbles · Number on candle · Heat strip. Same numbers every view.
+      ══════════════════════════════════════════════════════ */
+      const deltaBandOn = effectiveFP === "delta";
+      try { if (deltaBandOn) {
+        const view = deltaViewRef.current;
+        let volTopB = 0.78;
+        try { const t = chart.priceScale("vol").options().scaleMargins?.top; if (Number.isFinite(t)) volTopB = t as number; } catch { /* default */ }
+        const bTop = Math.max(HEADER_FLOOR_Y + 40, Math.round(pane0Bottom * volTopB) - 6), bBot = pane0Bottom - 4;
+        const bMid = Math.round((bTop + bBot) / 2), half = Math.max(8, Math.floor((bBot - bTop) / 2) - 3);
+        const pts: { x: number; d: number }[] = [];
+        for (const c of visibleBars) {
+          const xr = chart.timeScale().timeToCoordinate(c.time as never);
+          if (xr == null || +xr < 0 || +xr > plotRight) continue;
+          const bd = barTapeDelta(getBarSubProfile(c));
+          const sides = bd ? null : candleSidedRef.current.get(Number(c.time)) ?? null;
+          if (!bd && !sides) continue;
+          pts.push({ x: +xr, d: bd ? bd.delta : sides!.buy - sides!.sell });
+        }
+        const scale = deltaScale(pts.map(p => p.d));
+        const ink = (d: number, a: number) => `rgba(${d >= 0 ? flowColorsRef.current.dBuy : flowColorsRef.current.dSell},${a})`;
+        ctx.save();
+        ctx.globalAlpha = att.alpha("footprint");
+        if (pts.length && view !== "number") {
+          ctx.fillStyle = "rgba(10,9,7,0.94)";
+          ctx.fillRect(0, bTop, plotRight, bBot - bTop);
+          ctx.fillStyle = "rgba(200,192,174,0.22)";
+          ctx.fillRect(0, bMid, plotRight, 1);
+        }
+        const bw = Math.max(2, Math.floor(colW * 0.8));
+        if (view === "bars") {
+          for (const p of pts) { const h = deltaBarPx(p.d, scale, half); ctx.fillStyle = ink(p.d, 0.92); ctx.fillRect(Math.round(p.x - bw / 2), h >= 0 ? bMid - h : bMid, bw, Math.max(1, Math.abs(h))); }
+        } else if (view === "heat") {
+          for (const p of pts) { ctx.fillStyle = ink(p.d, Math.round((0.18 + 0.72 * Math.min(1, Math.abs(p.d) / scale)) * 100) / 100); ctx.fillRect(Math.round(p.x - bsp / 2) + 1, bTop + 3, Math.max(2, Math.round(bsp) - 2), bBot - bTop - 6); }
+        } else if (view === "bubbles") {
+          const maxR = Math.max(3, Math.min(half, bsp * 0.48));
+          for (const p of pts) { ctx.beginPath(); ctx.arc(p.x, bMid, deltaBubbleR(p.d, scale, maxR), 0, Math.PI * 2); ctx.fillStyle = ink(p.d, 0.72); ctx.fill(); }
+        } else if (view === "ribbon" && pts.length > 1) {
+          const path = new Path2D();
+          path.moveTo(pts[0].x, bMid);
+          for (let i = 0; i < pts.length; i++) {
+            const y = bMid - deltaBarPx(pts[i].d, scale, half);
+            if (i === 0) path.lineTo(pts[0].x, y);
+            else { const px = (pts[i - 1].x + pts[i].x) / 2; path.quadraticCurveTo(pts[i - 1].x, bMid - deltaBarPx(pts[i - 1].d, scale, half), px, (bMid - deltaBarPx(pts[i - 1].d, scale, half) + y) / 2); }
+          }
+          path.lineTo(pts[pts.length - 1].x, bMid - deltaBarPx(pts[pts.length - 1].d, scale, half));
+          path.lineTo(pts[pts.length - 1].x, bMid); path.closePath();
+          for (const above of [true, false]) {
+            ctx.save(); ctx.beginPath(); ctx.rect(0, above ? bTop : bMid, plotRight, above ? bMid - bTop : bBot - bMid); ctx.clip();
+            ctx.fillStyle = ink(above ? 1 : -1, 0.62); ctx.fill(path); ctx.restore();
+          }
+        } else if (view === "number") {
+          ctx.font = marketFont("MICRO_NUMBER", 13); ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          let lastR = -Infinity;
+          for (const p of pts) {
+            const t = signedFlowText(p.d, fmtV), w = ctx.measureText(t).width;
+            if (p.x - w / 2 < lastR + 4) continue;
+            crispText(ctx, t, p.x, bMid, { fill: ink(p.d, 0.98), outline: true });
+            lastR = p.x + w / 2;
+          }
+        }
+        if (pts.length && view !== "number") {
+          ctx.font = marketFont("MICRO_NUMBER", 13); ctx.textAlign = "right"; ctx.textBaseline = "middle";
+          crispText(ctx, `+${fmtV(scale)}`, plotRight - 6, bTop + 9, { fill: ink(1, 0.98), outline: true, align: "right" });
+          crispText(ctx, `−${fmtV(scale)}`, plotRight - 6, bBot - 9, { fill: ink(-1, 0.98), outline: true, align: "right" });
+        }
+        ctx.restore();
+        if (pts.length) forceChips.push({ x: 0, y: bTop, w: plotRight, h: bBot - bTop });
+        canvas.dataset.deltaView = `${view}|BARS:${pts.length}|SCALE:${Math.round(scale)}`;
+      } else delete canvas.dataset.deltaView; } catch (err) { layerFault("DELTA_VIEW", err); }
+
+      /* ══════════════════════════════════════════════════════
          MODE 2: WM DELTA BUBBLES — the Founder-preserved Nectar trail.
          Net aggressive delta per price zone, one glassy bubble at the zone's
          heaviest REAL tick, the price written inside, riding the price path.
@@ -9292,7 +9379,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
          from Big Trades; only in delta footprint mode.
       ══════════════════════════════════════════════════════ */
       try { if (effectiveFP === "delta") {
-        const realTapeD = hasRealAggressorTape(tapeSourceRef.current ?? "");
+        // Plate 25: the Nectar trail rides price only in the Bubbles view; the other views are the band alone.
+        const realTapeD = hasRealAggressorTape(tapeSourceRef.current ?? "") && deltaViewRef.current === "bubbles";
         if (!realTapeD) {
           if (deltaBubblesRef.current.length) {
             deltaBubblesRef.current = [];

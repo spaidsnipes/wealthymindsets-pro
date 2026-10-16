@@ -1,5 +1,6 @@
 "use client";
 
+import { DELTA_VIEWS, DELTA_VIEW_LABEL, type DeltaView, readDeltaView, writeDeltaView } from "@/lib/chart/deltaView";
 import { permissionAt } from "@/lib/marketData/viewModels/selectSemanticPermission";
 import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
@@ -378,8 +379,9 @@ function OrderFlowHelp({ id, label, desc, cap, active, onAdd }: {
    (white text is applied in the chart draw loop). Shared across every order-flow
    tool so the colour language stays consistent, but a gear is rendered on EACH
    tool so users can recolour from wherever they are. */
-const OF_BUY_DEFAULT  = "#2563EB"; // Royal Blue  → positive / bid / aggressive buy
-const OF_SELL_DEFAULT = "#6A0DAD"; // Royal Purple → negative / ask / aggressive sell
+// Plates 24/25 (2026-10-15): green = net buying, red = net selling, everywhere (was Royal Blue / Purple).
+const OF_BUY_DEFAULT  = "#22C55E"; // green → positive / buy / aggressive buy
+const OF_SELL_DEFAULT = "#EF4444"; // red   → negative / sell / aggressive sell
 
 /* Per-tool colour gear. Each tool (Bid×Ask, Delta, Imbalance, Agg/Passive, Vol
    Profile) writes its OWN `wm_of_<toolId>_buy`/`_sell` keys, so recoloring one
@@ -394,6 +396,7 @@ function OrderFlowColorGear({ toolId, label = "Order Flow" }: { toolId: Footprin
   const [buy,  setBuy]  = useState<string>(() => read(KBUY,  OF_BUY_DEFAULT));
   const [sell, setSell] = useState<string>(() => read(KSELL, OF_SELL_DEFAULT));
   const btnRef = useRef<HTMLButtonElement>(null);
+  const [deltaView, setDeltaView] = useState<DeltaView>(() => readDeltaView());
 
   useEffect(() => {
     if (!open) return;
@@ -455,6 +458,22 @@ function OrderFlowColorGear({ toolId, label = "Order Flow" }: { toolId: Footprin
               <div className="h-px bg-wm-border/40 my-1" />
             </div>
           )}
+          {toolId === "delta" && (
+            <div className="mb-2" data-testid="delta-view-picker">
+              <div className="text-[13px] font-semibold text-wm-text mb-1">View</div>
+              <div className="grid grid-cols-2 gap-1">
+                {DELTA_VIEWS.map(v => (
+                  <button key={v} type="button" data-delta-view={v} aria-pressed={deltaView === v}
+                    onClick={() => { setDeltaView(v); writeDeltaView(v); }}
+                    className={clsx("px-2 py-1.5 rounded border text-[13px] text-left", deltaView === v ? "" : "border-wm-border text-wm-text hover:bg-wm-card")}
+                    style={deltaView === v ? { borderColor: "#d4af37", color: "#d4af37", background: "rgba(212,175,55,0.10)" } : undefined}>
+                    {DELTA_VIEW_LABEL[v]}
+                  </button>
+                ))}
+              </div>
+              <div className="h-px bg-wm-border/40 mt-2" />
+            </div>
+          )}
           <div className="mb-2"><SchemePresets onApply={applyScheme} /></div>
           <div className="h-px bg-wm-border/40 mb-2" />
           <label className="flex items-center justify-between mb-2 text-[12px] text-wm-text">
@@ -466,7 +485,7 @@ function OrderFlowColorGear({ toolId, label = "Order Flow" }: { toolId: Footprin
             <input type="color" value={sell} onChange={e => onSell(e.target.value)} className="w-7 h-6 rounded cursor-pointer bg-transparent border border-wm-border" />
           </label>
           <button onClick={reset} className="flex items-center gap-2 w-full px-2 py-1.5 mt-1 rounded text-[12px] text-wm-text hover:bg-wm-card border-t border-wm-border/40 pt-2">
-            <RotateCcw size={13} /> Reset (Royal Blue / Purple)
+            <RotateCcw size={13} /> Reset (Green / Red)
           </button>
         </div>
       </PortalPopover>
@@ -476,7 +495,7 @@ function OrderFlowColorGear({ toolId, label = "Order Flow" }: { toolId: Footprin
 
 export const FOOTPRINT_TYPES: { id: FootprintType; label: string; desc: string }[] = [
   { id: "bid-ask",            label: "Bid × Ask",    desc: "Bid/ask split cells per price level — order flow footprint" },
-  { id: "delta",              label: "Delta Bubbles", desc: "Net aggressive delta per price zone, drawn as bubbles on the candle. Teal = buying pressure, purple = selling" },
+  { id: "delta",              label: "Delta",         desc: "Net buying minus selling for every candle — pick the look in its gear: Bars, Ribbon, Bubbles, Number on candle or Heat strip. Green = net buying, red = net selling" },
   { id: "volume-profile",     label: "Vol Profile",   desc: "Volume-at-price horizontal bars per candle" },
   { id: "imbalance",          label: "Imbalance",     desc: "Highlight cells where one side traded more than 2.5× the other — the ratio only, no positioning is read" },
   { id: "aggressive-passive", label: "Agg/Passive Proxy", desc: "Aggressor side is observed from tape; passive roles are location-based inferences, not resting-order observations" },

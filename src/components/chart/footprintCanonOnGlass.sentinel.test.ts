@@ -107,7 +107,8 @@ describe("Plate 24 (2026-10-15, supersedes M46's one-cell text) · Bid × Ask is
 
 describe("one bar, one delta, one owner", () => {
   it("the column's delta and the NEAR volume-band row read the same function and say it the same way", () => {
-    expect(CODE.match(/barTapeDelta\(getBarSubProfile\(c\)\)/g) ?? []).toHaveLength(2);
+    // Plate 25 (2026-10-15): the Delta band is the third reader of the same owner — same numbers in every view.
+    expect(CODE.match(/barTapeDelta\(getBarSubProfile\(c\)\)/g) ?? []).toHaveLength(3);
     expect(bidAsk()).toContain("const text = signedFlowText(bd.delta, fmtV);");
     expect(slice("const depthD = semanticDensity.depth;", "canvas.dataset.nearBarDelta =")).toContain("const text = signedFlowText(dlt, fmtV);");
   });
