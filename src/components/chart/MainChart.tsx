@@ -12838,9 +12838,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const tsEF = chart.timeScale();
           let drawnEF = 0;
           ctx.save();
-          ctx.globalAlpha = att.alpha("effort") * 0.45;
-          ctx.strokeStyle = "rgba(237,230,211,0.85)";
-          ctx.lineWidth = 1;
+          // Founder 2026-10-16 ("you can barely see it"): the marks read on a screen — 0.9 of the layer, 1.5px, a 4px ring.
+          ctx.globalAlpha = att.alpha("effort") * 0.9;
+          ctx.strokeStyle = "rgba(237,230,211,0.95)";
+          ctx.lineWidth = 1.5;
           ctx.beginPath();
           for (const mk of ef.marks) {
             if (mk.time === subjT) continue;
@@ -12848,9 +12849,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             if (xr == null || yr == null || +xr < 0 || +xr > plotRight) continue;
             const x = Math.round(+xr) + 0.5, y = Math.round(+yr) + 0.5;
             const out = mk.side === "ABOVE" ? -1 : 1;
-            ctx.moveTo(x, y + out * 3); ctx.lineTo(x, y + out * 11);
-            ctx.moveTo(x + 2.5, y + out * 13.5);
-            ctx.arc(x, y + out * 13.5, 2.5, 0, Math.PI * 2);
+            ctx.moveTo(x, y + out * 3); ctx.lineTo(x, y + out * 12);
+            ctx.moveTo(x + 4, y + out * 16);
+            ctx.arc(x, y + out * 16, 4, 0, Math.PI * 2);
             drawnEF++;
           }
           ctx.stroke();
