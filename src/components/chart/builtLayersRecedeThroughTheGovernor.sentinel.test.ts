@@ -358,7 +358,7 @@ describe("phone opacity — above the hill (Founder, 2026-10-09; serving 390/430
     expect(CHART).toContain("const bigMaxR = narrowGlass ? BIG_TRADE_NARROW_MAX_R : BIG_TRADE_MAX_R;");
     expect(CHART).toContain("const BIG_TRADE_NARROW_MAX_R = 22;");
     expect(CHART).toContain("ctx.fillStyle = `rgba(201,165,92,${ZONE_BAND_NARROW_FILL})`;");
-    expect(CHART).toContain('ctx.fillStyle = "rgba(201,165,92,0.08)";'); // the desk's box is untouched
+    expect(CHART).toContain('ctx.fillStyle = "rgba(201,165,92,0.18)";'); // the desk's box: plate 20 body (2026-10-16), candles cut out
     expect(CHART).toContain("if (narrowGlass) forceChips.push({ x: 0, y: HEADER_FLOOR_Y + 2, w: Math.min(plotRight, 230), h: 16 });");
     expect(CHART).toContain('ds.profileFusionSilence = `${fu ? fu.reason : "NO_READING"}:FOLDED`;');
   });

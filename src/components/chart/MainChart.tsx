@@ -20727,9 +20727,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     ctx.lineWidth = 1;
                     ctx.beginPath(); ctx.moveTo(plotRightD - 4, t.y); ctx.lineTo(plotRightD - 4, by - 6); ctx.stroke();
                   }
-                  ctx.fillStyle = `rgba(11,10,8,${(0.86 * t.a).toFixed(3)})`;
+                  // Plate law "no faint text" (serving f1f1a46, his default stack: the mapped-index wall words read at
+                  // the governor's 25%). The tick stays governed; its WORDS keep a legibility floor on a solid backing.
+                  const wordA = Math.max(0.8, t.a);
+                  ctx.fillStyle = `rgba(11,10,8,${(0.86 * wordA).toFixed(3)})`;
                   if (chipBox(t.text, { x: x - 3, y: by - 12, w: tw + 6, h: 13 })) ctx.fillRect(x - 3, by - 12, tw + 6, 13);
-                  ctx.fillStyle = `rgba(${t.rgb},${t.a.toFixed(3)})`;
+                  ctx.fillStyle = `rgba(${t.rgb},${wordA.toFixed(3)})`;
                   ctx.fillText(t.text, x, by);
                   const box = { x: x - 3, y: by - 12, w: tw + 6, h: 13 };
                   placed.push(box);
@@ -24818,11 +24821,27 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.stroke();
                   zoneBandsNarrow++;
                 } else {
-                ctx.fillStyle = "rgba(201,165,92,0.08)";
+                // CODEX PLATE 20 "Hard-hat build" (fill65 / edge90, candle-protection spacing) beside serving
+                // NQ1! 5m: at rest a zone was an 8% wash under a 55% hairline — "SUPPLY ZONE · DEFENDED" read as a
+                // faint dashed ghost. It is a body now: 18% fill with every candle cut out of it (the candles stay
+                // crisp inside the zone), a 1.5px edge at 85%. The selected zone stays the loudest.
+                ctx.save();
+                const zCut = new Path2D();
+                zCut.rect(x0, top, zEnd - x0, h);
+                const vrZ = ts.getVisibleLogicalRange();
+                for (const r of candleCutOutRects(barsRef.current ?? [], {
+                  visible: vrZ ? { from: +vrZ.from, to: +vrZ.to } : null,
+                  barSpacing: bsp,
+                  timeToX: t => { const xk = ts.timeToCoordinate(t as never); return xk == null ? null : +xk; },
+                  priceToY: p => { const yk = srs.priceToCoordinate(p); return yk == null ? null : +yk; },
+                }, x0, zEnd)) zCut.rect(r.x, r.y, r.w, r.h);
+                ctx.clip(zCut, "evenodd");
+                ctx.fillStyle = "rgba(201,165,92,0.18)";
                 ctx.fillRect(x0, top, zEnd - x0, h);
-                ctx.strokeStyle = "rgba(201,165,92,0.55)";
-                ctx.lineWidth = 1;
-                ctx.strokeRect(x0 + 0.5, Math.round(top) + 0.5, zEnd - x0, Math.round(h));
+                ctx.restore();
+                ctx.strokeStyle = "rgba(220,180,90,0.85)";
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(x0 + 0.75, Math.round(top) + 0.75, zEnd - x0 - 1, Math.round(h) - 1);
                 }
                 const colZM = sovereignColumn();
                 const zmX = Math.round(x0 + (zEnd - x0) / 2);
