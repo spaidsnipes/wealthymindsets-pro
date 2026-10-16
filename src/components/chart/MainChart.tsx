@@ -21219,7 +21219,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // no name. A label may now step up to four rows off its band, and also sit mid-plot, tied back by
                 // its leader (plate: chip above the band with a leader to it).
                 const xs = [plotRightG - tw - 6, 24, Math.round(plotRightG * 0.55 - tw / 2)];
-                const slots = [0, -1, 1, -2, 2, -3, 3, -4, 4].flatMap(k2 => xs.map(x => ({ x, k: k2, q: { x: x - 3, y: t.y - 14 + k2 * 13, w: tw + 6, h: 13 } })));
+                // A 16px chip on a 17px pitch: 13px rows clipped the type and let two chips touch (serving NQ1! 15m, Oct 16).
+                const slots = [0, -1, 1, -2, 2, -3, 3, -4, 4].flatMap(k2 => xs.map(x => ({ x, k: k2, q: { x: x - 4, y: t.y - 17 + k2 * 17, w: tw + 8, h: 16 } })));
                 const pickG = slots.find(sl => !onNewestColumn(sl.q.x, sl.q.y, sl.q.w, sl.q.h) && !hit(sl.q, [...placed, ...floatingChips, ...candleRectsG]));
                 if (!pickG) { displacedNotes.push({ layer: "DERIVATIVES", text: t.text, x: xs[0] + tw / 2, y: t.y }); continue; }
                 const x = pickG.x, k = pickG.k;
@@ -21243,7 +21244,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.strokeRect(box.x + 0.5, box.y + 0.5, box.w - 1, box.h - 1);
                 }
                 ctx.fillStyle = `rgba(240,230,206,${labelA.toFixed(3)})`;
-                ctx.fillText(t.text, x, box.y + 12);
+                ctx.textBaseline = "middle";
+                ctx.fillText(t.text, x, box.y + box.h / 2 + 0.5);
+                ctx.textBaseline = "bottom";
                 placed.push(box); floatingChips.push(box);
               }
             }
