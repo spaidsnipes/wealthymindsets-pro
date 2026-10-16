@@ -40,8 +40,8 @@ describe("the volume indicators are silent, with a named reason, where there is 
     expect(p.receipt).toBeNull();
   });
 
-  it("the list is the registry's own: every row whose ⓘ needs traded volume (21), plus the MFI alias", () => {
-    expect(N).toBe(21);
+  it("the list is the registry's own: every row whose ⓘ needs traded volume (22 — Volume Pace joined, plate 29), plus the MFI alias", () => {
+    expect(N).toBe(22);
     for (const n of ["VWAP", "VWAP Bands", "VWAP Deviation Bands", "Anchored VWAP", "Volume", "OBV", "Accumulation/Distribution",
       "Price Volume Trend", "Negative Volume Index", "Positive Volume Index", "VWMA", "Money Flow Index", "Volume Weighted RSI"]) {
       expect(VOLUME_INDICATORS, n).toContain(n);

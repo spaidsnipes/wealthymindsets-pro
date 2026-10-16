@@ -99,6 +99,8 @@ import { chartHeaderPriceFact } from "@/lib/marketData/chartHeaderPriceFact";
 import { requestTastyCandles, tastyStreamState } from "@/lib/broker/tastyQuoteStream";
 import { isQuoteSampleSeries, quoteSampleSentence } from "@/lib/marketData/quoteSampleSeries";
 import { IMBALANCE_ZONE_NAMES_MAX, imbalanceTestWords, imbalanceZoneFate, imbalanceZoneName, imbalanceZonesReceipt, type ImbalanceZone, type ImbalanceZoneState } from "@/lib/chart/imbalanceZones";
+import { paneTitle, paneValueWords } from "@/lib/chart/paneNames";
+import { volumePace } from "@/lib/chart/flowIndicators";
 import { barFlow, chooseWedges, estimatedRuns, evidenceReceipt, EVIDENCE_LEGEND, findShelves, shelfTolerance, shelfWords, wedgeWidth, type BarFlow, type EvidenceBar, type Shelf } from "@/lib/chart/evidenceKinds";
 import { MARKET_MONO, MARKET_NUMBER_MIN_PX, MARKET_SANS, crispText, footprintCellPx, marketFont } from "@/lib/chart/marketType";
 import { tastyCandleStreamerFor, tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
@@ -2116,6 +2118,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const pineSeriesRef = useRef<Map<string, any>>(new Map());
   const pineCodeRef   = useRef<string | undefined>(undefined);
   const indSeriesRef  = useRef<any[]>([]);
+  /** Plate 29: the first series each indicator pane received (its corner value), and the indicators on. */
+  const paneSeriesRef = useRef<Map<string, any>>(new Map());
+  const paneActiveIndsRef = useRef<ReadonlySet<string>>(new Set());
   // Tape CVD pane (H-701): the one lawful cumulative delta. Its series, and
   // the selector's last verdict the overlay captions and receipts from.
   const tapeCvdSeriesRef = useRef<any>(null);
@@ -5599,6 +5604,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     const volGate = partitionVolumeIndicators(activeInds ?? [], symbol, bars);
     volGateRef.current = volGate;
     const inds   = new Set<string>([...(activeInds ?? new Set<string>())].filter(n => !volGate.withheld.includes(n)));
+    paneSeriesRef.current = new Map();
+    paneActiveIndsRef.current = inds;
     // Per-indicator custom params (length / mult / color) merged with defaults
     const ip = (name: string) => resolveParams(name, indSettings);
 
@@ -5655,6 +5662,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const s = chart.addSeries(LW.LineSeries, { color, lineWidth: width, lineStyle: dashed ? LW.LineStyle.Dashed : LW.LineStyle.Solid, priceLineVisible: false, lastValueVisible: !dashed, crosshairMarkerVisible: false }, paneFor(scaleId));
         s.setData(bars.map((b, i) => ({ time: b.time as any, value: vals[i] })).filter(d => isFinite(d.value)));
         indSeriesRef.current.push(s);
+        if (!dashed && !paneSeriesRef.current.has(scaleId)) paneSeriesRef.current.set(scaleId, s);
         return s;
       } catch { return null; }
     };
@@ -5665,6 +5673,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const s = chart.addSeries(LW.HistogramSeries, { priceLineVisible: false, lastValueVisible: true }, paneFor(scaleId));
         s.setData(bars.map((b, i) => ({ time: b.time as any, value: vals[i], color: Array.isArray(colors) ? colors[i] : colors })).filter(d => isFinite(d.value)));
         indSeriesRef.current.push(s);
+        if (!paneSeriesRef.current.has(scaleId)) paneSeriesRef.current.set(scaleId, s);
         return s;
       } catch { return null; }
     };
@@ -6158,9 +6167,25 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         s.createPriceLine({ price: 0, color: "rgba(139,146,172,0.45)", lineWidth: 1, lineStyle: LW.LineStyle.Solid, axisLabelVisible: false });
         indSeriesRef.current.push(s);
         tapeCvdSeriesRef.current = s; tapeCvdDataRef.current = null;
+        paneSeriesRef.current.set("tapecvd", s);
         cvdVisibleRef.current = true;
         fillTapeCvdRef.current();
       } catch { tapeCvdSeriesRef.current = null; tapeCvdDataRef.current = null; }
+    }
+
+    // ── PLATE 29 · Volume Pace — this bar's volume against the median of the 20 before it ──
+    if (inds.has("Volume Pace")) {
+      try {
+        const pace = volumePace(bars.map(b => b.volume ?? 0));
+        const s = chart.addSeries(LW.AreaSeries, {
+          lineColor: "rgba(214,178,94,0.95)", topColor: "rgba(214,178,94,0.42)", bottomColor: "rgba(214,178,94,0.06)",
+          lineWidth: 1, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false,
+        }, paneFor("vpace"));
+        s.setData(bars.map((b, i) => ({ time: b.time as any, value: pace[i] })).filter(d => isFinite(d.value)));
+        s.createPriceLine({ price: 1, color: "rgba(200,192,174,0.5)", lineWidth: 1, lineStyle: LW.LineStyle.Dashed, axisLabelVisible: false, title: "normal" });
+        indSeriesRef.current.push(s);
+        paneSeriesRef.current.set("vpace", s);
+      } catch { /* the pane returns on the next build */ }
     }
 
     // ── Stop Run Alert (price breach then reversal) ───────────
@@ -6644,6 +6669,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       tapeCvdRef.current = null;
       tapeCvdDataRef.current = null;
       indSeriesRef.current = [];
+      paneSeriesRef.current = new Map();
     };
   }, [activeInds, indSettings, ready, cameraEpoch]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -28002,10 +28028,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // Date AND time: on 1D/1W a bare clock time can name a different day.
           const text = tapeCvdCaption(cvd, sec => fmtAxisTime(sec));
           ctx.save();
-          ctx.font = `700 9.5px ${MARKET_SANS}`;
+          // Plate 21/29: 13px, under the pane's own name (the name + value sit at top + 4).
+          ctx.font = `500 13px ${MARKET_SANS}`;
           ctx.textAlign = "left"; ctx.textBaseline = "top";
           ctx.fillStyle = cvd.refused ? "rgba(240,180,41,0.9)" : "rgba(200,192,174,0.85)";
-          ctx.fillText(text, 8, top + 4);
+          ctx.fillText(text, 8, top + 28);
           ctx.restore();
         } catch { /* pane mid-rebuild: caption returns next frame */ }
       } else {
@@ -28014,6 +28041,42 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         delete canvas.dataset.cvdSides;
       }
       } catch (err) { layerFault("CVD_PANE", err); }
+      // ── PLATE 29 · every indicator pane names itself, its current value in the corner ──
+      try {
+        const titled: string[] = [];
+        for (const [paneId, ser] of paneSeriesRef.current) {
+          let paneIdx = -1;
+          try { paneIdx = ser.getPane().paneIndex(); } catch { continue; }
+          if (paneIdx < 1) continue;
+          let topP = 0;
+          for (let i = 0; i < paneIdx; i++) topP += (chart.paneSize(i)?.height ?? 0) + 1;
+          const dataP = ser.data?.() ?? [];
+          const lastP = dataP.length ? dataP[dataP.length - 1] : null;
+          const valueP = paneValueWords(paneId, lastP == null ? null : (lastP.value ?? lastP.close ?? null));
+          const nameP = paneTitle(paneId, paneActiveIndsRef.current);
+          ctx.save();
+          ctx.font = `600 14px ${MARKET_SANS}`;
+          const wName = ctx.measureText(nameP).width;
+          ctx.font = `700 14px ${MARKET_MONO}`;
+          const wVal = valueP ? ctx.measureText(valueP).width + 10 : 0;
+          const cardP = { x: 4, y: topP + 4, w: Math.ceil(wName + wVal + 16), h: 22 };
+          ctx.fillStyle = "rgba(11,10,8,0.9)";
+          ctx.fillRect(cardP.x, cardP.y, cardP.w, cardP.h);
+          onTop(cardP, "OPAQUE_CARD");
+          ctx.textAlign = "left"; ctx.textBaseline = "middle";
+          ctx.font = `600 14px ${MARKET_SANS}`;
+          ctx.fillStyle = "#EDE6D3";
+          ctx.fillText(nameP, cardP.x + 8, cardP.y + cardP.h / 2 + 0.5);
+          if (valueP) {
+            ctx.font = `700 14px ${MARKET_MONO}`;
+            ctx.fillStyle = "rgba(232,198,104,0.98)";
+            ctx.fillText(valueP, cardP.x + 8 + wName + 10, cardP.y + cardP.h / 2 + 0.5);
+          }
+          ctx.restore();
+          titled.push(`${paneId}:${valueP ?? "—"}`);
+        }
+        if (titled.length) canvas.dataset.paneTitles = titled.join("|"); else delete canvas.dataset.paneTitles;
+      } catch (err) { layerFault("PANE_TITLES", err); }
       if (layerFaults.length) canvas.dataset.layerFaults = `${layerFaults.length}:${layerFaults.slice(0, 4).join(" | ")}`;
       else delete canvas.dataset.layerFaults;
       paintLap(27593);

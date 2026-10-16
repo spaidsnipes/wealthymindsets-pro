@@ -494,6 +494,13 @@ export const INDICATOR_EDUCATION: Readonly<Record<string, IndicatorEducation>> =
     src: "volume", win: 20, appears: `${OWN_PANE("A line")} Guide at 1.`,
     read: "1 means average for the last 20 BARS (not 20 days, and not the same time of day). 2 means twice that.",
   }),
+  // Plate 29 (2026-10-15): a real pane with its name and "1.6× normal" in the corner.
+  "Volume Pace": rec({
+    what: "Bar volume ÷ the median volume of the 20 bars before it",
+    q: "Is this bar trading faster or slower than the bars just before it?",
+    src: "volume", win: 20, appears: `${OWN_PANE("A filled area")} Dashed guide at 1 (normal).`,
+    read: "1.0× is the recent normal; 1.6× is 60% more volume than the median bar. The median ignores one spike, so a single huge bar does not make the next ones look quiet.",
+  }),
   OBV: rec({
     what: "On-Balance Volume: running total adding volume on up-closes, subtracting on down-closes",
     q: "Has volume landed more on up-closing bars or down-closing bars over the loaded history?",

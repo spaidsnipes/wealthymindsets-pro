@@ -27,7 +27,7 @@ const BANNED = /support trade decisions|more reliable|actionable|institutional|b
 
 describe("Indicators menu ⓘ (P1-C)", () => {
   it("reads the whole catalogue", () => {
-    expect(ROWS.length).toBe(142);
+    expect(ROWS.length).toBe(143);
     expect(new Set(ROWS.map(r => r.name)).size).toBe(ROWS.length);
   });
 

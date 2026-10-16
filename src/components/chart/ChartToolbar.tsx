@@ -447,6 +447,7 @@ const INDICATORS = [
   { cat:"Volume", name:"Volume", desc:"Traded volume per bar" },
   { cat:"Volume", name:"Volume MA", desc:"20-bar simple average of bar volume" },
   { cat:"Volume", name:"RVOL", desc:"Bar volume ÷ the average of the last 20 bars' volume" },
+  { cat:"Volume", name:"Volume Pace", desc:"Bar volume ÷ the median volume of the 20 bars before it" },
   { cat:"Volume", name:"OBV", desc:"On-Balance Volume: running total adding volume on up-closes, subtracting on down-closes" },
   { cat:"Volume", name:"Money Flow Index", desc:"Money Flow Index (14): an RSI of typical price × volume" },
   { cat:"Volume", name:"Chaikin Money Flow", desc:"Chaikin Money Flow (20)" },
