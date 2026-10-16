@@ -385,7 +385,9 @@ describe("price sovereignty on narrow glass — every painter consults the one k
     const i = CHART.indexOf("const colF = sovereignColumn();");
     expect(i).toBeGreaterThan(0);
     expect(CHART.slice(i, i + 1200)).toContain("flowHitRef.current.push({ id: s.e.id, x: xs, y: cy, r: rs + 6 });");
-    expect(CHART).toContain("if (narrowGlass && (onNewestColumn(box.x, box.y, box.w, box.h) || rowBodiesAt(box.y, box.y + box.h).some(");
+    // Restated 2026-10-16 (serving SPY 15m desk: a print's name lay across candles): the flow names test the
+    // bodies at EVERY width (own side, then mirror), and the newest column on narrow glass.
+    expect(CHART).toContain("return !onBodiesQ(q) && !(narrowGlass && onNewestColumn(q.x, q.y, q.w, q.h));");
     expect(CHART).toContain("return !rowBodiesAt(q.y, q.y + q.h).some(b => q.x < b.x + b.w && q.x + q.w > b.x && q.y < b.y + b.h && q.y + q.h > b.y);"); // every width since 2026-10-16
   });
   it("the WAIT plate has a slot clear of the column and every body, or it folds to the WAIT strip with a receipt", () => {

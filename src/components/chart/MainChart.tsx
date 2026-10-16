@@ -21004,15 +21004,18 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   const words = `${s.e.type === "call" ? "C" : "P"}${fmtStrike(s.e.strike)} ×${s.e.size} ${glyph === "+" ? "BUY" : glyph === "−" ? "SELL" : "?"}${s.e.sideStamped ? "" : " (inferred)"}${prem}`;
                   const tw = ctx.measureText(words).width;
                   const lx = Math.min(plotRightD - tw / 2 - 4, Math.max(tw / 2 + 4, s.x));
-                  const ly = s.e.type === "call" ? cy - r - 9 : cy + r + 9;
-                  const box = { x: lx - tw / 2 - 3, y: ly - 7, w: tw + 6, h: 13 };
-                  // PRICE SOVEREIGNTY: the print's name never on the newest column,
-                  // nor (narrow glass) on a candle body — it is listed instead.
-                  if (narrowGlass && (onNewestColumn(box.x, box.y, box.w, box.h) || rowBodiesAt(box.y, box.y + box.h).some(q => box.x < q.x + q.w && box.x + box.w > q.x && box.y < q.y + q.h && box.y + box.h > q.y))) {
-                    displacedNotes.push({ layer: "DERIVATIVES", text: words, x: lx, y: ly });
+                  // PRICE SOVEREIGNTY at EVERY width (serving SPY 15m desk, Oct 16: "P760 ×1067 BUY · ~$957k" lay
+                  // across the falling candles — the body check ran on narrow glass only). Its own side first,
+                  // then the mirror side; on a body either way → listed, not painted.
+                  const onBodiesQ = (q: { x: number; y: number; w: number; h: number }) => rowBodiesAt(q.y, q.y + q.h).some(o => q.x < o.x + o.w && q.x + q.w > o.x && q.y < o.y + o.h && q.y + q.h > o.y);
+                  const sides = s.e.type === "call" ? [cy - r - 9, cy + r + 9] : [cy + r + 9, cy - r - 9];
+                  const ly = sides.find(yy => { const q = { x: lx - tw / 2 - 3, y: yy - 7, w: tw + 6, h: 13 }; return !onBodiesQ(q) && !(narrowGlass && onNewestColumn(q.x, q.y, q.w, q.h)); });
+                  if (ly === undefined) {
+                    displacedNotes.push({ layer: "DERIVATIVES", text: words, x: lx, y: sides[0] });
                     sovereigntyHeld++;
                     return;
                   }
+                  const box = { x: lx - tw / 2 - 3, y: ly - 7, w: tw + 6, h: 13 };
                   if (!floatingChips.some(q => box.x < q.x + q.w && box.x + box.w > q.x && box.y < q.y + q.h && box.y + box.h > q.y)) {
                     ctx.fillStyle = "rgba(11,10,8,0.85)";
                     if (chipBox(words, box)) ctx.fillRect(box.x, box.y, box.w, box.h);
