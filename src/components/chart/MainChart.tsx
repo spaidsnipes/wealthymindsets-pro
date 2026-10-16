@@ -2133,6 +2133,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const pineSeriesRef = useRef<Map<string, any>>(new Map());
   const pineCodeRef   = useRef<string | undefined>(undefined);
   const indSeriesRef  = useRef<any[]>([]);
+  /** Level series whose NAME the chart library draws left of the axis (PDH, PDL, OR HIGH …) — their last value. */
+  const levelTitlesRef = useRef<{ title: string; value: number }[]>([]);
   /** Plate 29: the first series each indicator pane received (its corner value), and the indicators on. */
   const paneSeriesRef = useRef<Map<string, any>>(new Map());
   /** Each pane's corner value, recorded when the pane is built — never read back from the series per frame. */
@@ -5739,6 +5741,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     const inds   = new Set<string>([...(activeInds ?? new Set<string>())].filter(n => !volGate.withheld.includes(n)));
     paneSeriesRef.current = new Map();
     paneLastRef.current = new Map();
+    levelTitlesRef.current = [];
     paneActiveIndsRef.current = inds;
     tapeSpeedSeriesRef.current = null; sizeMixSeriesRef.current = null; deltaVelSeriesRef.current = null; bigPressSeriesRef.current = null;
     // Per-indicator custom params (length / mult / color) merged with defaults
@@ -5765,6 +5768,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     const addLevel = (vals: number[], color: string, title: string) => {
       const s = addLine(vals, color, 2, 2, true);
       s?.applyOptions({ title, autoscaleInfoProvider: () => null });
+      // The library paints the level's NAME just left of the axis; canvas words must step around it.
+      for (let i = vals.length - 1; i >= 0; i--) if (Number.isFinite(vals[i])) { if (s) levelTitlesRef.current.push({ title, value: vals[i] }); break; }
       return s;
     };
 
@@ -14333,6 +14338,23 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // steps around them instead of printing through them.
       const floatingChips: { x: number; y: number; w: number; h: number }[] = [...forceChips];
       if (candleTimerRect) floatingChips.push(candleTimerRect);
+      // LEVEL NAMES ON THE AXIS (serving ES1! 5m, Oct 16): the library draws "PDH" in a red pill just left
+      // of the price axis; the regime title took its right-edge slot and covered "PD" ("H 7808.00"). Each
+      // level's name is an obstacle every later word steps around.
+      try { if (levelTitlesRef.current.length) {
+        ctx.save();
+        ctx.font = marketFont("OBJECT_NAME");
+        for (const lt of levelTitlesRef.current) {
+          const yL = srs.priceToCoordinate(lt.value);
+          if (yL == null) continue;
+          const wL = Math.ceil(ctx.measureText(lt.title).width) + 18;
+          floatingChips.push({ x: plotRight - wL, y: +yL - 10, w: wL, h: 20 });
+        }
+        ctx.restore();
+        // Market-object pins (DOM buttons over the glass) are obstacles too: on ES1! 5m a zone's pin sat on
+        // "dPOC 7786.00 · -4.00 THIS SESSION" (Oct 16). Every later placer now steps around them.
+      } for (const pr of marketObjectPinRectsRef.current) floatingChips.push(pr);
+      } catch (err) { layerFault("LEVEL_TITLES", err); }
       // Big-trade discs carry their size / time / price INSIDE (F07A), and
       // they were painted earlier this frame. Words placed later step off
       // them (live NQ open 2026-10-04: "SUPPORT · BROKEN · 11 LVL" printed
