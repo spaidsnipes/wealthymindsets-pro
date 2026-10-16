@@ -23,7 +23,7 @@ describe("the Trade door", () => {
     expect(chart.length).toBeGreaterThan(100000);
   });
 
-  it("is the one filled control on the strip: brass fill, dark words, 12px, 30px tall", () => {
+  it("is the one filled control on the strip: brass fill, dark words, 14px (plate 21/31), 30px tall", () => {
     const at = strip.indexOf('data-testid="context-trade"');
     expect(at).toBeGreaterThan(-1);
     const door = strip.slice(at, strip.indexOf("</button>", at));
@@ -31,7 +31,7 @@ describe("the Trade door", () => {
     expect(door).toContain("background: GOLD");
     expect(door).toContain('color: "#14110a"');
     expect(door).toContain("minHeight: 30");
-    expect(door).toContain('font: "800 12px/1');
+    expect(door).toContain('font: "800 14px/1');
     // Exactly one filled control: nothing else on the strip takes the solid brass.
     expect((strip.match(/background: GOLD\b/g) ?? []).length).toBe(1);
   });

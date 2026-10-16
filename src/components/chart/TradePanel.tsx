@@ -111,7 +111,9 @@ export const decimals = (tick: number | null): number => {
   return t.includes(".") ? Math.min(8, t.split(".")[1]!.length) : 0;
 };
 
-export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOptions, onOpenPaper, onClose, onChooseInstrument }: {
+export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOptions, onOpenPaper, onClose, onChooseInstrument, instrumentDoors = null }: {
+  /** Plate 31/32: the instrument's own doors (contract, chains, financials, desk) live inside TRADE. */
+  readonly instrumentDoors?: React.ReactNode;
   /** The family row's contract picker switches the CHART to the pick, so this one ticket trades what is on the glass. */
   readonly onChooseInstrument?: (symbol: string) => void;
   readonly symbol: string;
@@ -757,6 +759,12 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
         </button> : null}
         <button type="button" data-testid="trade-close" aria-label="Close trade panel" onClick={onClose} style={{ marginLeft: "auto", flexShrink: 0, minWidth: 32, minHeight: 32, color: MUTED, fontSize: 16, background: "none", border: "none", cursor: "pointer" }}>×</button>
       </header>
+      {instrumentDoors}
+      {server.limits?.killSwitch ? (
+        <p data-testid="trade-killed-why" style={{ margin: 0, padding: "8px 12px", font: "500 13px/1.4 ui-sans-serif, system-ui, sans-serif", color: "#F3EBDD", background: "rgba(122,42,34,.35)", borderBottom: "1px solid rgba(239,83,80,.5)" }}>
+          KILLED means your kill switch is on: no new live order can be sent from WM (cancel still works). Release it in Settings › Execution.
+        </p>
+      ) : null}
       {placingFold ? (
         <div role="status" data-testid="trade-placing" style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", borderBottom: `1px solid ${LINE}`, color: GOLD, fontSize: 11, fontWeight: 700 }}>
           <span style={{ flex: 1, minWidth: 0 }}>{pick ? `Placing ${pick.role} — tap its price on the chart` : "Moving a line on the chart — let go to set it"}</span>

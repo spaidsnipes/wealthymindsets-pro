@@ -380,7 +380,7 @@ import { selectLiquidityLifecycle } from "@/lib/marketData/viewModels/selectLiqu
 import { bookBucketStep, placeBookEventsOnBars } from "@/lib/marketData/bookLiquidityLifecycle";
 import { useBookLiquidityLifecycle } from "@/lib/marketData/useBookLiquidityLifecycle";
 import { useWebullLiveCrypto } from "@/lib/marketData/useWebullLiveCrypto";
-import { InstrumentContextStrip } from "./InstrumentContextStrip";
+import { InstrumentContextStrip, InstrumentDoors } from "./InstrumentContextStrip";
 
 import { DeribitChainPanel } from "./DeribitChainPanel";
 import { MarketMetricsCard } from "./MarketMetricsCard";
@@ -7962,6 +7962,14 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           // Sheriff P2-6 (2026-10-08): the paper drawer opens OVER the live ticket; closing it returns to the ticket, state kept.
           onOpenPaper={() => setPaperOpen(true)}
           onClose={() => setTradeOpen(false)}
+          instrumentDoors={
+            <InstrumentDoors
+              symbol={symbol}
+              assetClass={assetClass}
+              onTab={(tab) => { setTradeOpen(false); setActiveTab(tab); if (tab !== "Chart") setFuturesOptionsOpen(false); }}
+              onPanel={() => { setTradeOpen(false); setFuturesOptionsOpen(true); }}
+            />
+          }
         />
       )}
 

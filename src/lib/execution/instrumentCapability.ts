@@ -32,10 +32,11 @@ export type TradeFamily = "STOCK" | "EQUITY_OPTION" | "FUTURE" | "FUTURE_OPTION"
 export const TRADE_FAMILIES: readonly TradeFamily[] = ["STOCK", "EQUITY_OPTION", "FUTURE", "FUTURE_OPTION", "FX", "CRYPTO"];
 
 export const FAMILY_LABEL: Readonly<Record<TradeFamily, string>> = {
-  STOCK: "Stocks & ETFs",
-  EQUITY_OPTION: "Equity options",
+  // Plate 32 (2026-10-15): the sheet's seven market names — "Options" are regular stock options.
+  STOCK: "Stocks",
+  EQUITY_OPTION: "Options",
   FUTURE: "Futures",
-  FUTURE_OPTION: "Futures options",
+  FUTURE_OPTION: "Futures Options",
   FX: "Forex",
   CRYPTO: "Crypto",
 };
@@ -78,6 +79,13 @@ export const FAMILY_DOORS: Readonly<Record<TradeRail, Readonly<Partial<Record<Tr
   Webull: { EQUITY_OPTION: "EXPRESSION" },
   "Alpaca paper": { STOCK: "PAPER", CRYPTO: "PAPER" },
 };
+
+/**
+ * PREDICTIONS (plate 32, live click-through L10: "no Predictions"). Not a trade family — no WM rail
+ * sends a prediction-market order. Polymarket odds and history are readable (src/app/api/polymarket,
+ * public, view only), so the tab exists and says exactly that.
+ */
+export const PREDICTIONS_REASON = "View only — Polymarket odds and history are readable here, but no prediction-market broker is connected, so nothing can be sent.";
 
 /** The paper rail's own evidence: the route refuses futures and forex; it trades US equities and crypto. */
 export const PAPER_RAIL_OWNER = "src/app/api/alpaca-trading/route.ts";

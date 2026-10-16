@@ -20,6 +20,7 @@ import { futuresRootOf } from "@/lib/marketData/symbolAssetClass";
 import {
   chartFamily, CRYPTO_PICKS, FAMILY_LABEL, FAMILY_STATE_WORD, FUTURES_PAIRS, FX_PICKS, STOCK_PICKS, TRADE_FAMILIES,
   type FamilyState, type FamilyVerdict, type TradeFamily,
+  PREDICTIONS_REASON,
 } from "@/lib/execution/instrumentCapability";
 import type { FutureContract } from "@/lib/broker/tastytradeFuturesChain";
 import { FX_LOT_UNITS, fxPair, fxPipSize, instrumentRisk, RISK_ESTIMATE_CAVEAT, type FxLot, type RiskAnswer } from "@/lib/execution/instrumentRisk";
@@ -51,6 +52,7 @@ export function TradeFamilySelector({ family, verdicts, onPick }: {
   readonly onPick: (f: TradeFamily) => void;
 }) {
   const v = verdicts.find(x => x.family === family)!;
+  const [predictions, setPredictions] = useState(false);
   return (
     <div data-testid="trade-family" data-family={family} data-family-state={v.state} style={{ padding: "8px 12px", borderBottom: `1px solid ${LINE}`, display: "grid", gap: 6 }}>
       <div role="radiogroup" aria-label="Instrument family" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 4 }}>
@@ -59,16 +61,24 @@ export function TradeFamilySelector({ family, verdicts, onPick }: {
           const on = f === family;
           return (
             <button key={f} type="button" role="radio" aria-checked={on} data-testid={`trade-family-${f.toLowerCase()}`} data-state={fv.state}
-              onClick={() => onPick(f)}
+              onClick={() => { setPredictions(false); onPick(f); }}
               style={{ display: "grid", gap: 1, textAlign: "left", padding: "4px 6px", minHeight: 38, minWidth: 0, borderRadius: 6, cursor: "pointer",
-                border: `1px solid ${on ? GOLD : LINE}`, background: on ? `${GOLD}1f` : "transparent", color: on ? GOLD : INK }}>
-              <span style={{ fontSize: 11, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{FAMILY_LABEL[f]}</span>
-              <span style={{ fontSize: 9, letterSpacing: 0.8, fontWeight: 700, color: STATE_COLOR[fv.state] }}>{FAMILY_STATE_WORD[fv.state]}</span>
+                border: `1px solid ${on && !predictions ? GOLD : LINE}`, background: on && !predictions ? `${GOLD}1f` : "transparent", color: on && !predictions ? GOLD : INK }}>
+              <span style={{ fontSize: 15, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{FAMILY_LABEL[f]}</span>
+              <span style={{ fontSize: 13, letterSpacing: 0.4, fontWeight: 700, color: STATE_COLOR[fv.state] }}>{FAMILY_STATE_WORD[fv.state]}</span>
             </button>
           );
         })}
+        <button type="button" role="radio" aria-checked={predictions} data-testid="trade-family-predictions" data-state="VIEW_ONLY"
+          onClick={() => setPredictions(true)}
+          style={{ display: "grid", gap: 1, textAlign: "left", padding: "4px 6px", minHeight: 38, minWidth: 0, borderRadius: 6, cursor: "pointer",
+            border: `1px solid ${predictions ? GOLD : LINE}`, background: predictions ? `${GOLD}1f` : "transparent", color: predictions ? GOLD : INK }}>
+          <span style={{ fontSize: 15, fontWeight: 700 }}>Predictions</span>
+          <span style={{ fontSize: 13, letterSpacing: 0.4, fontWeight: 700, color: MUTED }}>VIEW ONLY</span>
+        </button>
       </div>
-      <p data-testid="trade-family-reason" style={{ margin: 0, fontSize: 11, color: v.state === "EXECUTABLE" ? INK : GOLD }}>
+      {predictions ? <p data-testid="trade-predictions-reason" style={{ margin: 0, fontSize: 14, color: INK }}>{PREDICTIONS_REASON}</p> : null}
+      <p data-testid="trade-family-reason" hidden={predictions} style={{ margin: 0, fontSize: 14, lineHeight: 1.4, color: v.state === "EXECUTABLE" ? INK : GOLD }}>
         <strong style={{ color: STATE_COLOR[v.state], letterSpacing: 0.8 }}>{FAMILY_STATE_WORD[v.state]}</strong> · {v.reason}
       </p>
       <details data-testid="trade-family-rails" style={{ fontSize: 10.5, color: MUTED }}>
