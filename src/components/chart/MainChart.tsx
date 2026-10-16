@@ -20938,7 +20938,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     return !rowBodiesAt(q.y, q.y + q.h).some(b => q.x < b.x + b.w && q.x + q.w > b.x && q.y < b.y + b.h && q.y + q.h > b.y);
                   };
                   const kClear = near.find(k => offColumn(k) && !over(at(k), [...placed, ...fixedChips]))
-                    ?? [...near, -4, 4, -5, 5, -6, 6].find(k => offColumn(k) && !over(at(k), [...placed, ...sovereignBoxes]));
+                    // The far rows still step around every word already on the glass (phone, Oct 16: "CALL OI 29400 · 89"
+                    // printed on the lens's "BROKEN SWING · 29622.50" tag); no clear row → the words are listed.
+                    ?? [...near, -4, 4, -5, 5, -6, 6].find(k => offColumn(k) && !over(at(k), [...placed, ...fixedChips, ...sovereignBoxes]));
                   // L20 (serving 46f62ee at 375px): the last-resort row ignored every other word and set
                   // "PUT OI 30200 · 505" on the compact question strip. It still steps around the opaque panels.
                   if (kClear === undefined) {
