@@ -23,6 +23,7 @@ describe("senses stay visible while the room waits", () => {
     expect(chart).toContain("const VALUE_MIGRATION_ALPHA_FLOOR = 0.7;");
     expect(chart).toContain('ctx.globalAlpha = Math.max(VALUE_MIGRATION_ALPHA_FLOOR, att.alpha("valueMigration"));');
     // Garden 19 §13 (2026-10-16): the steps are heavier and a filled value band sits under them.
-    expect(chart).toContain('stepLine("vah", pk.rgba("EDGE_HIGH", 0.8), 1.5, [3, 3]);');
+    // Restated 2026-10-16 (Founder: "penciled in"): heavier still.
+    expect(chart).toContain('stepLine("vah", pk.rgba("EDGE_HIGH", 0.95), 2, [5, 3]);');
   });
 });

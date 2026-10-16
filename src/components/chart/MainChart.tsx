@@ -19958,7 +19958,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             } catch { /* keep the canvas height */ }
             const yOfD = (p: number): number | null => { const y = srs.priceToCoordinate(p); return y == null ? null : +y; };
             const dpDp = displayPrecisionFor(symbol, barsRef.current ?? []);
-            const fmtD = (p: number) => p.toFixed(Math.min(dpDp, 2));
+            // A STRIKE READS LIKE A STRIKE (Founder 2026-10-16: "it should say 80,000 … all the extra numbers look
+            // like the Matrix"). Whole strikes drop their ".00" and take thousands separators; a fractional strike
+            // keeps only the decimals it has.
+            const fmtD = (p: number) => Number.isInteger(p)
+              ? p.toLocaleString("en-US")
+              : p.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: Math.min(dpDp, 2) });
             const painted: string[] = [];
             // Where each wall's masonry sits on the glass ("strike:y px"), for the browser
             // regression harness's pixel proof (tests/brick-walls-regression.mjs, 2026-10-15).
@@ -23524,15 +23529,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   if (!(v > 0)) return;
                   const segW = w * (v / total);
                   const age = nS > 1 ? k / (nS - 1) : 1;
-                  const band = k % 2 === 1 ? 0.72 : 1;
+                  // Founder 2026-10-16: "the blue looks like it's disappearing … not popping" — strata keep a lighter step.
+                  const band = k % 2 === 1 ? 0.85 : 1;
                   // Visibility floor (faintness pass, ES 5m 2026-10-01: the
                   // sediment read as a dim grey smear): value strata ≥ 0.5,
                   // tails ≥ 0.3 — the oldest still lighter than the newest.
                   ctx.fillStyle = r.isPoc
                     ? pk.rgba("POC", +((0.7 + 0.28 * age) * band).toFixed(2))
                     : r.insideValueArea
-                      ? pk.rgba("VALUE", +((0.5 + 0.32 * age) * band).toFixed(2))
-                      : pk.rgbaAs("TAIL", "VALUE", +((0.3 + 0.24 * age) * band).toFixed(2));
+                      ? pk.rgba("VALUE", +((0.75 + 0.25 * age) * band).toFixed(2))
+                      : pk.rgbaAs("TAIL", "VALUE", +((0.5 + 0.25 * age) * band).toFixed(2));
                   ctx.fillRect(xs - segW, y, segW, hRow);
                   if (segW >= 3 && xs < right) {
                     ctx.fillStyle = "rgba(11,10,8,0.55)";
@@ -25038,7 +25044,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // dotted steps): each session's value area is a filled band, VAL→VAH, stepping with the session.
             {
               let pv: { x: number; yh: number; yl: number; session: unknown } | null = null;
-              ctx.fillStyle = pk.rgba("POC", 0.13);
+              ctx.fillStyle = pk.rgba("POC", 0.2);
               for (const p of vm.points) {
                 const xr = ts.timeToCoordinate(p.time as any);
                 const yh = srs.priceToCoordinate(p.vah), yl = srs.priceToCoordinate(p.val);
@@ -25048,9 +25054,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 pv = cur;
               }
             }
-            stepLine("vah", pk.rgba("EDGE_HIGH", 0.8), 1.5, [3, 3]);
-            stepLine("val", pk.rgba("EDGE_LOW", 0.8), 1.5, [3, 3]);
-            const drawn = stepLine("poc", pk.rgba("POC", 0.92), 2.5, []);
+            // Founder 2026-10-16: "value migration … looks like it was penciled in" — the edges carry weight now.
+            stepLine("vah", pk.rgba("EDGE_HIGH", 0.95), 2, [5, 3]);
+            stepLine("val", pk.rgba("EDGE_LOW", 0.95), 2, [5, 3]);
+            const drawn = stepLine("poc", pk.rgba("POC", 1), 3, []);
             ctx.restore(); // releases the steps' candle cut-out
 
             // Name the line once, at its newest point, with the session's

@@ -111,7 +111,7 @@ describe("1 · ONE candle cut-out for the whole profile family", () => {
     // Pin updated 2026-09-26: the movie's value-area ribbon is retired (see
     // "7 · no generic rectangle"); its POC trail still paints inside the cut.
     between(MIGRATION, 'ctx.save(); clipProfileToCandles("LIVING_MOVIE");', 'ctx.strokeStyle = pk.rgba("POC", 0.6); ctx.lineWidth = 1.2; ctx.stroke();', "ctx.restore(); // releases the movie's candle cut-out");
-    between(MIGRATION, 'ctx.save(); clipProfileToCandles("VALUE_MIGRATION");', 'stepLine("poc", pk.rgba("POC", 0.92), 2.5, [])', "ctx.restore(); // releases the steps' candle cut-out");
+    between(MIGRATION, 'ctx.save(); clipProfileToCandles("VALUE_MIGRATION");', 'stepLine("poc", pk.rgba("POC", 1), 3, [])', "ctx.restore(); // releases the steps' candle cut-out");
   });
 
   it("TPO: every cell a candle stands on is withheld, and the cut-out backs it up", () => {
@@ -207,7 +207,8 @@ describe("3 · the P-110 body: solid, in the family's ink, with rules across the
 
   it("Composite and Visible Range speak the family's ink (bone / gold), not a steel of their own", () => {
     expect(COMPOSITE).not.toMatch(/rgba\((184,190,196|160,166,172),/);
-    expect(COMPOSITE).toContain('pk.rgba("VALUE", +((0.5 + 0.32 * age) * band).toFixed(2))');
+    // Restated 2026-10-16 (Founder: composite "disappearing"): same ink, stronger strata.
+    expect(COMPOSITE).toContain('pk.rgba("VALUE", +((0.75 + 0.25 * age) * band).toFixed(2))');
   });
 });
 
@@ -386,7 +387,7 @@ describe("9 · every species wears its organism glyph (Garden 11 recognition tes
 
   it("Composite is a gapless body with session tint bands; VRP is framed by four lane corners; Structure is a cube box", () => {
     expect(COMPOSITE).toContain("const hRow = Math.max(1, rowH);");
-    expect(COMPOSITE).toContain("const band = k % 2 === 1 ? 0.72 : 1;");
+    expect(COMPOSITE).toContain("const band = k % 2 === 1 ? 0.85 : 1;");
     expect(VRP).toContain("ctx.moveTo(xr - c, +yL); ctx.lineTo(xr, +yL); ctx.lineTo(xr, +yL - c);");
     expect(VRP).toContain("ds.visibleRangeGeometry = `RAILS+LANE_CORNERS:");
     expect(STRUCTURE).toContain("ctx.strokeRect(x0 + 0.5, Math.round(top) + 0.5, x1 - x0, Math.round(bot - top));");
