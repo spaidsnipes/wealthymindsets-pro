@@ -16844,6 +16844,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                       const spot = placeClearOfKeepOut(slots.preferred, [...keepOut(), ...rowBodiesAt(yLo, yHi)], {
                         minX, blockers: [...floatingChips, ...sleeveBoxes(sleeve), ...waitSlots, ...(ruleStrip ? [ruleStrip] : [])], strict: true, alternates: slots.alternates,
                       });
+                      // L20 (Garden 19): refused beside its window, the plaque painted there anyway, over the words
+                      // that held the spot. Refused, it tries the top-left home below; refused there too, it is held.
+                      if (spot.mode !== "BLOCKED") {
                       recordKeepOut(keepOutLedger, spot);
                       plaque = spot.rect;
                       ds.scaffoldingPlaque = `${spot.mode}:${Math.round(plaque.x)},${Math.round(plaque.y)}:WAIT_SLOTS_${waitSlots.length}`;
@@ -16870,6 +16873,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                       ds.scaffoldingPlaque += bar === last ? ":LEADER_LAST_BAR" : ":LEADER_FIRST_BAR";
                       ctx.fillStyle = panel(keepOutBackingAlpha(spot, 0.94));
                       ctx.fillRect(plaque.x, plaque.y, plaque.w, plaque.h);
+                      }
                     }
                   } else {
                     ds.scaffoldingGeometry = sleeve.reason;
@@ -16880,12 +16884,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     const spot = placeClearOfKeepOut({ x: minX, y: HEADER_FLOOR_Y + 8, ...PRO_PLAQUE }, [...keepOut(), ...rowBodiesAt(HEADER_FLOOR_Y + 8, HEADER_FLOOR_Y + 8 + PRO_PLAQUE.h)], {
                       minX, blockers: [...floatingChips, ...waitSlots], strict: true,
                     });
+                    if (spot.mode === "BLOCKED") {
+                      ds.scaffoldingPlaque = "HELD:NO_CLEAR_SLOT";
+                    } else {
                     recordKeepOut(keepOutLedger, spot);
                     plaque = spot.rect;
                     ds.scaffoldingPlaque = `${spot.mode}:${Math.round(plaque.x)},${Math.round(plaque.y)}`;
                     ctx.fillStyle = panel(keepOutBackingAlpha(spot, 0.94));
                     ctx.fillRect(plaque.x, plaque.y, plaque.w, plaque.h);
+                    }
                   }
+                  if (plaque) {
                   // The plaque, in the plate's hierarchy (UI-12 "EFFICIENCY
                   // RATIO / 62% / five stars / MODERATE · DEFENSIVE SETUP"): a
                   // small-caps title, the one big number, the grade marks, one
@@ -16910,6 +16919,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.fillText(clip(`${sc.conversion ?? "NO EFFORT"} · ${sc.posture}`, qw - 16), qc, qy + 66);
                   ctx.textAlign = "left";
                   floatingChips.push(plaque);
+                  }
                 } else {
                   /* FOUNDATION / INTERMEDIATE — the plate's student and
                      compressed views, as ONE docked card that covers no
