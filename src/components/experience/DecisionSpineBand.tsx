@@ -845,7 +845,9 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
     ? `Drawn ${drawnPlan.side ?? ""} plan on price: entry ${planPx(drawnPlan.entry)} · stop ${planPx(drawnPlan.stop)}`
       + (drawnPlan.riskPerUnit !== null ? ` · risk ${drawnPlan.riskPerUnit.toFixed(2)}/unit` : "")
       + (drawnPlan.rr !== null ? ` · target ${drawnPlan.rr.toFixed(2)}R` : "")
-      + ". It is your plan on the chart — not an input to right-of-way, so Available R stays UNKNOWN."
+      // L12 (Garden 19): the drawn plan IS the chain's Available R input now; this line only shows when
+      // the chain produced no reading of it (no market state compiled).
+      + ". The decision chain has no market state to read it against, so Available R is UNKNOWN."
     : selectAvailableRDetail(availableR);
   // NEXT is compiled, not echoed. Both the reading and the ledger it was
   // computed from come from the SAME producer the verdict came from

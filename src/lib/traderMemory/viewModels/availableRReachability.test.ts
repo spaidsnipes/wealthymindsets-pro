@@ -104,20 +104,22 @@ describe("availableR reachability — the producer does not exist in production"
     expect(PRODUCTION).toContain(CHAIN_OWNER);
   });
 
-  it("no production file outside selectDecisionChain supplies availableRInputs", () => {
+  // L12 (Garden 19, 2026-10-16): the producer EXISTS now — the chart room hands the drawn plan (entry,
+  // structural stop, target) through useMarketCanvasVM → composeMarketCanvasVM → selectDecisionChain.
+  // As this gate asked, the disclosure was replaced with the real instruction and the zero-producer
+  // assertion retired. What is pinned instead: the ONLY producers are the room and the compile path.
+  it("the only producers are the chart room's drawn plan and the one compile path", () => {
     const referencers = PRODUCTION.filter((f) => {
-      if (f === CHAIN_OWNER) return false; // its own declaration + its own read
+      if (f === CHAIN_OWNER) return false;
       return /\bavailableRInputs\b/.test(code(readFileSync(f, "utf8")));
-    }).map((f) => path.relative(SRC, f));
-
-    expect(
-      referencers,
-      `availableRInputs now has a production producer:\n  ${referencers.join("\n  ")}\n` +
-        `That is GOOD — it means a trader can finally declare an entry and a ` +
-        `structural invalidation. But it also means AVAILABLE_R_UNWIRED_DETAIL ` +
-        `is no longer true. Replace the disclosure with the real UNKNOWN grammar ` +
-        `(missingInputs already names what is absent) and delete this gate.`,
-    ).toEqual([]);
+    }).map((f) => path.relative(SRC, f)).sort();
+    expect(referencers).toEqual([
+      path.join("components", "chart", "ChartsDashboard.tsx"),
+      path.join("lib", "marketData", "viewModels", "composeMarketCanvasVM.ts"),
+      path.join("lib", "marketData", "viewModels", "useMarketCanvasVM.ts"),
+    ].sort());
+    const room = code(readFileSync(path.join(SRC, "components", "chart", "ChartsDashboard.tsx"), "utf8"));
+    expect(room).toContain("if (!p || !p.drawn || !p.side || p.entry == null || p.stop == null) return null;");
   });
 
   it("the deck calls selectDecisionChain without availableRInputs", () => {
@@ -134,9 +136,9 @@ describe("availableR reachability — the producer does not exist in production"
 });
 
 describe("availableR disclosure — the chip names the condition, not a pending evaluation", () => {
-  it("the null-VM detail DISCLOSES the unwired capability rather than implying a pending one", () => {
+  it("the null-VM detail names the act that declares a plan, not a pending evaluation", () => {
     expect(selectAvailableRDetail(null)).toBe(AVAILABLE_R_UNWIRED_DETAIL);
-    expect(AVAILABLE_R_UNWIRED_DETAIL).toMatch(/no surface in this build declares them/i);
+    expect(AVAILABLE_R_UNWIRED_DETAIL).toMatch(/Draw a position on the chart/);
   });
 
   it("the permanent chart RISK rail reuses the same disclosure owner", () => {

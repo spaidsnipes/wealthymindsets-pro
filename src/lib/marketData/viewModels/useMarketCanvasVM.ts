@@ -47,6 +47,8 @@ export interface UseMarketCanvasInput {
   readonly phase?: TradePhase;
   /** Optional pre-compiled chain (skip internal chain compile). */
   readonly chain?: DecisionChainVM | null;
+  /** L12: the drawn plan's Available R inputs (see composeMarketCanvasVM). */
+  readonly availableRInputs?: Omit<import("@/lib/traderMemory/viewModels/selectAvailableR").AvailableRInput, "state"> | null;
   /** Max snapshots retained for rolling-window selectors. Default 6. */
   readonly historyCapacity?: number;
 }
@@ -91,8 +93,9 @@ export function useMarketCanvasVM(
         // caller has no chain. Collapsing those states skipped prerequisites
         // on /charts and allowed ACTION beside an entirely unresolved passport.
         chain: input.chain,
+        availableRInputs: input.availableRInputs ?? null,
       }),
-    [state, history, sessionDecisions, input.ownerId, input.phase, input.chain, nowMs],
+    [state, history, sessionDecisions, input.ownerId, input.phase, input.chain, input.availableRInputs, nowMs],
   );
 }
 

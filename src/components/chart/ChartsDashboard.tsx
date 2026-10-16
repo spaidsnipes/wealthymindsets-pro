@@ -1942,10 +1942,24 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     (phase: TradePhase) => setLifecycleStage(stageForPhase(phase), symbol),
     [setLifecycleStage, symbol],
   );
+  const [riskPlan, setRiskPlan] = useState<RiskOnPriceVM | null>(null);
+  // L12 (Garden 19): the drawn plan on price is the declared entry and invalidation Available R reads.
+  // The target becomes a one-price region named for what it is (the trader's own mark, LOW confidence).
+  const planAvailableRInputs = React.useMemo(() => {
+    const p = riskPlan;
+    if (!p || !p.drawn || !p.side || p.entry == null || p.stop == null) return null;
+    return {
+      side: p.side,
+      entryPrice: p.entry,
+      structuralStop: p.stop,
+      destination: p.target != null ? { low: Math.min(p.target, p.target), high: Math.max(p.target, p.target), basis: "your drawn target", confidence: "LOW" as const } : null,
+    };
+  }, [riskPlan]);
   const chartCanvasVM = useMarketCanvasVM({
     identity: canvasIdentity,
     ownerId: canvasUser?.id ?? null,
     phase: tradePhase,
+    availableRInputs: planAvailableRInputs,
   });
   const chartMarketCanvas = chartCanvasVM.canvas;
   // THE TRADER'S OWN RECORD, on the same subscription the deck uses. The merge
@@ -3189,7 +3203,6 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     setFusionState(prev => (prev.refusal === refusal && prev.fused?.poc === fused?.poc && prev.fused?.vah === fused?.vah && prev.fused?.val === fused?.val && prev.fused?.totalVolume === fused?.totalVolume ? prev : { fused, refusal }));
   }, []);
   const riskVMRef = useRef<RiskOnPriceVM | null>(null);
-  const [riskPlan, setRiskPlan] = useState<RiskOnPriceVM | null>(null);
   const onRiskOnPrice = useCallback((vm: RiskOnPriceVM) => {
     riskVMRef.current = vm;
     setRiskPlan(prev =>

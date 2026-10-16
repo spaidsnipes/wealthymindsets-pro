@@ -48,6 +48,12 @@ export interface ComposeMarketCanvasInput {
    */
   readonly phase?: TradePhase;
   /**
+   * L12 (Garden 19): the trader's drawn plan on price (entry, structural stop, target) — the inputs
+   * Available R needs. Without it the rail read "Available R UNKNOWN — no surface in this build declares
+   * entry and invalidation" while the chart held a bracketed plan.
+   */
+  readonly availableRInputs?: Omit<import("@/lib/traderMemory/viewModels/selectAvailableR").AvailableRInput, "state"> | null;
+  /**
    * Optional session identity. When omitted the compiler derives
    * a UTC-day string. Consumers with a durable session identity
    * (e.g. the paper trading session) SHOULD pass their own.
@@ -96,6 +102,7 @@ export function composeMarketCanvasVM(
           history: input.history,
           nowMs: input.nowMs,
           phase,
+          availableRInputs: input.availableRInputs ?? null,
         })
       : null;
 

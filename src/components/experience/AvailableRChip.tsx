@@ -78,9 +78,14 @@ export function formatAvailableRLabel(vm: AvailableRVM | null): string {
  * red first and drags this disclosure red with it. The disclosure cannot
  * outlive its condition and quietly become the new lie.
  */
+/**
+ * L12 (Garden 19, 2026-10-16): the chart room now declares them — a position drawn on price (entry, stop,
+ * target) is handed to the one decision chain. With no plan drawn, the sentence says what declares one.
+ * (Name kept: every reader imports it.)
+ */
 export const AVAILABLE_R_UNWIRED_DETAIL =
   "Available R needs a declared entry and a declared structural invalidation. " +
-  "No surface in this build declares them, so no R can be computed here.";
+  "Draw a position on the chart — entry, stop and target — and R is measured from it.";
 
 /**
  * PURE — one sentence explaining the VM state to a trader who has never read

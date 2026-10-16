@@ -393,7 +393,7 @@ describe("DecisionSpineBand — absence is disclosed, never filled", () => {
     expect(html).toContain("No story compiled — evidence insufficient.");
     expect(html).toContain("No verdict compiled yet.");
     expect(html).toContain("Available R UNKNOWN");
-    expect(html).toContain("No surface in this build declares them, so no R can be computed here.");
+    expect(html).toContain("Draw a position on the chart — entry, stop and target — and R is measured from it.");
     expect(html).toContain('data-testid="spine-available-r-detail"');
     expect(html).toContain("No invalidator published.");
   });
@@ -835,15 +835,17 @@ describe("DecisionSpineBand — WAIT declares whether it is finished (canon 064/
     expect(same).not.toContain("spine-wait-blocking-whole");
   });
 
-  it("plate 96: a drawn bracketed plan is named in Risk, never as Available R", () => {
+  // L12 (Garden 19, 2026-10-16) supersedes plate 96's "not an input": the drawn plan is the chain's Available
+  // R input. This branch is only the chain-did-not-compile case, and says so.
+  it("plate 96 / L12: a drawn plan the chain could not read is named in Risk with the reason", () => {
     const plan = { version: 1, drawn: true, reason: "BRACKETED", plans: 1, side: "LONG", entry: 100, stop: 98, target: 104, riskPerUnit: 2, riskPct: null, rewardPerUnit: 4, rr: 2, live: null, entryAt: null, stopAt: null, targetAt: null, state: null, refusals: [] } as const;
     const html = render({ availableR: null, drawnPlan: plan as never });
     expect(render({ availableR: null, drawnPlan: { ...plan, entry: 84742.35689581465 } as never })).toContain("entry 84,742.36");
     expect(html).toContain("Drawn LONG plan on price: entry 100.00 · stop 98.00 · risk 2.00/unit · target 2.00R");
-    expect(html).toContain("not an input to right-of-way");
+    expect(html).toContain("The decision chain has no market state to read it against, so Available R is UNKNOWN.");
     expect(html).toContain("Available R UNKNOWN");
     const none = render({ availableR: null, drawnPlan: { ...plan, reason: "NO_STOP_ON_DRAWING" } as never });
-    expect(none).toContain("No surface in this build declares them");
+    expect(none).toContain("Draw a position on the chart — entry, stop and target — and R is measured from it.");
   });
 
   it("does not dress a venue blockage as a finished wait", () => {
