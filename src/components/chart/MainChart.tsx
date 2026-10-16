@@ -15404,15 +15404,25 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 floatingChips.push({ ...spotB.rect });
               }
             } else {
-              ctx.fillStyle = "rgba(14,12,8,0.86)";
-              ctx.fillRect(bx, by, bwTxt + 12, 14);
-              ctx.strokeStyle = "rgba(139,106,41,0.45)";
-              ctx.lineWidth = 1;
-              ctx.strokeRect(bx + 0.5, by + 0.5, bwTxt + 11, 13);
-              ctx.fillStyle = "rgba(201,165,92,0.95)";
-              ctx.textAlign = "left";
-              ctx.textBaseline = "middle";
-              ctx.fillText(basisTxt, bx + 6, by + 7.5);
+              // Same seat rule as the desk (serving 7809dee at an 803px pane: "EFFORT · VOLUM…" under DAY BIAS).
+              const prefN = { x: bx, y: by, w: bwTxt + 12, h: 14 };
+              const spotN = placeClearOfKeepOut(prefN, keepOut(), {
+                minX: keepOutMinX(), blockers: floatingChips, strict: true,
+                alternates: [{ ...prefN, y: by + 30 }, { ...prefN, y: by + 52 }],
+              });
+              if (spotN.mode !== "BLOCKED") {
+                const nx = spotN.rect.x, ny = spotN.rect.y;
+                ctx.fillStyle = "rgba(14,12,8,0.86)";
+                ctx.fillRect(nx, ny, bwTxt + 12, 14);
+                ctx.strokeStyle = "rgba(139,106,41,0.45)";
+                ctx.lineWidth = 1;
+                ctx.strokeRect(nx + 0.5, ny + 0.5, bwTxt + 11, 13);
+                ctx.fillStyle = "rgba(201,165,92,0.95)";
+                ctx.textAlign = "left";
+                ctx.textBaseline = "middle";
+                ctx.fillText(basisTxt, nx + 6, ny + 7.5);
+                floatingChips.push({ ...spotN.rect });
+              }
             }
 
             } // end Absorption Shelf
@@ -16373,7 +16383,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 lensFormPainted = true;
                 lensColumnActive = !compactLens && !lensInRailRef.current;
                 if (compactLens) {
-                  const bx = 8, by = 96, bw = W - 16;
+                  // L20 (serving 7809dee, desk 803px): the strip spanned the whole plot over candles and big-trade
+                  // discs. It is now only as wide as its own two lines (never wider than the plot).
+                  const rowsCL = lens.debt.length;
+                  const paidCL = lens.ledger === "CHANGES" ? lens.debt.filter(d => d.paid).length : rowsCL - lens.openDebt;
+                  ctx.font = `700 11px ${MARKET_SANS}`;
+                  const qW = ctx.measureText(`“${lens.question}”`).width;
+                  ctx.font = marketFont("OBJECT_NAME");
+                  const dW = ctx.measureText(`${paidCL}/${rowsCL} ${lens.ledger === "CHANGES" ? "MOVED" : "PAID"} · ${lens.posture ?? ""}`).width;
+                  const bx = 8, by = 96, bw = Math.min(W - 16, Math.max(qW, dW) + 20);
                   ctx.fillStyle = "rgba(11,10,8,0.9)"; ctx.fillRect(bx, by, bw, 34);
                   floatingChips.push({ x: bx, y: by, w: bw, h: 34 });
                   onTop({ x: bx, y: by, w: bw, h: 34 }, "ANSWER"); // the asked question, compact (phone)
