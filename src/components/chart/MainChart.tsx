@@ -19735,8 +19735,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.fillStyle = fanInk(a);
                 ctx.fill();
               };
-              band("y10", "y90", 0.16);
-              band("y25", "y75", 0.24);
+              // Founder 2026-10-16 ("expected envelope … very vague"; plates set form, screens set opacity).
+              band("y10", "y90", 0.24);
+              band("y25", "y75", 0.36);
               const edge = (key: "y10" | "y25" | "y50" | "y75" | "y90", dash: number[], a: number, lw: number) => {
                 ctx.setLineDash(dash);
                 ctx.strokeStyle = fanInk(a);
@@ -19745,11 +19746,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 trace(cols.map(c => ({ x: c.x, y: c[key] })), false);
                 ctx.stroke();
               };
-              edge("y90", [], 0.95, 1.6);
-              edge("y10", [], 0.95, 1.6);
-              edge("y75", [3, 4], 0.6, 1);
-              edge("y25", [3, 4], 0.6, 1);
-              edge("y50", [7, 4], 0.9, 1.4);
+              edge("y90", [], 1, 2);
+              edge("y10", [], 1, 2);
+              edge("y75", [3, 4], 0.85, 1.25);
+              edge("y25", [3, 4], 0.85, 1.25);
+              edge("y50", [7, 4], 1, 2);
               ctx.setLineDash([]);
               ctx.lineWidth = 1;
               ctx.restore();
