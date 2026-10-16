@@ -19168,7 +19168,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // glass: named in the clip receipt, never painted under chrome.
                 if (y < HEADER_FLOOR_Y || y > pane0Bottom) { edgeR(y); continue; }
                 const yy = Math.round(y) + 0.5;
-                ctx.setLineDash(lv.k === 0 ? [8, 3] : Math.abs(lv.k) === 1 ? [4, 4] : [2, 4]);
+                // Denser dashes (2026-10-16): σ lines read as lines on a TV, not as dust.
+                ctx.setLineDash(lv.k === 0 ? [10, 3] : Math.abs(lv.k) === 1 ? [6, 3] : [4, 3]);
                 // Founder 2026-10-16: "regime lighting looks like it was penciled in" — the magnets carry weight.
                 ctx.lineWidth = lv.k === 0 ? 2 : 1.5;
                 ctx.beginPath(); ctx.moveTo(xA, yy); ctx.lineTo(xB, yy); ctx.stroke();
@@ -20809,8 +20810,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 const yU = yOfD(dp.spot + dp.envelope.session), yL = yOfD(dp.spot - dp.envelope.session);
                 if (xl != null && yU != null && yL != null) {
                   const xs = +xl + bsp;
-                  ctx.strokeStyle = `rgba(212,175,55,${0.8 * baseA})`;
-                  ctx.setLineDash([4, 3]);
+                  ctx.strokeStyle = `rgba(212,175,55,${Math.max(0.85, 0.95 * baseA)})`;
+                  ctx.lineWidth = 2;
+                  ctx.setLineDash([6, 3]);
                   ctx.beginPath();
                   ctx.moveTo(xs, yU); ctx.quadraticCurveTo((xs + plotRightD) / 2, yU - 2, plotRightD, yU);
                   ctx.moveTo(xs, yL); ctx.quadraticCurveTo((xs + plotRightD) / 2, yL + 2, plotRightD, yL);
@@ -20835,7 +20837,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // lives in the governor); the ticks keep the layer's own alpha.
               const oiWordA = att.textAlpha("derivativesPressure");
               const ev = optionsEvidenceRef.current;
-              if (wallsOn && ev && ev.drawn) {
+              // …under Derivatives Pressure too (Founder 2026-10-16: alone it was "trash" — a withheld field and one
+              // thin bracket). The OI ticks are observed positioning, their own material, never the masonry.
+              if ((wallsOn || fieldOn) && ev && ev.drawn) {
                 const oiMarks: string[] = [];
                 ctx.font = marketFont("OBJECT_NAME");
                 ctx.textAlign = "right";
