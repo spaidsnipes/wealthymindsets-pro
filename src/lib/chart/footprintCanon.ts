@@ -492,27 +492,37 @@ export function bigTradeCalloutLines(input: {
    * says so. Omitted: the legacy wording, no subject named.
    */
   readonly clusterRankOf?: "LARGEST";
+  /** What one unit of size is called on this market: "contracts", "shares", or the coin ("BTC"). */
+  readonly unit?: string;
+  /** The print's time as the trader reads clocks ("9:42 PM"). */
+  readonly timeText?: string;
 }): { readonly lines: readonly string[]; readonly receipt: string } | null {
-  const rankWords = input.pct == null
-    ? `UNRANKED · ${input.prints} SESSION PRINTS`
-    : `${percentileOrdinal(input.pct)} PERCENTILE`;
-  const rank = input.cluster && input.cluster.n > 1 && input.clusterRankOf === "LARGEST" && input.pct != null
-    ? `LARGEST PRINT · ${rankWords}`
-    : rankWords;
+  // PLATE 26 (Garden 19 finish line, Founder 2026-10-15): the callout speaks plain English —
+  // "500 contracts bought at 30107.75" / "Biggest 0.1% today · 9:42 PM" — never percentile codes.
+  const top = input.pct == null ? null : 100 - input.pct * 100;
+  const rankPlain = input.pct == null
+    ? `Not ranked yet · ${input.prints} prints today`
+    : input.pct >= 0.9
+      ? `Biggest ${top! < 1 ? Math.max(0.1, Math.round(top! * 10) / 10).toFixed(1) : Math.max(1, Math.round(top!))}% today`
+      : `Bigger than ${Math.floor(input.pct * 100)}% of today's prints`;
+  const when = input.timeText ? ` · ${input.timeText}` : "";
+  const unit = input.unit ? ` ${input.unit}` : "";
   const pctReceipt = input.pct == null ? "UNRANKED" : (Math.floor(input.pct * 1000) / 10).toFixed(1);
   if (input.cluster && input.cluster.n > 1) {
     if (!(input.cluster.total > 0)) return null;
     const total = formatBubbleExact(input.cluster.total);
+    const rank = input.clusterRankOf === "LARGEST" && input.pct != null ? `Largest print: ${rankPlain.charAt(0).toLowerCase()}${rankPlain.slice(1)}` : rankPlain;
     return {
-      lines: [`CLUSTER ×${input.cluster.n}`, `${total} @ ${input.priceText}`, rank],
+      lines: [`${input.cluster.n} prints · ${total}${unit} at ${input.priceText}`, `${rank}${when}`],
       receipt: `CLUSTER${input.cluster.n}:${total}@${pctReceipt}`,
     };
   }
   const claim = describeBubbleClaim({ kind: "big-trade", bid: input.bid, ask: input.ask, price: input.price, aggressorMethod: input.aggressorMethod });
   if (!claim) return null;
   const size = formatBubbleExact(Math.abs(claim.value));
+  const inferred = input.aggressorMethod === "TICK_RULE" || input.aggressorMethod === "QUOTE_TEST";
   return {
-    lines: [claim.heading, `${size} @ ${input.priceText}`, rank],
+    lines: [`${size}${unit} ${claim.side === "buy" ? "bought" : "sold"} at ${input.priceText}${inferred ? " · side inferred" : ""}`, `${rankPlain}${when}`],
     receipt: `ONE:${size}@${pctReceipt}`,
   };
 }

@@ -37,10 +37,12 @@ describe("a print's time is stated in the axis's zone", () => {
   it("the inscription formats through the zone-aware owner", () => {
     const b = bigTrades();
     const uses = b.match(/formatBubbleClock\(b\.anchorTime, tzRef\.current, clock24hRef\.current\)/g) ?? [];
-    // Positive control: the in-bubble TIME line (F07A). 2026-09-25: the NEAR
-    // ticket that carried the second use is gone — the time lives inside the
-    // disc, the G04 callout names side / size / rank, never a second clock.
-    expect(uses.length).toBe(1);
+    // 2026-10-15 (plate 26, the water bubble): nothing is written inside the disc — the in-disc
+    // TIME line is dormant (BIG_TRADE_WORDS_INSIDE = false) and the one callout carries the time.
+    // Both still format through the zone-aware owner; only one can paint.
+    expect(uses.length).toBe(2);
+    expect(b).toContain("timeText: formatBubbleClock(b.anchorTime, tzRef.current, clock24hRef.current),");
+    expect(b).toContain("if (BIG_TRADE_WORDS_INSIDE && inscription.length && !formingThroughWords) {");
   });
 
   it("no unlabelled UTC clock is printed from the execution time", () => {

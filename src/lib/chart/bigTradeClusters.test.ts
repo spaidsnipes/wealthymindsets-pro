@@ -64,7 +64,8 @@ describe("the serving knot: four prints in one minute become ONE disc", () => {
       bid: out[0].bid, ask: out[0].ask, price: out[0].anchor.price, priceText: out[0].anchor.price.toFixed(2),
       pct: 0.9962, prints: 900, cluster: { n: out[0].members.length, total: out[0].size },
     });
-    expect(words?.lines).toEqual(["CLUSTER ×4", "1.21 @ 84210.40", "99.6TH PERCENTILE"]);
+    // Plate 26 (2026-10-15): plain English — what happened, where, how big against today.
+    expect(words?.lines).toEqual(["4 prints · 1.21 at 84210.40", "Biggest 0.4% today"]);
     expect(words?.receipt).toBe("CLUSTER4:1.21@99.6");
   });
 });

@@ -1893,6 +1893,9 @@ function paintStackCell(ctx: CanvasRenderingContext2D, a: { x0: number; x1: numb
  */
 const HEADER_CLEAR_PX = 96;
 
+/** Plate 26 (2026-10-15): Big Trades are clear water; no words are written inside the disc. */
+const BIG_TRADE_WORDS_INSIDE = false;
+
 /** The candle pane's top margin: room under the phone's top chrome band. */
 function candleTopMargin(paneWidthPx: number): number {
   return paneWidthPx > 0 && paneWidthPx < 640 ? 0.22 : 0.06;
@@ -10238,22 +10241,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.lineWidth = 1.5; ctx.strokeStyle = `rgba(${core},1)`; ctx.stroke();
             ctx.restore();
           }
+          // PLATE 26 · THE WATER BUBBLE (Garden 19 finish line, Founder 2026-10-15; live click-through L5:
+          // "a solid red orb with gold rings covering the candles"). Clear water you see the candle
+          // through: a near-clear body that brightens only at the lens edge, no halo, a crisp pale rim,
+          // the aggressor side as a thin inner ring, one small highlight. The session tier earns a
+          // second fine rim (and WHALE its four ticks) in the same pale water ink — never a gold aura.
           if (tier !== "BASE") {
-            // The crown: a soft gold aura and a second, finer bezel.
             ctx.save();
-            // Serving BTC 5m (2026-10-04): a 1.9× aura on a big disc hazed the
-            // newest candles gold. The aura hugs the disc; the ticks say WHALE.
-            const auraK = tier === "WHALE" ? 1.45 : 1.3;
-            const aura = ctx.createRadialGradient(b.x, b.y, Rx * 0.95, b.x, b.y, Rx * auraK);
-            aura.addColorStop(0, "rgba(232,184,92,0.24)");
-            aura.addColorStop(1, "rgba(232,184,92,0)");
-            ctx.beginPath(); ctx.ellipse(b.x, b.y, Rx * auraK, Ry * auraK, 0, 0, Math.PI * 2);
-            ctx.fillStyle = aura; ctx.fill();
             ctx.beginPath(); ctx.ellipse(b.x, b.y, Rx + 4, Ry + 4, 0, 0, Math.PI * 2);
-            ctx.lineWidth = 0.9; ctx.strokeStyle = "rgba(240,200,110,0.75)"; ctx.stroke();
+            ctx.lineWidth = 1; ctx.strokeStyle = "rgba(205,236,255,0.55)"; ctx.stroke();
             if (tier === "WHALE") {
-              // Four compass ticks: the top 1% of the session, said in geometry.
-              ctx.lineWidth = 1.6; ctx.strokeStyle = "rgba(255,226,160,0.95)";
+              ctx.lineWidth = 1.6; ctx.strokeStyle = "rgba(225,245,255,0.9)";
               for (let q = 0; q < 4; q++) {
                 const a = q * Math.PI / 2 - Math.PI / 2;
                 ctx.beginPath();
@@ -10264,34 +10262,27 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             }
             ctx.restore();
           }
-          // The glass: aggressor-side body, darker at the rim, lit from above-left.
-          ctx.save();
-          ctx.shadowColor = `rgba(${core},0.55)`;
-          ctx.shadowBlur = Math.max(10, b.r * 0.8);
-          const g = ctx.createRadialGradient(b.x - Rx * 0.3, b.y - Ry * 0.35, Rx * 0.05, b.x, b.y, Rx);
-          g.addColorStop(0, `rgba(${core},0.42)`);
-          g.addColorStop(0.6, `rgba(${core},0.20)`);
-          g.addColorStop(1, "rgba(12,10,6,0.38)");
+          // The water: clear at the centre (the candle reads through), brighter toward the lens edge.
+          const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, Rx);
+          g.addColorStop(0, `rgba(${core},0.05)`);
+          g.addColorStop(0.72, "rgba(190,226,255,0.07)");
+          g.addColorStop(1, "rgba(205,236,255,0.22)");
           ctx.beginPath(); ctx.ellipse(b.x, b.y, Rx, Ry, 0, 0, Math.PI * 2);
           ctx.fillStyle = g; ctx.fill();
-          ctx.restore();
-          // Specular crescent — what makes it read as an object, not a ring.
-          if (Rx > 7) {
+          // One highlight, upper left — what makes it read as a drop of water, not a ring.
+          if (Rx > 6) {
             ctx.save();
-            ctx.beginPath(); ctx.ellipse(b.x, b.y, Rx - 1.5, Ry - 1.5, 0, 0, Math.PI * 2); ctx.clip();
-            const spec = ctx.createRadialGradient(b.x - Rx * 0.38, b.y - Ry * 0.45, 0, b.x - Rx * 0.38, b.y - Ry * 0.45, Rx * 0.62);
-            spec.addColorStop(0, "rgba(255,248,230,0.38)");
-            spec.addColorStop(1, "rgba(255,248,230,0)");
-            ctx.fillStyle = spec; ctx.fillRect(b.x - Rx, b.y - Ry, Rx * 2, Ry * 2);
+            ctx.beginPath(); ctx.ellipse(b.x - Rx * 0.36, b.y - Ry * 0.42, Rx * 0.3, Ry * 0.15, -0.55, 0, Math.PI * 2);
+            ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fill();
             ctx.restore();
           }
-          // Gold bezel + the side's own inner ring.
+          // The rim: crisp and bright; the side as a thin inner ring.
           ctx.beginPath(); ctx.ellipse(b.x, b.y, Rx, Ry, 0, 0, Math.PI * 2);
-          ctx.lineWidth = isHover ? 2.6 : 1.8;
-          ctx.strokeStyle = `rgba(240,200,110,${isHover ? 1 : 0.95})`;
+          ctx.lineWidth = isHover ? 2.4 : 1.6;
+          ctx.strokeStyle = `rgba(214,240,255,${isHover ? 1 : 0.92})`;
           ctx.stroke();
-          ctx.beginPath(); ctx.ellipse(b.x, b.y, Math.max(0.1, Rx - 2.6), Math.max(0.1, Ry - 2.6), 0, 0, Math.PI * 2);
-          ctx.lineWidth = 1.4; ctx.strokeStyle = `rgba(${core},0.95)`; ctx.stroke();
+          ctx.beginPath(); ctx.ellipse(b.x, b.y, Math.max(0.1, Rx - 2.2), Math.max(0.1, Ry - 2.2), 0, 0, Math.PI * 2);
+          ctx.lineWidth = 1; ctx.strokeStyle = `rgba(${core},0.8)`; ctx.stroke();
 
           // F07A: SIZE / TIME / ↑PRICE inside the disc — only the lines the
           // circle's chord can hold at their height; else fewer, else none.
@@ -10307,7 +10298,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // yield (the callout / Inspect carry them), the candle stays whole.
           const formingThroughWords = formingColumnCrossesWords(formingCol, b, inscription, measureInscription);
           if (formingThroughWords) inscriptionsYieldedToForming++;
-          if (inscription.length && !formingThroughWords) {
+          // Plate 26: nothing is written inside the water — the candle must read through it. The one
+          // callout and the Inspect ticket carry size, time and price.
+          if (BIG_TRADE_WORDS_INSIDE && inscription.length && !formingThroughWords) {
             ctx.globalAlpha = att.textAlpha("bigTrades", { selectedItem: selB });
             ctx.textAlign = "center"; ctx.textBaseline = "middle";
             ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 3;
@@ -10368,11 +10361,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               aggressorMethod: b.aggressorMethod, pct: rank.pct, prints: rank.prints,
               cluster: bigClusterOf.has(b.spawnKey) ? { n: bigClusterOf.get(b.spawnKey)!.members.length, total: Math.abs(b.value) } : null,
               clusterRankOf: "LARGEST",
+              unit: classifySymbol(symbol) === "FUTURES" ? "contracts" : classifySymbol(symbol) === "CRYPTO" ? (symbol.replace(/[-/].*$/, "").replace(/USDT?$/, "") || undefined) : "shares",
+              timeText: formatBubbleClock(b.anchorTime, tzRef.current, clock24hRef.current),
             });
             if (words) {
-              ctx.font = `700 10px ${MARKET_SANS}`;
-              const cw = Math.ceil(Math.max(...words.lines.map(l => ctx.measureText(l).width))) + 16;
-              const chh = 8 + words.lines.length * 13;
+              ctx.font = `700 15px ${MARKET_SANS}`;
+              const cw = Math.ceil(Math.max(...words.lines.map(l => ctx.measureText(l).width))) + 20;
+              const chh = 10 + words.lines.length * 20;
               const tsC = chart.timeScale();
               const vrC = tsC.getVisibleLogicalRange();
               const bodies = spanCandleKeepOut(barsRef.current ?? [], {
@@ -10412,9 +10407,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
                 ctx.textAlign = "left"; ctx.textBaseline = "middle";
                 words.lines.forEach((l, k) => {
-                  ctx.font = k === 1 ? `600 10px ${MARKET_SANS}` : `700 10px ${MARKET_SANS}`;
-                  ctx.fillStyle = k === 1 ? "rgba(237,230,211,0.95)" : "rgba(240,200,110,1)";
-                  ctx.fillText(l, r.x + 8, r.y + 10.5 + k * 13);
+                  ctx.font = k === 0 ? `700 15px ${MARKET_SANS}` : `500 14px ${MARKET_SANS}`;
+                  ctx.fillStyle = k === 0 ? "#F3EBDD" : "rgba(214,206,186,1)";
+                  ctx.fillText(l, r.x + 10, r.y + 15 + k * 20);
                 });
                 ctx.restore();
                 forceChips.push({ x: r.x, y: r.y, w: r.w, h: r.h });

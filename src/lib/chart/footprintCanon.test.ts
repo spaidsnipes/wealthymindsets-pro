@@ -170,11 +170,14 @@ describe("big trades: rank in the session, in the Intelligence view's own conven
 
   it("the callout's words come from the claim owner, the receipt names size and rank", () => {
     const w = bigTradeCalloutLines({ bid: 2341, ask: 0, price: 5272.25, priceText: "5272.25", pct: 0.987, prints: 1000 })!;
-    expect(w.lines).toEqual(["AGGRESSIVE SELL", "2,341 @ 5272.25", "98.7TH PERCENTILE"]);
+    expect(w.lines).toEqual(["2,341 sold at 5272.25", "Biggest 1% today"]);
+    expect(bigTradeCalloutLines({ bid: 9, ask: 0, price: 1, priceText: "1.00", pct: 0.62, prints: 50 })!.lines[1]).toBe("Bigger than 62% of today's prints");
+    const plate = bigTradeCalloutLines({ bid: 0, ask: 500, price: 30107.75, priceText: "30107.75", pct: 0.999, prints: 4000, unit: "contracts", timeText: "9:42 PM" })!;
+    expect(plate.lines).toEqual(["500 contracts bought at 30107.75", "Biggest 0.1% today · 9:42 PM"]);
     expect(w.receipt).toBe("ONE:2,341@98.7");
     const inferred = bigTradeCalloutLines({ bid: 0, ask: 0.25, price: 84000, priceText: "84000.00", aggressorMethod: "TICK_RULE", pct: null, prints: 7 })!;
-    expect(inferred.lines[0]).toBe("INFERRED BUY PRINT");
-    expect(inferred.lines[2]).toBe("UNRANKED · 7 SESSION PRINTS");
+    expect(inferred.lines[0]).toBe("0.25 bought at 84000.00 · side inferred");
+    expect(inferred.lines[1]).toBe("Not ranked yet · 7 prints today");
     expect(inferred.receipt).toBe("ONE:0.25@UNRANKED");
     expect(bigTradeCalloutLines({ bid: 0, ask: 0, price: 1, priceText: "1", pct: null, prints: 0 })).toBeNull();
   });
@@ -336,9 +339,9 @@ describe("F07A/F07B · a cluster is ranked like against like (serving NQ1! 5m: s
   });
   it("the cluster's rank line names its subject", () => {
     const w = bigTradeCalloutLines({ bid: 0, ask: 41, price: 31515, priceText: "31515.00", pct: 0.873, prints: 300, cluster: { n: 7, total: 41 }, clusterRankOf: "LARGEST" })!;
-    expect(w.lines).toEqual(["CLUSTER ×7", "41 @ 31515.00", "LARGEST PRINT · 87.3RD PERCENTILE"]);
+    expect(w.lines).toEqual(["7 prints · 41 at 31515.00", "Largest print: bigger than 87% of today's prints"]);
     const thin = bigTradeCalloutLines({ bid: 0, ask: 41, price: 31515, priceText: "31515.00", pct: null, prints: 12, cluster: { n: 7, total: 41 }, clusterRankOf: "LARGEST" })!;
-    expect(thin.lines[2]).toBe("UNRANKED · 12 SESSION PRINTS");
+    expect(thin.lines[1]).toBe("Not ranked yet · 12 prints today");
   });
 });
 
