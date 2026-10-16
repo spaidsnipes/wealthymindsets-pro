@@ -41,12 +41,22 @@ describe("Garden 19 §8 — the Living Profile as it stood at each bar's close",
     }
   });
 
-  it("the basis switches ESTIMATED → TAPE when the tape threshold is crossed", () => {
-    const firstTape = dev.findIndex(p => p.basis === "TAPE");
+  // Garden 19 §13 (2026-10-16): a tape that BEGAN mid-session (here at bar 10) cannot stand for the whole
+  // auction — the body stays ESTIMATED from the session's bars at every point ("Living is squished").
+  it("a tape that began mid-session never replaces the whole auction: every point stays ESTIMATED", () => {
+    expect(dev.every(p => p.basis === "ESTIMATED")).toBe(true);
+  });
+
+  it("a tape covering the session from its first bar takes over once the threshold is crossed", () => {
+    const fromStart = Array.from({ length: 20 * 30 }, (_, j) => {
+      const b = Math.floor(j / 30);
+      return { price: 100 + b * 0.5 + ((j % 5) - 2) * 0.1, size: 1 + (j % 3), side: (j % 2 ? "buy" : "sell") as "buy" | "sell", trade: true, time: (T0 + b * BAR) * 1000 + (j % 30) * 1000 };
+    });
+    const d2 = selectLivingProfileDevelopment({ prints: fromStart, bars, barSec: BAR, now: NOW });
+    const firstTape = d2.findIndex(p => p.basis === "TAPE");
     expect(firstTape).toBeGreaterThan(0);
-    expect(dev.slice(0, firstTape).every(p => p.basis === "ESTIMATED")).toBe(true);
-    // crossed at the bar whose close holds ≥ MIN_TRADES_FOR_TAPE_PROFILE prints
-    expect((firstTape - 10 + 1) * 30).toBeGreaterThanOrEqual(MIN_TRADES_FOR_TAPE_PROFILE);
+    expect(d2.slice(0, firstTape).every(p => p.basis === "ESTIMATED")).toBe(true);
+    expect((firstTape + 1) * 30).toBeGreaterThanOrEqual(MIN_TRADES_FOR_TAPE_PROFILE);
   });
 
   it("memo: finished points are reused from `previous` (not recomputed, not repainted)", () => {

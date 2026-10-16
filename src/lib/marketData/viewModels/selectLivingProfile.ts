@@ -233,6 +233,8 @@ export interface TapePrint {
   readonly size?: number | null;
   readonly side?: "buy" | "sell" | null | undefined;
   readonly trade?: boolean;
+  /** Execution time in ms, when the feed carries one (coverage check below). */
+  readonly time?: number | null;
 }
 
 /**
@@ -260,8 +262,18 @@ export function buildLivingProfileSnapshot(
     trades.push({ price, size, side: p.side === "buy" || p.side === "sell" ? p.side : "unknown" });
   }
 
-  if (trades.length >= MIN_TRADES_FOR_TAPE_PROFILE) return computeProfileFromTrades(trades, { instrumentTick });
-  return computeProfileFromBars([...(bars ?? [])], { instrumentTick });
+  // COVERAGE (Garden 19 §13, serving 8495a9b NQ1! 5m: "Living is squished" — the tape held ~45 min of a
+  // 17-hour session, so the body described the last 45 minutes in a sliver at the live price and stood as
+  // the session's auction). The tape speaks for the auction only when it reaches back to the session's
+  // first bar; otherwise the session's bars build it, labelled estimated, so it is the WHOLE auction.
+  const bs = bars ?? [];
+  let earliestMs = Infinity;
+  for (const p of prints ?? []) if (p?.trade === true && typeof p.time === "number" && Number.isFinite(p.time)) earliestMs = Math.min(earliestMs, p.time);
+  const firstBarSec = bs.length ? Number(bs[0].time) : NaN;
+  const span = bs.length > 1 ? Number(bs[1].time) - Number(bs[0].time) : 0;
+  const tapeCoversSession = !bs.length || !Number.isFinite(earliestMs) || !Number.isFinite(firstBarSec) || earliestMs / 1000 <= firstBarSec + Math.max(span, 0);
+  if (trades.length >= MIN_TRADES_FOR_TAPE_PROFILE && tapeCoversSession) return computeProfileFromTrades(trades, { instrumentTick });
+  return computeProfileFromBars([...bs], { instrumentTick });
 }
 
 export function selectLivingProfile(

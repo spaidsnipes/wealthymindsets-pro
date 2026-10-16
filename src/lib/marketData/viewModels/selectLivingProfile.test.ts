@@ -264,3 +264,16 @@ describe("it connects to the engine that owns the distribution", () => {
     expect(vm.hvn[0]?.price).toBeCloseTo(60_123.4587 + 5 * 0.01, 10);
   });
 });
+
+describe("Garden 19 §13 · the Living body is the whole auction, not the tape's last minutes", () => {
+  it("uses the session's bars when the tape began after the session's first bar", async () => {
+    const { buildLivingProfileSnapshot, MIN_TRADES_FOR_TAPE_PROFILE } = await import("./selectLivingProfile");
+    const bars = Array.from({ length: 50 }, (_, i) => ({ time: 1000 + i * 300, open: 100 + i, high: 101 + i, low: 99 + i, close: 100.5 + i, volume: 1000 }));
+    const lateTape = Array.from({ length: MIN_TRADES_FOR_TAPE_PROFILE + 5 }, (_, i) => ({ price: 148 + (i % 3), size: 1, side: "buy" as const, trade: true, time: (1000 + 45 * 300) * 1000 + i }));
+    const late = buildLivingProfileSnapshot(lateTape, bars as never, 0.25);
+    expect(late.quality).not.toBe("tape-measured");
+    const fullTape = lateTape.map((p, i) => ({ ...p, time: 1000 * 1000 + i }));
+    const full = buildLivingProfileSnapshot(fullTape, bars as never, 0.25);
+    expect(full.quality).not.toBe(late.quality);
+  });
+});
