@@ -9518,6 +9518,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const sides = bd ? null : candleSidedRef.current.get(Number(c.time)) ?? null;
           if (!bd && !sides) continue;
           pts.push({ x: +xr, d: bd ? bd.delta : sides!.buy - sides!.sell });
+          // Plate 35 (serving e419145, ETH-USD 1m, 40 bars): the band drew and the receipt still read
+          // 'delta:NO_EXECUTIONS' — so the glass also said 'NO CURRENT EVENT: DELTA' over the drawn band.
+          // A bar the band painted counts as a footprint bar.
+          fpTrailBars.add(Number(c.time));
         }
         const scale = deltaScale(pts.map(p => p.d));
         const ink = (d: number, a: number) => `rgba(${d >= 0 ? flowColorsRef.current.dBuy : flowColorsRef.current.dSell},${a})`;
