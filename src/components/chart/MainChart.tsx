@@ -24588,7 +24588,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     const top = Math.min(+ya, +yb), hh = Math.max(1, Math.abs(+ya - +yb) - (Math.abs(+ya - +yb) > 3 ? 1 : 0));
                     const midP = (r.lo + r.hi) / 2;
                     const inVA = vah1 != null && val1 != null && midP <= vah1 && midP >= val1;
-                    ctx.fillStyle = `rgba(${MEMORY_MASS_RGB},${inVA ? 0.4 : 0.22})`;
+                    ctx.fillStyle = `rgba(${MEMORY_MASS_RGB},${inVA ? 0.62 : 0.34})`;
                     ctx.fillRect(x0m, top, Math.max(1, r.share * massW), hh);
                     memMassRows++;
                   }
@@ -24719,14 +24719,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // must not keep a neighbouring level's words off the glass.
               labelYs.push(y);
               floatingChips.push({ x: spotM.rect.x, y: spotM.rect.y, w, h: 14 });
+              // The words read even while the layer is quiet: a backed chip
+              // over its own line, never below 0.85 on the glass — the BACKING too
+              // (at the layer's alpha the line ran through the words, serving NQ1! 15m Oct 16).
+              const gaM = ctx.globalAlpha;
+              ctx.globalAlpha = Math.max(gaM, 0.85);
               ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotM, 0.80)})`;
               ctx.fillRect(spotM.rect.x, spotM.rect.y, w, 14);
               ctx.fillStyle = isPoc ? pk.rgba("POC", Math.max(0.85, fade)) : pk.rgba(edge, Math.max(0.8, fade));
               ctx.textAlign = "left";
-              // The words read even while the layer is quiet: a backed chip
-              // over its own line, never below 0.85 on the glass.
-              const gaM = ctx.globalAlpha;
-              ctx.globalAlpha = Math.max(gaM, 0.85);
               ctx.fillText(text, spotM.rect.x + 4, y);
               ctx.globalAlpha = gaM;
             }
