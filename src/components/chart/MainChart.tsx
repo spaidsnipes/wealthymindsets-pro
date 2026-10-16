@@ -100,6 +100,7 @@ import { requestTastyCandles, tastyStreamState } from "@/lib/broker/tastyQuoteSt
 import { isQuoteSampleSeries, quoteSampleSentence } from "@/lib/marketData/quoteSampleSeries";
 import { IMBALANCE_ZONE_NAMES_MAX, imbalanceTestWords, imbalanceZoneFate, imbalanceZoneName, imbalanceZonesReceipt, type ImbalanceZone, type ImbalanceZoneState } from "@/lib/chart/imbalanceZones";
 import { paneTitle, paneValueWords } from "@/lib/chart/paneNames";
+import { wheelZoomRange } from "@/lib/chart/wheelZoom";
 import { volumePace } from "@/lib/chart/flowIndicators";
 import { findSweeps, medianOf, sizeCuts, sizeMixWords, sweepWords, TAPE_FAST_MULTIPLE, tapeSpeed, tapeSpeedWords, tradeSizeMix, type Sweep } from "@/lib/chart/tapeIndicators";
 import { barFlow, chooseWedges, estimatedRuns, evidenceReceipt, EVIDENCE_LEGEND, findShelves, shelfTolerance, shelfWords, wedgeWidth, type BarFlow, type EvidenceBar, type Shelf } from "@/lib/chart/evidenceKinds";
@@ -4090,6 +4091,39 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const candlesKey = candles.length ? `${candles.length}:${candles[0].time}` : "";
   useEffect(() => { fillTapeCvdRef.current(); }, [sessionTapeTick, timeframe, tapeSource, canonicalSym, ready, candlesKey]);
 
+  // ── L8 · THE WHEEL ZOOMS, ANCHORED ON THE LIVE CANDLE (wheelZoom.ts) ──
+  // On the chart's frame in CAPTURE, so a lens or chip over the plot never eats the scroll. A scrollable
+  // panel inside the frame keeps its own scroll; so does a frame scrolling its lower indicator panes.
+  useEffect(() => {
+    const host = containerRef.current?.parentElement;
+    if (!host || !ready) return;
+    const onWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX) || e.ctrlKey) return;
+      for (let el = e.target as HTMLElement | null; el && el !== host; el = el.parentElement) {
+        const oy = getComputedStyle(el).overflowY;
+        if ((oy === "auto" || oy === "scroll") && el.scrollHeight > el.clientHeight + 1) return;
+      }
+      const cont = containerRef.current, c = chartRef.current;
+      if (!cont || !c) return;
+      const rect = cont.getBoundingClientRect();
+      const yIn = e.clientY - rect.top;
+      if (host.scrollHeight > host.clientHeight + 1 && yIn > (paneGeomRef.current?.h ?? rect.height)) return;
+      const ts = c.timeScale();
+      const range = ts.getVisibleLogicalRange();
+      if (!range) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const n = barsRef.current?.length ?? 0;
+      const cur = ts.coordinateToLogical(e.clientX - rect.left);
+      const dy = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
+      try {
+        ts.setVisibleLogicalRange(wheelZoomRange({ from: range.from, to: range.to }, dy, { lastIndex: n - 1, cursorLogical: cur == null ? null : Number(cur), totalBars: n }) as never);
+      } catch { /* chart mid-rebuild: the next notch applies */ }
+    };
+    host.addEventListener("wheel", onWheel, { passive: false, capture: true });
+    return () => host.removeEventListener("wheel", onWheel, { capture: true });
+  }, [ready]);
+
   // ── PLATE 29 · the tape's own panes (Tape Speed, Trade Size Mix), refilled as prints arrive ──
   // They read the individual prints the chart holds (bigTradePrintAccRef: one row per execution, its
   // own time), so they exist only on bars the tape reached — never estimated from bars.
@@ -4358,7 +4392,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // absurd range (e.g. 300–1100 for TSLA at 377), crushing the candles, with
         // no easy recovery. Vertical control is our clamped body-drag + RESET; the
         // time axis can still be dragged to scale horizontally.
-        handleScale:  { mouseWheel: true, pinch: true, axisPressedMouseMove: { time: true, price: false } },
+        // L8 (2026-10-16): the vertical wheel zooms through ONE owner (wheelZoom.ts — live edge pinned,
+        // ~4× the library's pace, overlays never eat it); the library keeps pinch and horizontal pan.
+        handleScale:  { mouseWheel: false, pinch: true, axisPressedMouseMove: { time: true, price: false } },
       });
       // Assign immediately so a rapid second symbol/timeframe change during our
       // async candle fetch REUSES this chart instead of creating a duplicate.

@@ -1,5 +1,6 @@
 "use client";
 
+import { noteSpotRoute, spotRouteFor } from "@/lib/marketData/spotFuturesRoute";
 import { proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { normalizeMarketSurfaceSymbol } from "@/lib/routing/marketSurfaceQuery";
 import { resolveEnteredSymbol } from "@/lib/marketData/futuresNotation";
@@ -72,13 +73,22 @@ export function deepLinkSymbol(pathname: string, search: string): string | null 
   return normalizeMarketSurfaceSymbol(new URLSearchParams(search).get("symbol"));
 }
 
+/** L14 (2026-10-16): a spot pair with no live source opens its CME future, and the chart says so. */
+function routeSpot(sym: string): string {
+  const r = spotRouteFor(sym);
+  if (!r) return sym;
+  noteSpotRoute(sym, r.future);
+  return r.future;
+}
+
 function readPersistedSymbol(): string {
   if (typeof window === "undefined") return DEFAULT_SYMBOL;
   try {
     const linked = deepLinkSymbol(window.location.pathname, window.location.search);
     if (linked) {
-      if (!proofSceneHoldsWrites()) window.localStorage.setItem(LAST_SYMBOL_KEY, linked);
-      return linked;
+      const routed = routeSpot(linked);
+      if (!proofSceneHoldsWrites()) window.localStorage.setItem(LAST_SYMBOL_KEY, routed);
+      return routed;
     }
     const saved = window.localStorage.getItem(LAST_SYMBOL_KEY);
     if (saved) return resolveEnteredSymbol(saved);
@@ -109,7 +119,7 @@ export function SymbolProvider({ children }: { children: React.ReactNode }) {
   const setActiveSymbol = useCallback((sym: string) => {
     // Typed "Open as entered", pickers, restored state: one entry gate, so a
     // bare root ("NQ") opens the series that has bars (NQ1!), not an empty chart.
-    const up = resolveEnteredSymbol(sym);
+    const up = routeSpot(resolveEnteredSymbol(sym));
     setActiveSymbolState(up);
     try { if (!proofSceneHoldsWrites()) localStorage.setItem(LAST_SYMBOL_KEY, up); } catch {}
   }, []);

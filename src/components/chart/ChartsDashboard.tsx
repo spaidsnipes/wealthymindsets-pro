@@ -1,5 +1,6 @@
 "use client";
 
+import { lastSpotRoute, SPOT_ROUTE_EVENT, spotRouteFor, spotRouteNotice } from "@/lib/marketData/spotFuturesRoute";
 import { nearestLiveZone } from "@/lib/experience/decisionLifecycle";
 import { type InventionVisibility, parseInventionVisibility } from "@/lib/chart/inventionVisibility";
 import { createPortal } from "react-dom";
@@ -2190,6 +2191,18 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     const dp = Math.abs(near.distance) >= 10 ? 0 : 2;
     return { side: near.side, distance: Number(near.distance.toFixed(dp)), unit: "points" };
   }, [chartBars, chartStructureZones]);
+  // L14 (2026-10-16): when a spot pair was routed to its CME future, the chart says so in one line.
+  const [spotNotice, setSpotNotice] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    const read = () => {
+      const r = lastSpotRoute();
+      const route = r ? spotRouteFor(r.from) : null;
+      setSpotNotice(r && route && r.to === symbol && Date.now() - r.at < 10 * 60_000 ? spotRouteNotice(r.from, route) : null);
+    };
+    read();
+    window.addEventListener(SPOT_ROUTE_EVENT, read);
+    return () => window.removeEventListener(SPOT_ROUTE_EVENT, read);
+  }, [symbol]);
   // A clean proof scene holds the zones and their pins unless asked (proofSceneHoldsZones).
   // Read after mount: the address is a browser fact, and the server render must match.
   const [sceneHoldsZones, setSceneHoldsZones] = React.useState(false);
@@ -7386,6 +7399,15 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         (e.g. spot FX has no live source since 2026-10-12). The veil is for the wait only. */}
                     {chartBars.length === 0 && !barsSettled && !gridView && activeTab === "Chart" ? (
                       <ChartLoadingVeil symbol={symbol} timeframe={timeframe} />
+                    ) : null}
+                    {spotNotice ? (
+                      <div data-testid="spot-route-notice" role="status"
+                        className="absolute left-1/2 top-2 z-[80] flex max-w-[92%] -translate-x-1/2 items-center gap-2 rounded-md border px-3 py-1.5"
+                        style={{ borderColor: "rgba(212,175,55,0.7)", background: "rgba(12,10,8,0.94)", color: "#F3EBDD", font: "500 14px/1.3 ui-sans-serif, system-ui, sans-serif" }}>
+                        <span>{spotNotice}</span>
+                        <button type="button" aria-label="Dismiss" onClick={() => setSpotNotice(null)}
+                          className="shrink-0 rounded px-2" style={{ minHeight: 28, color: "#d4af37", border: "1px solid rgba(212,175,55,0.4)" }}>✕</button>
+                      </div>
                     ) : null}
                     {lensFixture || attentionFixture ? (
                       <div data-testid="lens-fixture-banner" role="status"
