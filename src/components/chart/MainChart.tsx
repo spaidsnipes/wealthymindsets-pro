@@ -10549,10 +10549,19 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           }
           survivors.push(b);
         }
+        // THE BIGGEST, NOT ONLY THE NEWEST (Founder 2026-10-16: "it still only pops up as one bubble … I should see
+        // bubbles in other areas"). With the tape backfilled, the newest N were all in the last few bars and merged
+        // into one disc. The cap keeps the newest five (the live edge) and then the largest prints on the camera.
         const cap = bubbleMaxRef.current;
-        bubblesRef.current = survivors.length > cap
-          ? survivors.sort((a, z) => z.born - a.born).slice(0, cap)
-          : survivors;
+        if (survivors.length > cap) {
+          const byNew = [...survivors].sort((a, z) => z.born - a.born);
+          const keep = new Set(byNew.slice(0, Math.min(5, cap)));
+          for (const b of [...survivors].sort((a, z) => Math.abs(z.value) - Math.abs(a.value))) {
+            if (keep.size >= cap) break;
+            keep.add(b);
+          }
+          bubblesRef.current = survivors.filter(b => keep.has(b));
+        } else bubblesRef.current = survivors;
 
         // Draw WM VP FIRST (under the bubbles) so Big Trades + Session VP don't
         // hide the bubbles behind the profile. Guarded → won't double-draw later.

@@ -37,7 +37,8 @@ const drawLoop = () => slice("for (const b of [...bigDiscs].sort(", "canvas.data
 
 describe("the paint clusters the frame's prints through the one owner", () => {
   it("every print after the cull goes to clusterBigTrades at its TARGET radius and claimed size, capped by the size owner", () => {
-    const cull = CODE.indexOf("bubblesRef.current = survivors.length > cap");
+    // Restated 2026-10-16: the cap keeps the newest five and the largest prints ("only one bubble").
+    const cull = CODE.indexOf("bubblesRef.current = survivors.filter(b => keep.has(b));");
     // Garden 16 §46: only prints ON THE PLOT reach the cluster owner (a print
     // ahead of the drawn bars waits, named by bigTradeAheadOfBars).
     const cluster = CODE.indexOf("const bigClusters = clusterBigTrades<BigClusterInput>(bigOnPlot.map(b => ({");
