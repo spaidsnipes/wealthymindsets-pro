@@ -24863,7 +24863,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               }
               const spotV = placeClearOfKeepOut(
                 { x, y: y - 7, w, h: 14 },
-                [...keepOut(), ...rowBodies],
+                // + every candle body and wick (the one cut-out): a SLID name left the span rowBodies covers and
+                // landed on other candles (serving GC1! 15m, receipt "SLID", Oct 16).
+                [...keepOut(), ...rowBodies, ...profileCandleCut().rects],
                 // STRICT (serving GC1! 15m, Oct 16: "dPOC 4197.00 · +6.00 THIS SESSION" lay across a dozen candle
                 // bodies — the old "keep the spot, let the backing yield"). No clear row → the name is held and
                 // listed with the event notes; the line itself still draws.

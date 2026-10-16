@@ -148,7 +148,7 @@ describe("the Value Migration name, printed at its newest point, yields to the n
     expect(dpoc).toContain("if (above >= HEADER_FLOOR_Y) rowAlternates.push({ x, y: above, w, h: 14 });");
     // Restated 2026-10-16 (serving GC1! 15m: the name lay across a dozen bodies under "keep the spot, the
     // backing yields"): the placement is STRICT, and a refused name is HELD and listed, never painted on bodies.
-    expect(dpoc).toMatch(/placeClearOfKeepOut\(\s*\{ x, y: y - 7, w, h: 14 \},\s*\[\.\.\.keepOut\(\), \.\.\.rowBodies\],[\s\S]*?\{ minX: keepOutMinX\(\), blockers: floatingChips, alternates: rowAlternates, strict: true \},?\s*\)/);
+    expect(dpoc).toMatch(/placeClearOfKeepOut\(\s*\{ x, y: y - 7, w, h: 14 \},\s*\[\.\.\.keepOut\(\), \.\.\.rowBodies, \.\.\.profileCandleCut\(\)\.rects\],[\s\S]*?\{ minX: keepOutMinX\(\), blockers: floatingChips, alternates: rowAlternates, strict: true \},?\s*\)/);
     expect(dpoc).toContain('if (spotV.mode === "BLOCKED") {');
     expect(dpoc).toContain('ds.valueMigrationLabel = "HELD";');
     expect(dpoc).toMatch(/recordKeepOut\(keepOutLedger, spotV\)/);
