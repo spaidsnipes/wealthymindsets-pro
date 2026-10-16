@@ -64,7 +64,7 @@ export function TradeFamilySelector({ family, verdicts, onPick }: {
               onClick={() => { setPredictions(false); onPick(f); }}
               style={{ display: "grid", gap: 1, textAlign: "left", padding: "4px 6px", minHeight: 38, minWidth: 0, borderRadius: 6, cursor: "pointer",
                 border: `1px solid ${on && !predictions ? GOLD : LINE}`, background: on && !predictions ? `${GOLD}1f` : "transparent", color: on && !predictions ? GOLD : INK }}>
-              <span style={{ fontSize: 15, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{FAMILY_LABEL[f]}</span>
+              <span style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.15, overflowWrap: "anywhere" }}>{FAMILY_LABEL[f]}</span>
               <span style={{ fontSize: 13, letterSpacing: 0.4, fontWeight: 700, color: STATE_COLOR[fv.state] }}>{FAMILY_STATE_WORD[fv.state]}</span>
             </button>
           );
