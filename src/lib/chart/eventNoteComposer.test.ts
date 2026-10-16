@@ -78,5 +78,6 @@ describe("plate 30 — market events in plain English (texts read on serving 586
     expect(plainAnchorWord(a([["STRUCTURE", "HL"]]))).toBe("Higher low held");
     expect(plainAnchorWord(a([["WORDS", "MID · ZONES + PROFILE SPEAK"], ["STRUCTURE", "SWING BELOW · 30195.25"], ["WORDS", "CALL OI 30200 · 629"]]))).toBe("2 events · Show list");
     expect(plainAnchorWord(a([["WORDS", "80 bars"]]))).toBeNull();
+    expect(plainEventSentence("WORDS", "DOM READING CHIP")).toBeNull();
   });
 });

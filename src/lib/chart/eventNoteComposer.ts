@@ -158,11 +158,14 @@ export function plainEventSentence(layer: string, text: string): string | null {
     if (m[2] === "BROKEN") return `Price broke the ${m[1].toLowerCase()} zone`;
     return `${who} ${m[2] === "DEFENDED" ? "defended" : "met"} the ${m[1].toLowerCase()} zone${nth}`;
   }
-  // Not market events: the depth state ("MID · ZONES + PROFILE SPEAK") and counts ("80 bars").
-  if (/^(FAR|MID|NEAR) · /.test(t) || /^\d+ bars$/.test(t)) return null;
-  // Unknown: say it plainly-cased rather than shouting a code; it stays an event.
-  return t.charAt(0) + t.slice(1).toLowerCase();
+  // Anything else is not a market event we can say in plain words — the depth state ("MID · ZONES +
+  // PROFILE SPEAK"), counts ("80 bars"), internal names ("DOM READING CHIP", serving eb2a112). It is
+  // never dressed up as one: it stays a quiet pip whose tap lists the raw label.
+  return null;
 }
+
+/** Plate 30: at most this many event sentences speak at once; the rest fold to quiet pips (tap lists them). */
+export const EVENT_SENTENCES_MAX = 3;
 
 function ordinal(n: number): string {
   const s = n % 100 >= 11 && n % 100 <= 13 ? "th" : n % 10 === 1 ? "st" : n % 10 === 2 ? "nd" : n % 10 === 3 ? "rd" : "th";

@@ -55,7 +55,7 @@ import type { RegimeSeriesPoint } from "@/lib/marketData/viewModels/selectRegime
 import { bucketStep, profileContribution } from "@/lib/chart/profileContribution";
 import type { LivingDevelopmentPoint } from "@/lib/marketData/viewModels/selectLivingProfile";
 import { BROKER_LINE_NOT_MOVABLE, askChartLineModify, workingLineModifyNote, workingOrderIdOfLine, chartOrderLineDraggable, chartPricePickArmed, deliverChartDraftPrice, deliverChartPricePick, draftHandleWords, orderLineWords, registerChartPricePickHost, useChartOrderLines, type ChartOrderLine } from "@/lib/execution/chartOrderLines";
-import { anchorListLines, anchorsKey, COMPOSE_NOTES_KEY, composeNoteAnchors, pipHitRect, placePipHit, plainAnchorWord, plainEventSentence, type DisplacedNote, type PipRect } from "@/lib/chart/eventNoteComposer";
+import { anchorListLines, anchorsKey, COMPOSE_NOTES_KEY, composeNoteAnchors, EVENT_SENTENCES_MAX, pipHitRect, placePipHit, plainAnchorWord, plainEventSentence, type DisplacedNote, type PipRect } from "@/lib/chart/eventNoteComposer";
 import { logicalForTime, xForLogical, SESSION_BAND_LABEL, SESSION_BANDS_BUDGET_MS, sessionSpans, sessionsAt, type SessionSpan } from "@/lib/chart/sessionBands";
 import { hasNoCentralVolume, needsTradedVolumeSentence, needsTradedVolumeWords, volumeBearingBars, volumeTruthFor } from "@/lib/chart/volumeTruth";
 import { absorptionAnalysisWindow } from "@/lib/chart/absorptionAnalysisWindow";
@@ -27489,6 +27489,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const wordRectsNow = wordGate.rects().map(q => ({ x: q.x, y: q.y, w: q.w, h: q.h }));
           const chipsBeforeWords = floatingChips.length;
           floatingChips.push(...wordRectsNow);
+          // Plate 30: only the EVENT_SENTENCES_MAX event anchors nearest the newest candles speak a sentence.
+          const speakers = new Set(anchors.filter(a => plainAnchorWord(a) != null).sort((p, q) => q.x - p.x).slice(0, EVENT_SENTENCES_MAX));
           const placed = anchors.map(a => {
             // A lone held word is a quiet 12px pip (tap lists it); only a
             // CLUSTER earns the words "N MARKET EVENTS" (serving NQ 5m, 8f7f6f4:
@@ -27497,7 +27499,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // or "3 events · Show list" for a cluster; the wordless pip is only the crowded fallback.
             // An anchor holding no market event (the depth state, a bar count) stays the quiet pip — never
             // deleted (§14), never called an event.
-            const plain = plainAnchorWord(a);
+            const plain = speakers.has(a) ? plainAnchorWord(a) : null;
             const single = plain == null;
             const w = single ? 12 : Math.ceil(plain.length * 7.3) + 22, h = single ? 12 : 26;
             const pref = { x: Math.max(4, Math.min(plotRight - w - 4, a.x - w / 2)), y: Math.max(HEADER_FLOOR_Y, Math.min(pane0Bottom - h - 4, a.y - h / 2)), w, h };
@@ -27576,7 +27578,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // "N MARKET EVENTS"), so it stays the quiet wordless 12px dot — no 8px
               // digit on the glass (coordinator ruling 2026-10-09); its label is in
               // the title, the aria-label and the tap list.
-              const plainWord = plainAnchorWord(p.a) ?? p.a.word;
+              const plainWord = (p.single ? null : plainAnchorWord(p.a)) ?? p.a.word;
               b.textContent = p.single ? "" : plainWord; // plate 30 (2026-10-15)
               b.setAttribute("aria-label", `${plainWord}: ${p.a.notes.map(nt => plainEventSentence(nt.layer, nt.text) ?? `${nt.layer} · ${nt.text}`).join(", ")}`);
               Object.assign(b.style, {
