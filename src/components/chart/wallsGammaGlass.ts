@@ -126,26 +126,35 @@ export function paintWallsGamma(env: WallsGammaGlassEnv): WallsGammaGlassResult 
       if (y1 < top || y0 > bottom) return;
       const h = Math.max(1, y1 - y0 - 1); // a 1px seam between strikes
       const a = Math.min(1, preset.maxAlpha * Math.sqrt(k) * env.gammaAlpha * degradedK);
+      // Codex plate 01 side by side with serving ES1! 15m (2026-10-16): a full-width hatched film over the
+      // candles muddied the call / put wall bands on the same strikes and never read as exposure. Gamma is an
+      // EXPOSURE PROFILE now: a solid bar per strike bucket anchored at the plot's left edge, length ∝ |net|
+      // (linear, the largest bucket = profileMax), teal + / orange − with the hatch inside the bar so the sign
+      // never rests on colour alone, a crisp edge. Price geography is unchanged; the candles stay cut out.
+      const profileMax = Math.min(260, plotRight * 0.26);
+      const len = Math.max(14, profileMax * k);
+      const aBar = Math.min(0.9, (0.38 + 0.5 * k) * env.gammaAlpha * degradedK);
       if (b.net >= 0) {
         if (preset.focus === "NEGATIVE") return;
-        ctx.fillStyle = `rgba(${preset.posRgb},${a.toFixed(3)})`;
-        ctx.fillRect(0, y0, plotRight, h);
-        // Edge treatment: a lit top seam — positive reads as a plate.
-        ctx.fillStyle = `rgba(${preset.posRgb},${Math.min(1, a * 2.2).toFixed(3)})`;
-        ctx.fillRect(0, y0, plotRight, 1);
+        ctx.fillStyle = `rgba(${preset.posRgb},${aBar.toFixed(3)})`;
+        ctx.fillRect(0, y0, len, h);
+        ctx.fillStyle = `rgba(${preset.posRgb},${Math.min(1, aBar * 1.6).toFixed(3)})`;
+        ctx.fillRect(0, y0, len, 1);
+        ctx.fillRect(len - 2, y0, 2, h);
         pos++;
       } else {
         if (preset.focus === "POSITIVE") return;
-        // Hatched texture, with a faint wash so it reads at small heights.
-        ctx.fillStyle = `rgba(${preset.negRgb},${(a * 0.35).toFixed(3)})`;
-        ctx.fillRect(0, y0, plotRight, h);
+        ctx.fillStyle = `rgba(${preset.negRgb},${(aBar * 0.7).toFixed(3)})`;
+        ctx.fillRect(0, y0, len, h);
         if (pattern) {
           const prev = ctx.globalAlpha;
-          ctx.globalAlpha = prev * Math.min(1, a * 2.4);
+          ctx.globalAlpha = prev * Math.min(1, aBar * 1.4);
           ctx.fillStyle = pattern;
-          ctx.fillRect(0, y0, plotRight, h);
+          ctx.fillRect(0, y0, len, h);
           ctx.globalAlpha = prev;
         }
+        ctx.fillStyle = `rgba(${preset.negRgb},${Math.min(1, aBar * 1.6).toFixed(3)})`;
+        ctx.fillRect(len - 2, y0, 2, h);
         neg++;
       }
       heatHits.push({ i, y0, y1: y0 + h });

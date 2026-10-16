@@ -21093,13 +21093,23 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               for (const t of [...out.labels].sort((a, b) => a.y - b.y)) {
                 const tw = ctx.measureText(t.text).width;
                 // Right end first (the tick's own side), then the left edge beside the gamma ladder.
-                const xs = [plotRightG - tw - 6, 24];
-                const slots = xs.flatMap(x => [0, -1, 1, -2, 2].map(k2 => ({ x, k: k2, q: { x: x - 3, y: t.y - 14 + k2 * 13, w: tw + 6, h: 13 } })));
+                // Codex plate 01 beside serving ES1! 15m (2026-10-16): with price sitting on the walls every slot on
+                // the wall's own row touched a candle, so "CALL WALL 7,800" went to the event list and the band had
+                // no name. A label may now step up to four rows off its band, and also sit mid-plot, tied back by
+                // its leader (plate: chip above the band with a leader to it).
+                const xs = [plotRightG - tw - 6, 24, Math.round(plotRightG * 0.55 - tw / 2)];
+                const slots = [0, -1, 1, -2, 2, -3, 3, -4, 4].flatMap(k2 => xs.map(x => ({ x, k: k2, q: { x: x - 3, y: t.y - 14 + k2 * 13, w: tw + 6, h: 13 } })));
                 const pickG = slots.find(sl => !onNewestColumn(sl.q.x, sl.q.y, sl.q.w, sl.q.h) && !hit(sl.q, [...placed, ...floatingChips, ...candleRectsG]));
                 if (!pickG) { displacedNotes.push({ layer: "DERIVATIVES", text: t.text, x: xs[0] + tw / 2, y: t.y }); continue; }
                 const x = pickG.x, k = pickG.k;
                 const box = pickG.q;
-                if (k !== 0 && x !== 24) { ctx.strokeStyle = `rgba(${t.rgb},${(0.5 * textA).toFixed(3)})`; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(plotRightG - 4, t.y); ctx.lineTo(plotRightG - 4, box.y + box.h); ctx.stroke(); }
+                if (k !== 0) {
+                  // The leader drops from the chip's middle to its band.
+                  const lx = Math.round(box.x + box.w / 2) + 0.5;
+                  ctx.strokeStyle = `rgba(${t.rgb},${(0.7 * textA).toFixed(3)})`; ctx.lineWidth = 1; ctx.beginPath();
+                  ctx.moveTo(lx, t.y); ctx.lineTo(lx, k < 0 ? box.y + box.h : box.y); ctx.stroke();
+                  ctx.beginPath(); ctx.arc(lx, t.y, 2.5, 0, Math.PI * 2); ctx.fillStyle = `rgba(${t.rgb},${(0.9 * textA).toFixed(3)})`; ctx.fill();
+                }
                 ctx.fillStyle = `rgba(11,10,8,${(0.86 * textA).toFixed(3)})`;
                 if (chipBox(t.text, box)) ctx.fillRect(box.x, box.y, box.w, box.h);
                 ctx.fillStyle = `rgba(${t.rgb},${(0.95 * textA).toFixed(3)})`;
