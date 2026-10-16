@@ -85,6 +85,7 @@ export function ProfilesMenu({
   symbol,
   feed = null,
   chainScope = null,
+  groups,
 }: {
   /** Bars RECEIVED, not bars requested. */
   barsPresent: boolean;
@@ -115,6 +116,11 @@ export function ProfilesMenu({
   feed?: MarketQualityState | "UNKNOWN" | null;
   /** §20 · the options chain the pressure owner heard (whole / near-money subset) — an options tool's ⓘ states it. */
   chainScope?: ChainScope | null;
+  /**
+   * PLATE 23 (Founder 2026-10-15): "Groups by job." When given, rows are listed group by group under a gold
+   * small-caps header ("FLOW · ON THE CANDLE"); rows in no group follow under "MORE".
+   */
+  groups?: readonly { readonly title: string; readonly ids: readonly ProfileId[] }[];
 }) {
   // §9 · one ⓘ preview open per door, directly under its row.
   const [eduId, setEduId] = React.useState<ProfileId | null>(null);
@@ -229,7 +235,13 @@ export function ProfilesMenu({
           </div>
 
           <div className={columns === 1 ? "grid grid-cols-1 gap-1" : "grid grid-cols-2 gap-1"} data-testid={testId === "profiles-menu-panel" ? "profiles-instrument-grid" : `${testId}-grid`}>
-            {vm.entries.map(entry => {
+            {(groups ? [
+              ...groups.flatMap(g => g.ids.map(id => vm.entries.find(e => e.id === id)).filter((e): e is NonNullable<typeof e> => !!e)),
+              ...vm.entries.filter(e => !groups.some(g => g.ids.includes(e.id))),
+            ] : vm.entries).map(entry => {
+              const groupOf = groups ? (groups.find(g => g.ids.includes(entry.id))?.title ?? "MORE") : null;
+              const firstInGroup = groupOf != null && (groups!.find(g => g.title === groupOf)?.ids.find(id => vm.entries.some(e => e.id === id)) === entry.id
+                || (groupOf === "MORE" && vm.entries.filter(e => !groups!.some(g => g.ids.includes(e.id)))[0]?.id === entry.id));
               const ready = entry.availability === "READY";
               // Human states (master order §VI/§VIII): AVAILABLE · DRAWING ·
               // WAITING · UNAVAILABLE ON THIS FEED — never a bare "READY".
@@ -257,6 +269,11 @@ export function ProfilesMenu({
 
               return (
                 <React.Fragment key={entry.id}>
+                {firstInGroup && (
+                  <div data-testid={`tool-group-${groupOf}`} className="px-2 pt-3 pb-1 text-[13px] font-semibold uppercase tracking-[0.14em]" style={{ color: "#d4af37", borderBottom: "1px solid rgba(212,175,55,0.18)" }}>
+                    {groupOf}
+                  </div>
+                )}
                 <div className="flex min-w-0 items-stretch">
                 <button
                   role="menuitemcheckbox"

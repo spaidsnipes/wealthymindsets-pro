@@ -45,6 +45,7 @@
  * the difference.
  */
 
+import { JournalReminderStrip } from "./JournalReminderStrip";
 import { TradeStageRibbon } from "./TradeStageRibbon";
 import { traderClock } from "@/components/time/traderClock";
 import Link from "next/link";
@@ -299,6 +300,8 @@ export interface DecisionSpineBandProps {
   readonly absorptionRead?: AbsorptionRailRead | null;
   /** Plate 34: the nearest live zone to price (the room measures it), for the WATCH stage. */
   readonly stageNearZone?: { readonly side: "SUPPLY" | "DEMAND"; readonly distance: number; readonly unit: string } | null;
+  /** Plate 34: the trader has a journal entry today (ET) — the reminder strip hides. */
+  readonly journaledToday?: boolean;
   /**
    * WEBULL, LIVE (Garden 16 §34, 2026-09-27): Webull's own real-time frames for
    * the chart's crypto symbol — the lane Webull answers today. Absent → absent card.
@@ -1652,6 +1655,7 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
           </span>
           {/* PLATE 34: the card moves through the real setup — six stages, the current one lit. */}
           <TradeStageRibbon symbol={market.symbol} verdict={nowDecision?.value ?? null} reason={plaque ? plaque.reason : null} nearZone={props.stageNearZone ?? null} />
+          <JournalReminderStrip tradesToday={props.ruleState ? props.ruleState.trades : null} journaledToday={props.journaledToday ?? false} />
         </div>
       ) : (
         <div style={{ ...cellStyle, flex: "1 1 220px", minWidth: 200, maxWidth: "100%", borderLeft: "none", borderTop: "none" }}>

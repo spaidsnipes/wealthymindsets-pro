@@ -377,6 +377,14 @@ import { useSymbolOwnedState } from "@/lib/marketData/useSymbolOwnedState";
 const NO_LIVE_BARS: LegacyOhlcvTuple[] = [];
 const NO_LIVE_BAR_IDENTITIES: readonly CanonicalBarIdentity[] = [];
 /** What a clean proof scene hands the chart in place of zones / object pins (stable identities). */
+/** Plate 23 (2026-10-15): the order-flow tools grouped by job, as the W toolbox reads. */
+const ORDER_FLOW_TOOL_GROUPS = [
+  { title: "Flow · on the candle", ids: ["VALUE_CANDLE", "CLARITY_CANDLE", "FLOW_CURRENT"] },
+  { title: "Flow · delta", ids: ["DELTA_LEVELS", "DELTA_DIVERGENCE"] },
+  { title: "Flow · aggression & absorption", ids: ["ABSORPTION", "EXHAUSTION", "EFFORT_MARK", "ANATOMY_CARDS"] },
+  { title: "Flow · imbalance", ids: ["IMBALANCE_STACK"] },
+  { title: "Liquidity", ids: ["LIQUIDITY_WEATHER", "LIQUIDITY_LIFECYCLE"] },
+] as const satisfies readonly { readonly title: string; readonly ids: readonly ProfileId[] }[];
 const NO_SCENE_OBJECTS: readonly never[] = [];
 const NO_SCENE_ZONES: readonly never[] = [];
 import { SCAFFOLDING_DEPTHS, type ScaffoldingDepth } from "@/lib/marketData/viewModels/selectScaffoldingRead";
@@ -4339,6 +4347,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         families={["ORDER_FLOW"]}
         heading="On price · order-flow readings"
         testId="order-flow-tools-menu"
+        groups={ORDER_FLOW_TOOL_GROUPS}
         columns={1}
         stateDetail={senseEvents}
         speciesRefusal={chartLiquidityWeather.stage === "UNMEASURED" ? { LIQUIDITY_WEATHER: chartLiquidityWeather.detail } : undefined}
@@ -5673,6 +5682,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   });
   const decisionSpineProps = {
     stageNearZone,
+    // Plate 34: any journal entry dated today (ET) quiets the reminder strip.
+    journaledToday: chartJournalEntries.some(e => typeof e.date === "string" && e.date.startsWith(new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" }))),
     drawnPlan: riskPlan,
     // Webull's own real-time frames for a USD crypto symbol (measured working
     // 2026-09-27; stocks/futures refused by package, so not asked here).

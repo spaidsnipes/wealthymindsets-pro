@@ -129,6 +129,7 @@ const DEVICE_LEVEL_EXEMPT = new Set<string>([
   "wm_deltaView",             // plate 25 Delta view (bars/ribbon/bubbles/number/heat) — device chart pref
   "wm_sceneZones",            // proof-scene marker only (on=zones) — never written to storage
   "wm_sceneDecision",         // proof-scene marker only (on=decision) — never written to storage
+  "wm_journalReminder",       // plate 34 reminder skip / snooze — device pref
   "wm_bf_seq_best",           // best-perf record — device metric
   "wm_active_watchlist",      // last-selected watchlist name — device chart pref
   "wm_chart_watchlist_open",  // watchlist visibility — device chart layout pref
