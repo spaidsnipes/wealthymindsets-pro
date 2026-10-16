@@ -14356,6 +14356,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // Market-object pins (DOM buttons over the glass) are obstacles too: on ES1! 5m a zone's pin sat on
         // "dPOC 7786.00 · -4.00 THIS SESSION" (Oct 16). Every later placer now steps around them.
       } for (const pr of marketObjectPinRectsRef.current) floatingChips.push(pr);
+      // Edge beacons paint LAST; last frame's pills are obstacles now (serving BTC-USD 5m, Oct 16: the regime
+      // title sat under "▲ Call wall 90000.00 +1 · Show me").
+      for (const b of silenceBeacons) floatingChips.push({ x: b.x, y: b.y, w: b.w, h: b.h });
       } catch (err) { layerFault("LEVEL_TITLES", err); }
       // Big-trade discs carry their size / time / price INSIDE (F07A), and
       // they were painted earlier this frame. Words placed later step off
@@ -20551,12 +20554,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     offLines.push(`${dir} ${same.length} WALLS ${dir === "▲" ? "ABOVE" : "BELOW"} · ${strikes.join(" · ")}`);
                   }
                 }
-                offLines.forEach((word, i) => {
-                  const wW = ctx.measureText(word).width + 10;
-                  const up = word.startsWith("▲");
-                  const y = up ? HEADER_FLOOR_Y + 26 + i * 18 : paneBotD - 22 - i * 18;
-                  chip(word, { x: plotRightD - wW - 8, y }, [{ x: plotRightD - wW - 8, y: y + (up ? 18 : -18) }]);
-                });
+                // ONE STRIKE, ONE NAME (serving BTC-USD 5m, Oct 16): every off-camera wall is ALSO an edge
+                // beacon ("▲ Call wall 90000.00 +1 · Show me", plate 22b, which supersedes this chip) — the chip
+                // said "▲ WALL 90000.00 · BORN" beside it. The beacon speaks; the chip's words stay in the receipt.
+                ds.brickWallsOffCameraWords = offLines.join(" | ") || "NONE";
               }
               ctx.restore();
               ctx.save();
