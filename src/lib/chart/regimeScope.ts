@@ -48,8 +48,11 @@ export function scopeRegimeLighting(
   if (!vm) return null;
   if (!vm.verdict || !vm.title) return { vm: { ...vm, scope: "NO_VERDICT" }, receipt: "NO_VERDICT", state: "NO_VERDICT" };
   // "REGIME · X · …" → "TAPE REGIME · X · …": the word names what it measured.
-  const scoped = vm.title.replace(/^REGIME · /, "TAPE REGIME · ");
   const tape = tapeVolatility(vm.verdict);
+  // A VOLATILITY VERDICT IS NOT THE HEADER'S REGIME (serving TSLA 15m, 2026-10-16: the header read "TAPE REGIME
+  // BALANCE" — the tape's direction × range — while the glass read "TAPE REGIME · COMPRESSION": two answers under
+  // one name). COMPRESSION / EXPANSION are named for what they measure.
+  const scoped = vm.title.replace(/^REGIME · /, tape ? "TAPE VOLATILITY · " : "TAPE REGIME · ");
   if (!breath) return { vm: { ...vm, title: scoped, scope: "BARS_UNREAD" }, receipt: "BARS_UNREAD", state: "BARS_UNREAD" };
   if (tape && breath.state !== "NORMAL" && breath.state !== tape) {
     const tf = timeframe ? `${timeframe} ` : "";

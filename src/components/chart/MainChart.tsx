@@ -21165,11 +21165,23 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.textAlign = "left"; ctx.textBaseline = "middle";
                 const tN = `×${q.n}`;
                 const wN = ctx.measureText(tN).width;
-                ctx.fillStyle = "rgba(11,10,8,0.85)";
-                ctx.fillRect(q.x + q.r + 2, q.y - 6, wN + 4, 12);
-                ctx.fillStyle = `rgba(${q.rgb},0.95)`;
-                ctx.fillText(tN, q.x + q.r + 4, q.y + 0.5);
-                floatingChips.push({ x: q.x + q.r + 2, y: q.y - 6, w: wN + 4, h: 12 });
+                // Right of its ring, else left, else above — never on another ring or chip (serving ES1! 15m: "×2"
+                // sat on the next bar's "+").
+                const ringHit = (b: { x: number; y: number; w: number; h: number }) =>
+                  placedFlow.some(o => o !== q && o.x + o.r > b.x && o.x - o.r < b.x + b.w && o.y + o.r > b.y && o.y - o.r < b.y + b.h)
+                  || floatingChips.some(c => b.x < c.x + c.w && b.x + b.w > c.x && b.y < c.y + c.h && b.y + b.h > c.y);
+                const spotN = [
+                  { x: q.x + q.r + 2, y: q.y - 6 },
+                  { x: q.x - q.r - 6 - wN, y: q.y - 6 },
+                  { x: q.x - (wN + 4) / 2, y: q.y - q.r - 14 },
+                ].map(p => ({ ...p, w: wN + 4, h: 12 })).find(b => !ringHit(b));
+                if (spotN) {
+                  ctx.fillStyle = "rgba(11,10,8,0.85)";
+                  ctx.fillRect(spotN.x, spotN.y, spotN.w, spotN.h);
+                  ctx.fillStyle = `rgba(${q.rgb},0.95)`;
+                  ctx.fillText(tN, spotN.x + 2, spotN.y + 6.5);
+                  floatingChips.push(spotN);
+                }
                 ctx.restore();
               }
               for (const job of labelJobs) job();

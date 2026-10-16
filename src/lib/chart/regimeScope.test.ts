@@ -22,7 +22,8 @@ describe("F15A × F14 — one camera, named scopes, contradictions named", () =>
 
   it("when they do not contradict, the word still names its scope (TAPE)", () => {
     const agree = scopeRegimeLighting(selectRegimeLighting({ verdict: "COMPRESSION" }), { state: "COMPRESSED", atrRatio: 0.6 }, "5m")!;
-    expect(agree.vm.title).toBe("TAPE REGIME · COMPRESSION · channel capped");
+    // 2026-10-16: a volatility verdict says TAPE VOLATILITY — the header's TAPE REGIME is direction × range.
+    expect(agree.vm.title).toBe("TAPE VOLATILITY · COMPRESSION · channel capped");
     const normal = scopeRegimeLighting(selectRegimeLighting({ verdict: "COMPRESSION" }), { state: "NORMAL", atrRatio: 1 }, "5m")!;
     expect(normal.state).toBe("SCOPED");
     const trend = scopeRegimeLighting(selectRegimeLighting({ verdict: "TREND" }), { state: "EXPANDED", atrRatio: 1.8 }, "5m")!;
