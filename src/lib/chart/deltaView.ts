@@ -39,9 +39,20 @@ export function writeDeltaView(v: DeltaView): void {
 
 /** The band's scale: the largest |delta| on camera (never 0). */
 export function deltaScale(values: readonly number[]): number {
-  let m = 0;
-  for (const v of values) if (Number.isFinite(v)) m = Math.max(m, Math.abs(v));
-  return m > 0 ? m : 1;
+  const abs = values.filter(v => Number.isFinite(v)).map(v => Math.abs(v)).sort((a, z) => a - z);
+  const m = abs.length ? abs[abs.length - 1] : 0;
+  if (!(m > 0)) return 1;
+  // ONE OUTLIER DOES NOT FLATTEN THE BAND (Founder 2026-10-16, BTC 5m: one −178 bar left every other bar a
+  // hairline — "little shit popped up but I don't see what it is"). With 8+ bars the scale is the 90th percentile
+  // ×1.5 (never above the max); a bar beyond it is drawn to the band's edge and capped (deltaBeyondScale).
+  if (abs.length < 8) return m;
+  const p90 = abs[Math.floor((abs.length - 1) * 0.9)];
+  return p90 > 0 ? Math.min(m, p90 * 1.5) : m;
+}
+
+/** True when a bar's delta runs past the band's scale (it is drawn to the edge with a cap). */
+export function deltaBeyondScale(d: number, scale: number): boolean {
+  return Number.isFinite(d) && scale > 0 && Math.abs(d) > scale;
 }
 
 /** A signed bar height in px for `d` against `scale`, inside a half-band of `halfPx`. */

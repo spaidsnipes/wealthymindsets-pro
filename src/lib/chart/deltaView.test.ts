@@ -21,3 +21,16 @@ describe("Delta — one tool, five views (plate 25)", () => {
     expect(deltaBubbleR(1, 691, 12)).toBe(2);
   });
 });
+
+describe("one outlier does not flatten the band (2026-10-16)", () => {
+  it("8+ bars: p90 × 1.5, never above the max; the outlier is beyond scale", async () => {
+    const { deltaScale: ds, deltaBeyondScale } = await import("./deltaView");
+    const vals = [10, -12, 8, 15, -9, 11, -14, 13, 7, -178];
+    const s = ds(vals);
+    expect(s).toBeLessThan(178);
+    expect(s).toBeGreaterThanOrEqual(15);
+    expect(deltaBeyondScale(-178, s)).toBe(true);
+    expect(deltaBeyondScale(12, s)).toBe(false);
+    expect(ds([120, -691, 40])).toBe(691);
+  });
+});

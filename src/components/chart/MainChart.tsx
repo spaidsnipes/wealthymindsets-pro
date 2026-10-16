@@ -802,7 +802,7 @@ import { gexBucketAt, gexScopeWords, gexWords, type GammaExposureVM } from "@/li
 import { GAMMA_HEAT_PRESET_EVENT, gammaHeatPreset, gammaHeatStores, readGammaHeatPreset } from "@/lib/chart/gammaHeatAppearance";
 import { CALL_WALL_RGB, PUT_WALL_RGB, foldNarrowLine, paintWallsGamma } from "@/components/chart/wallsGammaGlass";
 import { type CameraReveal, applyReveal, askReveal, revealReceipt } from "@/lib/chart/cameraReveal";
-import { DELTA_VIEW_EVENT, type DeltaView, deltaBarPx, deltaBubbleR, deltaScale, readDeltaView } from "@/lib/chart/deltaView";
+import { DELTA_VIEW_EVENT, type DeltaView, deltaBarPx, deltaBubbleR, deltaScale, readDeltaView, deltaBeyondScale } from "@/lib/chart/deltaView";
 import { deltaPaneDivergence } from "@/lib/chart/deltaPanePivots";
 import { memoryMass } from "@/lib/chart/memoryMass";
 import { type BeaconCandidate, beaconKindOf, beaconReceipt, chooseBeacons, paintEdgeBeacons } from "@/components/chart/edgeBeacon";
@@ -9574,7 +9574,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // footprint column width (≈1px in trail form) drew hairlines (serving NQ1! 5m, Oct 16).
         const bw = Math.max(2, Math.floor(Math.max(colW, bsp * 0.7)));
         if (view === "bars") {
-          for (const p of pts) { const h = deltaBarPx(p.d, scale, half); ctx.fillStyle = ink(p.d, 0.92); ctx.fillRect(Math.round(p.x - bw / 2), h >= 0 ? bMid - h : bMid, bw, Math.max(1, Math.abs(h))); }
+          for (const p of pts) {
+            const h = deltaBarPx(p.d, scale, half); ctx.fillStyle = ink(p.d, 0.92); ctx.fillRect(Math.round(p.x - bw / 2), h >= 0 ? bMid - h : bMid, bw, Math.max(1, Math.abs(h)));
+            // Beyond the band's scale: a bright cap at the edge — the bar ran further than drawn.
+            if (deltaBeyondScale(p.d, scale)) { ctx.fillStyle = "rgba(255,236,190,0.95)"; ctx.fillRect(Math.round(p.x - bw / 2), h >= 0 ? bMid - h : bMid + Math.abs(h) - 2, bw, 2); }
+          }
         } else if (view === "heat") {
           for (const p of pts) { ctx.fillStyle = ink(p.d, Math.round((0.18 + 0.72 * Math.min(1, Math.abs(p.d) / scale)) * 100) / 100); ctx.fillRect(Math.round(p.x - bsp / 2) + 1, bTop + 3, Math.max(2, Math.round(bsp) - 2), bBot - bTop - 6); }
         } else if (view === "bubbles") {
