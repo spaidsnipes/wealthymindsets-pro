@@ -22,6 +22,7 @@ describe("senses stay visible while the room waits", () => {
     const chart = readFileSync("src/components/chart/MainChart.tsx", "utf8");
     expect(chart).toContain("const VALUE_MIGRATION_ALPHA_FLOOR = 0.7;");
     expect(chart).toContain('ctx.globalAlpha = Math.max(VALUE_MIGRATION_ALPHA_FLOOR, att.alpha("valueMigration"));');
-    expect(chart).toContain('stepLine("vah", pk.rgba("EDGE_HIGH", 0.72), 1.25, [3, 3]);');
+    // Garden 19 §13 (2026-10-16): the steps are heavier and a filled value band sits under them.
+    expect(chart).toContain('stepLine("vah", pk.rgba("EDGE_HIGH", 0.8), 1.5, [3, 3]);');
   });
 });

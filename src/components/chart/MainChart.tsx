@@ -24438,9 +24438,23 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             };
             // The steps run across the candles they developed with: behind them.
             ctx.save(); clipProfileToCandles("VALUE_MIGRATION");
-            stepLine("vah", pk.rgba("EDGE_HIGH", 0.72), 1.25, [3, 3]);
-            stepLine("val", pk.rgba("EDGE_LOW", 0.72), 1.25, [3, 3]);
-            const drawn = stepLine("poc", pk.rgba("POC", 0.85), 1.5, []);
+            // §13 / plate 04 "successive value masses" (Founder: Value Migration "doesn't work" — three 1px
+            // dotted steps): each session's value area is a filled band, VAL→VAH, stepping with the session.
+            {
+              let pv: { x: number; yh: number; yl: number; session: unknown } | null = null;
+              ctx.fillStyle = pk.rgba("POC", 0.13);
+              for (const p of vm.points) {
+                const xr = ts.timeToCoordinate(p.time as any);
+                const yh = srs.priceToCoordinate(p.vah), yl = srs.priceToCoordinate(p.val);
+                if (xr == null || yh == null || yl == null) { pv = null; continue; }
+                const cur = { x: Math.round(+xr), yh: +yh, yl: +yl, session: p.session };
+                if (pv && pv.session === cur.session && cur.x > pv.x) ctx.fillRect(pv.x, Math.min(pv.yh, pv.yl), cur.x - pv.x, Math.abs(pv.yl - pv.yh));
+                pv = cur;
+              }
+            }
+            stepLine("vah", pk.rgba("EDGE_HIGH", 0.8), 1.5, [3, 3]);
+            stepLine("val", pk.rgba("EDGE_LOW", 0.8), 1.5, [3, 3]);
+            const drawn = stepLine("poc", pk.rgba("POC", 0.92), 2.5, []);
             ctx.restore(); // releases the steps' candle cut-out
 
             // Name the line once, at its newest point, with the session's

@@ -111,7 +111,7 @@ describe("1 · ONE candle cut-out for the whole profile family", () => {
     // Pin updated 2026-09-26: the movie's value-area ribbon is retired (see
     // "7 · no generic rectangle"); its POC trail still paints inside the cut.
     between(MIGRATION, 'ctx.save(); clipProfileToCandles("LIVING_MOVIE");', 'ctx.strokeStyle = pk.rgba("POC", 0.6); ctx.lineWidth = 1.2; ctx.stroke();', "ctx.restore(); // releases the movie's candle cut-out");
-    between(MIGRATION, 'ctx.save(); clipProfileToCandles("VALUE_MIGRATION");', 'stepLine("poc", pk.rgba("POC", 0.85), 1.5, [])', "ctx.restore(); // releases the steps' candle cut-out");
+    between(MIGRATION, 'ctx.save(); clipProfileToCandles("VALUE_MIGRATION");', 'stepLine("poc", pk.rgba("POC", 0.92), 2.5, [])', "ctx.restore(); // releases the steps' candle cut-out");
   });
 
   it("TPO: every cell a candle stands on is withheld, and the cut-out backs it up", () => {
