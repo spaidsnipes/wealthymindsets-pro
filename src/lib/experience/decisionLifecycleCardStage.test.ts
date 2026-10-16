@@ -12,6 +12,9 @@ describe("plate 34 · the card moves through the real setup", () => {
     expect(selectTradeStage({ ...base, nearZone: { side: "SUPPLY", distance: 6, unit: "points" } }))
       .toEqual({ stage: "WATCH", sentence: "Price is 6 points from the supply zone." });
   });
+  it("inside a zone is said as inside, never '0 points from'", () => {
+    expect(selectTradeStage({ ...base, nearZone: { side: "DEMAND", distance: 0, unit: "points" } }).sentence).toBe("Price is inside the demand zone.");
+  });
   it("READY when an order is working, or the evidence is paid — never 'go'", () => {
     expect(selectTradeStage({ ...base, book: { ...flat, working: 1 } }).stage).toBe("READY");
     expect(selectTradeStage({ ...base, verdict: "ACTION" }).sentence).toContain("permission is yours");

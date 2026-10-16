@@ -473,6 +473,8 @@ export function selectCardStage(i: CardStageInput): CardStageVM {
   }
   if (i.verdict === "ACTION") return { stage: "READY", sentence: "Evidence paid. Plan and risk set — permission is yours." };
   if (i.verdict === "WAIT" && i.nearZone) {
+    // Serving cb57e0a, SPX: "Price is 0 points from the demand zone." — inside the zone is said as inside.
+    if (i.nearZone.distance <= 0) return { stage: "WATCH", sentence: `Price is inside the ${i.nearZone.side.toLowerCase()} zone.` };
     const d = Number.isInteger(i.nearZone.distance) ? String(i.nearZone.distance) : i.nearZone.distance.toFixed(2);
     return { stage: "WATCH", sentence: `Price is ${d} ${i.nearZone.unit} from the ${i.nearZone.side.toLowerCase()} zone.` };
   }

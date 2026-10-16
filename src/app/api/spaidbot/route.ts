@@ -50,7 +50,7 @@ Execution boundary:
 WealthyMindsets App features:
 - Charts: footprint, volume profile, drawing tools, indicators, DOM, order flow
 - Live Rooms: live video sessions with other traders
-- WM Radio: music while trading
+- WOW Radio: music while trading
 - Copy Trading: unavailable until verified trader accounts and audited performance data are connected
 - Education Center: trading courses
 - Scanner: find setups across markets

@@ -742,7 +742,7 @@ function PublishModal({ symbol, captureRef, onClose }: {
           </button>
         </div>
         <p style={{ margin: 0, fontSize: 11, color: "#8b8fa8", lineHeight: 1.5 }}>
-          Captures the current chart into a branded idea card you can share to Discord / X / the WM Lounge, copy to clipboard, or save.
+          Captures the current chart into a branded idea card you can share to Discord / X / the WOW Lounge, copy to clipboard, or save.
         </p>
       </div>
     </ModalShell>

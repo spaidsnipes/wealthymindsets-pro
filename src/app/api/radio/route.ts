@@ -1,5 +1,5 @@
 /**
- * /api/radio — WM Radio's uploaded tracks through WM's own sign-in.
+ * /api/radio — WOW Radio's uploaded tracks through WM's own sign-in.
  *
  * Measured 2026-10-03: the browser bundle carries no public Supabase
  * connection, so /radio listed no uploaded track for anyone and an upload
@@ -20,7 +20,7 @@ import { resolveSupabaseServiceKey } from "@/lib/supabaseConfigStatus";
 
 export const dynamic = "force-dynamic";
 
-/** Largest track WM Radio records (P0-C). */
+/** Largest track WOW Radio records (P0-C). */
 const MAX_AUDIO_BYTES = 50 * 1024 * 1024;
 const NO_STORE = { "Cache-Control": "no-store" };
 const BUCKET = "radio";

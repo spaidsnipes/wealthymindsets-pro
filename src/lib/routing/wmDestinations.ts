@@ -283,7 +283,7 @@ export const WM_DESTINATIONS: readonly WmDestination[] = [
   // LOOKED AT 2026-09-16: channel guide, studio rail and the gold wordmark
   // block all sit correctly inside the frame; obsidian and warm gold
   // throughout.
-  { href: "/tv", label: "WM TV", icon: Tv, group: "COMMUNITY", tier: 2, frame: "os" },
+  { href: "/tv", label: "WOW TV", icon: Tv, group: "COMMUNITY", tier: 2, frame: "os" },
   // /radio IS HELD, AND THE EVIDENCE IS ITS OWN SIBLING.
   //
   // Looked at 2026-09-16. The room renders and the sanctuary shows through,
@@ -326,7 +326,7 @@ export const WM_DESTINATIONS: readonly WmDestination[] = [
   //
   // Promoted on the repair. Same method and same limit as its siblings
   // (static first paint).
-  { href: "/radio", label: "WM Radio", icon: Radio, group: "COMMUNITY", tier: 2, frame: "os" },
+  { href: "/radio", label: "WOW Radio", icon: Radio, group: "COMMUNITY", tier: 2, frame: "os" },
   // LOOKED AT 2026-09-16, and promoted only AFTER its hero band was cured. The
   // band ended on linear-gradient(..., #050506) — the shell's own floor, laid
   // across the top of the room. The tier cards and the "ENROLLMENT NOT

@@ -574,7 +574,7 @@ const SIDEBAR_TAGS: Record<string, string[]> = {
    One product identity replaces the old themed profile banner. The Lounge
    is a working creator/trader community, not a selectable campaign skin. */
 const LOUNGE_IDENTITY = {
-  name: "WM Lounge",
+  name: "WOW Lounge",
   tagline: "Trade. Create. Connect.",
   grad: "radial-gradient(circle at 72% 12%, rgba(240,180,41,0.12), transparent 36%), linear-gradient(135deg, #0b0d14, #111722 58%, #090b10)",
   accent: "#E8B923",

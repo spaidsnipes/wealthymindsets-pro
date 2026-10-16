@@ -73,7 +73,7 @@ function useStudioState(): StudioState {
 }
 const studioWord = (st: StudioState) => (st === "READY" ? "READY" : st === "CHECKING" ? "CHECKING" : "NOT CONNECTED");
 
-/* ── WM TV Home — cinematic broadcast-lounge landing.
+/* ── WOW TV Home — cinematic broadcast-lounge landing.
    The actual Live Room stays STUDIO READY until a host starts it. */
 type Show = {
   id: string; title: string; host: string; genre: string; color: string;
@@ -133,10 +133,10 @@ function WMTVHome({ onOpenLive, onOpenPodcast }: { onOpenLive: () => void; onOpe
           </div>
 
           {/* serif title + tagline. Night shift 2026-10-08: the old line read as
-              if WM TV's podcasts and live conversations had been on air since
+              if WOW TV's podcasts and live conversations had been on air since
               the 1900s, on a page whose every show card says CONCEPT. The
               heritage is honoured; the studio is described as what it is. */}
-          <h1 className="font-black text-wm-text leading-none mb-2" style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 58, letterSpacing: 1 }}>WM TV</h1>
+          <h1 className="font-black text-wm-text leading-none mb-2" style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 58, letterSpacing: 1 }}>WOW TV</h1>
           <p className="font-semibold mb-6" style={{ color: "#E8B923", fontFamily: 'Georgia, serif', fontSize: 14, maxWidth: 460 }}>A studio for podcasts and live conversations — honouring Black excellence on air since the 1900s</p>
 
           {/* CTAs */}
@@ -248,7 +248,7 @@ function WMTVHome({ onOpenLive, onOpenPodcast }: { onOpenLive: () => void; onOpe
 export default function WMTVPage() {
   // This room carries no market feed. See /lounge for the measurement and
   // why silence must be declared rather than inferred.
-  usePublishOsStanding({ surface: "WM TV", feed: FEEDLESS_SURFACE });
+  usePublishOsStanding({ surface: "WOW TV", feed: FEEDLESS_SURFACE });
   const studio = useStudioState();
   // Who is actually ON AIR, per registered room (ATHOS order P0.8) — a
   // configured studio is not a live room.
@@ -272,7 +272,7 @@ export default function WMTVPage() {
             <Tv size={14} className="text-white" />
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-black text-wm-text truncate">Wealthy Mindsets TV</p>
+            <p className="text-xs font-black text-wm-text truncate">WOW TV</p>
             <p className="text-[9px] text-wm-text-muted flex items-center gap-1">
               <span className={`inline-block w-1.5 h-1.5 rounded-full ${studio === "READY" ? "bg-wm-green" : "bg-wm-text-dim"}`} /> STUDIO {studioWord(studio)} · Channel Guide
             </p>
@@ -587,9 +587,9 @@ const BF_EVENT_END_ISO = "2026-07-29T23:00:00Z";
 function bfCalendarUrl() {
   const fmt = (iso: string) => iso.replace(/[-:]/g, "").replace(/\.\d+/, "");
   return "https://calendar.google.com/calendar/render?action=TEMPLATE"
-    + "&text="    + encodeURIComponent("Brain Fitness — Live Session (WM TV)")
+    + "&text="    + encodeURIComponent("Brain Fitness — Live Session (WOW TV)")
     + "&dates="   + fmt(BF_EVENT_ISO) + "/" + fmt(BF_EVENT_END_ISO)
-    + "&details=" + encodeURIComponent("Learn together, discuss, and play brain games in Brain Fitness on Wealthy Mindsets TV.");
+    + "&details=" + encodeURIComponent("Learn together, discuss, and play brain games in Brain Fitness on WOW TV.");
 }
 
 /** Live-updating "when + countdown" for the session, computed client-side so
@@ -736,7 +736,7 @@ function BrainFitnessChannel() {
   const isWmHost = useLiveHost();
   const clock = useEventClock(BF_EVENT_ISO);
 
-  // ── Live session view (reuses the same LiveKit room infra as the rest of WM TV) ──
+  // ── Live session view (reuses the same LiveKit room infra as the rest of WOW TV) ──
   if (live) {
     return (
       <div className="flex flex-col h-full">
@@ -773,7 +773,7 @@ function BrainFitnessChannel() {
         </div>
         <div>
           <h2 className="text-base font-black text-wm-text">Brain Fitness</h2>
-          <p className="text-[11px] text-wm-text-muted">Learn together, discuss, play & grow — the community's mental-fitness home inside WM TV.</p>
+          <p className="text-[11px] text-wm-text-muted">Learn together, discuss, play & grow — the community's mental-fitness home inside WOW TV.</p>
         </div>
       </div>
 

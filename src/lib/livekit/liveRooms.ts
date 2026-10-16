@@ -4,7 +4,7 @@
  * /api/livekit minted a 4-hour token for ANY room name a signed-in user typed,
  * so anyone could open unlisted rooms (and spend participant minutes) that no
  * page offers. A token is now minted only for a room WM actually publishes:
- * the Lounge's live rooms and WM TV's stages. Adding a room = adding it here;
+ * the Lounge's live rooms and WOW TV's stages. Adding a room = adding it here;
  * `liveRooms.test.ts` fails if a page offers a room this list does not hold.
  */
 export const REGISTERED_LIVE_ROOMS: ReadonlySet<string> = new Set([
@@ -14,7 +14,7 @@ export const REGISTERED_LIVE_ROOMS: ReadonlySet<string> = new Set([
   "wm-crypto-talk",
   "wm-beats-vibes",
   "wm-market-open",
-  // WM TV (src/app/tv/page.tsx: `wmtv-${channel.id}` + the brain-fitness room)
+  // WOW TV (src/app/tv/page.tsx: `wmtv-${channel.id}` + the brain-fitness room)
   "wmtv-live-room",
   "wmtv-podcast-stage",
   "wmtv-brain-fitness",

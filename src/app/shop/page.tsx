@@ -91,7 +91,7 @@ const PRODUCTS = [
   },
   {
     id: 13, name: "WM Excellence Vinyl", price: 39, category: "Music",
-    desc: "Limited-press vinyl — WM Radio's finest hip-hop, R&B, and smooth jazz cuts.",
+    desc: "Limited-press vinyl — WOW Radio's finest hip-hop, R&B, and smooth jazz cuts.",
     colors: ["#0D0E14", "#E8B923"], emoji: "🎵", accent: "#E8B923",
     details: ["180g heavyweight vinyl", "Gatefold sleeve", "12 tracks", "Numbered press"],
   },

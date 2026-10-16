@@ -1510,7 +1510,7 @@ export function WMOperatingSystem({
   // ── WHY THERE IS A FOURTH, AND WHY IT IS NOT A THIRD BRASS PLATE ──────────
   // Measured on prod 2026-09-22 at 1440x900: in equipment mode the COMMUNITY
   // block rendered `null`. Not "quieter" — absent. Seven destinations (Lounge,
-  // WM TV, WM Radio, Creator, Partnerships, Shop, Profile) had ZERO doors from
+  // WOW TV, WOW Radio, Creator, Partnerships, Shop, Profile) had ZERO doors from
   // the room the product calls home, including the trader's own Profile. The
   // comment that guarded it said Community "has doors in every other room",
   // which was true and beside the point: /charts is HOME, and a destination

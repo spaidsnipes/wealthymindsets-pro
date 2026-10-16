@@ -109,7 +109,7 @@ interface Artist {
 ══════════════════════════════════════════════════════════════ */
 const STATIONS: Station[] = [
   {
-    id:"wm-main", name:"WM Radio", genre:"All Genres", host:"SpaidFX",
+    id:"wm-main", name:"WOW Radio", genre:"All Genres", host:"SpaidFX",
     desc:"The official WealthyMindsets station concept. A real stream has not been connected yet.",
     color:"#C9A55C", live:false, listeners:0, avatar:"W",
     tags:["#Trading","#HipHop","#RnB","#Lofi"],
@@ -579,7 +579,7 @@ function UploadModal({ onClose, onAdd, uploader }: {
         trackData = {
           id: Date.now(),
           title: title.trim(), artist: artist.trim(),
-          album: "WM Radio Uploads", genre,
+          album: "WOW Radio Uploads", genre,
           duration: duration || 180, plays: "0",
           color: "#C9A55C", liked: false, verified: false, new: true,
         };
@@ -607,7 +607,7 @@ function UploadModal({ onClose, onAdd, uploader }: {
         trackData = {
           id: dbTrack.id,
           title: dbTrack.title, artist: dbTrack.artist,
-          album: "WM Radio Uploads", genre: dbTrack.genre,
+          album: "WOW Radio Uploads", genre: dbTrack.genre,
           duration: dbTrack.duration ?? duration, plays: "0",
           color: "#C9A55C", liked: false, verified: false, new: true,
         };
@@ -634,7 +634,7 @@ function UploadModal({ onClose, onAdd, uploader }: {
         <div className="flex items-center justify-between px-5 py-4 border-b border-wm-border/50">
           <div>
             <h2 className="text-[15px] font-black text-white">Upload Track</h2>
-            <p className="text-[10px] text-wm-text-dim mt-0.5">Add music to WM Radio</p>
+            <p className="text-[10px] text-wm-text-dim mt-0.5">Add music to WOW Radio</p>
           </div>
           <button aria-label="Close" onClick={onClose} className="wm-tap inline-flex items-center justify-center text-wm-text-dim hover:text-wm-text p-1"><X size={16}/></button>
         </div>
@@ -738,7 +738,7 @@ function UploadModal({ onClose, onAdd, uploader }: {
 export default function RadioPage() {
   // This room carries no market feed. See /lounge for the measurement and
   // why silence must be declared rather than inferred.
-  usePublishOsStanding({ surface: "WM Radio", feed: FEEDLESS_SURFACE });
+  usePublishOsStanding({ surface: "WOW Radio", feed: FEEDLESS_SURFACE });
 
   const { user } = useAuth();
   const myHandle = user?.handle ?? user?.email?.split("@")[0] ?? "anonymous";
@@ -803,7 +803,7 @@ export default function RadioPage() {
         if (!data) return;
         const tracks: Track[] = data.map(r => ({
           id: r.id, title: r.title, artist: r.artist,
-          album: "WM Radio Uploads", genre: r.genre,
+          album: "WOW Radio Uploads", genre: r.genre,
           duration: r.duration ?? 180, plays: r.plays?.toString() ?? "0",
           color: "#C9A55C", liked: false, verified: false, new: false,
         }));
@@ -848,7 +848,7 @@ export default function RadioPage() {
             <Radio size={18} className="text-wm-brass-mark" />
           </div>
           <div>
-            <h1 className="text-[20px] font-black text-wm-text tracking-tight">WM Radio</h1>
+            <h1 className="text-[20px] font-black text-wm-text tracking-tight">WOW Radio</h1>
             <p className="text-[11px] text-wm-text-muted">Music, podcasts & live streams from the WM community</p>
           </div>
 
@@ -912,7 +912,7 @@ export default function RadioPage() {
                 {/* big ambient gold waveform across the hero — thin crisp bars */}
                 <div className="pointer-events-none absolute inset-x-8 top-1/2 -translate-y-1/2 flex items-center justify-between" style={{ height: 132, opacity: 0.45 }}>
                   {Array.from({ length: 68 }).map((_, i) => {
-                    const on = activeStation === "WM Radio" && playing;
+                    const on = activeStation === "WOW Radio" && playing;
                     const h = Math.min(100, 14 + Math.abs(Math.sin(i * 0.55) + Math.sin(i * 0.17)) * 46 + (i % 4) * 6);
                     return <div key={i} style={{ width: 3, height: `${h}%`, borderRadius: 2, transformOrigin: "center",
                       background: i % 5 === 0 ? "rgba(232,185,35,0.75)" : "rgba(232,185,35,0.26)",
@@ -929,15 +929,15 @@ export default function RadioPage() {
                       <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: 2, color: "#E8B923" }}>STUDIO PREVIEW</span>
                     </div>
                     <div className="text-[10px] font-black uppercase tracking-[0.3em] text-wm-text-muted mb-1">Featured Station</div>
-                    <h2 className="font-black text-wm-text leading-none mb-2" style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 40, letterSpacing: 0.5 }}>WM Radio</h2>
+                    <h2 className="font-black text-wm-text leading-none mb-2" style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 40, letterSpacing: 0.5 }}>WOW Radio</h2>
                     <p className="text-[12px] font-semibold mb-1" style={{ color: "#E8B923" }}>Jazz roots → hip-hop → future-forward</p>
                     <p className="text-[11px] text-wm-text-muted mb-4" style={{ maxWidth: 360 }}>A premium home for Black excellence in music and trading culture. The live broadcast stream is not connected yet.</p>
                     <div className="flex items-center gap-4">
                       <button
-                        onClick={() => activeStation === "WM Radio" ? togglePlay() : playStation("wm-main")}
+                        onClick={() => activeStation === "WOW Radio" ? togglePlay() : playStation("wm-main")}
                         className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-[13px] transition-all hover:scale-105"
                         style={{ background: "linear-gradient(135deg, #E8B923, #8B6A29)", color: "#0b0a06", boxShadow: "0 10px 26px rgba(232,185,35,0.32)" }}>
-                        {activeStation === "WM Radio" && playing ? <><Pause size={15}/> Pause</> : <><Play size={15} className="ml-0.5"/> Check Stream</>}
+                        {activeStation === "WOW Radio" && playing ? <><Pause size={15}/> Pause</> : <><Play size={15} className="ml-0.5"/> Check Stream</>}
                       </button>
                       <span className="text-[11px] text-wm-text-muted font-mono">No live audience data</span>
                     </div>
@@ -945,7 +945,7 @@ export default function RadioPage() {
 
                   {/* Right — realistic spinning vinyl record + play */}
                   <div className="relative shrink-0 hidden md:flex items-center justify-center" style={{ width: 200, height: 200 }}>
-                    <div className={`relative rounded-full ${activeStation === "WM Radio" && playing ? "animate-[spin_3.6s_linear_infinite]" : "" /* still when nothing plays (2026-10-10) */}`}
+                    <div className={`relative rounded-full ${activeStation === "WOW Radio" && playing ? "animate-[spin_3.6s_linear_infinite]" : "" /* still when nothing plays (2026-10-10) */}`}
                       style={{ width: 190, height: 190,
                         background: "repeating-radial-gradient(circle at 50% 50%, #0a0a0c 0 1px, #17171b 1px 2px, #0a0a0c 2px 3px)",
                         boxShadow: "0 14px 44px rgba(0,0,0,0.7), inset 0 0 44px rgba(0,0,0,0.6)" }}>
@@ -961,11 +961,11 @@ export default function RadioPage() {
                     {/* play button — bottom-right, like the mockup */}
                     <button
                       type="button"
-                      onClick={() => activeStation === "WM Radio" ? togglePlay() : playStation("wm-main")}
-                      aria-label={activeStation === "WM Radio" && playing ? "Pause WM Radio" : "Play WM Radio"}
+                      onClick={() => activeStation === "WOW Radio" ? togglePlay() : playStation("wm-main")}
+                      aria-label={activeStation === "WOW Radio" && playing ? "Pause WOW Radio" : "Play WOW Radio"}
                       className="absolute bottom-0 right-0 rounded-full flex items-center justify-center transition-transform hover:scale-110"
                       style={{ width: 52, height: 52, background: "linear-gradient(135deg,#E8B923,#8B6A29)", boxShadow: "0 6px 20px rgba(232,185,35,0.5)" }}>
-                      {activeStation === "WM Radio" && playing ? <Pause size={20} style={{ color: "#0b0a06" }} /> : <Play size={20} className="ml-0.5" style={{ color: "#0b0a06" }} />}
+                      {activeStation === "WOW Radio" && playing ? <Pause size={20} style={{ color: "#0b0a06" }} /> : <Play size={20} className="ml-0.5" style={{ color: "#0b0a06" }} />}
                     </button>
                   </div>
                 </div>
@@ -1120,12 +1120,12 @@ export default function RadioPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-[9px] font-black uppercase tracking-widest text-wm-text-muted">Station</div>
-                <div className="text-[13px] font-black text-wm-text">WM Radio — All Genres</div>
+                <div className="text-[13px] font-black text-wm-text">WOW Radio — All Genres</div>
               </div>
               <div className="hidden sm:flex items-center gap-[2px]" style={{ height: 30 }}>
                 {Array.from({ length: 34 }).map((_, i) => { const h = Math.min(100, 20 + Math.abs(Math.sin(i * 0.6)) * 80); return <div key={i} style={{ width: 3, height: `${h}%`, borderRadius: 2, background: "rgba(232,185,35,0.6)" }} />; })}
               </div>
-              <button aria-label="Play WM Radio" onClick={() => playStation("wm-main")} className="w-10 h-10 rounded-full shrink-0 flex items-center justify-center transition-transform hover:scale-110"
+              <button aria-label="Play WOW Radio" onClick={() => playStation("wm-main")} className="w-10 h-10 rounded-full shrink-0 flex items-center justify-center transition-transform hover:scale-110"
                 style={{ background: "linear-gradient(135deg,#E8B923,#8B6A29)", boxShadow: "0 4px 14px rgba(232,185,35,0.4)" }}>
                 <Play size={16} className="text-black ml-0.5" />
               </button>
