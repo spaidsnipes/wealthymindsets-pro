@@ -55,10 +55,18 @@ describe("no order flow minted from candle colour", () => {
   it("Tape Speed returns only as a reading of the prints", () => {
     const build = CHART.slice(CHART.indexOf('if (inds.has("Tape Speed")) {'), CHART.indexOf('if (inds.has("Trade Size Mix")) {'));
     expect(build).not.toMatch(/setData|\.volume|b\.close|b\.open/);
-    const fill = CHART.slice(CHART.indexOf("fillTapePanesRef.current = () => {"), CHART.indexOf("useEffect(() => { fillTapePanesRef.current(); }"));
+    const fill = CHART.slice(CHART.indexOf("fillTapePanesRef.current = () => {"), CHART.indexOf("const dvS = deltaVelSeriesRef.current;"));
     expect(fill).toContain("const acc = bigTradePrintAccRef.current;");
     expect(fill).toContain("tapeSpeed(acc.get(t) ?? [],");
     expect(fill).not.toMatch(/barsRef|candles|\.volume/);
+  });
+
+  // Plate 29 Delta Velocity: the held tape, else the provider's own bar bid/ask — never the candle's colour.
+  it("Delta Velocity reads the tape or the bar's own sides, never open/close", () => {
+    const dv = CHART.slice(CHART.indexOf("const dvS = deltaVelSeriesRef.current;"), CHART.indexOf("const bpS = bigPressSeriesRef.current;"));
+    expect(dv).toContain("tickAccRef.current.get(b.time as never)");
+    expect(dv).toContain("candleSidedRef.current.get(t)");
+    expect(dv).not.toMatch(/b\.close|b\.open|\.volume/);
   });
 
   it("no picker offers the candle-based absorption or exhaustion duplicates", () => {

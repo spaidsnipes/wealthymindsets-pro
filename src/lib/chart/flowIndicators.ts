@@ -28,3 +28,48 @@ export function volumePaceWords(x: number | null | undefined): string | null {
   if (x == null || !Number.isFinite(x)) return null;
   return `${x.toFixed(1)}× normal`;
 }
+
+/**
+ * ABSORPTION METER (plate 29) — effort against displacement per bar, 0–100.
+ * effort = the bar's volume ÷ the median volume of the `n` bars before it;
+ * displacement = the bar's body |close − open| ÷ their median range.
+ * score = 100 · effort ÷ (effort + displacement): 50 is ordinary, toward 100 is heavy effort that moved
+ * price little (absorbed), toward 0 is a move on little effort. Bars only — it covers every candle, and
+ * it does NOT say who absorbed (no side is claimed; the canon's volume-only absorption is side-unknown).
+ */
+export function absorptionMeter(
+  bars: readonly { readonly open: number; readonly close: number; readonly high: number; readonly low: number; readonly volume: number }[],
+  n: number = VOLUME_PACE_LOOKBACK,
+): number[] {
+  const out: number[] = [];
+  const med = (v: number[]) => { const s = v.filter(Number.isFinite).sort((a, b) => a - b); return s.length ? (s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : NaN; };
+  for (let i = 0; i < bars.length; i++) {
+    if (i < n) { out.push(NaN); continue; }
+    const win = bars.slice(i - n, i);
+    const mv = med(win.map(b => b.volume)), mr = med(win.map(b => b.high - b.low));
+    const b = bars[i];
+    if (!(mv > 0) || !(mr > 0) || !(b.volume >= 0)) { out.push(NaN); continue; }
+    const effort = b.volume / mv, disp = Math.abs(b.close - b.open) / mr;
+    out.push(effort + disp > 0 ? Math.round((100 * effort) / (effort + disp)) : 50);
+  }
+  return out;
+}
+
+/** "72 · heavy effort, little move" / "48 · ordinary" / "18 · moved on little effort" */
+export function absorptionWords(x: number | null | undefined): string | null {
+  if (x == null || !Number.isFinite(x)) return null;
+  const v = Math.round(x);
+  return `${v} · ${v >= 70 ? "heavy effort, little move" : v <= 30 ? "moved on little effort" : "ordinary"}`;
+}
+
+/** DELTA VELOCITY (plate 29) — a bar's delta per minute: how fast the cumulative delta is changing. */
+export function deltaVelocity(delta: number, barSeconds: number): number | null {
+  return barSeconds > 0 && Number.isFinite(delta) ? delta / (barSeconds / 60) : null;
+}
+
+/** "+42 /min" */
+export function deltaVelocityWords(v: number | null | undefined, unit = "/min"): string | null {
+  if (v == null || !Number.isFinite(v)) return null;
+  const a = Math.abs(v), t = a >= 100 ? Math.round(a).toLocaleString("en-US") : a.toFixed(1);
+  return `${v > 0 ? "+" : v < 0 ? "−" : ""}${t} ${unit}`;
+}

@@ -501,6 +501,12 @@ export const INDICATOR_EDUCATION: Readonly<Record<string, IndicatorEducation>> =
     src: "volume", win: 20, appears: `${OWN_PANE("A filled area")} Dashed guide at 1 (normal).`,
     read: "1.0× is the recent normal; 1.6× is 60% more volume than the median bar. The median ignores one spike, so a single huge bar does not make the next ones look quiet.",
   }),
+  "Absorption Meter": rec({
+    what: "Effort against displacement per bar, 0–100 — high is heavy volume that moved price little",
+    q: "Did this bar's effort move price, or was it absorbed?",
+    src: "volume", win: 20, appears: `${OWN_PANE("A line from 0 to 100")} Dashed guides at 30 and 70.`,
+    read: "Effort is the bar's volume against the median of the 20 before it; displacement is its body against their median range. 50 is ordinary. It does not say who absorbed — no side is claimed.",
+  }),
   OBV: rec({
     what: "On-Balance Volume: running total adding volume on up-closes, subtracting on down-closes",
     q: "Has volume landed more on up-closing bars or down-closing bars over the loaded history?",
@@ -709,6 +715,20 @@ export const INDICATOR_EDUCATION: Readonly<Record<string, IndicatorEducation>> =
     src: "tape", win: null,
     appears: "A card on price at the bar where it happened: ⚡ Buy sweep · 4 levels. At most three, the largest.",
     read: "Prints of one side, each within 300 ms of the last, moving one way through at least three prices. Untimed prints are not read; bars before the tape show none.",
+  }),
+  "Delta Velocity": rec({
+    what: "Each bar's delta per minute — how fast buying or selling is building",
+    q: "Is the push speeding up or fading?",
+    src: "tape", win: null,
+    appears: OWN_PANE("Bars, green above zero and red below"),
+    read: "A bar's delta (buyers crossing the spread minus sellers) divided by its minutes. The held tape where it reaches, else the provider's own bar bid/ask volume. Bars with neither stay empty.",
+  }),
+  "Big Trade Pressure": rec({
+    what: "Net buying minus selling from the session's biggest prints only",
+    q: "Are the big prints buying or selling?",
+    src: "tape", win: null,
+    appears: OWN_PANE("Bars, green above zero and red below"),
+    read: "Only prints in the session's top tenth by size count. Needs 20 prints to set that cut; bars before the tape stay empty. Size says nothing about who traded.",
   }),
   "Order Block Finder": rec({
     what: "The last opposite-colour candle body before a move of more than 2 average ranges in 3 bars",

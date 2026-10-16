@@ -24,7 +24,7 @@
  * PURE. DETERMINISTIC.
  */
 
-import { forexPairCodes } from "@/lib/marketData/canonicalIdentity";
+import { forexPairCodes, isUsCashIndexSymbol } from "@/lib/marketData/canonicalIdentity";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 import { spotMetalFutures } from "@/lib/yahooSymbol";
 
@@ -80,12 +80,28 @@ export function hasNoCentralVolume(symbol: string): "spot FX" | "spot metals" | 
   return null;
 }
 
+/**
+ * L15 (Garden 19, serving SPX: "NO VOLUME REPORTED · feed placeholder", change +0.00): a cash index is
+ * CALCULATED from its members, not traded, so it has no volume of its own. Said plainly, in the canon's
+ * no-central-volume voice; the index's futures (ES1!, NQ1!) and ETFs (SPY, QQQ) carry the traded volume.
+ */
+const CASH_INDEX: VolumeTruth = {
+  real: false,
+  reason: "PLACEHOLDER_VOLUME",
+  text: "NO VOLUME · an index is calculated, not traded",
+  short: "index · no volume",
+  title:
+    "A cash index is computed from its members' prices; nothing trades the index itself, so it has no " +
+    "volume. Its futures (ES1!, NQ1!) and ETFs (SPY, QQQ) carry the traded volume. No volume bar is drawn.",
+};
+
 export function volumeTruthFor(
   symbol: string,
   bars: readonly { readonly volume: number }[] | null | undefined,
 ): VolumeTruth {
   const noun = hasNoCentralVolume(symbol);
   if (noun) return noCentral(noun);
+  if (isUsCashIndexSymbol(symbol)) return CASH_INDEX;
   const bs = bars ?? [];
   if (bs.length < PLACEHOLDER_MIN_BARS) return REAL;
   for (const b of bs) {

@@ -101,8 +101,8 @@ import { isQuoteSampleSeries, quoteSampleSentence } from "@/lib/marketData/quote
 import { IMBALANCE_ZONE_NAMES_MAX, imbalanceTestWords, imbalanceZoneFate, imbalanceZoneName, imbalanceZonesReceipt, type ImbalanceZone, type ImbalanceZoneState } from "@/lib/chart/imbalanceZones";
 import { paneTitle, paneValueWords } from "@/lib/chart/paneNames";
 import { wheelZoomRange } from "@/lib/chart/wheelZoom";
-import { volumePace } from "@/lib/chart/flowIndicators";
-import { findSweeps, medianOf, sizeCuts, sizeMixWords, sweepWords, TAPE_FAST_MULTIPLE, tapeSpeed, tapeSpeedWords, tradeSizeMix, type Sweep } from "@/lib/chart/tapeIndicators";
+import { absorptionMeter, deltaVelocity, deltaVelocityWords, volumePace } from "@/lib/chart/flowIndicators";
+import { bigTradePressure, bigTradePressureWords, findSweeps, medianOf, sizeCuts, sizeMixWords, sweepWords, TAPE_FAST_MULTIPLE, tapeSpeed, tapeSpeedWords, tradeSizeMix, type Sweep } from "@/lib/chart/tapeIndicators";
 import { barFlow, chooseWedges, estimatedRuns, evidenceReceipt, EVIDENCE_LEGEND, findShelves, shelfTolerance, shelfWords, wedgeWidth, type BarFlow, type EvidenceBar, type Shelf } from "@/lib/chart/evidenceKinds";
 import { MARKET_MONO, MARKET_NUMBER_MIN_PX, MARKET_SANS, crispText, footprintCellPx, marketFont } from "@/lib/chart/marketType";
 import { tastyCandleStreamerFor, tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
@@ -4129,6 +4129,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // own time), so they exist only on bars the tape reached — never estimated from bars.
   const tapeSpeedSeriesRef = useRef<any>(null);
   const sizeMixSeriesRef = useRef<any[] | null>(null);
+  const deltaVelSeriesRef = useRef<any>(null);
+  const bigPressSeriesRef = useRef<any>(null);
   /** The corner words a tape pane says ("31 prints/sec · fast", "Large 22% · Mid 26% · Small 52%"). */
   const tapePaneWordsRef = useRef<Map<string, string>>(new Map());
   const fillTapePanesRef = useRef<() => void>(() => {});
@@ -4164,6 +4166,32 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       const w = cuts ? sizeMixWords(mixes.length ? mixes[mixes.length - 1].m : null) : "needs 20 prints";
       if (w) words.set("sizemix", w); else words.delete("sizemix");
     } else words.delete("sizemix");
+    // Delta Velocity: each bar's delta per minute — the held tape where it reaches, else the provider's bar sides.
+    const dvS = deltaVelSeriesRef.current;
+    if (dvS) {
+      const pts: { time: number; value: number; color: string }[] = [];
+      for (const b of barsRef.current ?? []) {
+        const t = Number(b.time);
+        const lv = tickAccRef.current.get(b.time as never);
+        let d: number | null = null;
+        if (lv && lv.size) { let a = 0, bd = 0; for (const v of lv.values()) { a += v.ask; bd += v.bid; } if (a + bd > 0) d = a - bd; }
+        if (d == null) { const cs = candleSidedRef.current.get(t); if (cs) d = cs.buy - cs.sell; }
+        const v = d == null ? null : deltaVelocity(d, barSec);
+        if (v != null) pts.push({ time: t, value: v, color: v >= 0 ? "rgba(34,197,94,0.85)" : "rgba(239,68,68,0.85)" });
+      }
+      try { dvS.setData(pts as never); } catch { /* series removed */ }
+      const w = deltaVelocityWords(pts.length ? pts[pts.length - 1].value : null);
+      if (w) words.set("dvel", w); else words.delete("dvel");
+    } else words.delete("dvel");
+    // Big Trade Pressure: net buy − sell from the session's top-tenth prints, per bar the tape reached.
+    const bpS = bigPressSeriesRef.current;
+    if (bpS) {
+      const cutsB = sizeCuts(acc.values());
+      const pts = cutsB ? times.map(t => ({ t, v: bigTradePressure(acc.get(t) ?? [], cutsB) })).filter(x => x.v != null) : [];
+      try { bpS.setData(pts.map(x => ({ time: x.t as never, value: x.v as number, color: (x.v as number) >= 0 ? "rgba(34,197,94,0.85)" : "rgba(239,68,68,0.85)" }))); } catch { /* series removed */ }
+      const w = cutsB ? (bigTradePressureWords(pts.length ? pts[pts.length - 1].v : null) ?? "no big prints yet") : "needs 20 prints";
+      words.set("btpress", w);
+    } else words.delete("btpress");
   };
   useEffect(() => { fillTapePanesRef.current(); }, [sessionTapeTick, timeframe, canonicalSym, ready, candlesKey]);
 
@@ -5689,7 +5717,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     paneSeriesRef.current = new Map();
     paneLastRef.current = new Map();
     paneActiveIndsRef.current = inds;
-    tapeSpeedSeriesRef.current = null; sizeMixSeriesRef.current = null;
+    tapeSpeedSeriesRef.current = null; sizeMixSeriesRef.current = null; deltaVelSeriesRef.current = null; bigPressSeriesRef.current = null;
     // Per-indicator custom params (length / mult / color) merged with defaults
     const ip = (name: string) => resolveParams(name, indSettings);
 
@@ -6271,7 +6299,30 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         sm.forEach(x => indSeriesRef.current.push(x)); sizeMixSeriesRef.current = sm; paneSeriesRef.current.set("sizemix", sm[0]);
       } catch { sizeMixSeriesRef.current = null; }
     }
-    if (tapeSpeedSeriesRef.current || sizeMixSeriesRef.current) fillTapePanesRef.current();
+    if (inds.has("Delta Velocity")) {
+      try {
+        const s = chart.addSeries(LW.HistogramSeries, { priceLineVisible: false, lastValueVisible: true }, paneFor("dvel"));
+        indSeriesRef.current.push(s); deltaVelSeriesRef.current = s; paneSeriesRef.current.set("dvel", s);
+      } catch { deltaVelSeriesRef.current = null; }
+    }
+    if (inds.has("Big Trade Pressure")) {
+      try {
+        const s = chart.addSeries(LW.HistogramSeries, { priceLineVisible: false, lastValueVisible: true }, paneFor("btpress"));
+        indSeriesRef.current.push(s); bigPressSeriesRef.current = s; paneSeriesRef.current.set("btpress", s);
+      } catch { bigPressSeriesRef.current = null; }
+    }
+    if (inds.has("Absorption Meter")) {
+      try {
+        const am = absorptionMeter(bars.map(b => ({ open: b.open, close: b.close, high: b.high, low: b.low, volume: b.volume ?? 0 })));
+        const s = chart.addSeries(LW.LineSeries, { color: "rgba(224,190,92,0.95)", lineWidth: 2, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false }, paneFor("absmeter"));
+        s.setData(bars.map((b, i) => ({ time: b.time as any, value: am[i] })).filter(d => isFinite(d.value)));
+        s.createPriceLine({ price: 70, color: "rgba(224,190,92,0.45)", lineWidth: 1, lineStyle: LW.LineStyle.Dashed, axisLabelVisible: false, title: "heavy" });
+        s.createPriceLine({ price: 30, color: "rgba(200,192,174,0.35)", lineWidth: 1, lineStyle: LW.LineStyle.Dashed, axisLabelVisible: false, title: "light" });
+        indSeriesRef.current.push(s); paneSeriesRef.current.set("absmeter", s);
+        { const lv = [...am].reverse().find(v => isFinite(v)); if (lv != null) paneLastRef.current.set("absmeter", lv); }
+      } catch { /* returns on the next build */ }
+    }
+    if (tapeSpeedSeriesRef.current || sizeMixSeriesRef.current || deltaVelSeriesRef.current || bigPressSeriesRef.current) fillTapePanesRef.current();
 
     // ── PLATE 29 · Volume Pace — this bar's volume against the median of the 20 before it ──
     if (inds.has("Volume Pace")) {

@@ -75,6 +75,9 @@ export const PANE_INDICATORS: Readonly<Record<string, readonly string[]>> = {
   volma: ["Volume MA"],
   volosc: ["Volume Oscillator"],
   vpace: ["Volume Pace"],
+  absmeter: ["Absorption Meter"],
+  dvel: ["Delta Velocity"],
+  btpress: ["Big Trade Pressure"],
   vortex: ["Vortex Indicator"],
   vwrsi: ["Volume Weighted RSI"],
   wae: ["Waddah Attar Explosion"],
@@ -88,11 +91,12 @@ export function paneTitle(id: string, active: ReadonlySet<string>): string {
   return names.length ? names.join(" · ") : id.toUpperCase();
 }
 
-import { volumePaceWords } from "./flowIndicators";
+import { absorptionWords, volumePaceWords } from "./flowIndicators";
 
 /** The corner words for a pane: its own unit where it has one ("1.6× normal"), else the plain value. */
 export function paneValueWords(id: string, v: number | null | undefined): string | null {
   if (id === "vpace") return volumePaceWords(v);
+  if (id === "absmeter") return absorptionWords(v);
   return paneValueText(v);
 }
 

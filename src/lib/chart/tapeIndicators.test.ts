@@ -49,3 +49,14 @@ describe("plate 29 · Sweeps", () => {
     expect(findSweeps([buy(100, 1, 0), buy(100, 1, 10), buy(100, 1, 20)], 0.25)).toHaveLength(0);
   });
 });
+
+import { bigTradePressure, bigTradePressureWords } from "./tapeIndicators";
+
+describe("plate 29 · Big Trade Pressure", () => {
+  it("nets only the big prints", () => {
+    const cuts = { small: 5, large: 50 };
+    expect(bigTradePressure([buy(1, 60), sell(1, 80), buy(1, 10)], cuts)).toBe(-20);
+    expect(bigTradePressure([buy(1, 10)], cuts)).toBeNull();
+    expect(bigTradePressureWords(1240)).toBe("+1,240 big-print net");
+  });
+});

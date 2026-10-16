@@ -448,6 +448,7 @@ const INDICATORS = [
   { cat:"Volume", name:"Volume MA", desc:"20-bar simple average of bar volume" },
   { cat:"Volume", name:"RVOL", desc:"Bar volume ÷ the average of the last 20 bars' volume" },
   { cat:"Volume", name:"Volume Pace", desc:"Bar volume ÷ the median volume of the 20 bars before it" },
+  { cat:"Volume", name:"Absorption Meter", desc:"Effort against displacement per bar, 0–100 — high is heavy volume that moved price little" },
   { cat:"Volume", name:"OBV", desc:"On-Balance Volume: running total adding volume on up-closes, subtracting on down-closes" },
   { cat:"Volume", name:"Money Flow Index", desc:"Money Flow Index (14): an RSI of typical price × volume" },
   { cat:"Volume", name:"Chaikin Money Flow", desc:"Chaikin Money Flow (20)" },
@@ -483,6 +484,8 @@ const INDICATORS = [
   { cat:"Order Flow", name:"Tape Speed", desc:"Prints per second in each bar the tape reached" },
   { cat:"Order Flow", name:"Trade Size Mix", desc:"Each bar's volume split into large, mid and small prints" },
   { cat:"Order Flow", name:"Sweeps", desc:"One buyer or seller walking through 3+ prices in a burst" },
+  { cat:"Order Flow", name:"Delta Velocity", desc:"Each bar's delta per minute — how fast buying or selling is building" },
+  { cat:"Order Flow", name:"Big Trade Pressure", desc:"Net buying minus selling from the session's biggest prints only" },
   // ─── Smart Money ──────────────────────────────────────
   { cat:"Smart Money", name:"Order Block Finder", desc:"The last opposite-colour candle body before a move of more than 2 average ranges in 3 bars" },
   // "Fair Value Gaps" RETIRED 2026-10-07 (Garden 19 FVG lane D) — Tools › Find "FVG / Imbalance" is its one door now.

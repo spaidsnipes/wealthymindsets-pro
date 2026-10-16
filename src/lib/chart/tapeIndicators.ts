@@ -137,3 +137,23 @@ export function findSweeps(prints: readonly TapePrint[], tick: number): Sweep[] 
 export function sweepWords(s: Sweep): string {
   return `⚡ ${s.side === "buy" ? "Buy" : "Sell"} sweep · ${s.levels} levels`;
 }
+
+/* ── BIG TRADE PRESSURE (plate 29) ──────────────────────────────────────── */
+
+/** Net buy − sell volume from big prints only (the session's top tenth by size, sizeCuts.large). */
+export function bigTradePressure(prints: readonly TapePrint[], cuts: SizeCuts): number | null {
+  let net = 0, seen = 0;
+  for (const p of prints) {
+    const s = size(p);
+    if (!(s >= cuts.large)) continue;
+    seen++;
+    net += (p.ask > 0 ? p.ask : 0) - (p.bid > 0 ? p.bid : 0);
+  }
+  return seen ? net : null;
+}
+
+/** "+1,240 big-print net" */
+export function bigTradePressureWords(v: number | null): string | null {
+  if (v == null || !Number.isFinite(v)) return null;
+  return `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.round(Math.abs(v)).toLocaleString("en-US")} big-print net`;
+}
