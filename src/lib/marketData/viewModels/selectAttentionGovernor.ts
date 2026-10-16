@@ -93,6 +93,8 @@ export const POSTURE_QUIET = 0.88;
 
 /** What every other context layer keeps while one sense is PRIMARY. */
 export const PRIMARY_LEADS_OTHERS = 0.72;
+/** While one tool is in FOCUS every other governed tool reads at most this (Founder 2026-10-15: "≤ 25%"). */
+export const FOCUS_OTHERS_MAX = 0.25;
 
 export const TIER_CEILING: Readonly<Record<AttentionTier, number>> = {
   SELECTED: 1,
@@ -472,20 +474,23 @@ export function selectAttentionGovernor(
       }
       // The trader's role (§XXXVII): PRIMARY reads at a floor of 0.92 even at a
       // dimming depth; AMBIENT and LATENT recede; never below the floor.
+      // Garden 19 finish line (Founder 2026-10-15, live click-through L2/L3): "Hide barely changes
+      // pixels", "Focus barely quiets the others". HIDDEN (LATENT) takes the tool's pixels away — it
+      // stays ON, its pipeline runs, nothing paints; FOCUS puts every other tool at ≤ FOCUS_OTHERS_MAX.
       const role = input.roles?.[key];
       if (role === "PRIMARY") a = Math.max(a, 0.92 * staleDim);
-      else if (role === "AMBIENT") a = Math.max(ATTENTION_FLOOR, a * 0.55);
-      else if (role === "LATENT") a = Math.max(ATTENTION_FLOOR, a * 0.28);
+      else if (role === "AMBIENT") a = Math.min(FOCUS_OTHERS_MAX, a * 0.55);
+      else if (role === "LATENT") a = 0;
       // A LEAD IS RELATIVE (serving BTC 15m, §CII: Absorption set PRIMARY
       // read the same as SUPPORTING — its floor was already met). While one
       // sense leads, the senses beside it step back; an unroled LIVE layer (the
       // live market itself) never does.
       if (hasPrimary && (role === "SUPPORTING" || (role === undefined && (spec.tier === "SUPPORTING" || spec.tier === "MEMORY")))) {
-        a = Math.max(ATTENTION_FLOOR, a * PRIMARY_LEADS_OTHERS);
+        a = Math.min(FOCUS_OTHERS_MAX, Math.max(ATTENTION_FLOOR, a * PRIMARY_LEADS_OTHERS));
       }
       // P2-E: context under the present's load (a PRIMARY role is the trader's lead — exempt).
       const share = LOAD_SHARE[spec.tier];
-      if (share != null && role !== "PRIMARY") a = Math.max(ATTENTION_FLOOR, Math.min(a, liveLoadRef * share));
+      if (share != null && role !== "PRIMARY" && role !== "LATENT") a = Math.max(ATTENTION_FLOOR, Math.min(a, liveLoadRef * share));
     }
     // The trader's dial, last: multiplies, never past the tier's ceiling, never
     // under the readable floor. The selected item and CHROME are not dialled.
@@ -502,6 +507,9 @@ export function selectAttentionGovernor(
       const k = clampUserOpacity(sDial);
       if (k !== 1) a = Math.min(TIER_CEILING[spec.tier], Math.max(Math.min(a, USER_OPACITY_READABLE_FLOOR), a * k));
     }
+    // HIDE is the trader's explicit act and reaches every tool, chrome included (L2: Risk on Price
+    // could not be hidden). Only the selected item is exempt — selecting it brings it back.
+    if (input.roles?.[key] === "LATENT" && !opts?.selectedItem) a = 0;
     // The receipt records what the layer was actually given, when it asked —
     // a layer painted before the Question Lens was not quieted by it.
     if (!opts?.selectedItem && !asked.has(key)) asked.set(key, { tier, alpha: a });

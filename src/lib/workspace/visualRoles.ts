@@ -54,6 +54,12 @@ export const ROLE_LAYERS: Readonly<Partial<Record<ProfileId, readonly AttentionL
   BRICK_WALLS: ["brickWalls"],
   CALL_WALL: ["callWall"], PUT_WALL: ["putWall"], GAMMA_HEATMAP: ["gammaHeatmap"], GAMMA_POSITIVE: ["gammaPositive"], GAMMA_NEGATIVE: ["gammaNegative"], GAMMA_FLIP: ["gammaFlip"], GAMMA_CONCENTRATION: ["gammaConcentration"],
   MEMORY_GHOST: ["memoryGhost"],
+  // L2 (Founder 2026-10-15): these five could not be hidden or focused — no layer was named.
+  FLOW_CURRENT: ["flowCurrent"],
+  REGIME_LIGHTING: ["regimeLighting", "regimeField", "regimeChannel", "regimeMagnets"],
+  QUESTION_LENS: ["questionLens"],
+  SCAFFOLDING: ["scaffolding"],
+  RISK_ON_PRICE: ["riskOnPrice"],
 };
 
 export function clarityRoleOpacity(role: VisualRole | undefined): number {

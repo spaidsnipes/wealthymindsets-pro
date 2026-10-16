@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { selectAttentionGovernor, ATTENTION_FLOOR } from "@/lib/marketData/viewModels/selectAttentionGovernor";
+import { selectAttentionGovernor, ATTENTION_FLOOR, FOCUS_OTHERS_MAX } from "@/lib/marketData/viewModels/selectAttentionGovernor";
 import { selectSemanticDensity } from "@/lib/marketData/viewModels/selectSemanticDensity";
-import { autoCompose, nextRole, parseVisualRoles, rolesByLayer, clarityRoleOpacity } from "./visualRoles";
+import { autoCompose, nextRole, parseVisualRoles, rolesByLayer, clarityRoleOpacity, ROLE_LAYERS } from "./visualRoles";
 import { parseSavedLayouts, saveLayout, serializeSavedLayouts } from "./savedLayouts";
 
 const gov = (roles = {}) => selectAttentionGovernor({ density: selectSemanticDensity(null), questionQuiet: 1, regimeLight: null, stackPrefs: undefined as never, fusedParents: [], feedState: "LIVE" as never, selection: null, posture: undefined as never, roles });
@@ -15,19 +15,26 @@ describe("Garden 18 §XXXVII — visual roles are semantic, and only representat
     expect(clarityRoleOpacity("LATENT")).toBe(0.9);
     expect(rolesByLayer({ CLARITY_CANDLE: "LATENT" })).toEqual({});
   });
-  it("no role is the canon alpha; PRIMARY reads; AMBIENT and LATENT recede above the floor", () => {
+  it("SUPPORTING is the canon alpha; PRIMARY reads; AMBIENT (focus elsewhere) ≤ 25%; HIDDEN paints nothing (L2/L3, 2026-10-15)", () => {
     const base = gov().alpha("tpo");
     expect(gov(rolesByLayer({ TPO_PROFILE: "SUPPORTING" })).alpha("tpo")).toBe(base);
     expect(gov(rolesByLayer({ TPO_PROFILE: "PRIMARY" })).alpha("tpo")).toBeGreaterThanOrEqual(0.92);
     const amb = gov(rolesByLayer({ TPO_PROFILE: "AMBIENT" })).alpha("tpo");
-    const lat = gov(rolesByLayer({ TPO_PROFILE: "LATENT" })).alpha("tpo");
     expect(amb).toBeLessThan(base);
-    expect(lat).toBeLessThan(amb);
-    expect(lat).toBeGreaterThanOrEqual(ATTENTION_FLOOR);
+    expect(amb).toBeLessThanOrEqual(FOCUS_OTHERS_MAX);
+    expect(gov(rolesByLayer({ TPO_PROFILE: "LATENT" })).alpha("tpo")).toBe(0);
+    expect(ATTENTION_FLOOR).toBeGreaterThan(0);
   });
 
-  it("chrome is never given a role", () => {
-    expect(gov({ riskOnPrice: "LATENT" }).alpha("riskOnPrice")).toBe(1);
+  it("chrome takes no emphasis role, but HIDE reaches it (L2: Risk on Price could not be hidden)", () => {
+    expect(gov({ riskOnPrice: "AMBIENT" }).alpha("riskOnPrice")).toBe(1);
+    expect(gov({ riskOnPrice: "LATENT" }).alpha("riskOnPrice")).toBe(0);
+  });
+
+  it("the five tools that had no layer can now be hidden and focused", () => {
+    for (const id of ["FLOW_CURRENT", "REGIME_LIGHTING", "QUESTION_LENS", "SCAFFOLDING", "RISK_ON_PRICE"] as const) {
+      expect(ROLE_LAYERS[id]?.length ?? 0).toBeGreaterThan(0);
+    }
   });
 
   it("Auto compose gives one lead and never switches anything off", () => {

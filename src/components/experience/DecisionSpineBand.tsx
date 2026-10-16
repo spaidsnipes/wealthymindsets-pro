@@ -1507,7 +1507,7 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         .wm-spine-fold-chevron {
           transition: transform 120ms ease;
           color: #c4a574;
-          font-size: 11px;
+          font-size: 13px;
         }
         .wm-decision-spine details[open] .wm-spine-fold-chevron {
           transform: rotate(90deg);

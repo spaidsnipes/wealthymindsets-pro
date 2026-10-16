@@ -13400,7 +13400,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             if (!flowSpeaks) ctx.globalAlpha = QUIET_CEILING;
             // §12: the current recedes with the room; launched from the wick, it
             // never drops below legibility and never above its quiet ceiling.
-            ctx.globalAlpha = Math.min(ctx.globalAlpha, Math.max(PRICE_ADJACENT_FLOOR, att.alpha("flowCurrent")));
+            // A HIDDEN flow current paints nothing (L2); otherwise it never falls under the price-adjacent floor.
+            ctx.globalAlpha = att.alpha("flowCurrent") === 0 ? 0 : Math.min(ctx.globalAlpha, Math.max(PRICE_ADJACENT_FLOOR, att.alpha("flowCurrent")));
             // PHONE ASK 6 (erasure, 2026-10-07): the QUIET form needs a stroke no
             // other layer uses, so a trader can tell Flow Current is on — its
             // streak cores are DOTTED (2·2) with the arrow head kept solid.

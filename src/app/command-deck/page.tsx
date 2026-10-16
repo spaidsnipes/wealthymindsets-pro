@@ -1878,7 +1878,7 @@ function CommandDeckInner() {
               border-radius: 10px;
               color: #c9a55c;
               cursor: pointer;
-              font-size: 11px;
+              font-size: 13px;
               letter-spacing: 0.5px;
               overflow-wrap: anywhere;
             }

@@ -95,6 +95,21 @@ describe("DOM type floor on the trading shell", () => {
       expect(head.match(/font:\s*(?:italic\s+)?\d{3}\s+(?:9|9\.5|10|10\.5|11|11\.5|12|12\.5)px/g) ?? []).toEqual([]);
     });
 
+    it("no component's embedded <style> CSS sets a size under 13px (it would load after globals.css and win)", () => {
+      // Serving bba1f2a: the Rooms door stayed 11px — WMOperatingSystem's own <style> said `font-size: 11px !important`.
+      const walk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap(e =>
+        e.isDirectory() ? walk(path.join(dir, e.name)) : e.name.endsWith(".tsx") && !e.name.includes(".test.") ? [path.join(dir, e.name)] : []);
+      const offenders: string[] = [];
+      for (const f of walk(path.join(process.cwd(), "src"))) {
+        const src = readFileSync(f, "utf8");
+        for (const m of src.matchAll(/font-size:\s*(\d+(?:\.\d+)?)px|font:\s*(?:italic\s+)?\d{3}\s+(\d+(?:\.\d+)?)px/g)) {
+          const n = Number(m[1] ?? m[2]);
+          if (n < 13 && !/\[style\*=/.test(src.slice(Math.max(0, (m.index ?? 0) - 12), m.index ?? 0))) offenders.push(`${path.relative(process.cwd(), f)}: ${m[0]}`);
+        }
+      }
+      expect(offenders).toEqual([]);
+    });
+
     it("no DOM size under 13px anywhere in src slips past the rule", () => {
       const SIZE = /fontSize:\s*"?(\d+(?:\.\d+)?)(?:px)?"?\s*[,}\s]|text-\[(\d+(?:\.\d+)?)px\]|font:\s*[`"'][^`"']*?\s(\d+(?:\.\d+)?)px\s*\//g;
       const walk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap(e =>

@@ -2819,7 +2819,7 @@ export function WMOperatingSystem({
              stays held (it does not fit the 390 line, and /profile carries it). */
           .wm-os-market-rooms {
             min-height: 44px !important;
-            font-size: 11px !important;
+            font-size: 13px !important;
             border-color: rgba(196,165,116,0.42) !important;
           }
           .wm-os-market-community { display: none !important; }

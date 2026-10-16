@@ -34,7 +34,7 @@ describe("§12 — built layers recede through the attention governor", () => {
       'const sbSpeaks = att.speaks("sessionBands");',
       'if (att.paints("volumeField")) ctx.globalAlpha = att.alpha("volumeField");',
       'if (att.paints("volumeField")) ctx.globalAlpha = Math.max(PRICE_ADJACENT_FLOOR, att.alpha("volumeField"));',
-      'ctx.globalAlpha = Math.min(ctx.globalAlpha, Math.max(PRICE_ADJACENT_FLOOR, att.alpha("flowCurrent")));',
+      'ctx.globalAlpha = att.alpha("flowCurrent") === 0 ? 0 : Math.min(ctx.globalAlpha, Math.max(PRICE_ADJACENT_FLOOR, att.alpha("flowCurrent")));',
       'if (ctx) ctx.globalAlpha = att.alpha("volumeProfile");',
       'ctx.globalAlpha = att.alpha("forceResponse", { selectedItem: true });',
       'ctx.globalAlpha = att.textAlpha("wisdomLine", wlSel);',

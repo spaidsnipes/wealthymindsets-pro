@@ -37,7 +37,7 @@ function escapeHtml(s: string): string {
 function renderMd(text: string) {
   return escapeHtml(text)
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-    .replace(/`([^`]+)`/g, "<code style='background:rgba(255,255,255,0.08);padding:1px 4px;border-radius:3px;font-family:monospace;font-size:10px'>$1</code>")
+    .replace(/`([^`]+)`/g, "<code style='background:rgba(255,255,255,0.08);padding:1px 4px;border-radius:3px;font-family:monospace;font-size:13px'>$1</code>")
     .replace(/\n/g, "<br/>");
 }
 
