@@ -8654,6 +8654,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 { x: +xh + 14, y: yTopH - 10 - bh }, { x: +xh - 14 - bw, y: yTopH - 10 - bh },
                 { x: +xh - 14 - bw, y: +yLowH + 60 }, { x: +xh - 14 - bw, y: yTopH - 60 - bh },
                 { x: +xh - 60 - bw, y: +yLowH + 10 }, { x: +xh - 60 - bw, y: yTopH - 10 - bh },
+                // Farther out, still on its leader (serving NQ1! 15m, Oct 16: with the volume band as its floor
+                // every near slot was taken and the at-rest reading vanished): up the open sky above-left.
+                ...[120, 200, 300].flatMap(dx => [60, 140, 220].map(dy => ({ x: +xh - dx - bw, y: yTopH - dy - bh }))),
               ].map(p => ({ x: Math.round(p.x), y: Math.round(p.y), w: bw, h: bh })).filter(inPane);
               const clearSpot = spotsC.find(r => !hits(r));
               const spotC = clearSpot ?? (pinned ? null : spotsC[0] ?? null);
@@ -12909,6 +12912,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           minX: LEFT_CHROME_RIGHT, blockers, strict: true, alternates: alts,
         });
         if (spot.onCandles) return false;
+        // A refused glyph is not painted at its refused spot (serving NQ1! 15m, Oct 16: the Composite's glyph sat
+        // across "CMP VAH 31240.00" — every slot was held and it drew at the preferred one anyway).
+        if (spot.mode === "BLOCKED") return false;
         blockers.push({ ...spot.rect });
         const ox = spot.rect.x + B / 2, oy = spot.rect.y + B / 2, s = GLYPH_HALF;
         ctx.save();
@@ -21034,12 +21040,19 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const cp = crosshairPointRef.current;
               let hovered: { x: number; y: number; e: typeof flow.events[number] } | null = null;
               const labelJobs: (() => void)[] = [];
+              // ONE MARK, ONE PLACE (serving NQ1! 15m, Oct 16 one-at-a-time pass: three puts printed in one bar
+              // drew three "−"/"+" rings on one spot — seven glyph overlaps). A later mark steps outward along its
+              // own side (calls up, puts down) until it clears every mark already placed.
+              const placedFlow: { x: number; y: number; r: number }[] = [];
               shown.forEach((s, i) => {
                 const rgb = s.e.type === "call" ? "80,190,180" : "214,120,150";
                 const r = 5 + 5 * Math.sqrt(s.e.size / peak);
                 const glyph = s.e.side === "BUY" || s.e.side === "ASK_NEAR" ? "+" : s.e.side === "SELL" || s.e.side === "BID_NEAR" ? "−" : "?";
                 // Offset off the candle body: calls above the close, puts below.
-                const cy = s.y + (s.e.type === "call" ? -(r + 8) : r + 8);
+                const dirF = s.e.type === "call" ? -1 : 1;
+                let cy = s.y + dirF * (r + 8);
+                for (let k = 0; k < 12 && placedFlow.some(q => Math.hypot(q.x - s.x, q.y - cy) < q.r + r + 1); k++) cy += dirF * (r + 2);
+                placedFlow.push({ x: s.x, y: cy, r });
                 // PRICE SOVEREIGNTY: a mark that would sit on the newest candles'
                 // column (narrow glass) is a small ring at the column's left edge
                 // with a hairline to its bar — still tappable, its ticket intact.
@@ -22304,6 +22317,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // 2026-10-10: "EVEN · CAUTION" from the scaffolding plaque read through "LIVING POC").
           let truthChipSolid = false;
           const floorY = opts.floorY ?? HEADER_FLOOR_Y;
+          // AN OFF-CAMERA LEVEL SAYS SO (serving NQ1! 15m, Oct 16: "CMP VAH 31240.00" and "CMP POC 30760.00" were
+          // floored onto the 30200 row with nothing saying their prices are above the camera). The chip still
+          // stacks at the edge, in price order; its arrow says which way the level is.
+          if (y < floorY - 2) text = `▲ ${text}`;
+          else if (y > pane0Bottom + 2) text = `▼ ${text}`;
           const rowFloor = floorY + LEVEL_CHIP_H / 2;
           let yy = nearestFreeLabelY(Math.max(y, rowFloor), levelChipYs, LEVEL_CHIP_H + 1);
           // Two names floored onto one row: the free-row picker keeps the upper
