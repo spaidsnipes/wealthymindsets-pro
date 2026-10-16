@@ -25051,9 +25051,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   // The passport mark: a small brass card with a ring — drawn
                   // strokes, no words (the callout carries the words on select).
                   const gx = Math.round(x0 + (zEnd - x0) / 2) - 5, gy = Math.round(top + h / 2) - 6;
-                  ctx.strokeStyle = "rgba(233,196,106,0.75)";
-                  ctx.strokeRect(gx + 0.5, gy + 0.5, 10, 12);
-                  ctx.beginPath(); ctx.arc(gx + 5.5, gy + 6.5, 2.6, 0, Math.PI * 2); ctx.stroke();
+                  // A mark yields to words (serving ES1! 5m, Oct 16: it was stamped on "dPOC 7786.00 · -4.00");
+                  // drawn, it is an obstacle for the words placed after it.
+                  const markR = { x: gx - 1, y: gy - 1, w: 13, h: 15 };
+                  const markHit = floatingChips.some(r => markR.x < r.x + r.w && markR.x + markR.w > r.x && markR.y < r.y + r.h && markR.y + markR.h > r.y);
+                  if (!markHit) {
+                    ctx.strokeStyle = "rgba(233,196,106,0.75)";
+                    ctx.strokeRect(gx + 0.5, gy + 0.5, 10, 12);
+                    ctx.beginPath(); ctx.arc(gx + 5.5, gy + 6.5, 2.6, 0, Math.PI * 2); ctx.stroke();
+                    floatingChips.push(markR);
+                  }
                 }
                 // A NAMED OBJECT, NOT AN EMPTY BOX (2026-10-04, Founder: "vague
                 // boxes"; measured BTC 1m: two brass outlines with a tiny mark
