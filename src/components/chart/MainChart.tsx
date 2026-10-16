@@ -19563,6 +19563,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     [...keepOut(), ...rowBodiesAt(Math.min(flagPref.y, flagAlt.y), Math.max(flagPref.y, flagAlt.y) + fh)],
                     { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: [flagAlt] },
                   );
+                  // L20 (Garden 19): a refused flag flew over whatever held its spot. Refused, it is listed with
+                  // the event notes (tap → read in full); the fan still draws.
+                  if (spotF.mode === "BLOCKED") {
+                    displacedNotes.push({ layer: "EVENT", text: flagT, x: +xEv, y: +yEv, time: sp.time });
+                    ds.expectedEnvelopeSurprise = `${sp.side}:${sp.matchedBy}/${sp.n}:LISTED`;
+                  } else {
                   recordKeepOut(keepOutLedger, spotF);
                   floatingChips.push({ x: spotF.rect.x, y: spotF.rect.y, w: fw, h: fh });
                   // The POLE: from the bar's extreme straight to the flag's row,
@@ -19586,6 +19592,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.textAlign = "left";
                   ctx.fillText(flagT, spotF.rect.x + 7, spotF.rect.y + fh / 2 + 0.5);
                   ds.expectedEnvelopeSurprise = `${sp.side}:${sp.matchedBy}/${sp.n}:${spotF.mode}`;
+                  }
                 } else {
                   ds.expectedEnvelopeSurprise = `${sp.side}:${sp.matchedBy}/${sp.n}:OFF_CAMERA`;
                 }
@@ -21302,6 +21309,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               [...keepOut(), ...rowBodiesAt(ty, ty + TAG_H), ...profileColT],
               { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: altInWordBand ? [] : [alt] },
             );
+            // L20 (Garden 19): a refused tag painted its box over what held the spot. Refused, the tag speaks
+            // as the quiet form does — its horizon ticks at the object's start, no box.
+            if (spot.mode === "BLOCKED") {
+              const rankH = MTF_TAG_TICKS[label] ?? 0;
+              ctx.fillStyle = ink;
+              const xh = Math.max(keepOutMinX(), xStart + 3), yh = Math.round(yMid) - 1;
+              for (let k = 0; k < rankH; k++) ctx.fillRect(xh + k * 3, yh, 1, 4);
+              mtfTagTicks.push(`${label}:${rankH}:HELD`);
+              return "HELD";
+            }
             recordKeepOut(keepOutLedger, spot);
             const { x: tx, y: tyy } = spot.rect;
             ctx.fillStyle = back;
