@@ -9610,12 +9610,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               for (const q of [a, b]) { ctx.beginPath(); ctx.arc(q.x, q.y, 3.5, 0, Math.PI * 2); ctx.fillStyle = "#f4ecd8"; ctx.fill(); ctx.strokeStyle = "rgba(0,0,0,0.8)"; ctx.lineWidth = 1; ctx.stroke(); }
               ctx.restore();
             }
-            const divPill = (txt: string, cx: number, cy: number, above: boolean) => {
+            const divPill = (txt: string, cx: number, cy: number, above: boolean, minY: number, maxY: number) => {
               ctx.font = marketFont("OBJECT_NAME");
               const w = Math.ceil(ctx.measureText(txt).width) + 14, h = 20;
-              const tries = [0, -w / 2 - 10, w / 2 + 10];
-              for (const dx of tries) {
-                const r = { x: Math.round(Math.min(plotRight - w - 4, Math.max(4, cx - w / 2 + dx))), y: Math.round(above ? cy - h - 6 : cy + 6), w, h };
+              // Its own pane only: a price tag never drops into the delta band, a band tag never
+              // climbs onto the candles. Preferred side first, then the other, then shifted.
+              const ys = above ? [cy - h - 6, cy + 6] : [cy + 6, cy - h - 6];
+              for (const y0 of ys) for (const dx of [0, -w / 2 - 10, w / 2 + 10, -w - 16]) {
+                const r = { x: Math.round(Math.min(plotRight - w - 4, Math.max(4, cx - w / 2 + dx))), y: Math.round(Math.max(minY, Math.min(maxY - h, y0))), w, h };
                 if (r.y < HEADER_FLOOR_Y || chipHits(r)) continue;
                 ctx.fillStyle = "rgba(10,9,7,0.92)";
                 ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, 4); ctx.fill();
@@ -9627,8 +9629,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               }
               return false;
             };
-            const nP = divPill(hi ? "Higher high" : "Lower low", pB.x, pB.y, hi);
-            const nD = divPill(hi ? "Delta: lower high" : "Delta: higher low", dB.x, Math.min(dB.y, bMid), true);
+            const nP = divPill(hi ? "Higher high" : "Lower low", pB.x, pB.y, hi, HEADER_FLOOR_Y, bTop - 4);
+            const nD = divPill(hi ? "Delta: lower high" : "Delta: higher low", dB.x, dB.y, dB.y <= bMid, bTop + 22, bBot - 2);
             canvas.dataset.deltaPaneDivergence = `${paneDiv.kind}|${Math.round(paneDiv.prior.price)}>${Math.round(paneDiv.recent.price)}|D:${Math.round(paneDiv.prior.delta)}>${Math.round(paneDiv.recent.delta)}|WORDS:${nP ? "P" : "-"}${nD ? "D" : "-"}`;
           } else canvas.dataset.deltaPaneDivergence = "OFF_CAMERA";
         } else canvas.dataset.deltaPaneDivergence = "NONE";
