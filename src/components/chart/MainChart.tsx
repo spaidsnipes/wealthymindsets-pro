@@ -21090,7 +21090,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 if (xc == null || yh == null || yl == null) continue;
                 candleRectsG.push({ x: +xc - Math.max(3, bsp * 0.45), y: +yh - 2, w: Math.max(6, bsp * 0.9), h: +yl - +yh + 4 });
               }
-              for (const t of [...out.labels].sort((a, b) => a.y - b.y)) {
+              // Codex plate 01 (serving d9f9ef3 ES1! 15m): five gamma captions took every seat and the three wall
+              // names went to the event list (NOTES:3). The walls are named FIRST; heat captions are kept to the
+              // two strongest buckets (the profile bars carry the rest without words).
+              const isHeat = (t: { kinds: readonly string[] }) => t.kinds.some(k => k === "GAMMA_HEAT_POS" || k === "GAMMA_HEAT_NEG");
+              const heatPct = (t: { text: string }) => Number((t.text.match(/(\d+)%$/) ?? [])[1] ?? 0);
+              const keptHeat = new Set(out.labels.filter(isHeat).sort((a, b) => heatPct(b) - heatPct(a)).slice(0, 2));
+              const ordered = [
+                ...out.labels.filter(t => !isHeat(t)).sort((a, b) => a.y - b.y),
+                ...out.labels.filter(t => keptHeat.has(t)).sort((a, b) => a.y - b.y),
+              ];
+              for (const t of ordered) {
                 const tw = ctx.measureText(t.text).width;
                 // Right end first (the tick's own side), then the left edge beside the gamma ladder.
                 // Codex plate 01 beside serving ES1! 15m (2026-10-16): with price sitting on the walls every slot on
