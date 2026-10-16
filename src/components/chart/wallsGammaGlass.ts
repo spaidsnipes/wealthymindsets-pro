@@ -326,7 +326,7 @@ export function paintWallsGamma(env: WallsGammaGlassEnv): WallsGammaGlassResult 
       }
       ctx.restore();
     }
-    labels.push({ y, text: m.label, rgb, kinds: m.kinds });
+    labels.push({ y, text: m.glass ?? m.label, rgb, kinds: m.kinds });
     markWords.push(`${m.kinds.join("+")}@${m.price}`);
   }
   // Nearest the camera first.

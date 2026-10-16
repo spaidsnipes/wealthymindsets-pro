@@ -63,6 +63,8 @@ export interface WallsGammaMark {
   readonly kinds: readonly WallsGammaMarkKind[];
   /** One label naming each measure separately. */
   readonly label: string;
+  /** The SHORT words the glass prints on the mark's chip (Codex plate 01: "CALL WALL 5,290 · OI 48.7K"); the full label stays for Inspect and the event list. */
+  readonly glass?: string;
 }
 
 export interface ComposeInput {
@@ -100,10 +102,10 @@ export interface ComposeResult {
 
 export function composeWallsGammaMarks(input: ComposeInput): ComposeResult {
   const { selection: sel, gex, fmt } = input;
-  const raw: { price: number; kind: WallsGammaMarkKind; words: string }[] = [];
+  const raw: { price: number; kind: WallsGammaMarkKind; words: string; short?: string; oi?: string }[] = [];
   const yielded: Partial<Record<WallsGammaPart, string>> = {};
-  if (sel.CALL_WALL) for (const w of input.callWalls) raw.push({ price: w.strike, kind: "CALL_WALL", words: `Call wall ${fmt(w.strike)} · ${kOi(w.openInterest)} open contracts${expiryShareWords(w.topExpiry)}` });
-  if (sel.PUT_WALL) for (const w of input.putWalls) raw.push({ price: w.strike, kind: "PUT_WALL", words: `Put wall ${fmt(w.strike)} · ${kOi(w.openInterest)} open contracts${expiryShareWords(w.topExpiry)}` });
+  if (sel.CALL_WALL) for (const w of input.callWalls) raw.push({ price: w.strike, kind: "CALL_WALL", words: `Call wall ${fmt(w.strike)} · ${kOi(w.openInterest)} open contracts${expiryShareWords(w.topExpiry)}`, short: `Call wall ${fmt(w.strike)} · ${kOi(w.openInterest)} OI`, oi: kOi(w.openInterest) });
+  if (sel.PUT_WALL) for (const w of input.putWalls) raw.push({ price: w.strike, kind: "PUT_WALL", words: `Put wall ${fmt(w.strike)} · ${kOi(w.openInterest)} open contracts${expiryShareWords(w.topExpiry)}`, short: `Put wall ${fmt(w.strike)} · ${kOi(w.openInterest)} OI`, oi: kOi(w.openInterest) });
   if (gex?.drawn && sel.GAMMA_CONCENTRATION) {
     for (const c of gex.concentration) {
       const b = gex.buckets.find(x => x.price === c.price);
@@ -121,20 +123,27 @@ export function composeWallsGammaMarks(input: ComposeInput): ComposeResult {
     if (sel.GAMMA_NEGATIVE) yielded.GAMMA_NEGATIVE = "shown by the Derivatives Pressure field";
   }
   raw.sort((a, b) => a.price - b.price || ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind));
-  const marks: { price: number; kinds: WallsGammaMarkKind[]; parts: string[] }[] = [];
+  const marks: { price: number; kinds: WallsGammaMarkKind[]; parts: string[]; shorts: string[]; ois: (string | undefined)[] }[] = [];
   for (const r of raw) {
     const last = marks[marks.length - 1];
     if (last && Math.abs(r.price - last.price) <= input.mergeWithin && !last.kinds.includes(r.kind)) {
       last.kinds.push(r.kind);
       last.parts.push(r.words);
+      last.shorts.push(r.short ?? r.words);
+      last.ois.push(r.oi);
       continue;
     }
-    marks.push({ price: r.price, kinds: [r.kind], parts: [r.words] });
+    marks.push({ price: r.price, kinds: [r.kind], parts: [r.words], shorts: [r.short ?? r.words], ois: [r.oi] });
   }
   return {
     marks: marks.map(m => {
-      const order = m.kinds.map((k, i) => ({ k, w: m.parts[i] })).sort((a, b) => ORDER.indexOf(a.k) - ORDER.indexOf(b.k));
-      return { price: m.price, kinds: order.map(o => o.k), label: order.map(o => o.w).join(" · ") };
+      const order = m.kinds.map((k, i) => ({ k, w: m.parts[i], s: m.shorts[i], oi: m.ois[i] })).sort((a, b) => ORDER.indexOf(a.k) - ORDER.indexOf(b.k));
+      // A strike that is both walls says so in ONE chip: "Call + put wall 7,800 · 12k / 9k OI".
+      const callO = order.find(o => o.k === "CALL_WALL"), putO = order.find(o => o.k === "PUT_WALL");
+      const rest = order.filter(o => o.k !== "CALL_WALL" && o.k !== "PUT_WALL").map(o => o.s);
+      const wallShort = callO && putO ? `Call + put wall ${fmt(m.price)} · ${callO.oi} / ${putO.oi} OI` : callO ? callO.s : putO ? putO.s : null;
+      const glass = [...(wallShort ? [wallShort] : []), ...rest].join(" · ");
+      return { price: m.price, kinds: order.map(o => o.k), label: order.map(o => o.w).join(" · "), glass };
     }),
     yielded,
   };

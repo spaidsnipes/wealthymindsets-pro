@@ -186,3 +186,18 @@ describe("§14 derivatives distinctions: expiry, concentration, scope", () => {
     expect(gexScopeWords(d)).toMatch(/1 COIN\/CONTRACT$/);
   });
 });
+
+describe("Codex plate 01 · the glass prints a SHORT wall chip; the full sentence stays for Inspect", () => {
+  it("one strike with both walls → one chip naming both OIs", async () => {
+    const { composeWallsGammaMarks } = await import("./wallsGammaFamily");
+    const r = composeWallsGammaMarks({
+      selection: { CALL_WALL: true, PUT_WALL: true, GAMMA_HEATMAP: false, GAMMA_POSITIVE: false, GAMMA_NEGATIVE: false, GAMMA_FLIP: false, GAMMA_CONCENTRATION: false },
+      callWalls: [{ strike: 7800, openInterest: 12000, topExpiry: null } as never],
+      putWalls: [{ strike: 7800, openInterest: 9000, topExpiry: null } as never],
+      gex: null, pressureFieldOn: false, mergeWithin: 0, fmt: (p: number) => p.toLocaleString("en-US"),
+    });
+    expect(r.marks).toHaveLength(1);
+    expect(r.marks[0].glass).toBe("Call + put wall 7,800 · 12k / 9k OI");
+    expect(r.marks[0].label).toMatch(/^Call wall 7,800 · 12k open contracts · Put wall 7,800 · 9k open contracts/);
+  });
+});
