@@ -217,6 +217,8 @@ const KEEL_DESK_H = 3;
 /** A FAILED keel (failed aggression) on wide glass: at least this long and tall (G19, Oct 10). */
 const KEEL_FAIL_MIN_L = 8;
 const KEEL_FAIL_H = 4;
+/** MTF band / node: the least body height drawn on glass, px, centred on the true range (Founder 2026-10-16). */
+const MTF_MIN_BODY = 10;
 /** Value Candle CoG reach past a narrow glass (ASK-6). */
 const VC_COG_EXT_NARROW = 3;
 /** PHONE (2026-10-09): a big-trade disc's largest radius on narrow glass (desk: BIG_TRADE_MAX_R 42). */
@@ -20920,7 +20922,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.lineTo(plotRightD, y);
                   ctx.stroke();
                   ctx.setLineDash([]);
-                  const label = `${call ? "CALL" : "PUT"} OI ${Number.isInteger(w.strike) ? w.strike : fmtD(w.strike)} · ${w.openInterest >= 1000 ? `${Math.round(w.openInterest / 1000)}k` : w.openInterest}`;
+                  const label = `${call ? "CALL" : "PUT"} OI ${fmtD(w.strike)} · ${w.openInterest >= 1000 ? `${Math.round(w.openInterest / 1000)}k` : w.openInterest}`;
                   tickWords.push({ y, text: label, rgb, a: 0.95 * oiWordA });
                   oiMarks.push(`${w.type}@${w.strike}`);
                 }
@@ -20972,8 +20974,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   const call = e.kinds.has("CALL_OI");
                   const rgb = both ? "226,214,186" : call ? "80,190,180" : "214,120,150";
                   const side = both ? "call + put OI" : call ? "call OI" : "put OI";
-                  const fut = Number.isInteger(e.futuresLevel) ? e.futuresLevel : fmtD(e.futuresLevel);
-                  tickWords.push({ y, text: `${im.index} ${indexLevel} → ${fut} · ${side} · mapped`, rgb, a: 0.92 * baseA });
+                  tickWords.push({ y, text: `${im.index} ${fmtD(Number(indexLevel))} → ${fmtD(e.futuresLevel)} · ${side} · mapped`, rgb, a: 0.92 * baseA });
                 }
                 ctx.textAlign = "left";
                 ds.indexMappedWalls = marks.join("|") || "NONE";
@@ -21843,7 +21844,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const yT = yOf(b.high), yB = yOf(b.low);
             if (yT != null && yB != null) {
               const x0 = xOf(b.firstTime), x1 = plotRightM - 4;
-              const top = Math.min(yT, yB), h = Math.max(2, Math.abs(yB - yT));
+              // A body you can see on a screen (Founder 2026-10-16, MTF "barely see it"): a 2px band was a hairline.
+              // At least MTF_MIN_BODY tall, centred on the true range — the middle never moves.
+              const hTrue = Math.abs(yB - yT), h = Math.max(MTF_MIN_BODY, hTrue);
+              const top = Math.min(yT, yB) - (h - hTrue) / 2;
               if (x1 > x0) {
                 ctx.save();
                 ctx.clip(cutM, "evenodd");
@@ -21870,7 +21874,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const yT = yOf(n.high), yB = yOf(n.low);
             if (yT != null && yB != null) {
               const x0 = xOf(n.firstTime), x1 = plotRightM - 4;
-              const top = Math.min(yT, yB), h = Math.max(4, Math.abs(yB - yT));
+              const hTrue = Math.abs(yB - yT), h = Math.max(MTF_MIN_BODY, hTrue);
+              const top = Math.min(yT, yB) - (h - hTrue) / 2;
               if (x1 > x0) {
                 ctx.save();
                 ctx.clip(cutM, "evenodd");
