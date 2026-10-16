@@ -562,6 +562,8 @@ execFileSync(join(ROOT, "node_modules/.bin/esbuild"), [
   // next/link is CommonJS and cannot ride in a node ESM bundle; for a static
   // render it IS its anchor, so the stub measures the same box (see the stub).
   `--alias:next/link=${join(ROOT, "scripts/stubs/next-link.tsx")}`,
+  // next/navigation likewise (AuthContext, via the stage ribbon's audience read); see the stub.
+  `--alias:next/navigation=${join(ROOT, "scripts/stubs/next-navigation.ts")}`,
   `--outfile=${out}`,
 ], { stdio: "inherit" });
 
