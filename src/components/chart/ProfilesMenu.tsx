@@ -272,7 +272,9 @@ export function ProfilesMenu({
                   className="min-w-0 flex-1 px-2 py-1.5 text-left transition-colors hover:bg-wm-card"
                   // A row, not a card: only the active reading carries the gold
                   // left edge (the Chart tools / Workspace rail grammar).
+                  // Plate 23: rows are 44px touch targets.
                   style={{
+                    minHeight: 44,
                     border: "none",
                     borderLeft: entry.active ? "2px solid rgba(212,175,55,0.85)" : "2px solid transparent",
                     background: entry.active ? "rgba(212,175,55,0.07)" : "transparent",
@@ -280,11 +282,16 @@ export function ProfilesMenu({
                   }}
                 >
                   <div className="flex min-w-0 items-center gap-1.5">
+                    {/* Plate 23: a switch, not a dot — on is a gold pill with its knob right. The row's
+                        own aria-checked carries the state; the state's colour lives on the chip below. */}
                     <span
                       aria-hidden
-                      className="h-1.5 w-1.5 shrink-0 rounded-full"
-                      style={{ background: AVAILABILITY_DOT[entry.availability] }}
-                    />
+                      data-testid={`profile-switch-${entry.id}`}
+                      className="relative inline-block shrink-0 rounded-full"
+                      style={{ width: 30, height: 16, background: entry.active ? "rgba(212,175,55,0.9)" : "rgba(255,255,255,0.12)", transition: "background 120ms" }}
+                    >
+                      <span className="absolute rounded-full" style={{ top: 2, left: entry.active ? 16 : 2, width: 12, height: 12, background: entry.active ? "#14110a" : "#8B92AC", transition: "left 120ms" }} />
+                    </span>
                     {entry.organism != null && (
                       <span
                         className="flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-full border text-[9px] font-bold"
@@ -296,8 +303,8 @@ export function ProfilesMenu({
                       </span>
                     )}
                     <span
-                      className="min-w-0 truncate text-[11px] font-bold"
-                      style={{ color: entry.active ? "#d4af37" : "#C9CCDA" }}
+                      className="min-w-0 truncate text-[16px] font-semibold"
+                      style={{ color: entry.active ? "#F3EBDD" : "#C9CCDA" }}
                     >
                       {entry.label}
                     </span>
