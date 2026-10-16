@@ -23040,10 +23040,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.save();
                   ctx.font = marketFont("OBJECT_NAME");
                   const tw = Math.ceil(ctx.measureText(label).width) + 16;
-                  const prefD = { x: xR - tw, y: Math.round(+yTop) - 40, w: tw, h: 20 };
+                  // Beside the body's widest row, outside it: the axis corner is
+                  // DOM chrome's (the MID · N bars chip), which no keep-out sees.
+                  const widest = sorted.reduce((m, b) => (b.share > m.share ? b : m), sorted[0]);
+                  const yW = srs.priceToCoordinate(widest.price);
+                  const yRef = yW != null ? +yW : +yTop;
+                  const bodyLeft = xR - widest.share * silW;
+                  const prefD = { x: Math.round(bodyLeft - tw - 8), y: Math.round(yRef) - 10, w: tw, h: 20 };
                   const spotD = placeClearOfKeepOut(prefD, keepOut(), {
                     minX: keepOutMinX(), blockers: floatingChips, strict: true,
-                    alternates: [{ ...prefD, y: prefD.y - 24 }, { ...prefD, x: xR - silW, y: prefD.y }],
+                    alternates: [{ ...prefD, y: prefD.y - 28 }, { ...prefD, y: prefD.y + 28 }, { ...prefD, y: Math.round(+yTop) + 6, x: xR - tw - 4 }],
                   });
                   if (spotD.mode !== "BLOCKED") {
                     ctx.fillStyle = "rgba(10,10,12,0.88)";
