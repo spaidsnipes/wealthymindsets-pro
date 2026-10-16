@@ -181,7 +181,7 @@ describe("dvpRefusalMessage — one sentence per obstacle, and no false promises
     // bars" for all three causes, sending the trader on an errand that could
     // never succeed. The no-levels sentence must not name a box action.
     const m = dvpRefusalMessage("no-levels");
-    expect(m).toMatch(/no per-level/i);
+    expect(m).toMatch(/fills in as live trades arrive/i); // plain words (plate 30 / L19, 2026-10-15)
     expect(m).not.toMatch(/wider|narrow|short|bigger|larger|resize|box/i);
   });
 
@@ -192,7 +192,7 @@ describe("dvpRefusalMessage — one sentence per obstacle, and no false promises
     // profile exists for exactly one population — bars watched live on this
     // chart. "No data" alone would leave the trader unable to tell a limitation
     // from a fault; naming the condition tells them when it WILL work.
-    expect(dvpRefusalMessage("no-levels")).toMatch(/captured live only/i);
+    expect(dvpRefusalMessage("no-levels")).toMatch(/live trades/i);
   });
 
   it("keeps the chart refusal instrument-sized instead of turning it into prose", () => {
@@ -216,7 +216,7 @@ describe("dvpRefusalMessage — one sentence per obstacle, and no false promises
 describe("dvpGroupedRefusalMessage — shared tape absence speaks once", () => {
   it("adds the governed drawing count only to the global no-levels refusal", () => {
     expect(dvpGroupedRefusalMessage("no-levels", 3)).toBe(
-      "Delta+VP ×3 · no per-level tape · captured live only",
+      "Delta+VP ×3 · fills in as live trades arrive",
     );
     expect(dvpGroupedRefusalMessage("too-narrow", 3)).toBe(
       dvpRefusalMessage("too-narrow"),

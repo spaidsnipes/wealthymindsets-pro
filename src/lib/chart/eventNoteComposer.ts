@@ -115,3 +115,70 @@ export function placePipHit(r: PipRect, clearLeft: number, taken: readonly PipRe
   }
   return null;
 }
+
+/* ── PLATE 30 · MARKET EVENTS IN PLAIN ENGLISH (Garden 19 finish line, Founder 2026-10-15) ──
+ * "Humans do not speak AI." Live click-through L19: chips read "1 MARKET EVENT: WORDS · ☆ MEAN …",
+ * lists read "STRUCTURE · LH", "DERIVATIVES · P30200 ×11 SELL · ~$110k". Each held label becomes
+ * one short sentence about the market; a label that is not a market event (the depth state, a bar
+ * count) is not counted as one. The raw code stays as the evidence line under "Show evidence".
+ * Texts below are the ones read on serving 5863f6d, NQ1! 15m.
+ */
+const fmtPx = (s: string): string => {
+  const n = Number(s);
+  return Number.isFinite(n) ? n.toLocaleString("en-US", { maximumFractionDigits: 2 }) : s;
+};
+
+const STRUCTURE_WORDS: Readonly<Record<string, string>> = {
+  HH: "Higher high — buyers in control",
+  HL: "Higher low held",
+  LH: "Lower high — sellers in control",
+  LL: "Lower low — sellers pressing",
+};
+
+/** One plain sentence for a held label, or null when it is not a market event. */
+export function plainEventSentence(layer: string, text: string): string | null {
+  const t = text.trim();
+  let m: RegExpExecArray | null;
+  if (layer === "STRUCTURE") {
+    if (STRUCTURE_WORDS[t]) return STRUCTURE_WORDS[t];
+    if ((m = /^SWING (ABOVE|BELOW) · ([\d.]+)$/.exec(t))) return `Swing ${m[1] === "ABOVE" ? "high" : "low"} at ${fmtPx(m[2])}`;
+  }
+  if ((m = /^([CP])([\d.]+) ×(\d+) (BUY|SELL)(?: · ~?\$?([\d.,]+[kMB]?))?$/.exec(t))) {
+    return `${m[3]} ${m[1] === "C" ? "calls" : "puts"} at ${fmtPx(m[2])} ${m[4] === "BUY" ? "bought" : "sold"}${m[5] ? ` (~$${m[5]})` : ""}`;
+  }
+  if ((m = /^(CALL|PUT) OI ([\d.]+) · ([\d,]+)$/.exec(t))) return `${m[3]} ${m[1] === "CALL" ? "call" : "put"} contracts open at ${fmtPx(m[2])}`;
+  if ((m = /^dPOC ([\d.]+) · ([+-]?[\d.]+) THIS SESSION( · EST)?$/.exec(t))) {
+    const d = Number(m[2]);
+    return `Most-traded price moved to ${fmtPx(m[1])} (${d > 0 ? "+" : d < 0 ? "−" : ""}${Math.abs(d)} today${m[3] ? ", estimated" : ""})`;
+  }
+  if ((m = /^MARKET SURPRISE · (\d+) of (\d+) went this far$/.exec(t))) return `Unusual move — only ${m[1]} in ${m[2]} sessions go this far`;
+  if ((m = /^(SUPPLY|DEMAND) ZONE · (DEFENDED|BROKEN|TESTED)(?: · (\d+) TESTS?)?$/.exec(t.replace(/^ZONE · /, "")))) {
+    const who = m[1] === "SUPPLY" ? "Sellers" : "Buyers";
+    const nth = m[3] ? ` (${ordinal(Number(m[3]))} test)` : "";
+    if (m[2] === "BROKEN") return `Price broke the ${m[1].toLowerCase()} zone`;
+    return `${who} ${m[2] === "DEFENDED" ? "defended" : "met"} the ${m[1].toLowerCase()} zone${nth}`;
+  }
+  // Not market events: the depth state ("MID · ZONES + PROFILE SPEAK") and counts ("80 bars").
+  if (/^(FAR|MID|NEAR) · /.test(t) || /^\d+ bars$/.test(t)) return null;
+  // Unknown: say it plainly-cased rather than shouting a code; it stays an event.
+  return t.charAt(0) + t.slice(1).toLowerCase();
+}
+
+function ordinal(n: number): string {
+  const s = n % 100 >= 11 && n % 100 <= 13 ? "th" : n % 10 === 1 ? "st" : n % 10 === 2 ? "nd" : n % 10 === 3 ? "rd" : "th";
+  return `${n}${s}`;
+}
+
+/** The anchor's sentences (market events only), and its evidence (every raw code). */
+export function anchorSentences(a: NoteAnchor): { readonly sentences: readonly string[]; readonly evidence: readonly string[] } {
+  const sentences: string[] = [];
+  for (const n of a.notes) { const s = plainEventSentence(n.layer, n.text); if (s) sentences.push(s); }
+  return { sentences, evidence: anchorListLines(a) };
+}
+
+/** The chip's words: one event → its sentence; several → "N events · Show list"; none → null (no chip). */
+export function plainAnchorWord(a: NoteAnchor): string | null {
+  const { sentences } = anchorSentences(a);
+  if (sentences.length === 0) return null;
+  return sentences.length === 1 ? sentences[0] : `${sentences.length} events · Show list`;
+}

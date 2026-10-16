@@ -60,3 +60,23 @@ describe("the lone-word pip's touch target", () => {
     expect(placePipHit({ ...pip, x: 10 }, 20, [], 0)).toBeNull();
   });
 });
+
+describe("plate 30 — market events in plain English (texts read on serving 5863f6d)", () => {
+  it("speaks each held label as one short sentence; non-events are not counted", async () => {
+    const { plainEventSentence, plainAnchorWord } = await import("./eventNoteComposer");
+    expect(plainEventSentence("STRUCTURE", "HH")).toBe("Higher high — buyers in control");
+    expect(plainEventSentence("STRUCTURE", "LL")).toBe("Lower low — sellers pressing");
+    expect(plainEventSentence("STRUCTURE", "SWING ABOVE · 30196.75")).toBe("Swing high at 30,196.75");
+    expect(plainEventSentence("DERIVATIVES", "P30200 ×11 SELL · ~$110k")).toBe("11 puts at 30,200 sold (~$110k)");
+    expect(plainEventSentence("WORDS", "CALL OI 30200 · 629")).toBe("629 call contracts open at 30,200");
+    expect(plainEventSentence("WORDS", "dPOC 30040.00 · -65.00 THIS SESSION · EST")).toBe("Most-traded price moved to 30,040 (−65 today, estimated)");
+    expect(plainEventSentence("WORDS", "MARKET SURPRISE · 1 of 10 went this far")).toBe("Unusual move — only 1 in 10 sessions go this far");
+    expect(plainEventSentence("ZONE", "SUPPLY ZONE · DEFENDED · 2 TESTS")).toBe("Sellers defended the supply zone (2nd test)");
+    expect(plainEventSentence("WORDS", "MID · ZONES + PROFILE SPEAK")).toBeNull();
+    expect(plainEventSentence("WORDS", "80 bars")).toBeNull();
+    const a = (texts: [string, string][]) => ({ x: 0, y: 0, word: "", notes: texts.map(([layer, text]) => ({ layer, text, x: 0, y: 0 })) });
+    expect(plainAnchorWord(a([["STRUCTURE", "HL"]]))).toBe("Higher low held");
+    expect(plainAnchorWord(a([["WORDS", "MID · ZONES + PROFILE SPEAK"], ["STRUCTURE", "SWING BELOW · 30195.25"], ["WORDS", "CALL OI 30200 · 629"]]))).toBe("2 events · Show list");
+    expect(plainAnchorWord(a([["WORDS", "80 bars"]]))).toBeNull();
+  });
+});

@@ -55,7 +55,7 @@ import type { RegimeSeriesPoint } from "@/lib/marketData/viewModels/selectRegime
 import { bucketStep, profileContribution } from "@/lib/chart/profileContribution";
 import type { LivingDevelopmentPoint } from "@/lib/marketData/viewModels/selectLivingProfile";
 import { BROKER_LINE_NOT_MOVABLE, askChartLineModify, workingLineModifyNote, workingOrderIdOfLine, chartOrderLineDraggable, chartPricePickArmed, deliverChartDraftPrice, deliverChartPricePick, draftHandleWords, orderLineWords, registerChartPricePickHost, useChartOrderLines, type ChartOrderLine } from "@/lib/execution/chartOrderLines";
-import { anchorListLines, anchorsKey, COMPOSE_NOTES_KEY, composeNoteAnchors, pipHitRect, placePipHit, type DisplacedNote, type PipRect } from "@/lib/chart/eventNoteComposer";
+import { anchorListLines, anchorsKey, COMPOSE_NOTES_KEY, composeNoteAnchors, pipHitRect, placePipHit, plainAnchorWord, plainEventSentence, type DisplacedNote, type PipRect } from "@/lib/chart/eventNoteComposer";
 import { logicalForTime, xForLogical, SESSION_BAND_LABEL, SESSION_BANDS_BUDGET_MS, sessionSpans, sessionsAt, type SessionSpan } from "@/lib/chart/sessionBands";
 import { hasNoCentralVolume, needsTradedVolumeSentence, needsTradedVolumeWords, volumeBearingBars, volumeTruthFor } from "@/lib/chart/volumeTruth";
 import { absorptionAnalysisWindow } from "@/lib/chart/absorptionAnalysisWindow";
@@ -27493,8 +27493,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // A lone held word is a quiet 12px pip (tap lists it); only a
             // CLUSTER earns the words "N MARKET EVENTS" (serving NQ 5m, 8f7f6f4:
             // five "1 MARKET EVENT" chips read as clutter, not composition).
-            const single = a.notes.length === 1;
-            const w = single ? 12 : Math.ceil(a.word.length * 6.2) + 14, h = single ? 12 : 20;
+            // Plate 30 (2026-10-15): the chip SAYS the event — "Higher low held", "11 puts at 30,200 sold" —
+            // or "3 events · Show list" for a cluster; the wordless pip is only the crowded fallback.
+            // An anchor holding no market event (the depth state, a bar count) stays the quiet pip — never
+            // deleted (§14), never called an event.
+            const plain = plainAnchorWord(a);
+            const single = plain == null;
+            const w = single ? 12 : Math.ceil(plain.length * 7.3) + 22, h = single ? 12 : 26;
             const pref = { x: Math.max(4, Math.min(plotRight - w - 4, a.x - w / 2)), y: Math.max(HEADER_FLOOR_Y, Math.min(pane0Bottom - h - 4, a.y - h / 2)), w, h };
             // Never on the candles (serving BTC 5m, 1ba83cb: an anchor sat across
             // the bodies by the live price). Strict placement, stepping off the
@@ -27571,13 +27576,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // "N MARKET EVENTS"), so it stays the quiet wordless 12px dot — no 8px
               // digit on the glass (coordinator ruling 2026-10-09); its label is in
               // the title, the aria-label and the tap list.
-              b.textContent = p.single ? "" : p.a.word;
-              b.setAttribute("aria-label", p.single ? `${p.a.word}: ${anchorListLines(p.a).join(", ")}` : p.a.word);
+              const plainWord = plainAnchorWord(p.a) ?? p.a.word;
+              b.textContent = p.single ? "" : plainWord; // plate 30 (2026-10-15)
+              b.setAttribute("aria-label", `${plainWord}: ${p.a.notes.map(nt => plainEventSentence(nt.layer, nt.text) ?? `${nt.layer} · ${nt.text}`).join(", ")}`);
               Object.assign(b.style, {
                 position: "absolute", left: `${Math.round(p.r.x)}px`, top: `${Math.round(p.r.y)}px`, height: `${p.r.h}px`,
                 width: p.single ? `${p.r.w}px` : "auto",
-                padding: p.single ? "0" : "0 7px", font: `700 10px ${MARKET_SANS}`, letterSpacing: "0.04em", fontVariantNumeric: "tabular-nums",
-                color: "#ede6d3", background: "rgba(17,15,11,0.86)", border: "1px solid rgba(201,165,92,0.55)", borderRadius: "9px",
+                padding: p.single ? "0" : "0 10px", font: `600 13px ${MARKET_SANS}`, letterSpacing: "0.01em", fontVariantNumeric: "tabular-nums",
+                color: "#F3EBDD", background: "rgba(14,12,9,0.92)", border: "1px solid rgba(212,175,55,0.7)", borderRadius: "8px",
                 opacity: p.crowded ? "0.7" : "1", pointerEvents: "auto", cursor: "pointer", whiteSpace: "nowrap",
               });
               el.appendChild(b);
@@ -27589,23 +27595,31 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // and lets the market read through (0.8 + a light blur).
                 const listLeft = Math.max(4, Math.min(p.r.x, plotRight - 230, pipClearLeft - 232));
                 Object.assign(list.style, {
-                  position: "absolute", left: `${Math.round(listLeft)}px`, top: `${Math.round(p.r.y + p.r.h + 4)}px`, width: "226px",
-                  padding: "6px 8px", font: `600 10px ${MARKET_SANS}`, color: "#ede6d3", background: "rgba(17,15,11,0.8)", backdropFilter: "blur(2px)",
+                  position: "absolute", left: `${Math.round(listLeft)}px`, top: `${Math.round(p.r.y + p.r.h + 4)}px`, width: "280px",
+                  padding: "8px 10px", font: `500 14px ${MARKET_SANS}`, color: "#ede6d3", background: "rgba(17,15,11,0.8)", backdropFilter: "blur(2px)",
                   border: "1px solid rgba(201,165,92,0.5)", borderRadius: "8px", pointerEvents: "auto", zIndex: "1",
                 });
                 // P3-I: a row that knows its bar OPENS it (the Wisdom line's
                 // selection owner); a row with no bar stays a plain line.
-                p.a.notes.forEach((nt, k) => {
-                  const line = anchorListLines(p.a)[k];
+                p.a.notes.forEach(nt => {
+                  // Plate 30: the sentence; a non-event label keeps its own words.
+                  const line = plainEventSentence(nt.layer, nt.text) ?? `${nt.layer} · ${nt.text}`;
                   if (nt.time != null && Number.isFinite(nt.time)) {
                     const rb = document.createElement("button");
                     rb.type = "button"; rb.dataset.action = "open-bar"; rb.dataset.barTime = String(nt.time);
                     rb.textContent = `${line} ›`;
                     rb.setAttribute("aria-label", `${line} — open this candle in Inspect`);
-                    Object.assign(rb.style, { display: "block", width: "100%", textAlign: "left", minHeight: "24px", padding: "2px 0", color: "#ede6d3", background: "transparent", border: "none", cursor: "pointer", font: `600 10px ${MARKET_SANS}` });
+                    Object.assign(rb.style, { display: "block", width: "100%", textAlign: "left", minHeight: "28px", padding: "3px 0", color: "#F3EBDD", background: "transparent", border: "none", cursor: "pointer", font: `500 14px ${MARKET_SANS}` });
                     list.appendChild(rb);
                   } else { const d = document.createElement("div"); d.textContent = line; d.style.padding = "2px 0"; list.appendChild(d); }
                 });
+                // Show evidence: the raw codes behind the sentences, quiet, for the trader who wants them.
+                const ev = document.createElement("details");
+                const evS = document.createElement("summary"); evS.textContent = "Show evidence";
+                Object.assign(evS.style, { cursor: "pointer", color: "#c9a55c", font: `600 13px ${MARKET_SANS}`, marginTop: "4px" });
+                ev.appendChild(evS);
+                for (const line of anchorListLines(p.a)) { const d = document.createElement("div"); d.textContent = line; Object.assign(d.style, { font: `500 13px ${MARKET_SANS}`, color: "rgba(214,206,186,0.9)", padding: "1px 0" }); ev.appendChild(d); }
+                list.appendChild(ev);
                 const off = document.createElement("button");
                 off.type = "button"; off.dataset.action = "compose-off"; off.textContent = "Show every label in place";
                 Object.assign(off.style, { marginTop: "4px", color: "#c9a55c", background: "transparent", border: "none", padding: "2px 0", cursor: "pointer", font: `700 10px ${MARKET_SANS}` });

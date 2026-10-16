@@ -265,8 +265,9 @@ describe("narrow legend band keeps its status inside the pane (Desk 4-up, 2026-1
 });
 
 describe("P3-I note anchors (Sheriff, 2026-10-08)", () => {
-  it("a lone-label pip stays a wordless 12px dot (no sub-10px type); the open list is translucent, clear of the newest candles; a row with a bar opens it", () => {
-    expect(CHART).toContain('b.textContent = p.single ? "" : p.a.word;');
+  it("an event chip says the event in plain English (plate 30); a label-only anchor stays a wordless 12px pip; the open list is translucent, clear of the newest candles; a row with a bar opens it", () => {
+    expect(CHART).toContain('b.textContent = p.single ? "" : plainWord; // plate 30 (2026-10-15)');
+    expect(CHART).toContain("const single = plain == null;");
     expect(CHART).not.toMatch(/700 8px\/10px/);
     expect(CHART).toContain("const listLeft = Math.max(4, Math.min(p.r.x, plotRight - 230, pipClearLeft - 232));");
     expect(CHART).toContain('background: "rgba(17,15,11,0.8)", backdropFilter: "blur(2px)"');

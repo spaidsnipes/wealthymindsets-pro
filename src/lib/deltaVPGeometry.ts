@@ -147,7 +147,8 @@ export function dvpRefusalMessage(refusal: DVPRefusal): string {
       // The chart is the instrument, not the explanation drawer. Keep the
       // refusal short enough to stay attached to the selected box; the full
       // provenance sentence remains on the canonical Profiles control.
-      return "Delta+VP · no per-level tape · captured live only";
+      // Plate 30 / L19 (2026-10-15): plain words, not pipeline vocabulary — same condition, said humanly.
+      return "Delta+VP · fills in as live trades arrive";
     case "too-narrow":
       return "Delta+VP — box too narrow for two columns";
     case "too-short":
