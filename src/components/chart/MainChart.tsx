@@ -8640,7 +8640,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // nearest in-bounds spot; at rest, with no clear spot, it is quiet.
               const yHighH = srs.priceToCoordinate(hb.high);
               const yTopH = yHighH == null ? +yLowH : +yHighH;
-              const inPane = (r: { x: number; y: number; w: number; h: number }) => r.x >= 4 && r.x + r.w <= plotRight - 4 && r.y >= HEADER_FLOOR_Y && r.y + r.h <= pane0Bottom - 4;
+              // THE VOLUME BAND IS NOT ITS FLOOR (serving NQ1! 15m, Oct 16 one-at-a-time pass: the at-rest card
+              // stood on the volume bars under the newest candle). Price's territory ends where volume's begins.
+              let volFloorC = pane0Bottom;
+              try {
+                const vt = Number((chart.priceScale("vol").options() as { scaleMargins?: { top?: number } }).scaleMargins?.top);
+                if (Number.isFinite(vt) && vt > 0 && vt < 1) volFloorC = Math.min(pane0Bottom, pane0Bottom * vt);
+              } catch { /* no volume scale: the pane */ }
+              const inPane = (r: { x: number; y: number; w: number; h: number }) => r.x >= 4 && r.x + r.w <= plotRight - 4 && r.y >= HEADER_FLOOR_Y && r.y + r.h <= volFloorC - 4;
               const hits = (r: { x: number; y: number; w: number; h: number }) => [...candlesC, ...forceChips].some(o => r.x < o.x + o.w && r.x + r.w > o.x && r.y < o.y + o.h && r.y + r.h > o.y);
               const spotsC = [
                 { x: +xh + 14, y: +yLowH + 10 }, { x: +xh - 14 - bw, y: +yLowH + 10 },
@@ -13989,6 +13996,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // aggression is in the camera's top 40% AND it is ≥ 20% one-sided.
             const netsSorted = rows.map(r => Math.abs(r.buy - r.sell)).sort((p, q) => p - q);
             const leanFloor = netsSorted[Math.floor(netsSorted.length * 0.6)] ?? 0;
+            // ONE-SIDEDNESS IS READ AGAINST THIS CAMERA (serving NQ1! 15m, Oct 16 one-at-a-time pass: 169 sided
+            // bars, SHOWN:0 — a 15m futures bar is rarely 20% one-sided, so the fixed floor left Flow Current on
+            // and blank). The floor is the camera's own top quarter, never above the old 20% nor under 4%;
+            // length and ink then read each bar against the camera's most one-sided bar.
+            const oneSorted = rows.map(r => Math.abs(r.buy - r.sell) / (r.buy + r.sell)).sort((p, q) => p - q);
+            const oneFloor = Math.min(0.2, Math.max(0.04, oneSorted[Math.floor(oneSorted.length * 0.75)] ?? 0.2));
+            const oneMax = Math.max(oneFloor, oneSorted[oneSorted.length - 1] ?? oneFloor);
             let flowShown = 0;
             const inks = flowColorsRef.current;
             const tt = motionOnRef.current ? performance.now() / 1000 : 0;
@@ -14011,7 +14025,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // Every form — speaking, quiet on a phone's narrow glass, or pooled
               // (measured: 25 / 25 bars, then 18 / 18 pooled buckets streaked at
               // 390) — only where flow leaned draws.
-              if (Math.abs(net) < leanFloor || onesided < 0.2) continue;
+              if (Math.abs(net) < leanFloor || onesided < oneFloor) continue;
+              const oneRel = Math.min(1, onesided / oneMax);
               flowShown++;
               // STREAKS STAY LINES (serving TSLA 15m, 2026-09-30): six haloed
               // streaks inside one 9px bar merged into a soft green / red blob
@@ -14024,7 +14039,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // Length is the bar's OWN range (px) scaled by one-sidedness — a
               // current reads at every zoom, not as 8px dust.
               const rangePx = Math.abs(r.yLow - r.yHigh);
-              const len = Math.min(110, Math.max(14, rangePx * 0.9 + 18)) * (0.35 + 0.65 * onesided);
+              const len = Math.min(110, Math.max(14, rangePx * 0.9 + 18)) * (0.35 + 0.65 * oneRel);
               const weight = Math.sqrt(total / peak);
               const rgb = up ? inks.btBuy : inks.btSell;
               // Launch from the wick extreme in the current's direction.
@@ -14036,7 +14051,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 const ph = ((tt * 0.8 + k * 0.37 + r.x * 0.013) % 1);
                 const y0 = base + dir * ph * len * 0.35;
                 const y1 = y0 + dir * len * (0.7 + 0.3 * ((k * 0.61) % 1));
-                const a = 0.28 + 0.5 * onesided;
+                const a = 0.28 + 0.5 * oneRel;
                 // Halo then core (two solid strokes; a gradient per streak cost ~1k/frame).
                 ctx.strokeStyle = `rgba(${rgb},${(a * 0.28).toFixed(3)})`;
                 ctx.lineWidth = Math.min(4 + 3 * weight, pitch);
@@ -14056,7 +14071,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               }
             }
             ctx.restore();
-            canvas.dataset.flowCurrent = `${flowSpeaks ? "BARS" : `QUIET:POOLED${k}`}:${rows.length}|${motionOnRef.current ? "LIVE" : "STILL"}|SHOWN:${flowShown}${flowSpeaks ? "" : "|FORM:DOTTED_STREAK"}`;
+            canvas.dataset.flowCurrent = `${flowSpeaks ? "BARS" : `QUIET:POOLED${k}`}:${rows.length}|${motionOnRef.current ? "LIVE" : "STILL"}|SHOWN:${flowShown}|ONE:${oneFloor.toFixed(2)}${flowSpeaks ? "" : "|FORM:DOTTED_STREAK"}`;
             // The boundary itself is drawn once per frame by the shared TAPE
             // COVERAGE block (every tape sense reads the same buffer).
             const tapeStartsInView = firstSidedX != null && firstInViewX != null && firstSidedX - firstInViewX > bsp * 1.5;
@@ -18772,7 +18787,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ys.sort((a, b) => a - b);
             let gap = Infinity;
             for (let i = 1; i < ys.length; i++) { const g = ys[i]! - ys[i - 1]!; if (g > 0.5 && g < gap) gap = g; }
-            const bandH = Math.max(6, Math.min(16, Number.isFinite(gap) ? Math.floor(gap * 0.8) : 10));
+            const bandH = Math.max(6, Math.min(16, Number.isFinite(gap) ? Math.floor(Math.max(gap, 12) * 0.8) : 10));
             const bandMax = Math.max(80, Math.min(520, dlPlotRight * 0.42));
             const tsDL = chart.timeScale();
             const vrDL = tsDL.getVisibleLogicalRange();
@@ -18789,10 +18804,40 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.clip(clipDL, "evenodd");
             let drawnRungs = 0, buyRungs = 0, sellRungs = 0;
             const bandsDL: { y: number; x0: number; rgb: string; r: (typeof dl.rungs)[number] }[] = [];
-            for (const r of dl.rungs) {
-              const yr = srs.priceToCoordinate(r.price);
-              if (yr == null) continue;
-              const y = Math.round(+yr);
+            // ONE BAND PER PIXEL ROW (serving NQ1! 15m, Oct 16 one-at-a-time pass: with ten minutes of tape every
+            // rung sat within two ticks — four bands drew over each other as one striped strip and their four
+            // chips ran in a row across the chart). Rungs closer than a readable row merge into one band: the
+            // deltas SUM (a real total), its side is the sum's sign, its price the group's low edge.
+            type RowDL = { y: number; r: (typeof dl.rungs)[number] };
+            const maxAbsDL = Math.max(1e-9, ...dl.rungs.filter(r => r.weight > 0).map(r => Math.abs(r.delta) / r.weight));
+            const rowsDL: RowDL[] = [];
+            {
+              const placed: RowDL[] = [];
+              for (const r of dl.rungs) {
+                const yr = srs.priceToCoordinate(r.price);
+                if (yr == null) continue;
+                placed.push({ y: +yr, r });
+              }
+              placed.sort((a, b) => a.y - b.y);
+              const MIN_ROW_DL = 12;
+              for (let i = 0; i < placed.length;) {
+                let j = i + 1;
+                while (j < placed.length && placed[j]!.y - placed[i]!.y < MIN_ROW_DL) j++;
+                const g = placed.slice(i, j);
+                if (g.length === 1) rowsDL.push(g[0]!);
+                else {
+                  const sum = g.reduce((a, q) => a + q.r.delta, 0);
+                  rowsDL.push({
+                    y: g.reduce((a, q) => a + q.y, 0) / g.length,
+                    r: { price: Math.min(...g.map(q => q.r.price)), side: sum >= 0 ? "BUY" : "SELL", weight: Math.min(1, Math.abs(sum) / maxAbsDL), delta: sum },
+                  });
+                }
+                i = j;
+              }
+            }
+            ds.deltaLevelsMerged = `${dl.rungs.length}>${rowsDL.length}`;
+            for (const { y: yRow, r } of rowsDL) {
+              const y = Math.round(yRow);
               const len = Math.round(60 + (bandMax - 60) * r.weight);
               const x0 = dlPlotRight - 6 - len;
               const rgb = r.side === "BUY" ? flowColorsRef.current.dBuy : flowColorsRef.current.dSell;
@@ -18848,6 +18893,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           } else {
             delete ds.deltaLevelsRungs;
             delete ds.deltaLevelsSides;
+            delete ds.deltaLevelsMerged;
           }
         }
 
@@ -22418,6 +22464,19 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             [...keepOut(), ...profileCandlesAt(Math.min(...rows.map(q => q.y)), Math.max(...rows.map(q => q.y)) + h)],
             { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: alts },
           );
+          // NO CLEAR ROW → THE SILENCE STACK, never across the candles (serving NQ1! 15m, Oct 16 one-at-a-time
+          // pass: "FUSION REFUSED · COMPOSITE + LIVING…" and "PROFILE FUSION · silent…" printed over the top
+          // candles on a yielded backing). The words still say themselves, bottom-left with the other silences.
+          if (spotQ.mode === "BLOCKED") {
+            ctx.font = marketFont("OBJECT_NAME");
+            const yS = takeSilenceRow();
+            ctx.fillStyle = "rgba(200,192,174,0.85)";
+            ctx.textAlign = "left";
+            ctx.textBaseline = "middle";
+            ctx.fillText(fitSilence(text), silenceX, yS);
+            ctx.restore();
+            return { x: silenceX, y: yS - 7, w, h };
+          }
           recordKeepOut(keepOutLedger, spotQ);
           const r = spotQ.rect;
           floatingChips.push({ x: r.x, y: r.y, w: r.w, h: r.h });
