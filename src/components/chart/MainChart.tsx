@@ -28203,9 +28203,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // A sentence wider than the plot (phone 375, serving 455949c: "Most-traded price moved to 30,180
             // (+70 today, estim…" ran off the glass) says "Event · Show list"; the tap still reads it in full.
             const plainRaw = speakers.has(a) ? plainAnchorWord(a) : null;
-            const plain = plainRaw != null && Math.ceil(plainRaw.length * 7.3) + 22 > plotRight - 8 ? "Event · Show list" : plainRaw;
+            // The chip's width is MEASURED in the font the DOM button paints (600 13px), not guessed at 7.3px a
+            // character — the guess ran short and "2 events" sat under "3 events · Show list" (serving f2f7175).
+            const chipW = (t: string) => { ctx.save(); ctx.font = `600 13px ${MARKET_SANS}`; const m = ctx.measureText(t).width; ctx.restore(); return Math.ceil(m * 1.01) + 24; };
+            const plain = plainRaw != null && chipW(plainRaw) > plotRight - 8 ? "Event · Show list" : plainRaw;
             const single = plain == null;
-            const w = single ? 12 : Math.ceil(plain.length * 7.3) + 22, h = single ? 12 : 26;
+            const w = single ? 12 : chipW(plain), h = single ? 12 : 26;
             const pref = { x: Math.max(4, Math.min(plotRight - w - 4, a.x - w / 2)), y: Math.max(HEADER_FLOOR_Y, Math.min(pane0Bottom - h - 4, a.y - h / 2)), w, h };
             // Never on the candles (serving BTC 5m, 1ba83cb: an anchor sat across
             // the bodies by the live price). Strict placement, stepping off the
@@ -28291,7 +28294,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               b.setAttribute("aria-label", `${plainWord}: ${p.a.notes.map(nt => plainEventSentence(nt.layer, nt.text) ?? `${nt.layer} · ${nt.text}`).join(", ")}`);
               Object.assign(b.style, {
                 position: "absolute", left: `${Math.round(p.r.x)}px`, top: `${Math.round(p.r.y)}px`, height: `${p.r.h}px`,
-                width: p.single ? `${p.r.w}px` : "auto",
+                width: `${p.r.w}px`, boxSizing: "border-box", textAlign: "center",
                 padding: p.single ? "0" : "0 10px", font: `600 13px ${MARKET_SANS}`, letterSpacing: "0.01em", fontVariantNumeric: "tabular-nums",
                 color: "#F3EBDD", background: "rgba(14,12,9,0.92)", border: "1px solid rgba(212,175,55,0.7)", borderRadius: "8px",
                 opacity: p.crowded ? "0.7" : "1", pointerEvents: "auto", cursor: "pointer", whiteSpace: "nowrap",
@@ -31836,121 +31839,115 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
              clean click in cursor mode). Edits mutate the drawing's
              style ref in place, then bump editBump + rangeVer to redraw. */}
         {selectedIdx != null && drawingsRef.current[selectedIdx] && !lockDrawings && (() => {
+          /* CODEX PLATE 06 · "Panels that stay with you" (Garden 19, 2026-10-16 — plate beside serving): a selected
+             drawing used to raise a 316px strip of 11px icons ON the candles beside it. It is now a docked panel at
+             the chart's left edge (history side — never the newest candles or the price axis): serif title naming the
+             drawing, one X, readable 14px rows — Colour, Width, Line type, Opacity, Fill, Coordinates — and Remove.
+             Changing a setting repaints the drawing at once; the panel stays open until X or Escape. */
           const d = drawingsRef.current[selectedIdx];
-          const anchor = logicalToPixel(d.pts[0]);
-          const cw = containerRef.current?.offsetWidth ?? 800;
-          const barW = 316;
-          const left = Math.max(6, Math.min(cw - barW - 6, (anchor?.x ?? 100) - 30));
-          const top  = Math.max(4, (anchor?.y ?? 70) - 46);
           const bump = () => { setEditBump(v => v + 1); setRangeVer(v => v + 1); };
-          const btn = (active: boolean): React.CSSProperties => ({
-            display: "flex", alignItems: "center", justifyContent: "center",
-            minWidth: 22, height: 22, padding: "0 5px", borderRadius: 5, cursor: "pointer",
-            fontSize: 11, lineHeight: 1, color: active ? "#0b0b0d" : "#c0b8a0",
-            background: active ? "#d4af37" : "rgba(255,255,255,0.05)",
-            border: `1px solid ${active ? "#d4af37" : "rgba(255,255,255,0.10)"}`,
+          const toolName = d.tool.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+          const row: React.CSSProperties = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, minHeight: 36 };
+          const lab: React.CSSProperties = { font: `500 14px ${MARKET_SANS}`, color: "#c9bfa6" };
+          const chip = (active: boolean): React.CSSProperties => ({
+            minWidth: 36, height: 30, padding: "0 8px", borderRadius: 6, cursor: "pointer",
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            font: `600 13px ${MARKET_SANS}`,
+            color: active ? "#0b0b0d" : "#ede6d3", background: active ? "#d4af37" : "rgba(255,255,255,0.05)",
+            border: `1px solid ${active ? "#d4af37" : "rgba(212,175,55,0.25)"}`,
           });
           const isText = TEXT_TOOLS.has(d.tool);
+          const fmtPt = (pt: { price: number; time: number }) => {
+            const t = new Date(pt.time * 1000).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+            return `${t} · ${pt.price.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
+          };
           return (
             <div
               key={editBump}
+              data-testid="drawing-properties-panel"
+              role="dialog"
+              aria-label={`Drawing settings: ${toolName}`}
               style={{
-                position: "absolute", left, top, zIndex: 130,
-                display: "flex", alignItems: "center", gap: 4, padding: "5px 6px",
-                background: "#141824", border: "1px solid #2A3350", borderRadius: 9,
-                boxShadow: "0 8px 26px rgba(0,0,0,0.55)",
+                position: "absolute", left: 8, top: 96, zIndex: 130, width: 268, maxHeight: "calc(100% - 112px)", overflowY: "auto",
+                display: "flex", flexDirection: "column", gap: 4, padding: "12px 14px",
+                background: "rgba(14,12,9,0.96)", border: "1px solid rgba(212,175,55,0.45)", borderRadius: 12,
+                boxShadow: "0 10px 30px rgba(0,0,0,0.6)",
               }}
               onPointerDown={(e) => e.stopPropagation()}
             >
-              {/* Color — swatch button opens a palette + full color wheel dropdown */}
-              <div style={{ position: "relative" }}>
-                <button title="Color" onClick={() => setDrawPopover(p => (p === "color" ? null : "color"))}
-                  style={{ ...btn(drawPopover === "color"), padding: "0 6px", gap: 4 }}>
-                  <span style={{ width: 13, height: 13, borderRadius: "50%", background: d.style.color, border: "1px solid rgba(255,255,255,0.5)" }} />
-                  <span style={{ fontSize: 9, opacity: 0.7 }}>▼</span>
-                </button>
-                {drawPopover === "color" && (
-                  <div style={{ position: "absolute", top: 28, left: 0, zIndex: 140, padding: 8, borderRadius: 8, width: 172,
-                    background: "#0E1322", border: "1px solid #2A3350", boxShadow: "0 8px 26px rgba(0,0,0,0.6)" }}>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
-                      {DRAW_COLORS.map(c => (
-                        <button key={c} title={c} onClick={() => { d.style.color = c; bump(); }}
-                          style={{ width: 18, height: 18, borderRadius: "50%", cursor: "pointer", background: c,
-                            border: d.style.color === c ? "2px solid #fff" : "1px solid rgba(255,255,255,0.2)" }} />
-                      ))}
-                    </div>
-                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "#9AA3BF", cursor: "pointer" }}>
-                      <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(d.style.color) ? d.style.color : "#4fa3e0"}
-                        onChange={e => { d.style.color = e.target.value; bump(); }}
-                        style={{ width: 26, height: 22, padding: 0, border: "none", background: "none", cursor: "pointer" }} />
-                      Custom color wheel
-                    </label>
-                  </div>
-                )}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                <span style={{ font: "600 18px Georgia, 'Times New Roman', serif", color: "#F3D78A" }}>{toolName}</span>
+                <button aria-label="Close drawing settings" onClick={() => { setSelectedIdx(null); setDrawPopover(null); }}
+                  style={{ width: 36, height: 36, borderRadius: 8, cursor: "pointer", background: "transparent", color: "#ede6d3",
+                    border: "1px solid rgba(212,175,55,0.35)", font: `500 18px ${MARKET_SANS}` }}>×</button>
               </div>
-              <div style={{ width: 1, height: 18, background: "#2A3350" }} />
-              {/* Line width dropdown */}
-              <div style={{ position: "relative" }}>
-                <button title="Line width" onClick={() => setDrawPopover(p => (p === "width" ? null : "width"))}
-                  style={{ ...btn(drawPopover === "width"), padding: "0 6px", gap: 4 }}>
-                  <span style={{ display: "inline-block", width: 14, height: Math.max(1, Math.round(d.style.width)), background: "currentColor", borderRadius: 2 }} />
-                  <span style={{ fontSize: 9, opacity: 0.7 }}>▼</span>
-                </button>
-                {drawPopover === "width" && (
-                  <div style={{ position: "absolute", top: 28, left: 0, zIndex: 140, padding: 5, borderRadius: 8, display: "flex", gap: 4,
-                    background: "#0E1322", border: "1px solid #2A3350", boxShadow: "0 8px 26px rgba(0,0,0,0.6)" }}>
-                    {[1, 2, 3, 4, 6].map(w => (
-                      <button key={w} title={`${w}px`} aria-label={`Line width ${w} pixels`} aria-pressed={Math.round(d.style.width) === w}
-                        onClick={() => { d.style.width = w; bump(); setDrawPopover(null); }}
-                        style={btn(Math.round(d.style.width) === w)}>
-                        <span style={{ display: "inline-block", width: 16, height: w, background: "currentColor", borderRadius: 2 }} />
-                      </button>
-                    ))}
-                  </div>
-                )}
+              <div style={{ ...row, alignItems: "flex-start", flexDirection: "column", gap: 6 }}>
+                <span style={lab}>Colour</span>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+                  {DRAW_COLORS.map(c => (
+                    <button key={c} aria-label={`Colour ${c}`} aria-pressed={d.style.color === c} onClick={() => { d.style.color = c; bump(); }}
+                      style={{ width: 24, height: 24, borderRadius: "50%", cursor: "pointer", background: c,
+                        border: d.style.color === c ? "2px solid #fff" : "1px solid rgba(255,255,255,0.25)" }} />
+                  ))}
+                  <input type="color" aria-label="Custom colour" value={/^#[0-9a-fA-F]{6}$/.test(d.style.color) ? d.style.color : "#4fa3e0"}
+                    onChange={e => { d.style.color = e.target.value; bump(); }}
+                    style={{ width: 30, height: 26, padding: 0, border: "none", background: "none", cursor: "pointer" }} />
+                </div>
               </div>
-              <div style={{ width: 1, height: 18, background: "#2A3350" }} />
-              {/* Line style (solid / dashed / dotted) dropdown */}
-              <div style={{ position: "relative" }}>
-                <button title="Line style" onClick={() => setDrawPopover(p => (p === "dash" ? null : "dash"))}
-                  style={{ ...btn(drawPopover === "dash"), padding: "0 6px", gap: 4 }}>
-                  {d.style.dash === "dashed" ? "- -" : d.style.dash === "dotted" ? "···" : "──"}
-                  <span style={{ fontSize: 9, opacity: 0.7 }}>▼</span>
-                </button>
-                {drawPopover === "dash" && (
-                  <div style={{ position: "absolute", top: 28, left: 0, zIndex: 140, padding: 5, borderRadius: 8, display: "flex", gap: 4,
-                    background: "#0E1322", border: "1px solid #2A3350", boxShadow: "0 8px 26px rgba(0,0,0,0.6)" }}>
-                    {(["solid", "dashed", "dotted"] as const).map(s => (
-                      <button key={s} title={s} onClick={() => { d.style.dash = s; bump(); setDrawPopover(null); }} style={btn(d.style.dash === s)}>
-                        {s === "solid" ? "──" : s === "dashed" ? "- -" : "···"}
-                      </button>
-                    ))}
-                  </div>
-                )}
+              <div style={row}>
+                <span style={lab}>Width</span>
+                <div style={{ display: "flex", gap: 4 }}>
+                  {[1, 2, 3, 4, 6].map(w => (
+                    <button key={w} aria-label={`Line width ${w} pixels`} aria-pressed={Math.round(d.style.width) === w}
+                      onClick={() => { d.style.width = w; bump(); }} style={chip(Math.round(d.style.width) === w)}>{w}</button>
+                  ))}
+                </div>
               </div>
-              <div style={{ width: 1, height: 18, background: "#2A3350" }} />
-              <input
-                type="range" min={10} max={100} step={5}
-                title="Opacity"
-                value={Math.round((d.style.opacity ?? 1) * 100)}
-                onChange={e => { d.style.opacity = Number(e.target.value) / 100; bump(); }}
-                style={{ width: 52, accentColor: "#d4af37" }}
-              />
+              <div style={row}>
+                <span style={lab}>Line type</span>
+                <div style={{ display: "flex", gap: 4 }}>
+                  {(["solid", "dashed", "dotted"] as const).map(st => (
+                    <button key={st} aria-pressed={d.style.dash === st} onClick={() => { d.style.dash = st; bump(); }} style={chip(d.style.dash === st)}>
+                      {st === "solid" ? "Solid" : st === "dashed" ? "Dashed" : "Dotted"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div style={row}>
+                <span style={lab}>Opacity</span>
+                <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <input type="range" min={10} max={100} step={5} aria-label="Opacity"
+                    value={Math.round((d.style.opacity ?? 1) * 100)}
+                    onChange={e => { d.style.opacity = Number(e.target.value) / 100; bump(); }}
+                    style={{ width: 110, accentColor: "#d4af37" }} />
+                  <span style={{ ...lab, color: "#ede6d3", minWidth: 40, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{Math.round((d.style.opacity ?? 1) * 100)}%</span>
+                </span>
+              </div>
               {FILL_TOOLS.has(d.tool) && d.tool !== "delta-vp" && (
-                <>
-                  <div style={{ width: 1, height: 18, background: "#2A3350" }} />
-                  <button title="Fill" onClick={() => { d.style.fill = !d.style.fill; bump(); }} style={btn(d.style.fill)}>▧</button>
-                </>
+                <div style={row}>
+                  <span style={lab}>Fill</span>
+                  <button aria-pressed={d.style.fill} onClick={() => { d.style.fill = !d.style.fill; bump(); }} style={chip(d.style.fill)}>{d.style.fill ? "On" : "Off"}</button>
+                </div>
               )}
               {isText && (
-                <>
-                  <div style={{ width: 1, height: 18, background: "#2A3350" }} />
-                  <button title="Edit text" onClick={() => setTextEdit({ idx: selectedIdx })} style={btn(false)}>✎</button>
-                </>
+                <div style={row}>
+                  <span style={lab}>Text</span>
+                  <button onClick={() => setTextEdit({ idx: selectedIdx })} style={chip(false)}>Edit text</button>
+                </div>
               )}
-              <div style={{ width: 1, height: 18, background: "#2A3350" }} />
-              <button title="Delete" onClick={() => { drawingsRef.current.splice(selectedIdx, 1); setSelectedIdx(null); setRangeVer(v => v + 1); }}
-                style={{ ...btn(false), color: "#FF6B81" }}>🗑</button>
+              <div style={{ borderTop: "1px solid rgba(212,175,55,0.2)", marginTop: 4, paddingTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+                <span style={{ ...lab, color: "#F3D78A" }}>Coordinates</span>
+                {d.pts.map((pt, i) => (
+                  <span key={i} style={{ font: `500 13px ${MARKET_SANS}`, color: "#ede6d3", fontVariantNumeric: "tabular-nums" }}>
+                    Point {i + 1} · {fmtPt(pt)}
+                  </span>
+                ))}
+              </div>
+              <button onClick={() => { drawingsRef.current.splice(selectedIdx, 1); setSelectedIdx(null); setRangeVer(v => v + 1); }}
+                style={{ marginTop: 8, minHeight: 40, borderRadius: 8, cursor: "pointer", background: "rgba(160,40,40,0.25)",
+                  color: "#ffb3b3", border: "1px solid rgba(226,92,92,0.6)", font: `600 14px ${MARKET_SANS}` }}>
+                Remove drawing
+              </button>
             </div>
           );
         })()}
