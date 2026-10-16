@@ -80,8 +80,14 @@ export interface ComposeInput {
 /** "10-17 62%" — the expiry carrying most of a level, so a weekly pin is never read as a quarterly wall (§14). */
 export function expiryShareWords(e: { readonly expiration: string; readonly share: number } | null | undefined): string {
   if (!e || !(e.share > 0)) return "";
-  return ` · ${e.expiration.slice(5)} ${Math.round(e.share * 100)}%`;
+  // Garden 19 §13 (2026-10-16): plain — "62% Oct 17", never "10-17 62%".
+  const d = new Date(`${e.expiration}T12:00:00Z`);
+  const md = Number.isFinite(d.getTime()) ? d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }) : e.expiration.slice(5);
+  return ` · ${Math.round(e.share * 100)}% ${md}`;
 }
+
+/** "+$2.1M per 1%" — the gamma dollars a 1% move would hedge, in words. */
+const gexPlain = (v: number) => gexWords(v).replace("/1%", " per 1%");
 
 const ORDER: readonly WallsGammaMarkKind[] = ["CALL_WALL", "PUT_WALL", "GAMMA_CONC_POS", "GAMMA_CONC_NEG", "GAMMA_FLIP"];
 const kOi = (n: number) => (n >= 1000 ? `${Math.round(n / 1000)}k` : String(Math.round(n)));
@@ -96,19 +102,19 @@ export function composeWallsGammaMarks(input: ComposeInput): ComposeResult {
   const { selection: sel, gex, fmt } = input;
   const raw: { price: number; kind: WallsGammaMarkKind; words: string }[] = [];
   const yielded: Partial<Record<WallsGammaPart, string>> = {};
-  if (sel.CALL_WALL) for (const w of input.callWalls) raw.push({ price: w.strike, kind: "CALL_WALL", words: `CALL WALL ${fmt(w.strike)} · OI ${kOi(w.openInterest)}${expiryShareWords(w.topExpiry)}` });
-  if (sel.PUT_WALL) for (const w of input.putWalls) raw.push({ price: w.strike, kind: "PUT_WALL", words: `PUT WALL ${fmt(w.strike)} · OI ${kOi(w.openInterest)}${expiryShareWords(w.topExpiry)}` });
+  if (sel.CALL_WALL) for (const w of input.callWalls) raw.push({ price: w.strike, kind: "CALL_WALL", words: `Call wall ${fmt(w.strike)} · ${kOi(w.openInterest)} open contracts${expiryShareWords(w.topExpiry)}` });
+  if (sel.PUT_WALL) for (const w of input.putWalls) raw.push({ price: w.strike, kind: "PUT_WALL", words: `Put wall ${fmt(w.strike)} · ${kOi(w.openInterest)} open contracts${expiryShareWords(w.topExpiry)}` });
   if (gex?.drawn && sel.GAMMA_CONCENTRATION) {
     for (const c of gex.concentration) {
       const b = gex.buckets.find(x => x.price === c.price);
       const gross = b ? b.expiries.reduce((s, e) => s + Math.abs(e.net), 0) : 0;
       const top = b && b.expiries[0] && gross > 0 ? { expiration: b.expiries[0].expiration, share: Math.abs(b.expiries[0].net) / gross } : null;
-      raw.push({ price: c.price, kind: c.sign === "POSITIVE" ? "GAMMA_CONC_POS" : "GAMMA_CONC_NEG", words: `Γ ${fmt(c.price)} ${gexWords(c.net)}${expiryShareWords(top)}` });
+      raw.push({ price: c.price, kind: c.sign === "POSITIVE" ? "GAMMA_CONC_POS" : "GAMMA_CONC_NEG", words: `${c.sign === "POSITIVE" ? "+" : "−"}Gamma ${fmt(c.price)} · ${gexPlain(c.net).replace(/^[+−]/, "")}${expiryShareWords(top)}` });
     }
   }
   if (gex?.drawn && sel.GAMMA_FLIP) {
     if (input.pressureFieldOn) yielded.GAMMA_FLIP = "shown by the Derivatives Pressure zero-gamma front";
-    else if (gex.flip.kind === "LEVEL") raw.push({ price: gex.flip.level, kind: "GAMMA_FLIP", words: `Γ FLIP ≈ ${fmt(gex.flip.level)} · MODEL` });
+    else if (gex.flip.kind === "LEVEL") raw.push({ price: gex.flip.level, kind: "GAMMA_FLIP", words: `Gamma flip ≈ ${fmt(gex.flip.level)} (model)` });
   }
   if (input.pressureFieldOn && (sel.GAMMA_POSITIVE || sel.GAMMA_NEGATIVE)) {
     if (sel.GAMMA_POSITIVE) yielded.GAMMA_POSITIVE = "shown by the Derivatives Pressure field";

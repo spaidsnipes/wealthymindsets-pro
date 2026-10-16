@@ -72,6 +72,8 @@ describe("the gamma ladder: every heat band on camera has an edge and words (Fou
     expect(src).toContain("const LADDER_W = 10;");
     expect(src).toContain("ctx.fillRect(0, y0, LADDER_W, y1 - y0);");
     expect(src).toContain('kinds: [posB ? "GAMMA_HEAT_POS" : "GAMMA_HEAT_NEG"]');
-    expect(src).toMatch(/GEX \$\{fmt\(b\.lo\)\}–\$\{fmt\(b\.hi\)\} · \$\{Math\.round\(k \* 100\)\}%/);
+    // Garden 19 §13 (2026-10-16): plain words — "+Gamma 30,215–30,225 · 7%" — and only bands ≥ 30% speak.
+    expect(src).toMatch(/Gamma \$\{fmt\(b\.lo\)\}–\$\{fmt\(b\.hi\)\} · \$\{Math\.round\(k \* 100\)\}%/);
+    expect(src).toContain("if (k >= 0.3) labels.push(");
   });
 });

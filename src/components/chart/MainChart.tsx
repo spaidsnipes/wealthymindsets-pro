@@ -20992,14 +20992,23 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const placed: { x: number; y: number; w: number; h: number }[] = [];
               const hit = (q: { x: number; y: number; w: number; h: number }, rs: readonly { x: number; y: number; w: number; h: number }[]) => rs.some(r => q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y);
               const textA = Math.max(att.textAlpha("gammaHeatmap"), att.textAlpha("callWall"));
+              // Candles are obstacles (serving b3be2cc NQ1! 5m: ten heat labels right-aligned over the newest bars).
+              const candleRectsG: { x: number; y: number; w: number; h: number }[] = [];
+              for (const c of visibleBars) {
+                const xc = chart.timeScale().timeToCoordinate(c.time as never), yh = srs.priceToCoordinate(c.high), yl = srs.priceToCoordinate(c.low);
+                if (xc == null || yh == null || yl == null) continue;
+                candleRectsG.push({ x: +xc - Math.max(3, bsp * 0.45), y: +yh - 2, w: Math.max(6, bsp * 0.9), h: +yl - +yh + 4 });
+              }
               for (const t of [...out.labels].sort((a, b) => a.y - b.y)) {
                 const tw = ctx.measureText(t.text).width;
-                const x = plotRightG - tw - 6;
-                const at = (k: number) => ({ x: x - 3, y: t.y - 14 + k * 13, w: tw + 6, h: 13 });
-                const k = [0, -1, 1, -2, 2, -3, 3].find(k2 => { const q = at(k2); return !onNewestColumn(q.x, q.y, q.w, q.h) && !hit(q, [...placed, ...floatingChips]); });
-                if (k === undefined) { displacedNotes.push({ layer: "DERIVATIVES", text: t.text, x: x + tw / 2, y: t.y }); continue; }
-                const box = at(k);
-                if (k !== 0) { ctx.strokeStyle = `rgba(${t.rgb},${(0.5 * textA).toFixed(3)})`; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(plotRightG - 4, t.y); ctx.lineTo(plotRightG - 4, box.y + box.h); ctx.stroke(); }
+                // Right end first (the tick's own side), then the left edge beside the gamma ladder.
+                const xs = [plotRightG - tw - 6, 24];
+                const slots = xs.flatMap(x => [0, -1, 1, -2, 2].map(k2 => ({ x, k: k2, q: { x: x - 3, y: t.y - 14 + k2 * 13, w: tw + 6, h: 13 } })));
+                const pickG = slots.find(sl => !onNewestColumn(sl.q.x, sl.q.y, sl.q.w, sl.q.h) && !hit(sl.q, [...placed, ...floatingChips, ...candleRectsG]));
+                if (!pickG) { displacedNotes.push({ layer: "DERIVATIVES", text: t.text, x: xs[0] + tw / 2, y: t.y }); continue; }
+                const x = pickG.x, k = pickG.k;
+                const box = pickG.q;
+                if (k !== 0 && x !== 24) { ctx.strokeStyle = `rgba(${t.rgb},${(0.5 * textA).toFixed(3)})`; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(plotRightG - 4, t.y); ctx.lineTo(plotRightG - 4, box.y + box.h); ctx.stroke(); }
                 ctx.fillStyle = `rgba(11,10,8,${(0.86 * textA).toFixed(3)})`;
                 if (chipBox(t.text, box)) ctx.fillRect(box.x, box.y, box.w, box.h);
                 ctx.fillStyle = `rgba(${t.rgb},${(0.95 * textA).toFixed(3)})`;

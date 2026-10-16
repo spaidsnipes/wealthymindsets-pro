@@ -178,8 +178,11 @@ export function paintWallsGamma(env: WallsGammaGlassEnv): WallsGammaGlassResult 
       ctx.moveTo(0, y0 + 0.5); ctx.lineTo(LADDER_W + 8, y0 + 0.5);
       ctx.moveTo(0, y1 - 0.5); ctx.lineTo(LADDER_W + 8, y1 - 0.5);
       ctx.stroke();
-      const fmt = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(2));
-      labels.push({ y: (y0 + y1) / 2, text: `${posB ? "+" : "−"}GEX ${fmt(b.lo)}–${fmt(b.hi)} · ${Math.round(k * 100)}%${gex.grade === "PARTIAL" ? " · NEAR-MONEY" : ""}`, rgb, kinds: [posB ? "GAMMA_HEAT_POS" : "GAMMA_HEAT_NEG"] });
+      const fmt = (v: number) => v.toLocaleString("en-US", { maximumFractionDigits: Number.isInteger(v) ? 0 : 2 });
+      // Plain words (Garden 19 §13, serving b3be2cc NQ1! 5m: "+GEX 30215–30225 · 7% · NEAR-MONEY" ×10 over
+      // the newest candles). The status line says PARTIAL / near-money once; a faint band (< 30% of the
+      // strongest) keeps its band and its ladder tick, its words wait in the event list.
+      if (k >= 0.3) labels.push({ y: (y0 + y1) / 2, text: `${posB ? "+" : "−"}Gamma ${fmt(b.lo)}–${fmt(b.hi)} · ${Math.round(k * 100)}%`, rgb, kinds: [posB ? "GAMMA_HEAT_POS" : "GAMMA_HEAT_NEG"] });
     }
     ctx.restore();
   }
@@ -244,6 +247,17 @@ export function paintWallsGamma(env: WallsGammaGlassEnv): WallsGammaGlassResult 
         // Call solid, put dashed: told apart without colour.
         ctx.setLineDash(call ? [] : [5, 3]);
         ctx.beginPath(); ctx.moveTo(plotRight - 56, y); ctx.lineTo(plotRight, y); ctx.stroke();
+        // Garden 19 §13 / Codex plate 01 (2026-10-16): a wall is a fixed-strike BAND with visible mass across the
+        // plot (was only this 56px stroke at the axis), clipped out of the keep-clear rects like the flip.
+        ctx.save();
+        const clipW = new Path2D();
+        clipW.rect(0, top, plotRight, Math.max(0, bottom - top));
+        for (const r of env.cutRects) clipW.rect(r.x, r.y, r.w, r.h);
+        ctx.clip(clipW, "evenodd");
+        ctx.setLineDash([]);
+        ctx.fillStyle = `rgba(${rgb},${(0.2 * env.wallsAlpha).toFixed(3)})`;
+        ctx.fillRect(16, y - 3 * env.wallThickness, Math.max(0, plotRight - 72), 6 * env.wallThickness);
+        ctx.restore();
       } else if (kind === "GAMMA_CONC_POS" || kind === "GAMMA_CONC_NEG") {
         const posK = kind === "GAMMA_CONC_POS";
         const c = posK ? preset.posRgb : preset.negRgb;
@@ -257,6 +271,18 @@ export function paintWallsGamma(env: WallsGammaGlassEnv): WallsGammaGlassResult 
         // Diamond tip: gamma's own glyph.
         ctx.beginPath(); ctx.moveTo(plotRight - 88, y); ctx.lineTo(plotRight - 84, y - 4); ctx.lineTo(plotRight - 80, y); ctx.lineTo(plotRight - 84, y + 4); ctx.closePath();
         if (posK) ctx.fill(); else ctx.stroke();
+        // Garden 19 §13: a concentration is a RIDGE across the plot (was a 22px tick and a diamond at the axis —
+        // "anything named Gamma does not work"), solid for +, dashed for −, clipped out of the keep-clear rects.
+        ctx.save();
+        const clipC = new Path2D();
+        clipC.rect(0, top, plotRight, Math.max(0, bottom - top));
+        for (const r of env.cutRects) clipC.rect(r.x, r.y, r.w, r.h);
+        ctx.clip(clipC, "evenodd");
+        ctx.strokeStyle = `rgba(${c},${(0.42 * env.gammaAlpha * degradedK).toFixed(3)})`;
+        ctx.lineWidth = 3;
+        ctx.setLineDash(posK ? [] : [7, 4]);
+        ctx.beginPath(); ctx.moveTo(16, y); ctx.lineTo(plotRight - 92, y); ctx.stroke();
+        ctx.restore();
       } else if (kind === "GAMMA_FLIP") {
         if (m.kinds.length === 1) rgb = FLIP_RGB;
         ctx.strokeStyle = `rgba(${FLIP_RGB},${(0.85 * env.gammaAlpha * degradedK).toFixed(3)})`;

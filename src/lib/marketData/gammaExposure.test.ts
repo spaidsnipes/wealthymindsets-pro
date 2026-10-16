@@ -140,14 +140,15 @@ describe("composeWallsGammaMarks — never the same line twice", () => {
     const at = r.marks.filter(m => Math.abs(m.price - top.price) <= 0.5);
     expect(at).toHaveLength(1);
     expect(at[0].kinds).toEqual(["CALL_WALL", "GAMMA_CONC_POS"]);
-    expect(at[0].label).toMatch(/^CALL WALL .* · OI 42k · Γ /);
+    // Garden 19 §13 (2026-10-16): plain words — one mark naming both measures.
+    expect(at[0].label).toMatch(/^Call wall .* · 42k open contracts.* · \+Gamma /);
   });
 
   it("call wall is never labelled gamma; off parts draw nothing", () => {
     const r = composeWallsGammaMarks({ selection: { ...WALLS_GAMMA_OFF, PUT_WALL: true }, callWalls: [wall(110, "CALL_OI")], putWalls: [wall(90, "PUT_OI")], gex: null, pressureFieldOn: false, mergeWithin: 0.5, fmt });
     expect(r.marks).toHaveLength(1);
-    expect(r.marks[0].label).toBe("PUT WALL 90 · OI 42k");
-    expect(r.marks[0].label).not.toMatch(/Γ|GAMMA/);
+    expect(r.marks[0].label).toBe("Put wall 90 · 42k open contracts");
+    expect(r.marks[0].label).not.toMatch(/Γ|GAMMA|Gamma/);
   });
 
   it("flip and regions yield to Derivatives Pressure while its field is on", () => {
@@ -171,7 +172,7 @@ describe("§14 derivatives distinctions: expiry, concentration, scope", () => {
     const { expiryShareWords } = await import("@/lib/marketData/wallsGammaFamily");
     const { gexScopeWords } = await import("@/lib/marketData/gammaExposure");
     const { selectOptionsBarrierEvidence } = await import("@/lib/marketData/viewModels/selectOptionsBarrierEvidence");
-    expect(expiryShareWords({ expiration: "2026-10-17", share: 0.624 })).toBe(" · 10-17 62%");
+    expect(expiryShareWords({ expiration: "2026-10-17", share: 0.624 })).toBe(" · 62% Oct 17");
     expect(expiryShareWords(null)).toBe("");
     const rows = [...callsOnly(), row(110, "call", 30_000, 0.01, 0.2, "2026-11-20")];
     const ev = selectOptionsBarrierEvidence(receipt(rows), 100, NOW, "ALL");
