@@ -33,6 +33,13 @@ describe("proof scene", () => {
     expect(proofSceneValue(s, "wm_ofCompositeProfile")).toBe(false);
   });
 
+  it("an unknown footprint mode turns nothing on (fp:footprint is not a mode)", () => {
+    const s = parseProofScene("?scene=clean&on=fp:footprint");
+    expect(proofSceneValue(s, "wm_fp_enabled")).not.toBe(true);
+    expect(proofSceneValue(s, "wm_footprint")).not.toBe("footprint");
+    expect(proofSceneValue(parseProofScene("?scene=clean&on=fp:bid-ask"), "wm_footprint")).toBe("bid-ask");
+  });
+
   it("ask:<choice> opens the Question Lens on that question for this load (2026-09-26)", () => {
     const s = parseProofScene("?scene=clean&on=QuestionLens,ask:trap");
     expect(proofSceneValue(s, "wm_ofQuestionLens")).toBe(true);

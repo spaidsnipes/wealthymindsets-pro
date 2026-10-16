@@ -213,6 +213,9 @@ export interface ProofScene {
 
 export const NO_PROOF_SCENE: ProofScene = { active: false, clean: false, overrides: {}, bars: null, select: null, selectObject: null };
 
+/** The footprint modes a scene may ask for (ChartsDashboard's FootprintType). */
+export const FOOTPRINT_MODE_TOKENS: ReadonlySet<string> = new Set(["bid-ask", "delta", "volume-profile", "imbalance", "aggressive-passive", "big-trades"]);
+
 export function parseProofScene(search: string): ProofScene {
   let q: URLSearchParams;
   try { q = new URLSearchParams(search); } catch { return NO_PROOF_SCENE; }
@@ -239,6 +242,9 @@ export function parseProofScene(search: string): ProofScene {
   else if (clean) overrides.wm_activeInds = [];
   for (const token of (onRaw ?? "").split(",").map(t => t.trim()).filter(Boolean)) {
     if (/^fp:/i.test(token)) {
+      // Garden 19 (2026-10-16): 'fp:footprint' is not a mode — it switched the footprint on with no painter,
+      // and the receipt read 'footprint:NO_EXECUTIONS' over a tape that was there. An unknown mode turns nothing on.
+      if (!FOOTPRINT_MODE_TOKENS.has(token.slice(3))) continue;
       overrides.wm_fp_enabled = true;
       overrides.wm_footprint = token.slice(3);
       // Big Trades is its own overlay beside any mode — fp:big-trades turns it on.
