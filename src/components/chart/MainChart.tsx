@@ -15378,16 +15378,26 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // FL-06 carries basis as quiet chart provenance, not a second
               // card hovering over price. Keep the statement visible while
               // letting the canvas remain the dominant object.
-              ctx.save();
-              ctx.fillStyle = "rgba(178,170,151,0.86)";
-              ctx.shadowColor = "rgba(0,0,0,0.95)";
-              ctx.shadowBlur = 3;
-              ctx.textAlign = "left";
-              ctx.textBaseline = "middle";
-              ctx.fillText(basisTxt, bx, by + 7.5);
-              ctx.restore();
-              // Reserved chrome: layers painted later (TPO letters) yield to it.
-              floatingChips.push({ x: bx, y: by, w: bwTxt + 6, h: 15 });
+              // Serving 1944910 NQ1! 5m (Codex plate 03 pass, 2026-10-16): the fixed seat under the price legend
+              // is now the DAY BIAS chip's and the D toggle's — "EFFORT · VOLUM…" was cut off under the DOM chip.
+              // The caption takes its seat only when free, else a row or two lower; with no free row it is held.
+              const prefB = { x: bx, y: by, w: bwTxt + 6, h: 15 };
+              const spotB = placeClearOfKeepOut(prefB, keepOut(), {
+                minX: keepOutMinX(), blockers: floatingChips, strict: true,
+                alternates: [{ ...prefB, y: by + 30 }, { ...prefB, y: by + 52 }],
+              });
+              if (spotB.mode !== "BLOCKED") {
+                ctx.save();
+                ctx.fillStyle = "rgba(178,170,151,0.86)";
+                ctx.shadowColor = "rgba(0,0,0,0.95)";
+                ctx.shadowBlur = 3;
+                ctx.textAlign = "left";
+                ctx.textBaseline = "middle";
+                ctx.fillText(basisTxt, spotB.rect.x, spotB.rect.y + 7.5);
+                ctx.restore();
+                // Reserved chrome: layers painted later (TPO letters) yield to it.
+                floatingChips.push({ ...spotB.rect });
+              }
             } else {
               ctx.fillStyle = "rgba(14,12,8,0.86)";
               ctx.fillRect(bx, by, bwTxt + 12, 14);

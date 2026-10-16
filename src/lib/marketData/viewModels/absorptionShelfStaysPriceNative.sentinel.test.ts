@@ -38,7 +38,8 @@ describe("the FL-06 absorption shelf stays attached to measured price geometry",
 
   it("keeps effort basis visible but removes its desktop card shell", () => {
     expect(chart).toContain("const desktopBasisChrome = W >= 960");
-    expect(chart).toContain("ctx.fillText(basisTxt, bx, by + 7.5)");
+    // 2026-10-16: the desktop caption takes its seat through the keep-out owner (DAY BIAS chip now sits there).
+    expect(chart).toContain("ctx.fillText(basisTxt, spotB.rect.x, spotB.rect.y + 7.5)");
     expect(chart).toContain("ctx.fillText(basisTxt, bx + 6, by + 7.5)");
     // Pin moved 2026-09-30: the UNMEASURED refusal takes the measured basis
     // slot (it kept the pre-legend (8, 8) spot and printed under the symbol).

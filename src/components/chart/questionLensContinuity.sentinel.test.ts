@@ -90,7 +90,7 @@ describe("question lens and restored selection", () => {
     expect(CHART).toContain("floatingChips.push({ x: silenceX, y: cvRowY - 7, w: ctx.measureText(t).width, h: 14 });");
     expect(CHART).not.toMatch(/wordChip\(glass\.label, wy\);/);
     // The BASIS caption announces itself so later layers can yield to it.
-    expect(CHART).toMatch(/floatingChips\.push\(\{ x: bx, y: by, w: bwTxt \+ 6, h: 15 \}\)/);
+    expect(CHART).toMatch(/floatingChips\.push\(\{ \.\.\.spotB\.rect \}\)/); // the basis caption reserves its placed seat (2026-10-16)
   });
 
   it("clicking a restored zone opens its Passport and keeps it selected", () => {
