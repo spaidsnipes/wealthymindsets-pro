@@ -26939,7 +26939,36 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             if (!firstSided) firstSided = { t: Number(b.time), x: +bx };
           }
           const startsInView = firstSided != null && firstInView != null && firstSided.x - firstInView > bsp * 1.5;
-          if (startsInView && firstSided) {
+          // PLATE 24 (2026-10-15): with the footprint on, where the real tape begins is a SEAM on the glass —
+          // the bars before it faintly hatched (they carry bar totals, not per-price prints), a dashed gold
+          // line, "Real tape from here" at its head and "Before here: bar totals only" on the hatched side.
+          // Never estimated cells: the provider holds no per-price history for those bars.
+          if (startsInView && firstSided && fpOn) {
+            const bx = Math.round(firstSided.x - bsp * 0.6);
+            const top = HEADER_FLOOR_Y, bot = pane0Bottom;
+            ctx.save();
+            ctx.beginPath(); ctx.rect(0, top, Math.max(0, bx), bot - top); ctx.clip();
+            ctx.strokeStyle = "rgba(200,192,174,0.09)"; ctx.lineWidth = 1;
+            for (let hx = -(bot - top); hx < bx; hx += 9) { ctx.beginPath(); ctx.moveTo(hx, bot); ctx.lineTo(hx + (bot - top), top); ctx.stroke(); }
+            ctx.restore();
+            ctx.save();
+            ctx.strokeStyle = "rgba(212,175,55,0.8)"; ctx.lineWidth = 1.25; ctx.setLineDash([5, 4]);
+            ctx.beginPath(); ctx.moveTo(bx + 0.5, top); ctx.lineTo(bx + 0.5, bot); ctx.stroke(); ctx.setLineDash([]);
+            ctx.font = `600 13px ${MARKET_SANS}`; ctx.textBaseline = "middle"; ctx.textAlign = "left";
+            const seamChip = (text: string, x: number, y: number) => {
+              const w = Math.ceil(ctx.measureText(text).width) + 18, h = 24;
+              const r = { x: Math.max(4, Math.min(x, plotRight - w - 4)), y, w, h };
+              onTop(r, "OPAQUE_CARD");
+              ctx.fillStyle = "rgba(14,12,9,0.92)"; ctx.beginPath(); ctx.roundRect(r.x, r.y, w, h, 6); ctx.fill();
+              ctx.strokeStyle = "rgba(212,175,55,0.85)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(r.x + 0.5, r.y + 0.5, w - 1, h - 1, 6); ctx.stroke();
+              ctx.fillStyle = "#E8C877"; ctx.fillText(text, r.x + 9, r.y + h / 2 + 0.5);
+              floatingChips.push(r);
+            };
+            seamChip("Real tape from here", bx + 8, top + 8);
+            if (bx > 190) seamChip("Before here: bar totals only", 8, bot - 34);
+            ctx.restore();
+            canvas.dataset.tapeCoverageWords = "SEAM";
+          } else if (startsInView && firstSided) {
             const bx = firstSided.x - bsp * 0.6;
             ctx.save();
             ctx.strokeStyle = "rgba(200,192,174,0.45)";
