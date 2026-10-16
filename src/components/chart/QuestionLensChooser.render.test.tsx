@@ -118,6 +118,9 @@ describe("the chooser itself", () => {
     expect(html).toMatch(/class="absolute /);
     expect(html).toContain("top:min(532px, calc(100% - 96px))");
     expect(html).not.toMatch(/\bhidden\b/);
+    // L20 (2026-10-16): floating, it rests as one chip naming the question; a tap opens the list.
+    expect(html).toContain('data-collapsed="true"');
+    expect(html).toContain("Ask · ");
   });
 
   it("in the rail it is plain flow content — no absolute box over anything", () => {

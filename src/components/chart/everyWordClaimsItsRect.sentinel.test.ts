@@ -92,7 +92,7 @@ describe("chips ask for their box; on-top words are named; the teaching card nev
   });
   it("a note chip still on a word after stepping becomes the wordless pip", () => {
     expect(CHART).toContain("pipForm = true; crowdedToPip++;");
-    expect(CHART).toContain('return { a, r, seed, crowded: sp.mode === "BLOCKED", single: pipForm };');
+    expect(CHART).toContain('return { a, r, seed, crowded: sp.mode === "BLOCKED", single: pipForm, word: plain };');
   });
 });
 

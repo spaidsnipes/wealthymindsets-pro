@@ -27446,8 +27446,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.textBaseline = "bottom";
             // A phone plot cannot hold the full line (it ran under the price axis, "…earlier bars car"):
             // the short form keeps the same truth words (BAR TOTALS ONLY / CARRY NONE).
-            const words = ctx.measureText(wordsFull).width <= plotRight - 12 ? wordsFull
-              : candleSidesT ? `TAPE FROM ${when} · BAR TOTALS ONLY` : `TAPE FROM ${when} · EARLIER CARRY NONE`;
+            // Phone (serving 8075518 at 375px): even the short form ran past the plot ("… BAR TOTALS ON").
+            // Shorter forms keep the same truth; the dashed seam itself marks where the tape begins.
+            const whenShort = new Date(firstSided.t * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+            const words = [
+              wordsFull,
+              candleSidesT ? `TAPE FROM ${when} · BAR TOTALS ONLY` : `TAPE FROM ${when} · EARLIER CARRY NONE`,
+              candleSidesT ? `TAPE ${whenShort} · TOTALS BEFORE` : `TAPE ${whenShort} · NONE BEFORE`,
+              `TAPE FROM ${whenShort}`,
+            ].find(w => ctx.measureText(w).width <= plotRight - 12) ?? `TAPE FROM ${whenShort}`;
             const tw = ctx.measureText(words).width;
             // Clamped to the PLOT, not the canvas: the canvas runs under the price axis.
             const tx = Math.max(6, Math.min(bx - tw - 6, plotRight - tw - 6));
@@ -28026,7 +28033,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // or "3 events · Show list" for a cluster; the wordless pip is only the crowded fallback.
             // An anchor holding no market event (the depth state, a bar count) stays the quiet pip — never
             // deleted (§14), never called an event.
-            const plain = speakers.has(a) ? plainAnchorWord(a) : null;
+            // A sentence wider than the plot (phone 375, serving 455949c: "Most-traded price moved to 30,180
+            // (+70 today, estim…" ran off the glass) says "Event · Show list"; the tap still reads it in full.
+            const plainRaw = speakers.has(a) ? plainAnchorWord(a) : null;
+            const plain = plainRaw != null && Math.ceil(plainRaw.length * 7.3) + 22 > plotRight - 8 ? "Event · Show list" : plainRaw;
             const single = plain == null;
             const w = single ? 12 : Math.ceil(plain.length * 7.3) + 22, h = single ? 12 : 26;
             const pref = { x: Math.max(4, Math.min(plotRight - w - 4, a.x - w / 2)), y: Math.max(HEADER_FLOOR_Y, Math.min(pane0Bottom - h - 4, a.y - h / 2)), w, h };
@@ -28071,7 +28081,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             floatingChips.push({ ...r });
             anchorRects.push({ ...r });
             const seed = `${a.notes[0].layer}:${a.notes[0].text}`;
-            return { a, r, seed, crowded: sp.mode === "BLOCKED", single: pipForm };
+            return { a, r, seed, crowded: sp.mode === "BLOCKED", single: pipForm, word: plain };
           });
           canvas.dataset.eventNoteCrowded = `TO_PIP:${crowdedToPip}`;
           floatingChips.splice(chipsBeforeWords, wordRectsNow.length);
@@ -28105,7 +28115,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // "N MARKET EVENTS"), so it stays the quiet wordless 12px dot — no 8px
               // digit on the glass (coordinator ruling 2026-10-09); its label is in
               // the title, the aria-label and the tap list.
-              const plainWord = (p.single ? null : plainAnchorWord(p.a)) ?? p.a.word;
+              const plainWord = (p.single ? null : p.word ?? plainAnchorWord(p.a)) ?? p.a.word;
               b.textContent = p.single ? "" : plainWord; // plate 30 (2026-10-15)
               b.setAttribute("aria-label", `${plainWord}: ${p.a.notes.map(nt => plainEventSentence(nt.layer, nt.text) ?? `${nt.layer} · ${nt.text}`).join(", ")}`);
               Object.assign(b.style, {

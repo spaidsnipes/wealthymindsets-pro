@@ -44,7 +44,31 @@ const FLOATING_STYLE: React.CSSProperties = {
   background: "rgba(11,10,8,0.92)",
 };
 
-export function QuestionLensChooser({ placement, choice, onChoose, rawOn, onToggleRaw }: QuestionLensChooserProps) {
+export function QuestionLensChooser(props: QuestionLensChooserProps) {
+  // L20 (Garden 19, serving 455949c at 375px): floating over the chart, the eight questions + Raw stood over
+  // the lower third of the candles. Floating, the chooser rests as ONE chip naming the question asked; a tap
+  // opens the list, a choice closes it. The rail keeps the open row (and no hook runs for it).
+  return props.placement === "floating" ? <FloatingChooser {...props} /> : chooserRow(props, null);
+}
+
+function FloatingChooser(props: QuestionLensChooserProps) {
+  const [open, setOpen] = React.useState(false);
+  if (!open) {
+    const asked = QUESTION_CHOICES.find(c => c.id === props.choice)?.label ?? "Auto";
+    return (
+      <div role="radiogroup" aria-label="Ask the chart a question" data-testid="question-lens-chooser" data-placement={props.placement} data-collapsed="true"
+        className="absolute z-[60] flex items-center rounded-md border border-wm-gold/40 px-1 py-1" style={FLOATING_STYLE}>
+        <button type="button" aria-expanded={false} data-testid="question-lens-open" onClick={() => setOpen(true)}
+          className="min-h-7 rounded px-2 text-[13px] font-semibold text-wm-gold">
+          Ask · {asked} ▾
+        </button>
+      </div>
+    );
+  }
+  return chooserRow(props, () => setOpen(false));
+}
+
+function chooserRow({ placement, choice, onChoose, rawOn, onToggleRaw }: QuestionLensChooserProps, onPicked: (() => void) | null) {
   const floating = placement === "floating";
   return (
     <div
@@ -67,7 +91,7 @@ export function QuestionLensChooser({ placement, choice, onChoose, rawOn, onTogg
           role="radio"
           aria-checked={choice === c.id}
           data-question-choice={c.id}
-          onClick={() => onChoose(c.id)}
+          onClick={() => { onChoose(c.id); onPicked?.(); }}
           className={`min-h-7 rounded px-2 text-[10px] font-semibold ${choice === c.id ? "bg-wm-gold/20 text-wm-gold" : "text-wm-text-muted hover:text-wm-text"}`}
         >
           {c.label}
