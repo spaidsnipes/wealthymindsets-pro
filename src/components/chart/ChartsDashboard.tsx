@@ -2818,16 +2818,19 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
    * and only their time and range; volume and side are never passed, so the
    * reading cannot silently become a second volume profile.
    */
+  // Garden 19 §13 ("TPO barely", serving 5b41e21 NQ1! 5m: tpoProfilePeriods 5000, 193 bars a letter, a column of
+  // 2px dashes at the left edge): the TPO read EVERY loaded bar. It is this auction's time at price — the
+  // ONE session-window owner the Living Profile reads (prices and times untouched by the volume gate).
   const tpoProfileVM = React.useMemo(
     () => selectTpoProfile(
-      chartBars.map(b => ({
+      (livingSessionBars.length ? livingSessionBars : chartBars).map(b => ({
         time: typeof b.time === "number" ? b.time : Number(b.time),
         high: b.high,
         low: b.low,
       })),
       instrumentTickFor(symbol, chartBars.length ? chartBars[chartBars.length - 1].close : null),
     ),
-    [chartBars, symbol],
+    [chartBars, livingSessionBars, symbol],
   );
 
   /**
