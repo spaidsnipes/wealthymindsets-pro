@@ -28497,7 +28497,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // gives up its words and becomes the quiet 12px pip at its cluster —
             // a tap still lists everything it holds.
             let pipForm = single;
-            if (!single && [...wordRectsNow, ...sovereignBoxes].some(o => r.x < o.x + o.w + 2 && r.x + r.w + 2 > o.x && r.y < o.y + o.h + 1 && r.y + r.h + 1 > o.y)) {
+            // …or ON CANDLE BODIES: the stepped-down fallback row never asked the candles (serving GC1! 15m,
+            // Oct 16: "Sellers defended the supply zone (1st test)" sat across the zone's bodies).
+            const onBodies = (q: { x: number; y: number; w: number; h: number }) => rowBodiesAt(q.y, q.y + q.h).some(o => q.x < o.x + o.w && q.x + q.w > o.x && q.y < o.y + o.h && q.y + q.h > o.y);
+            if (!single && ([...wordRectsNow, ...sovereignBoxes].some(o => r.x < o.x + o.w + 2 && r.x + r.w + 2 > o.x && r.y < o.y + o.h + 1 && r.y + r.h + 1 > o.y) || (sp.mode === "BLOCKED" && onBodies(r)))) {
               pipForm = true; crowdedToPip++;
               r = { x: Math.max(4, Math.min(plotRight - 16, a.x - 6)), y: clampY(a.y - 6), w: 12, h: 12 };
             }
