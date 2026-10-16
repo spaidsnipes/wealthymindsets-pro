@@ -22,17 +22,11 @@ describe("WebullOrderPreviewRow — only equities get a preview control", () => 
     ["GC1!", "futures"],
     ["BTCUSD", "crypto"],
     ["SPX", "an index"],
-  ])("%s renders a named refusal and NO button", (symbol, noun) => {
+  ])("%s renders NO preview row at all (L16, Garden 19: one TRADE door carries it)", (symbol) => {
+    void 0;
     const html = renderToStaticMarkup(<WebullOrderPreviewRow symbol={symbol} {...LONG_PLAN} />);
-    const text = visible(html);
-    expect(text).toContain(`Equities only — this preview cannot price ${noun} (${symbol}). Nothing is sent to Webull.`);
-    expect(html).toContain('data-preview-state="REFUSED_SCOPE"');
-    expect(html).toContain('data-testid="webull-preview-refusal"');
-    // The healthy-looking control is gone entirely, not merely disabled.
-    expect(html).not.toContain("<button");
-    expect(html).not.toContain('data-testid="webull-preview-button"');
-    expect(text).not.toMatch(/Preview (buy|sell)/);
-    expect(text).not.toContain("shares");
+    // The healthy-looking control is gone entirely, and so is the second door's refusal.
+    expect(html).toBe("");
   });
 
   it("an equity keeps its enabled preview button, exactly as before", () => {
@@ -46,7 +40,7 @@ describe("WebullOrderPreviewRow — only equities get a preview control", () => 
     expect(button).not.toMatch(/\sdisabled(=|\s|>)/);
   });
 
-  it("the /charts mount (RiskReceiptBar) carries the refusal for a futures plan", () => {
+  it("the /charts mount (RiskReceiptBar) shows no Webull preview for a futures plan (L16)", () => {
     const html = renderToStaticMarkup(
       <RiskReceiptBar
         risk={{ drawn: true, reason: null, side: "LONG", entry: 5000.25, stop: 4990 } as never}
@@ -57,7 +51,7 @@ describe("WebullOrderPreviewRow — only equities get a preview control", () => 
         symbol="ES1!"
       />,
     );
-    expect(visible(html)).toContain("Equities only — this preview cannot price futures (ES1!).");
-    expect(visible(html)).not.toContain("Preview buy 1 ES1!");
+    expect(html).not.toContain('data-testid="webull-preview-row"');
+    expect(visible(html)).not.toContain("Preview at Webull");
   });
 });

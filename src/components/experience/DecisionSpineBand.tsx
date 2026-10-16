@@ -1713,17 +1713,16 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
                     // The 11px readable floor it shipped with before the plaque
                     // pass shrank it; the chip may wrap rather than overflow a
                     // 232px handle, because a wound that is cut off is mute.
-                    fontSize: 11,
-                    lineHeight: "16px",
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase",
+                    fontSize: 13,
+                    lineHeight: "17px",
                     whiteSpace: "normal",
                     maxWidth: "100%",
                     fontFamily: "system-ui, -apple-system, 'Segoe UI', sans-serif",
                     fontWeight: 600,
                   }}
                 >
-                  Chart integrity · {foldEscalation.word}
+                  {/* L17: the cause in plain words, never the bare grade (the grade stays in data-integrity). */}
+                  Chart integrity · {foldEscalation.cause ?? foldEscalation.word}
                 </span>
               ) : null}
             </span>

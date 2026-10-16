@@ -117,12 +117,40 @@ export interface FoldEscalation {
   readonly treatment: PaintTreatment | null;
   /** A full sentence for `title` / `aria-label`. Always present. */
   readonly detail: string;
+  /**
+   * L17 (Garden 19): the CAUSE in plain words, for the visible chip — "data is delayed", never the bare
+   * grade. Founder click-through: "CHART INTEGRITY · WOUNDED appeared during ordinary scrolling with no
+   * explanation." Null when calm.
+   */
+  readonly cause: string | null;
+}
+
+/** One plain clause per recorded reason, in the reading's own order. */
+const CAUSE_WORDS: Readonly<Record<string, string>> = {
+  QUARANTINED: "a bar was held back as bad data",
+  CONFLICT: "two sources disagreed; one was picked",
+  SYNTHETIC: "some bars are built, not reported",
+  AGGREGATE: "some bars are built from smaller ones",
+  DELAYED: "data is delayed",
+  REPLAY_FROZEN: "replay — not live",
+  UNSUPPORTED: "this feed does not support the market",
+  REFUSED: "the provider refused (sign-in or entitlement)",
+  PARTIAL_TAPE: "one exchange's prints, not the full tape",
+};
+
+export function foldCause(reading: MarketFidelityReading | null | undefined, treatment: PaintTreatment): string | null {
+  if (treatment === "FULL") return null;
+  if (treatment === "NONE") return "no data quality reading yet";
+  const words = (reading?.reasons ?? []).map(r => CAUSE_WORDS[r]).filter(Boolean);
+  if (words.length) return words.slice(0, 2).join(" · ");
+  return treatment === "DIM" ? "data is stale" : "part of the picture is missing";
 }
 
 const CALM: FoldEscalation = Object.freeze({
   level: "CALM",
   word: null,
   treatment: "FULL",
+  cause: null,
   detail: "Detail: decision identity, the next act and its permission, market provenance, data fidelity, risk, why, and the evidence ledger.",
 });
 
@@ -130,6 +158,7 @@ const NO_PLAQUE: FoldEscalation = Object.freeze({
   level: "CALM",
   word: null,
   treatment: null,
+  cause: null,
   detail: "Detail: decision identity, the next act and its permission, market provenance, risk, why, and the evidence ledger.",
 });
 
@@ -149,14 +178,16 @@ export function selectFoldEscalation(
   if (treatment === "FULL") return CALM;
 
   const word = INTEGRITY_WORD[treatment];
+  const cause = foldCause(reading, treatment);
   return Object.freeze({
     level: "DISCLOSED",
     word,
     treatment,
+    cause,
     detail:
       treatment === "NONE"
-        ? `Chart integrity ${word}. No fidelity has been established for this canvas. Open for decision identity, the next act, market provenance, risk, why, and the evidence ledger.`
-        : `Chart integrity ${word}. Open for decision identity, the next act, the fidelity reading, market provenance, risk, why, and the evidence ledger.`,
+        ? `Chart integrity ${word} — ${cause}. No fidelity has been established for this canvas. Open for decision identity, the next act, market provenance, risk, why, and the evidence ledger.`
+        : `Chart integrity ${word} — ${cause}. Open for decision identity, the next act, the fidelity reading, market provenance, risk, why, and the evidence ledger.`,
   });
 }
 
