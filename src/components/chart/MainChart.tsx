@@ -14341,7 +14341,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // LEVEL NAMES ON THE AXIS (serving ES1! 5m, Oct 16): the library draws "PDH" in a red pill just left
       // of the price axis; the regime title took its right-edge slot and covered "PD" ("H 7808.00"). Each
       // level's name is an obstacle every later word steps around.
-      try { if (levelTitlesRef.current.length) {
+      try { const ltSeen: string[] = []; canvas.dataset.levelTitleKeepOut = "NONE"; if (levelTitlesRef.current.length) {
         ctx.save();
         ctx.font = marketFont("OBJECT_NAME");
         for (const lt of levelTitlesRef.current) {
@@ -14349,8 +14349,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           if (yL == null) continue;
           const wL = Math.ceil(ctx.measureText(lt.title).width) + 18;
           floatingChips.push({ x: plotRight - wL, y: +yL - 10, w: wL, h: 20 });
+          ltSeen.push(`${lt.title}@${Math.round(+yL)}:${Math.round(plotRight - wL)}`);
         }
         ctx.restore();
+        canvas.dataset.levelTitleKeepOut = ltSeen.join("|") || "NONE";
         // Market-object pins (DOM buttons over the glass) are obstacles too: on ES1! 5m a zone's pin sat on
         // "dPOC 7786.00 · -4.00 THIS SESSION" (Oct 16). Every later placer now steps around them.
       } for (const pr of marketObjectPinRectsRef.current) floatingChips.push(pr);
