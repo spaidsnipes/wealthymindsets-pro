@@ -88,16 +88,18 @@ describe("no mode paints a card", () => {
   });
 });
 
-describe("M46 · Bid × Ask is a grid of cells that fit their words", () => {
-  it("an untraded row is blank; the words are the fitter's, never two numbers side by side", () => {
+describe("Plate 24 (2026-10-15, supersedes M46's one-cell text) · Bid × Ask is a two-sided grid", () => {
+  it("an untraded row is blank; bid in the left half on the sell ink, ask in the right half on the buy ink; a number that does not fit is dropped", () => {
     const b = bidAsk();
     expect(b).toContain("if (!(lv.total > 0)) return;");
-    expect(b).toContain("const t = fitBidAskCellText(lv.bid, lv.ask, fmtV, measureCell, colW - 4, cellFs(rH));");
-    expect(b).not.toMatch(/"left", fs\)|"right", fs\)/);
+    expect(b).toContain("cellNum(fmtV(lv.bid), gx + halfC - 5, rowY + rH / 2, \"right\", fsG);");
+    expect(b).toContain("cellNum(fmtV(lv.ask), gx + halfC + 5, rowY + rH / 2, \"left\", fsG);");
+    expect(b).toContain("numbersFit = gridLevels.every(l => ctx.measureText(fmtV(l.bid)).width <= halfC - 6 && ctx.measureText(fmtV(l.ask)).width <= halfC - 6);");
+    expect(b).toContain("const askImb = !!below && imb(lv.ask, below.bid);");
   });
 
   it("the column is an obstacle for every later word (the NEAR anatomy words yield to it)", () => {
-    expect(bidAsk()).toContain("forceChips.push({ x, y: yH, w: colW, h: fullH });");
+    expect(bidAsk()).toContain("forceChips.push({ x: gx - 8, y: yH, w: cellW + 8, h: fullH });");
     expect(vp()).toContain("forceChips.push({ x, y: yH, w: right - x, h: fullH });");
     expect(imbalance()).toContain("forceChips.push({ x: x - 4, y: yH, w: colW + 8, h: fullH });");
   });

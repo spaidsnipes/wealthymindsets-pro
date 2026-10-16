@@ -38,6 +38,8 @@ describe("footprint rows are drawn high-first", () => {
     const calls = [...CHART.matchAll(/const levels = fpLevels\(c, (numLevels|numLev)\)(\.reverse\(\))?;/g)];
     expect(calls.length).toBeGreaterThanOrEqual(3);
     for (const c of calls) expect(c[2], c[0]).toBe(".reverse()");
-    expect((CHART.match(/Math\.round\(yH \+ li \* rowH\)/g) ?? []).length).toBeGreaterThanOrEqual(3);
+    expect((CHART.match(/Math\.round\(yH \+ li \* (rowH|gRowH)\)/g) ?? []).length).toBeGreaterThanOrEqual(3);
+    // Plate 24's grid reads the same owner high-first.
+    expect(CHART).toContain("const gridLevels = getBarFootprint(c, Math.max(1, Math.min(14, Math.floor(fullH / FP_GRID_ROW_PX)))).reverse();");
   });
 });

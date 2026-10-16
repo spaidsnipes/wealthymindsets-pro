@@ -1893,6 +1893,13 @@ function paintStackCell(ctx: CanvasRenderingContext2D, a: { x0: number; x1: numb
  */
 const HEADER_CLEAR_PX = 96;
 
+/** Plate 24 (2026-10-15): the NEAR footprint grid — row height for 13px numbers, widest grid, imbalance ratio. */
+const FP_GRID_ROW_PX = 18;
+const FP_GRID_MAX_W = 112;
+const FP_IMBALANCE_RATIO = 3;
+/** The NEAR grid's width for a bar: wider than the candle body (two numbers side by side), never past FP_GRID_MAX_W. */
+function fpGridWidth(colW: number, barSpacing: number): number { return Math.max(colW, Math.min(FP_GRID_MAX_W, Math.floor(barSpacing * 0.88))); }
+
 /** Plate 26 (2026-10-15): Big Trades are clear water; no words are written inside the disc. */
 const BIG_TRADE_WORDS_INSIDE = false;
 
@@ -9192,44 +9199,72 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             return;
           }
 
-          levels.forEach((lv, li) => {
+          // PLATE 24 · FOOTPRINT ON EVERY CANDLE (Garden 19 finish line, Founder 2026-10-15; supersedes the
+          // M46 one-cell "bid × ask" text). NEAR is a two-sided grid: bid in the LEFT half on the sell ink,
+          // ask in the RIGHT half on the buy ink, each half tinted by its share of the bar's busiest side;
+          // a FP_IMBALANCE_RATIO diagonal imbalance (ask vs the bid one row below, bid vs the ask one row
+          // above) lights its half; the busiest price is boxed in gold; a slim candle stands beside the
+          // grid; the bar's delta sits under it. Rows are sized for 13px numbers (FP_GRID_ROW_PX); a
+          // number that does not fit its half is dropped, never shrunk.
+          // Same owner as every row mode; the receipt already counted this bar through `levels` above.
+          const gridLevels = getBarFootprint(c, Math.max(1, Math.min(14, Math.floor(fullH / FP_GRID_ROW_PX)))).reverse();
+          if (gridLevels.length === 0) return;
+          const gRowH = fullH / gridLevels.length;
+          const cellW = fpGridWidth(colW, bsp);
+          const gx = cx - Math.floor(cellW / 2) + 4;
+          const halfC = Math.floor(cellW / 2);
+          const maxSide = Math.max(1e-12, ...gridLevels.map(l => Math.max(l.bid, l.ask)));
+          const gPoc = gridLevels.reduce((mi, l, i, arr) => l.total > arr[mi].total ? i : mi, 0);
+          const fsG = gRowH >= FP_GRID_ROW_PX - 1 ? Math.min(14, Math.floor(gRowH - 4)) : 0;
+          let numbersFit = fpNumbers && fsG >= MARKET_NUMBER_MIN_PX;
+          if (numbersFit) { ctx.font = marketFont("FOOTPRINT_NUMBER", fsG); numbersFit = gridLevels.every(l => ctx.measureText(fmtV(l.bid)).width <= halfC - 6 && ctx.measureText(fmtV(l.ask)).width <= halfC - 6); }
+          const imb = (a: number, b: number) => a > 0 && a >= FP_IMBALANCE_RATIO * Math.max(b, 1);
+          gridLevels.forEach((lv, li) => {
             if (!(lv.total > 0)) return;
-            const rowY = Math.round(yH + li * rowH);
-            const rH   = Math.max(1, Math.round(yH + (li + 1) * rowH) - rowY - 1);
-            const askDom = lv.ask >= lv.bid;
-            const domShare = Math.max(lv.ask, lv.bid) / lv.total;   // 0.5 … 1
-            const tint = 0.10 + (domShare - 0.5) * 0.5 + (lv.total / maxTot) * 0.22;
-            ctx.fillStyle = "rgba(12,16,24,0.62)";
-            ctx.fillRect(x, rowY, colW, rH);
-            ctx.fillStyle = askDom ? buyRgba(tint.toFixed(2)) : sellRgba(tint.toFixed(2));
-            ctx.fillRect(x, rowY, colW, rH);
-            if (rH >= 10 && fpNumbers) {
-              const t = fitBidAskCellText(lv.bid, lv.ask, fmtV, measureCell, colW - 4, cellFs(rH));
-              if (t.form !== "NONE") { cellNum(t.text, cx, rowY + rH / 2, "center", t.px); cellText++; }
+            const rowY = Math.round(yH + li * gRowH);
+            const rH   = Math.max(1, Math.round(yH + (li + 1) * gRowH) - rowY - 1);
+            const below = gridLevels[li + 1], above = gridLevels[li - 1];
+            const askImb = !!below && imb(lv.ask, below.bid);
+            const bidImb = !!above && imb(lv.bid, above.ask);
+            ctx.fillStyle = "rgba(10,9,7,0.85)";
+            ctx.fillRect(gx, rowY, cellW, rH);
+            ctx.fillStyle = sellRgba((bidImb ? 0.8 : 0.1 + 0.45 * (lv.bid / maxSide)).toFixed(2));
+            ctx.fillRect(gx, rowY, halfC - 1, rH);
+            ctx.fillStyle = buyRgba((askImb ? 0.8 : 0.1 + 0.45 * (lv.ask / maxSide)).toFixed(2));
+            ctx.fillRect(gx + halfC, rowY, cellW - halfC, rH);
+            if (numbersFit) {
+              cellNum(fmtV(lv.bid), gx + halfC - 5, rowY + rH / 2, "right", fsG);
+              cellNum(fmtV(lv.ask), gx + halfC + 5, rowY + rH / 2, "left", fsG);
+              cellText += 2;
             }
           });
-
-          if (pocIdx >= 0 && levels[pocIdx].total > 0) {
-            const pocY = Math.round(yH + pocIdx * rowH);
-            const pocH = Math.max(1, Math.round(yH + (pocIdx + 1) * rowH) - pocY - 1);
-            ctx.strokeStyle = "rgba(240,180,41,0.95)";
-            ctx.lineWidth = 1; ctx.setLineDash([]);
-            ctx.strokeRect(x + 0.5, pocY + 0.5, colW - 1, pocH);
+          if (gridLevels[gPoc] && gridLevels[gPoc].total > 0) {
+            const pocY = Math.round(yH + gPoc * gRowH);
+            const pocH = Math.max(1, Math.round(yH + (gPoc + 1) * gRowH) - pocY - 1);
+            ctx.strokeStyle = "rgba(240,190,70,1)";
+            ctx.lineWidth = 1.5; ctx.setLineDash([]);
+            ctx.strokeRect(gx + 0.75, pocY + 0.75, cellW - 1.5, pocH - 0.5);
           }
-          fpCandleOutline(c, cx, yH, yL);
-          forceChips.push({ x, y: yH, w: colW, h: fullH });
-
-          // The bar's delta over its column, when the badge gate allows it
-          // (never at NEAR: there the volume-band row carries it). Halo text,
-          // not a box, from the SAME owner as that row.
+          // The slim candle beside the grid (the candle stays readable; the grid never hides it).
+          {
+            const rawYO = srs.priceToCoordinate(c.open), rawYC = srs.priceToCoordinate(c.close);
+            if (rawYO != null && rawYC != null) {
+              const sx = gx - 6, bull = c.close >= c.open;
+              ctx.fillStyle = bull ? buyRgba(0.95) : sellRgba(0.95);
+              ctx.fillRect(sx, yH, 1, fullH);
+              ctx.fillRect(sx - 1, Math.round(Math.min(rawYO, rawYC)), 3, Math.max(2, Math.round(Math.abs(rawYC - rawYO))));
+            }
+          }
+          forceChips.push({ x: gx - 8, y: yH, w: cellW + 8, h: fullH });
+          // The bar's delta over its grid, when the badge gate allows it (never at NEAR: there the
+          // volume-band row carries it). Halo text, not a box, from the SAME owner as that row.
           if (showBadges) {
-            // MID keeps the cells; the column's number waits for NEAR (H-501).
             const bd = fpNumbers ? barTapeDelta(getBarSubProfile(c)) : null;
             if (bd) {
               const text = signedFlowText(bd.delta, fmtV);
-              ctx.font = marketFont("MICRO_NUMBER", 10.5);
+              ctx.font = marketFont("MICRO_NUMBER", 13);
               const tw = ctx.measureText(text).width + 4;
-              const rect = { x: cx - tw / 2, y: yH - 17, w: tw, h: 14 };
+              const rect = { x: cx - tw / 2, y: yH - 19, w: tw, h: 16 };
               if (rect.y >= HEADER_FLOOR_Y && !chipHits(rect)) {
                 crispText(ctx, text, cx, rect.y + rect.h / 2, { fill: `rgba(${bd.delta >= 0 ? flowColorsRef.current.dBuy : flowColorsRef.current.dSell},0.98)`, outline: true });
                 forceChips.push(rect);
@@ -9237,6 +9272,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               }
             }
           }
+          void levels; void pocIdx; void numLevels; void rowH; void maxTot;
         });
         ctx.restore();
         canvas.dataset.fpCellText = String(cellText);
@@ -10887,7 +10923,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             if (!getBarSubProfile(b.c)) continue;
             const yHc = srs.priceToCoordinate(b.c.high), yLc = srs.priceToCoordinate(b.c.low);
             if (yHc == null || yLc == null) continue;
-            fpCells.push({ x: b.cx - halfW, y: Math.min(+yHc, +yLc), w: colW, h: Math.max(2, Math.abs(+yLc - +yHc)) });
+            { const gw = effectiveFP === "bid-ask" ? fpGridWidth(colW, bsp) + 8 : colW; const gx0 = effectiveFP === "bid-ask" ? b.cx - Math.floor((gw - 8) / 2) - 4 : b.cx - halfW; fpCells.push({ x: gx0, y: Math.min(+yHc, +yLc), w: gw, h: Math.max(2, Math.abs(+yLc - +yHc)) }); }
           }
           const placeNear = (candidates: NearRect[]) => {
             // Only slots inside pane 0's body band (below the header and the
