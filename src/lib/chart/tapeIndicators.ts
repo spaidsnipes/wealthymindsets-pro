@@ -70,7 +70,9 @@ export function tradeSizeMix(prints: readonly TapePrint[], cuts: SizeCuts): Size
   for (const p of prints) {
     const s = size(p);
     if (!(s > 0)) continue;
-    if (s >= cuts.large) L += s; else if (s < cuts.small) S += s; else M += s;
+    // At or under the median is small (serving 75ac800 NQ: every print 1 lot, the median IS the minimum,
+    // and "under the median" put nothing in Small — "Large 0% · Mid 100% · Small 0%").
+    if (s >= cuts.large && cuts.large > cuts.small) L += s; else if (s <= cuts.small) S += s; else M += s;
   }
   const t = L + M + S;
   return t > 0 ? { large: L / t, mid: M / t, small: S / t } : null;

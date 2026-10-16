@@ -71,11 +71,20 @@ export function sma(src: number[], p: number): number[] {
   });
 }
 
+/**
+ * NaN-SAFE (Garden 19 §8 indicator audit, serving 75ac800): an EMA of a series with a warm-up (RSI, MACD,
+ * a stochastic) was seeded with NaN and stayed NaN for ever — Smoothed / Color RSI and Schaff Trend Cycle
+ * drew empty panes reading "—", and SMI read a flat 0.00. Leading non-finite values stay NaN; the EMA seeds
+ * at the first finite value; a later gap holds the last value. Finite inputs give the identical result.
+ */
 export function ema(src: number[], p: number): number[] {
   const k = 2 / (p + 1); const out: number[] = [];
+  let prev = NaN;
   for (let i = 0; i < src.length; i++) {
-    if (i === 0) { out.push(src[0]); continue; }
-    out.push(src[i] * k + out[i - 1] * (1 - k));
+    const v = src[i];
+    if (!Number.isFinite(v)) { out.push(prev); continue; }
+    prev = Number.isFinite(prev) ? v * k + prev * (1 - k) : v;
+    out.push(prev);
   }
   return out;
 }
@@ -586,12 +595,12 @@ export function stochastic(bars: LegacyOhlcvTuple[], kP = 14, dP = 3, smooth = 3
 }
 
 export function stochasticMomentumIndex(bars: LegacyOhlcvTuple[], p = 13, dP = 25, smooth = 2): { smi: number[]; signal: number[] } {
-  const hl2 = bars.map(b => (b.high + b.low) / 2);
   const rel = bars.map((b, i) => {
     if (i < p - 1) return NaN;
     let hi = -Infinity, lo = Infinity;
     for (let j = 0; j < p; j++) { hi = Math.max(hi, bars[i-j].high); lo = Math.min(lo, bars[i-j].low); }
-    return b.close - hl2[i];
+    // The close against the MIDPOINT OF THE p-BAR RANGE (Blau's SMI) — not the bar's own midpoint.
+    return b.close - (hi + lo) / 2;
   });
   const range = bars.map((_, i) => {
     if (i < p - 1) return NaN;
@@ -601,7 +610,7 @@ export function stochasticMomentumIndex(bars: LegacyOhlcvTuple[], p = 13, dP = 2
   });
   const smoothRel = ema(ema(rel, smooth), smooth);
   const smoothRange = ema(ema(range, smooth), smooth);
-  const smi = smoothRel.map((v, i) => smoothRange[i] > 0 ? v / (smoothRange[i] / 2) * 100 : 0);
+  const smi = smoothRel.map((v, i) => Number.isFinite(v) && smoothRange[i] > 0 ? v / (smoothRange[i] / 2) * 100 : NaN);
   return { smi, signal: ema(smi, dP) };
 }
 

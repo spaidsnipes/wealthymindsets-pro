@@ -14,6 +14,8 @@ describe("plate 29 · every pane names itself", () => {
     expect(paneValueText(29417)).toBe("29,417");
     expect(paneValueText(-1591.2)).toBe("−1,591");
     expect(paneValueText(NaN)).toBeNull();
+    expect(paneValueText(-0.0042)).toBe("−0.0042");
+    expect(paneValueText(0.153)).toBe("0.153");
   });
   it("SENTINEL: every pane id MainChart opens has a row in the table", () => {
     const src = readFileSync(path.join(process.cwd(), "src/components/chart/MainChart.tsx"), "utf8");

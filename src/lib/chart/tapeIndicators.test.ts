@@ -60,3 +60,11 @@ describe("plate 29 · Big Trade Pressure", () => {
     expect(bigTradePressureWords(1240)).toBe("+1,240 big-print net");
   });
 });
+
+describe("plate 29 · a 1-lot tape is small, not mid (serving 75ac800 NQ)", () => {
+  it("prints at the median size count as small", () => {
+    const ones = [Array.from({ length: 40 }, () => buy(1, 1))];
+    const cuts = sizeCuts(ones)!;
+    expect(tradeSizeMix(ones[0], cuts)).toEqual({ large: 0, mid: 0, small: 1 });
+  });
+});

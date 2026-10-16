@@ -6238,6 +6238,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     // lane D: the ONE detector (fvgEngine, FVG_3C v1) paints as the FVG /
     // Imbalance territory layer (prop `fvgOn`, pref wm_fvg); a saved
     // "Fair Value Gaps" indicator entry now draws nothing here.
+    const SWING_RULES_MAX = 40;
     if (inds.has("Swing High/Low")) {
       const swings = IND.swingHighLow(bars, CHART_SWING_LOOKBACK);
       // A one-point line draws NOTHING (2026-10-08 audit: the indicator was
@@ -6254,8 +6255,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         s.setData([{ time: bars[i0].time as any, value: p.price }, { time: bars[i1].time as any, value: p.price }]);
         indSeriesRef.current.push(s);
       };
-      swings.highs.forEach(h => rule(h, "#ef5350"));
-      (swings.lows ?? []).forEach(l => rule(l, "#26a69a"));
+      // PERF (Garden 19 §8 audit, serving 75ac800): one series per swing over the whole loaded history put
+      // ~600 series on the price pane. The newest 40 of each side — every one a real confirmed swing.
+      swings.highs.slice(-SWING_RULES_MAX).forEach(h => rule(h, "#ef5350"));
+      (swings.lows ?? []).slice(-SWING_RULES_MAX).forEach(l => rule(l, "#26a69a"));
     }
     if (inds.has("Prior Day High/Low") || inds.has("Daily Candle Levels")) {
       const pdhl = IND.priorDayHighLow(bars);

@@ -104,7 +104,8 @@ export function paneValueWords(id: string, v: number | null | undefined): string
 export function paneValueText(v: number | null | undefined): string | null {
   if (v == null || !Number.isFinite(v)) return null;
   const a = Math.abs(v);
-  const dp = a >= 1000 ? 0 : a >= 100 ? 1 : 2;
+  // Small readings keep their digits (§8 audit: ROC / PPO / TRIX read "−0.00").
+  const dp = a >= 1000 ? 0 : a >= 100 ? 1 : a >= 1 ? 2 : a >= 0.01 ? 3 : a > 0 ? 4 : 2;
   const t = a.toLocaleString("en-US", { minimumFractionDigits: dp, maximumFractionDigits: dp });
   return v < 0 ? `−${t}` : t;
 }
