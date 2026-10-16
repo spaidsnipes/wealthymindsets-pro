@@ -144,7 +144,8 @@ export function needsTradedVolumeWords(symbol: string): string | null {
   if (noun) return `${NEEDS_TRADED_VOLUME} · ${noun.toUpperCase()} HAS NONE`;
   // Plate 35 (serving 66265dd, SPX): Big Trades read "WAITING FOR SIDED PRINTS" over an index — a wait
   // that can never end. A cash index is calculated, not traded: no print will ever arrive.
-  if (isUsCashIndexSymbol(symbol)) return `NOT POSSIBLE HERE · AN INDEX IS CALCULATED, NOT TRADED — ITS FUTURES CARRY THE TAPE`;
+  // Short enough to never clip on the order-flow row (serving 75ac800 cut "… CARRY THE TA…").
+  if (isUsCashIndexSymbol(symbol)) return `NOT POSSIBLE ON AN INDEX (CALCULATED, NOT TRADED)`;
   return null;
 }
 
