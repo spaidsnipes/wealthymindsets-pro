@@ -10182,7 +10182,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
         // 4 · WORDS — each shelf names itself beside its own end, never on a candle.
         ctx.font = CARD_FONT_AP;
+        // Codex plate 05 "readable at a glance" beside his default stack (serving 27969ea): three shelf cards
+        // plus every other caption made the glass a wall of words. Only the two strongest shelves speak; every
+        // shelf keeps its gold bar (the geometry carries the rest without words).
+        const speakingShelves = new Set([...shelfAt].sort((p, q) => q.s.holds - p.s.holds).slice(0, 2));
         for (const sa of shelfAt) {
+          if (!speakingShelves.has(sa)) continue;
           const words = shelfWords(sa.s, fmtV);
           const wC = Math.ceil(ctx.measureText(words).width) + 20, hC = 24;
           // Beside its own end first, then above / below along the shelf, stepping away from the candles
@@ -20663,7 +20668,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 const fixedChips = [...floatingChips];
                 let stepped = 0;
                 let oiWordsListed = 0;
+                // Plate 05 word budget: only the four strikes nearest the live price carry words; the others keep
+                // their tick and are listed with the event notes (never dropped).
+                const lastYTick = (() => { const lb = (barsRef.current ?? [])[(barsRef.current ?? []).length - 1]; const yl = lb ? srs.priceToCoordinate(lb.close) : null; return yl == null ? null : +yl; })();
+                const speakingTicks = new Set(lastYTick == null ? tickWords : [...tickWords].sort((p, q) => Math.abs(p.y - lastYTick) - Math.abs(q.y - lastYTick)).slice(0, 4));
                 for (const t of [...tickWords].sort((p, q) => p.y - q.y)) {
+                  if (!speakingTicks.has(t)) { displacedNotes.push({ layer: "DERIVATIVES", text: t.text, x: plotRightD - 40, y: t.y }); oiWordsListed++; continue; }
                   const tw = ctx.measureText(t.text).width;
                   const x = plotRightD - tw - 6;
                   const at = (k: number) => ({ x: x - 3, y: t.y - 2 + k * ROW - 12, w: tw + 6, h: 13 });
