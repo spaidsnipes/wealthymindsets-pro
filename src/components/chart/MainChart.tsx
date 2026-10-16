@@ -22699,10 +22699,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const bodyAboveFloor = silhouette.filter(q => q.y - rowH / 2 < HEADER_FLOOR_Y).length;
               ds.livingProfileBodyClipped = bodyAboveFloor > 0 ? `HEADER:${bodyAboveFloor}` : "NONE";
               // MAKEUP GOVERNOR — the fill quiets over price; the rim does not.
-              const bodyOverPrice = Number(ds.livingProfileCandlesKept ?? "0") > 0;
+              // Codex plate 02 beside serving NQ1! 15m (2026-10-16): one candle under the body halved the whole
+              // fill — the solid gold mass read as an outline. The governor now scales with how much price the
+              // body covers (the candles are cut out of it either way): < 3 candles full, 3–7 at 0.75, 8+ at the
+              // canon's 0.5 (the BTC-USD case: ~30 live candles as islands in gold).
+              const keptN = Number(ds.livingProfileCandlesKept ?? "0");
+              const overFill = keptN >= 8 ? C.overPriceFill : keptN >= 3 ? 0.75 : 1;
+              const bodyOverPrice = overFill < 1;
               const alphaBeforeFill = ctx.globalAlpha;
-              if (bodyOverPrice) ctx.globalAlpha = alphaBeforeFill * C.overPriceFill;
-              ds.livingProfileBodyGoverned = bodyOverPrice ? `OVER_PRICE:${C.overPriceFill}` : "FULL";
+              if (bodyOverPrice) ctx.globalAlpha = alphaBeforeFill * overFill;
+              ds.livingProfileBodyGoverned = bodyOverPrice ? `OVER_PRICE:${overFill}` : "FULL";
               const g = ctx.createLinearGradient(rightEdge, 0, rightEdge - bodyW, 0);
               g.addColorStop(0, pk.rgbaAs("VALUE", "ANCHOR", C.tailBase));
               g.addColorStop(1, pk.rgbaAs("VALUE", "ANCHOR", C.tailTip));
