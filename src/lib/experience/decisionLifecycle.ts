@@ -404,3 +404,95 @@ export const DECK_PHASE_LABEL: Readonly<Record<TradePhase, string>> = {
   POST_EXIT: STAGE_WORD[STAGE_FOR_PHASE.POST_EXIT],
   REVIEW: STAGE_WORD[STAGE_FOR_PHASE.REVIEW],
 };
+
+/* ══ PLATE 34 · THE WAIT CARD COMES ALIVE (Garden 19 finish line, Founder 2026-10-15) ═══════════════
+ * "The card moves through the real setup as the market moves and as you act."
+ *   Wait → Watch → Ready → In trade → Manage → Review
+ * Serving e0c093c: the rail's card read WAIT / RISK NOT DECLARED all night whatever the market or the
+ * trader did. The CARD STAGE is a READING of facts the room holds (the compiled verdict, the broker's
+ * own position readback, the nearest live zone) — distinct from the trader's DECLARED lifecycle stage
+ * above, and it lives here because this file owns every stage word (lifecyclePhaseOneOwner sentinel).
+ *   IN TRADE   a position is read and no working stop protects it
+ *   MANAGE     a position is read and a working stop protects it
+ *   READY      flat with an order working, or the compiler paid its evidence (ACTION) — "set", never "go"
+ *   WATCH      flat, waiting, and price sits near a live zone
+ *   WAIT       everything else — the plaque's own reason in sentence case
+ *   REVIEW     only when the room says a trade closed today (never guessed)
+ */
+export type CardStage = "WAIT" | "WATCH" | "READY" | "IN_TRADE" | "MANAGE" | "REVIEW";
+
+export const CARD_STAGES: readonly CardStage[] = ["WAIT", "WATCH", "READY", "IN_TRADE", "MANAGE", "REVIEW"];
+export const CARD_STAGE_LABEL: Readonly<Record<CardStage, string>> = {
+  WAIT: "Wait", WATCH: "Watch", READY: "Ready", IN_TRADE: "In trade", MANAGE: "Manage", REVIEW: "Review",
+};
+
+export interface CardStageInput {
+  /** The compiled verdict word (WAIT / ACTION / CAUTION / NO TRADE / UNKNOWN), verbatim. */
+  readonly verdict: string | null;
+  /** The plaque's one sentence ("RISK NOT DECLARED · CLARITY PRECEDES ENTRY"). */
+  readonly reason: string | null;
+  /** The broker's own readback for this chart's contract; null when not read (or not the owner). */
+  readonly book: {
+    readonly state: string;
+    readonly quantity: number | null;
+    readonly averagePrice: number | null;
+    readonly protection: "PROTECTED" | "UNPROTECTED" | null;
+    readonly working: number;
+  } | null;
+  /** The nearest live zone to price, already measured; null when none is near. */
+  readonly nearZone: { readonly side: "SUPPLY" | "DEMAND"; readonly distance: number; readonly unit: string } | null;
+  /** A trade closed today on this symbol, with its result words ("+$1,200"); null when the room does not know. */
+  readonly closedToday: { readonly result: string } | null;
+  /** Price formatter for the average price. */
+  readonly fmtPrice?: (p: number) => string;
+}
+
+export interface CardStageVM {
+  readonly stage: CardStage;
+  readonly sentence: string;
+}
+
+const sentenceCase = (s: string) => {
+  const first = s.split(" · ")[0].trim().toLowerCase();
+  return first ? first.charAt(0).toUpperCase() + first.slice(1) + "." : "";
+};
+
+export function selectCardStage(i: CardStageInput): CardStageVM {
+  const fmt = i.fmtPrice ?? ((p: number) => p.toLocaleString("en-US", { maximumFractionDigits: 2 }));
+  const b = i.book;
+  if (b && (b.state === "LONG" || b.state === "SHORT")) {
+    const side = b.state === "LONG" ? "Long" : "Short";
+    const at = b.averagePrice != null ? ` at ${fmt(b.averagePrice)}` : "";
+    const qty = b.quantity != null ? ` ${Math.abs(b.quantity)}` : "";
+    if (b.protection === "PROTECTED") return { stage: "MANAGE", sentence: `${side}${qty}${at}. Stop working — manage the trade.` };
+    return { stage: "IN_TRADE", sentence: `${side}${qty}${at}. No stop working — set one.` };
+  }
+  if (i.closedToday) return { stage: "REVIEW", sentence: `Closed ${i.closedToday.result} today. Journal it.` };
+  if (b && b.state === "FLAT" && b.working > 0) {
+    return { stage: "READY", sentence: `${b.working} order${b.working === 1 ? "" : "s"} working. Plan and risk set.` };
+  }
+  if (i.verdict === "ACTION") return { stage: "READY", sentence: "Evidence paid. Plan and risk set — permission is yours." };
+  if (i.verdict === "WAIT" && i.nearZone) {
+    const d = Number.isInteger(i.nearZone.distance) ? String(i.nearZone.distance) : i.nearZone.distance.toFixed(2);
+    return { stage: "WATCH", sentence: `Price is ${d} ${i.nearZone.unit} from the ${i.nearZone.side.toLowerCase()} zone.` };
+  }
+  return { stage: "WAIT", sentence: i.reason ? sentenceCase(i.reason) : "Waiting for the setup." };
+}
+
+/**
+ * The nearest live zone, if price is within `reach` of its near edge. Live = not invalidated.
+ * Distance is to the zone's NEAR edge; inside the zone it is 0.
+ */
+export function nearestLiveZone(
+  zones: readonly { readonly side: "SUPPLY" | "DEMAND"; readonly low: number; readonly high: number; readonly live: boolean }[],
+  price: number,
+  reach: number,
+): { side: "SUPPLY" | "DEMAND"; distance: number } | null {
+  let best: { side: "SUPPLY" | "DEMAND"; distance: number } | null = null;
+  for (const z of zones) {
+    if (!z.live || !Number.isFinite(price)) continue;
+    const d = price < z.low ? z.low - price : price > z.high ? price - z.high : 0;
+    if (d <= reach && (!best || d < best.distance)) best = { side: z.side, distance: d };
+  }
+  return best;
+}

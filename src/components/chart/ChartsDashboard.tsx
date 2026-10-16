@@ -1,5 +1,6 @@
 "use client";
 
+import { nearestLiveZone } from "@/lib/experience/decisionLifecycle";
 import { type InventionVisibility, parseInventionVisibility } from "@/lib/chart/inventionVisibility";
 import { createPortal } from "react-dom";
 import { zoneStateWords } from "@/lib/marketData/viewModels/selectZoneLifecycle";
@@ -2177,6 +2178,18 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     // Memory layer is on: pins for a layer the trader switched off are noise.
     ...(profileMemoryOn ? selectMemoryMarketObjects({ memory: profileMemoryVM, identities: chartBarIdentities }) : []),
   ], [chartStructureVM, chartBars, chartBarIdentities, chartStructureZones, profileMemoryOn, profileMemoryVM]);
+  // PLATE 34: the nearest live structure zone to price, within three median bar ranges — the WATCH stage's fact.
+  const stageNearZone = React.useMemo(() => {
+    const last = chartBars.length ? chartBars[chartBars.length - 1].close : null;
+    if (last == null || !chartStructureZones.length) return null;
+    const ranges = chartBars.slice(-50).map(b => b.high - b.low).filter(r => r > 0).sort((a, b) => a - b);
+    const med = ranges.length ? ranges[Math.floor(ranges.length / 2)] : 0;
+    if (!(med > 0)) return null;
+    const near = nearestLiveZone(chartStructureZones.map(z => ({ side: z.side, low: z.object.priceLow, high: z.object.priceHigh, live: z.lifecycle.state !== "INVALID" })), last, med * 3);
+    if (!near) return null;
+    const dp = Math.abs(near.distance) >= 10 ? 0 : 2;
+    return { side: near.side, distance: Number(near.distance.toFixed(dp)), unit: "points" };
+  }, [chartBars, chartStructureZones]);
   // A clean proof scene holds the zones and their pins unless asked (proofSceneHoldsZones).
   // Read after mount: the address is a browser fact, and the server render must match.
   const [sceneHoldsZones, setSceneHoldsZones] = React.useState(false);
@@ -5630,6 +5643,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     tools: arrangementMenu.entries.filter(e => e.active).map(e => ({ id: e.id, label: e.label, quiet: senseIsQuiet(senseEvents[e.id]), needsVolume: senseNeedsTradedVolume(senseEvents[e.id]) || (noCentralVolumeHere && VOLUME_READING_SENSES.has(e.id)) })),
   });
   const decisionSpineProps = {
+    stageNearZone,
     drawnPlan: riskPlan,
     // Webull's own real-time frames for a USD crypto symbol (measured working
     // 2026-09-27; stocks/futures refused by package, so not asked here).

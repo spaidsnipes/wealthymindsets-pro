@@ -45,6 +45,7 @@
  * the difference.
  */
 
+import { TradeStageRibbon } from "./TradeStageRibbon";
 import { traderClock } from "@/components/time/traderClock";
 import Link from "next/link";
 import type { WebullLiveReading } from "@/lib/marketData/useWebullLiveCrypto";
@@ -296,6 +297,8 @@ export interface DecisionSpineBandProps {
   readonly questionLens?: QuestionLensVM | null;
   /** F06A · the chart's own newest absorption zone, for the flow card's ABSORPTION row. */
   readonly absorptionRead?: AbsorptionRailRead | null;
+  /** Plate 34: the nearest live zone to price (the room measures it), for the WATCH stage. */
+  readonly stageNearZone?: { readonly side: "SUPPLY" | "DEMAND"; readonly distance: number; readonly unit: string } | null;
   /**
    * WEBULL, LIVE (Garden 16 §34, 2026-09-27): Webull's own real-time frames for
    * the chart's crypto symbol — the lane Webull answers today. Absent → absent card.
@@ -1645,6 +1648,8 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
           <span className="wm-spine-sr-only">
             {oneStory ? oneStory.primary : "No story compiled — evidence insufficient."}
           </span>
+          {/* PLATE 34: the card moves through the real setup — six stages, the current one lit. */}
+          <TradeStageRibbon symbol={market.symbol} verdict={nowDecision?.value ?? null} reason={plaque ? plaque.reason : null} nearZone={props.stageNearZone ?? null} />
         </div>
       ) : (
         <div style={{ ...cellStyle, flex: "1 1 220px", minWidth: 200, maxWidth: "100%", borderLeft: "none", borderTop: "none" }}>
