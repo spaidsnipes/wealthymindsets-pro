@@ -12584,7 +12584,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         delete canvas.dataset.cvdNotchInspect;
         if (!cvdNotchOn) canvas.dataset.cvdNotches = "OFF";
         else if (!att.paints("cvdNotch")) canvas.dataset.cvdNotches = att.offWord(true);
-        else if (!deltaKeelOn || !deltaKeelLastRef.current || !deltaKeelCacheRef.current?.rows) canvas.dataset.cvdNotches = "SILENT:NEEDS_SIGNED_ROWS:DELTA_KEEL";
+        else if (!deltaKeelOn || !deltaKeelLastRef.current || !deltaKeelCacheRef.current?.rows) {
+          canvas.dataset.cvdNotches = "SILENT:NEEDS_SIGNED_ROWS:DELTA_KEEL";
+          // NO SILENT NOTHING (serving NQ1! 15m, Oct 16 one-at-a-time pass: CVD Notch on alone was blank). It reads
+          // the Delta Keels' signed rows — the glass says so instead of looking broken.
+          ctx.save();
+          ctx.font = marketFont("OBJECT_NAME");
+          ctx.fillStyle = "rgba(200,192,174,0.85)"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+          ctx.fillText(fitSilence(deltaKeelOn ? "CVD NOTCH · ON · WAITING FOR THE DELTA KEELS' SIGNED ROWS" : "CVD NOTCH · ON · READS THE DELTA KEELS — TURN DELTA KEEL ON"), silenceX, takeSilenceRow());
+          ctx.restore();
+        }
         else {
           const rd = readCvdNotches(deltaKeelCacheRef.current.rows ?? []);
           const byTime = new Map<number, LegacyOhlcvTuple>();
@@ -15572,6 +15581,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             else {
               const ex = selectExhaustion(anatomy);
               ds.exhaustion = ex.reason === "MEASURED" ? String(ex.marks.length) : ex.reason;
+              // NO SILENT NOTHING (serving NQ1! 15m, Oct 16: Exhaustion on alone, no push on camera, said nothing).
+              if (!(ex.reason === "MEASURED" && ex.marks.length > 0)) {
+                ctx.save();
+                ctx.font = marketFont("OBJECT_NAME");
+                ctx.fillStyle = "rgba(200,192,174,0.85)"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+                ctx.fillText(fitSilence(`EXHAUSTION · ON · ${ex.reason === "MEASURED" ? "NO FAILED PUSH ON THIS CAMERA" : String(ex.reason).replace(/_/g, " ")}`), silenceX, takeSilenceRow());
+                ctx.restore();
+              }
               // What each mark actually put on the glass, for the receipt below.
               const exhaustionDrawn: string[] = [];
               let exhaustionChipsYielded = 0;
@@ -28516,7 +28533,19 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ? { travel: vmW.latestPocTravel, atr: lastAtr, time: vmW.points.length ? vmW.points[vmW.points.length - 1].time : 0 }
               : null,
           });
-          if (!wl) { canvas.dataset.crossCandleWisdom = "SILENT:NO_EVIDENCE_OBJECT"; delete canvas.dataset.crossCandleWisdomWhy; delete canvas.dataset.crossCandleWisdomTrace; }
+          if (!wl) {
+            canvas.dataset.crossCandleWisdom = "SILENT:NO_EVIDENCE_OBJECT"; delete canvas.dataset.crossCandleWisdomWhy; delete canvas.dataset.crossCandleWisdomTrace;
+            // NO SILENT NOTHING (serving NQ1! 15m, Oct 16 one-at-a-time pass: Wisdom Line on alone drew nothing and
+            // said nothing). It reads other layers' objects; with none of them on the glass, it says which it reads.
+            const noneOn = !kl?.keels?.length && !fld && !(layerOnRef.current.valueMigration && vmW?.drawn);
+            ctx.save();
+            ctx.font = marketFont("OBJECT_NAME");
+            ctx.fillStyle = "rgba(200,192,174,0.85)"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+            ctx.fillText(fitSilence(noneOn
+              ? "WISDOM LINE · ON · READS DELTA KEELS, EFFORT · RESPONSE OR VALUE MIGRATION — NONE IS ON"
+              : "WISDOM LINE · ON · NO CURRENT EVENT ACROSS THE CANDLES IT READS"), silenceX, takeSilenceRow());
+            ctx.restore();
+          }
           else {
             canvas.dataset.crossCandleWisdom = `${wl.kind}|${wl.time}`;
             canvas.dataset.crossCandleWisdomTrace = `${wl.kind}|${wl.time}|${wl.sources.join("+")}`;
