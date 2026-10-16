@@ -108,6 +108,8 @@ export function paintEdgeBeacons(
   ctx: BeaconCtx, choices: readonly BeaconChoice[],
   frame: { readonly plotLeft: number; readonly plotRight: number; readonly top: number; readonly bottom: number },
   blockers: readonly BeaconRect[],
+  /** Called with each pill before its words paint (the chart declares it an opaque card to its word gate). */
+  onPill?: (r: BeaconRect) => void,
 ): PlacedBeacon[] {
   const placed: PlacedBeacon[] = [];
   ctx.save();
@@ -124,6 +126,7 @@ export function paintEdgeBeacons(
     ctx.strokeStyle = "rgba(212,175,55,0.95)";
     ctx.lineWidth = 1.25;
     ctx.beginPath(); ctx.roundRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1, 7); ctx.stroke();
+    onPill?.(r);
     ctx.fillStyle = "#F3EBDD";
     ctx.fillText(words, r.x + PAD_X, r.y + r.h / 2 + 0.5);
     placed.push({ ...r, choice, words });

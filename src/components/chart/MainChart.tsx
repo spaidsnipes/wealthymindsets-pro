@@ -27715,7 +27715,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         if (!fr || !edgeBeaconCandsRef.current.length) { if (dsB) dsB.edgeBeacons = "NONE"; return; }
         const host = canvas.parentElement, hr = host?.getBoundingClientRect();
         const slops = host && hr ? [...host.querySelectorAll(".wm-tap-slop")].map(el => el.getBoundingClientRect()).filter(b => b.width > 0 && b.height > 0).map(b => ({ x: b.left - hr.left, y: b.top - hr.top, w: b.width, h: b.height })) : [];
-        const placed = paintEdgeBeacons(ctx, chooseBeacons(edgeBeaconCandsRef.current, fr.spot), fr, slops);
+        // A beacon is an opaque card: its pill is declared on top before its words paint, so the word gate
+        // never holds them (serving 82e12a2…eb2a112, NQ1! 15m: the gate held "▲ Call wall 30,200 +1 · Show me"
+        // and left an empty pill).
+        const beaconCard = (r: { x: number; y: number; w: number; h: number }) => { onTop(r, "OPAQUE_CARD"); };
+        const placed = paintEdgeBeacons(ctx, chooseBeacons(edgeBeaconCandsRef.current, fr.spot), fr, slops, beaconCard);
         for (const p of placed) {
           const lead = p.choice.lead;
           if (lead.wallStrike != null) pressureWallHitRef.current.push({ strike: lead.wallStrike, x: p.x, y: p.y, w: p.w, h: p.h, off: true });
