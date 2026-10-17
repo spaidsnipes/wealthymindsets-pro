@@ -33,20 +33,20 @@ describe("Profile DNA reads with words erased — geometry, not alpha", () => {
   const DNA = block("const paintProfileDnaAt = (sx: number): boolean => {", "const lp = livingProfileRef.current;");
 
   it("keeps the ASK-6 alpha ceiling", () => {
-    expect(CHART).toContain("const DNA_SPINE_A = 0.6;");
-    expect(CHART).toContain("const DNA_BRACKET_A = 0.65;");
+    expect(CHART).toContain("const DNA_SPINE_A = 0.95;"); // restated 2026-10-16: screen-bright (Founder: DNA "light as fuck")
+    expect(CHART).toContain("const DNA_BRACKET_A = 0.95;");
   });
 
   it("haloes the spine before it strokes it", () => {
     expect(DNA.length).toBeGreaterThan(1500);
-    const halo = DNA.indexOf("ctx.strokeStyle = DNA_HALO; ctx.lineWidth = 4;");
+    const halo = DNA.indexOf("ctx.strokeStyle = DNA_HALO; ctx.lineWidth = 7;");
     const spine = DNA.indexOf("ctx.setLineDash(dna.estimated ? [2, 2] : []);");
     expect(halo).toBeGreaterThan(-1);
     expect(spine).toBeGreaterThan(halo);
   });
 
   it("draws a larger, haloed, still-hollow mass diamond", () => {
-    expect(CHART).toContain("const DNA_DIAMOND_R = 6;");
+    expect(CHART).toContain("const DNA_DIAMOND_R = 8;");
     expect(DNA).toContain("const dr = DNA_DIAMOND_R;");
     expect(DNA).toContain("ctx.strokeStyle = DNA_HALO; ctx.lineWidth = 3.5; ctx.stroke();");
     const diamond = DNA.slice(DNA.indexOf("const dr = DNA_DIAMOND_R;"), DNA.indexOf("ctx.restore();", DNA.indexOf("const dr = DNA_DIAMOND_R;")));
@@ -54,7 +54,7 @@ describe("Profile DNA reads with words erased — geometry, not alpha", () => {
   });
 
   it("receipts the step", () => {
-    expect(DNA).toContain("ds.profileDnaSalience = `STEP2|SPINE:${DNA_SPINE_A}@1.5+HALO|BRACKET:${DNA_BRACKET_A}|DIAMOND:R${DNA_DIAMOND_R}`;");
+    expect(DNA).toContain("ds.profileDnaSalience = `STEP3|SPINE:${DNA_SPINE_A}@3+HALO|BRACKET:${DNA_BRACKET_A}|DIAMOND:R${DNA_DIAMOND_R}`;");
   });
 });
 

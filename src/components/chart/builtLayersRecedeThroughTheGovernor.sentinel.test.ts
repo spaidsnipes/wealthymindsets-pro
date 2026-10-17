@@ -183,8 +183,8 @@ describe("ASK-6 design calls (2026-10-08 day shift)", () => {
     expect(CHART).toContain("ds.liquidityLifecycleSalience = `MIN_H${LIFECYCLE_MIN_H}|LIFTED:${liftedL}|BIRTH_W2`;");
   });
   it("Profile DNA: one salience step, still quieter than the profile body", () => {
-    expect(CHART).toContain("const DNA_SPINE_A = 0.6;");
-    expect(CHART).toContain("const DNA_BRACKET_A = 0.65;");
+    expect(CHART).toContain("const DNA_SPINE_A = 0.95;"); // restated 2026-10-16: screen-bright (Founder: DNA "light as fuck")
+    expect(CHART).toContain("const DNA_BRACKET_A = 0.95;");
   });
   it("imbalance cells: outlined, minimum height", () => {
     expect(CHART).toContain("canvas.dataset.imbalanceCellsSalience = `OUTLINE1|MIN_H${IMB_CELL_MIN_H}`;");

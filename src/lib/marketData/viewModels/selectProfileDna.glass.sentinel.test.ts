@@ -77,11 +77,12 @@ describe("Profile DNA on the glass (Sentinel)", () => {
     expect(BLOCK).toContain('dna.measured ? pk.rgba("VALUE", DNA_SPINE_A) : pk.rgba("VALUE", 0.25)');
     const spineA = Number(/const DNA_SPINE_A = ([0-9.]+);/.exec(chartSrc)?.[1]);
     expect(spineA).toBeGreaterThan(0.25);
-    expect(spineA).toBeLessThan(0.76);
+    // Restated 2026-10-16 (Founder: plates set form, screens set opacity — DNA was "light as fuck"): a strong spine.
+    expect(spineA).toBeLessThanOrEqual(1);
     // Bracket, notch and diamond are drawn only for a measured reading.
     const measuredArm = BLOCK.slice(BLOCK.indexOf("if (dna.measured) {"));
-    expect(measuredArm).toContain("lineWidth = 3");
-    expect(measuredArm).toContain("sx - 3");
+    expect(measuredArm).toContain("lineWidth = 6");
+    expect(measuredArm).toContain("sx - 7");
   });
 
   it("names what it drew in receipts and withdraws them when it did not", () => {

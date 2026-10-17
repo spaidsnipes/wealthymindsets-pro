@@ -253,10 +253,10 @@ const PM_SESSION_DOTS_MAX = 4;
 /** Liquidity Lifecycle: a pool band is drawn at least this tall (ASK-6); width stays its true time. */
 const LIFECYCLE_MIN_H = 6;
 /** Profile DNA, one salience step (ASK-6): quieter than the profile body (0.76), louder than 0.45 / 0.5. */
-const DNA_SPINE_A = 0.6;
-const DNA_BRACKET_A = 0.65;
+const DNA_SPINE_A = 0.95; // screen-bright since 2026-10-16 (Founder: DNA "light as fuck")
+const DNA_BRACKET_A = 0.95;
 /** Profile DNA, salience step 2 (G19, Oct 10): geometry, not alpha — a dark halo and a larger mass diamond. */
-const DNA_HALO = "rgba(8,8,10,0.6)";
+const DNA_HALO = "rgba(8,8,10,0.75)";
 /** Codex Plate 14 — a measured shape's ink and its plain name (Normal gold, Trend blue). */
 const DNA_SHAPE_INK: Record<"P" | "b" | "D" | "ELONGATED", { name: string; rgb: string }> = {
   D: { name: "Normal", rgb: "233,186,64" },
@@ -264,7 +264,7 @@ const DNA_SHAPE_INK: Record<"P" | "b" | "D" | "ELONGATED", { name: string; rgb: 
   P: { name: "P-shape", rgb: "47,184,128" },
   b: { name: "b-shape", rgb: "150,110,220" },
 };
-const DNA_DIAMOND_R = 6;
+const DNA_DIAMOND_R = 8;
 /** Footprint imbalance cells: outlined, at least this tall (ASK-6). */
 const IMB_CELL_MIN_H = 3;
 /** A touch tap within this many px of a candle's high–low pins it (ASK-18). */
@@ -22754,20 +22754,20 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // ASK-6 (one step, 2026-10-08): the spine 0.45 → DNA_SPINE_A and
                 // 1.5px — readable at MID, still under the profile it describes.
                 ctx.strokeStyle = dna.measured ? pk.rgba("VALUE", DNA_SPINE_A) : pk.rgba("VALUE", 0.25);
-                ctx.lineWidth = 1.5;
+                ctx.lineWidth = 3;
                 // G19 (Oct 10, "profiles without adequate visual embodiment";
                 // cert P110.5 open item "the spine and diamond are too small to
                 // read with words erased"): salience by GEOMETRY, not alpha —
                 // the ASK-6 ceiling (quieter than the body) stands. A dark
                 // halo under the spine lifts it off the candles behind it.
-                ctx.save(); ctx.strokeStyle = DNA_HALO; ctx.lineWidth = 4;
+                ctx.save(); ctx.strokeStyle = DNA_HALO; ctx.lineWidth = 7;
                 ctx.beginPath(); ctx.moveTo(sx, +yHi); ctx.lineTo(sx, +yLo); ctx.stroke();
                 ctx.restore();
                 ctx.setLineDash(dna.estimated ? [2, 2] : []);
                 ctx.beginPath(); ctx.moveTo(sx, +yHi); ctx.lineTo(sx, +yLo); ctx.stroke();
                 ctx.setLineDash([]);
                 ds.profileDnaSpine = `${Math.round(+yLo)}-${Math.round(+yHi)}`;
-                ds.profileDnaSalience = `STEP2|SPINE:${DNA_SPINE_A}@1.5+HALO|BRACKET:${DNA_BRACKET_A}|DIAMOND:R${DNA_DIAMOND_R}`;
+                ds.profileDnaSalience = `STEP3|SPINE:${DNA_SPINE_A}@3+HALO|BRACKET:${DNA_BRACKET_A}|DIAMOND:R${DNA_DIAMOND_R}`;
                 // ⑤ DNA (a helix) — the organism glyph at the head of the spine.
                 paintOrganismGlyph("DNA", sx, Math.min(+yHi, +yLo) - 14, pk.rgba("VALUE", 0.9), floatingChips);
                 let yMass: number | null = null;
@@ -22780,14 +22780,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     // (serving, NQ1! 5m). Same 3px length-is-value-width
                     // geometry, quieter than the profile it describes.
                     // ASK-6 one step: 0.5 → DNA_BRACKET_A (still below the body's 0.76).
-                    ctx.strokeStyle = pk.rgba("VALUE", DNA_BRACKET_A); ctx.lineWidth = 3;
+                    ctx.strokeStyle = pk.rgba("VALUE", DNA_BRACKET_A); ctx.lineWidth = 6;
                     ctx.beginPath(); ctx.moveTo(sx, +yVah); ctx.lineTo(sx, +yVal); ctx.stroke();
                   }
                   const yPoc = dna.poc != null ? srs.priceToCoordinate(dna.poc) : null;
                   if (yPoc != null) {
                     const yn = Math.round(+yPoc);
-                    ctx.strokeStyle = pk.rgba("POC", 1); ctx.lineWidth = 2;
-                    ctx.beginPath(); ctx.moveTo(sx - 3, yn); ctx.lineTo(sx + 3, yn); ctx.stroke();
+                    ctx.strokeStyle = pk.rgba("POC", 1); ctx.lineWidth = 3;
+                    ctx.beginPath(); ctx.moveTo(sx - 7, yn); ctx.lineTo(sx + 7, yn); ctx.stroke();
                   }
                   const ym = dna.massCentrePrice != null ? srs.priceToCoordinate(dna.massCentrePrice) : null;
                   if (ym != null) {
