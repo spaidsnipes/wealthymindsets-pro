@@ -6898,7 +6898,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // (RSI+MACD+CVD) got crushed to ~45px slivers — the "CVD meter too high /
         // cramped" bug. A fixed 3.1 weight matches the grown-container target
         // heights so every oscillator pane keeps its full ~84px and reads clean.
-        panes[0].setStretchFactor(3.1);
+        // FIT BEFORE SCROLL (NQ 5m with RSI, MACD, ATR, Stochastic, 2026-10-17: 4 × 84 px oscillators grew the chart
+        // to 626 px inside a 578 px pane; the scroll box never scrolled — the wheel zooms the chart — so MACD and the
+        // time axis sat under the footer controls). Oscillators give way toward OSC_FLOOR first; the candles keep
+        // their 260 px through the weight; only when even the floor cannot fit does the region grow and scroll.
+        const viewFit = (containerRef.current?.parentElement as HTMLElement | null)?.clientHeight || 0;
+        const oscN = n - 1;
+        const oscFit = viewFit > 0 ? Math.max(56, Math.min(84, (viewFit - 30 - 260) / oscN)) : 84;
+        panes[0].setStretchFactor(Math.max(3.1, 260 / oscFit));
         for (let i = 1; i < n; i++) panes[i].setStretchFactor(1);
       }
 
@@ -6911,7 +6918,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       const scroll = cont?.parentElement as HTMLElement | null; // div5069 scroll box
       if (cont && scroll) {
         const viewH   = scroll.clientHeight || 0;
-        const OSC_MIN = 84;   // readable oscillator pane height
+        const OSC_MIN = 56;   // the oscillator floor (84 was the comfortable size; a pane gives way to 56 before anything scrolls)
         const CANDLE  = 260;  // keep candles dominant & usable
         const AXIS    = 30;   // time axis
         const oscCount = Math.max(0, n - 1);
