@@ -444,12 +444,12 @@ const REGIME_LIGHTING_RECEIPTS = [
   "regimeLightingScope",
 ] as const;
 /** F15A's state light, as an ambient wash (olive BALANCE, amber TRANSITION, oxblood WAIT). */
-const REGIME_FIELD_RGB = { BALANCE: "128,150,72", TRANSITION: "214,150,50", WAIT: "170,62,50" } as const;
+const REGIME_FIELD_RGB = { BALANCE: "120,182,84", TRANSITION: "236,166,56", WAIT: "206,72,60" } as const; // plate 92 warmth, 2026-10-16
 /** The field's brightest point, at the live edge — it tints the glass, never the candles (cut out). */
 // Garden 18 §XXXV (2026-10-01): at 0.07 × the governor's 0.43 the field
 // peaked near 3% and the trader could not see the regime light at all
 // (plate 92 lights the room). Candles stay cut out of it.
-const REGIME_FIELD_PEAK = 0.2;
+const REGIME_FIELD_PEAK = 0.32; // 2026-10-16: plate 92 lights the room (Founder: "a bit better")
 import { dataWindowBarScope } from "@/lib/chart/dataWindowBarScope";
 import { fmtSessionDate, isSessionTimeframe } from "@/lib/chart/sessionDateLabel";
 import { DATA_WINDOW_W, placeDataWindow } from "@/lib/chart/dataWindowPlacement";
