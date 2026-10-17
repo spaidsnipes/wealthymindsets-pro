@@ -3040,6 +3040,22 @@ export function WMOperatingSystem({
           .wm-os-w-door { width: auto !important; padding: 0 16px !important; }
           .wm-os-w-door .wm-os-equipment-plate-word { white-space: nowrap; }
         }
+        /* THE MODE BAR NEVER HIDES BEHIND A SCROLL ON A WIDE DESK EITHER (Founder's Chrome, 2026-10-17, measured in
+           a 1440 frame: /command-deck's seven-mode bar was squeezed to 205px — PREP · OBSERVE · WAIT, the rest behind
+           a sideways scroll — and /journal's to 425 of 539px). Above the compact band a room WITH a mode bar may wrap:
+           the bar keeps its one-row width and moves whole when the row cannot hold it. A room without one (/charts)
+           is untouched — its masthead height is the market's. */
+        @media (min-width: ${OS_MASTHEAD_COMPACT_MAX_PX + 1}px) {
+          .wm-os-masthead:has(> .wm-os-masthead-center:not(:empty)) {
+            flex-wrap: wrap !important;
+            row-gap: 6px !important;
+            justify-content: flex-end;
+            justify-content: safe flex-end;
+          }
+          .wm-os-masthead-center:not(:empty) { flex: 0 0 auto !important; }
+          .wm-os-masthead > :has(+ .wm-os-masthead-center:not(:empty)) { margin-right: auto !important; }
+          .wm-os-masthead-center:not(:empty) + * { margin-left: auto !important; }
+        }
         /* THE COMPACT MASTHEAD BAND — see OS_MASTHEAD_COMPACT_MAX_PX. Later in
            the sheet than the desktop block, so at equal weight it wins. */
         @media (min-width: ${OS_RAIL_BREAKPOINT_PX + 1}px) and (max-width: ${OS_MASTHEAD_COMPACT_MAX_PX}px) {
