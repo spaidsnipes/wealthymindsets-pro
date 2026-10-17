@@ -27788,8 +27788,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.save();
                 ctx.font = marketFont("OBJECT_NAME");
                 const wM = Math.ceil(ctx.measureText(wordM).width) + 10, hM = 16;
-                const prefM = { x: cx - 34 - wM, y: cy - hM / 2, w: wM, h: hM };
-                const altM = [{ x: cx - wM / 2, y: offTop ? cy + 16 : cy - 16 - hM, w: wM, h: hM }, { x: cx - 34 - wM, y: offTop ? cy + 14 : cy - 14 - hM, w: wM, h: hM }];
+                // Every seat stays inside the plot (serving db1e0ba NQ 15m: the centred seat ran under the price axis).
+                const seatX = (x: number) => Math.max(keepOutMinX(), Math.min(x, rightL - wM - 4));
+                const prefM = { x: seatX(cx - 34 - wM), y: cy - hM / 2, w: wM, h: hM };
+                const altM = [{ x: seatX(cx - wM / 2), y: offTop ? cy + 16 : cy - 16 - hM, w: wM, h: hM }, { x: seatX(cx - 34 - wM), y: offTop ? cy + 14 : cy - 14 - hM, w: wM, h: hM }];
                 const spotM = placeClearOfKeepOut(prefM, [...keepOut(), ...rowBodiesAt(Math.min(prefM.y, ...altM.map(a => a.y)), Math.max(prefM.y, ...altM.map(a => a.y)) + hM)], {
                   minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: altM,
                 });
