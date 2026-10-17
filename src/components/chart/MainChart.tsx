@@ -9664,7 +9664,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // ONE SIZE PER GRID (BTC 1m, 2026-10-17): a 27px half held two characters at 13px, so every ".05" was
           // dropped and the grid read empty. A half too narrow for three 13px characters sets the WHOLE grid at 12px
           // (still a market number, above the 9px floor); a number that still does not fit is dropped, never shrunk.
-          const fsG = gRowH >= FP_GRID_ROW_PX - 1 ? (halfC - 5 >= 24 ? 13 : 12) : 0;
+          // …and on a tablet (real iPad 820, 2026-10-17: 18px halves held no 12px number — $24k, $711 all dropped) the size
+          // follows the half: as large as fits three mono characters, never under the 9px market-number floor, never over 13.
+          const fsG = gRowH >= FP_GRID_ROW_PX - 1 ? Math.max(MARKET_NUMBER_MIN_PX, Math.min(13, Math.floor((halfC - 5) / 1.8))) : 0;
           const numbersFit = fpNumbers && fsG >= MARKET_NUMBER_MIN_PX;
           // Each number is judged alone: one that does not fit its half is dropped, never shrunk.
           if (numbersFit) ctx.font = marketFont("FOOTPRINT_NUMBER", fsG);
