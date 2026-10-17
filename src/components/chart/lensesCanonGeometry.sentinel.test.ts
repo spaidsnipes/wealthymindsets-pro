@@ -108,8 +108,8 @@ const PINS: Pin[] = [
   // ── H-801 ────────────────────────────────────────────────────────────────
   { name: "H-801 the fan: bands and five dashed edges from the fan owner", holds: b =>
       b.envelope.includes("const poly = fanBandPolygon(cols.map(c => ({ x: c.x, lo: c[lo], hi: c[hi] })));") &&
-      b.envelope.includes('band("y10", "y90", 0.24);') &&
-      b.envelope.includes('band("y25", "y75", 0.36);') &&
+      b.envelope.includes('band("y10", "y90", 0.2);') &&
+      b.envelope.includes('band("y25", "y75", 0.32);') &&
       b.envelope.includes("for (const s of smoothSegments(pts)) ctx.quadraticCurveTo(s.cx, s.cy, s.x, s.y);") &&
       ["y90", "y10", "y75", "y25", "y50"].every(k => b.envelope.includes(`edge("${k}",`)) },
   { name: "H-801 projected right of NOW by logical index", holds: b =>
@@ -131,7 +131,7 @@ const PINS: Pin[] = [
   { name: "H-801 every chip already on the glass is cut out of the fan, one clip per chip", holds: b =>
       /for \(const r of floatingChips\) \{\s*ctx\.beginPath\(\);\s*ctx\.rect\(0, 0, W, H\);\s*ctx\.rect\(r\.x - 2, r\.y - 2, r\.w \+ 4, r\.h \+ 4\);\s*ctx\.clip\("evenodd"\);\s*\}/.test(b.envelope) &&
       // …and the clip is taken BEFORE the first band is filled.
-      b.envelope.indexOf("for (const r of floatingChips) {") < b.envelope.indexOf('band("y10", "y90", 0.24);') },
+      b.envelope.indexOf("for (const r of floatingChips) {") < b.envelope.indexOf('band("y10", "y90", 0.2);') },
   { name: "H-801 CAMERA STAYS ON NOW — the block never writes a scale or the camera", holds: b =>
       b.envelope.length > 0 &&
       !/applyOptions|setVisibleRange|setVisibleLogicalRange|scrollToPosition|scrollToRealTime|fitContent|autoscaleInfoProvider|addSeries|addLineSeries|addAreaSeries|setAutoScale|manualPriceRangeRef/.test(b.envelope) },
@@ -197,7 +197,7 @@ const MUTATIONS: { pin: string; from: string | RegExp; to: string }[] = [
   { pin: "H-401 prices in the market's decimals, receipts withdrawn each frame", from: "            dp: pxDp,\n", to: "" },
   { pin: "H-801 the fan is clipped at the header floor and the pane bottom, with a receipt", from: "ctx.rect(0, HEADER_FLOOR_Y, plotRightE, Math.max(0, paneBotE - HEADER_FLOOR_Y));", to: "ctx.rect(0, 0, plotRightE, H);" },
   { pin: "H-801 every chip already on the glass is cut out of the fan, one clip per chip", from: "ctx.rect(r.x - 2, r.y - 2, r.w + 4, r.h + 4);\n                ctx.clip(\"evenodd\");", to: "ctx.clip(\"evenodd\");" },
-  { pin: "H-801 the fan: bands and five dashed edges from the fan owner", from: 'edge("y50", [7, 4], 1, 2);', to: "" },
+  { pin: "H-801 the fan: bands and five dashed edges from the fan owner", from: 'edge("y50", [], 1, 2.6);', to: "" }, // restated 2026-10-16: plate 120 gold fan, lit median
   { pin: "H-801 projected right of NOW by logical index", from: "tsE.logicalToCoordinate((lastIdxE + (k - fan.nowK)) as never)", to: "null" },
   { pin: "H-801 candles cut out of the fan, fan stops at the axis", from: 'ctx.clip(cutE, "evenodd");', to: "" },
   { pin: "H-801 CAMERA STAYS ON NOW — the block never writes a scale or the camera", from: "const tsE = chart.timeScale();", to: 'const tsE = chart.timeScale(); chart.priceScale("right").applyOptions({ autoScale: false });' },

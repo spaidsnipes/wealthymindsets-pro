@@ -19857,7 +19857,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // Codex plate 04 · 5 "Expected Envelope" beside serving NQ1! 15m (2026-10-16): the fan read as five
               // faint dotted gold lines over a 7% wash — "present", not seen. It is the plate's volatility fan now:
               // steel-blue mass (outer 0.16, inner 0.24), solid crisp outer edges, a clear dashed median.
-              const GOLD = (a: number) => `rgba(86,150,226,${a})`;
+              // Founder plate 120 (F03 "Expected Envelope · Surprise", 2026-10-16 ruling: "still looks very vague … penciled
+              // in"): the fan is WARM GOLD with bright dashed percentile lines and a lit median — not a steel-blue wash.
+              const GOLD = (a: number) => `rgba(232,196,104,${a})`;
               // F03: where the fan opens before NOW it fades in over its first
               // few columns (the plate's fan has no wall at its start).
               const fanInk = (a: number): string | CanvasGradient => {
@@ -19884,8 +19886,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.fill();
               };
               // Founder 2026-10-16 ("expected envelope … very vague"; plates set form, screens set opacity).
-              band("y10", "y90", 0.24);
-              band("y25", "y75", 0.36);
+              band("y10", "y90", 0.2);
+              band("y25", "y75", 0.32);
               const edge = (key: "y10" | "y25" | "y50" | "y75" | "y90", dash: number[], a: number, lw: number) => {
                 ctx.setLineDash(dash);
                 ctx.strokeStyle = fanInk(a);
@@ -19894,11 +19896,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 trace(cols.map(c => ({ x: c.x, y: c[key] })), false);
                 ctx.stroke();
               };
-              edge("y90", [], 1, 2);
-              edge("y10", [], 1, 2);
-              edge("y75", [3, 4], 0.85, 1.25);
-              edge("y25", [3, 4], 0.85, 1.25);
-              edge("y50", [7, 4], 1, 2);
+              edge("y90", [6, 4], 1, 2);
+              edge("y10", [6, 4], 1, 2);
+              edge("y75", [5, 4], 0.95, 1.6);
+              edge("y25", [5, 4], 0.95, 1.6);
+              ctx.shadowColor = "rgba(243,215,138,0.7)"; ctx.shadowBlur = 8;
+              edge("y50", [], 1, 2.6);
+              ctx.shadowBlur = 0;
               ctx.setLineDash([]);
               ctx.lineWidth = 1;
               ctx.restore();
