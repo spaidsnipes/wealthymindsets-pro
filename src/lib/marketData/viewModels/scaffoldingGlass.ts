@@ -289,5 +289,5 @@ export function dockClearOfCandles(input: DockInput): DockResult {
 export const SCAFFOLDING_GLASS_RECEIPTS = [
   "scaffoldingScale", "scaffoldingForm", "scaffoldingDock", "scaffoldingCardCandleHits",
   "scaffoldingGeometry", "scaffoldingPlaque", "scaffoldingCandlesKept", "scaffoldingSwingMarks",
-  "scaffoldingResistance",
+  "scaffoldingResistance", "scaffoldingGlass",
 ] as const;

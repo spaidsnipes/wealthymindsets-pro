@@ -434,7 +434,7 @@ const ANATOMY_BLOCK_RECEIPTS = [
   // The scaffolding glass (scaffoldingGlass.ts SCAFFOLDING_GLASS_RECEIPTS — kept equal by its sentinel).
   "scaffoldingScale", "scaffoldingForm", "scaffoldingSilenceBand", "absorptionMassInk", "scaffoldingSwingTags", "scaffoldingDock", "scaffoldingCardCandleHits",
   "scaffoldingGeometry", "scaffoldingPlaque", "scaffoldingCandlesKept", "scaffoldingSwingMarks", "scaffoldingCrumb",
-  "scaffoldingResistance",
+  "scaffoldingResistance", "scaffoldingGlass",
 ] as const;
 
 /** H-901 · what the regime block painted this frame; withdrawn together before it paints. */
@@ -790,6 +790,7 @@ import {
   migrateVolumeProfilePalette,
 } from "@/lib/chart/marketFieldMaterial";
 import { installLineWeight } from "@/lib/chart/lineWeight";
+import { paintScaffoldOnGlass } from "@/lib/chart/scaffoldOnGlass";
 import { PROFILE_INK_AT_REST, PROFILE_STRENGTH_STORAGE_KEY, parseProfileStrength, resolveProfileInk, type ProfileStrength } from "@/lib/chart/profileFamilyInk";
 import { mergeIntoBands, rowsPerBand, PROFILE_ROW_MIN_PX } from "@/lib/chart/profileDisplayBands";
 // The legend headline steps past an open Workspace/Tools door (see openDoorEdge.ts).
@@ -1925,6 +1926,8 @@ const HEADER_CLEAR_PX = 96;
 
 /** Plate 24 (2026-10-15): the NEAR footprint grid — row height for 13px numbers, widest grid, imbalance ratio. */
 const FP_GRID_ROW_PX = 18;
+/** Scaffolding FOUNDATION / INTERMEDIATE draw on the candles (plate S-12G); the card form is retired from the glass. */
+const SCAFFOLD_ON_GLASS = true;
 /** Footprint: at MID, bar spacing from which the bid × ask grid (no numbers) stands on every candle. */
 const FP_MID_GRID_MIN_BSP = 16;
 const FP_GRID_MAX_W = 112;
@@ -17234,6 +17237,35 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.textAlign = "left";
                   floatingChips.push(plaque);
                   }
+                } else if (SCAFFOLD_ON_GLASS) {
+                  /* FOUNDATION / INTERMEDIATE ON THE GLASS — canon plate S-12G (Founder 2026-10-16: "the scaffolding
+                     shouldn't be just cards … you should actually see this stuff"). The six steps are drawn where their
+                     evidence is (scaffoldOnGlass.ts); every tag is placed clear of candles and words, or listed. */
+                  const avoidS: { x: number; y: number; w: number; h: number }[] = [...keepOut(), ...floatingChips];
+                  {
+                    const barsG = barsRef.current ?? [];
+                    const vrG = tsS.getVisibleLogicalRange();
+                    const hG = Math.max(3, bsp * 0.5);
+                    if (vrG) {
+                      for (let i = Math.max(0, Math.floor(vrG.from)); i <= Math.min(barsG.length - 1, Math.ceil(vrG.to)); i++) {
+                        const b = barsG[i];
+                        if (!b) continue;
+                        const xb = xOf(b.time), yh = yOf(b.high), yl = yOf(b.low);
+                        if (xb == null || yh == null || yl == null) continue;
+                        avoidS.push({ x: xb - hG, y: Math.min(yh, yl) - 3, w: hG * 2, h: Math.abs(yl - yh) + 6 });
+                      }
+                    }
+                  }
+                  const outG = paintScaffoldOnGlass(ctx, {
+                    depth: depth === "FOUNDATION" ? "FOUNDATION" : "INTERMEDIATE",
+                    sc, structure: scaffoldingStructureRef.current, zones: anatomy.zones, exhaustion: selectExhaustion(anatomy).marks,
+                    xOf, yOf, plot: { x0: keepOutMinX(), y0: HEADER_FLOOR_Y + 4, x1: plotRight - 6, y1: floorY },
+                    effortY: Math.min(pane0Bottom - 14, floorY + 14), avoid: avoidS, barSpacing: bsp, fmtPx: gPx, sans: MARKET_SANS,
+                  });
+                  ds.scaffoldingForm = `GLASS:${depth}`;
+                  ds.scaffoldingGlass = outG.receipt;
+                  for (const r of outG.rects) floatingChips.push(r);
+                  for (const l of outG.listed) displacedNotes.push({ layer: "STRUCTURE", text: l.text, x: l.x, y: l.y });
                 } else {
                   /* FOUNDATION / INTERMEDIATE — the plate's student and
                      compressed views, as ONE docked card that covers no
