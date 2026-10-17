@@ -5,7 +5,8 @@ import { billingKv, loadEntitlement, saveEntitlement } from "@/lib/billing/billi
 import { BILLING_PRODUCT, PASSPORT_REF_KEY, emptyEntitlement } from "@/lib/billing/entitlement";
 import { BILLING_NOT_ON_SALE, billingStanding } from "@/lib/billing/standing";
 import { resolveCustomer, stripeCall } from "@/lib/billing/stripeApi";
-import { paidTierByName, tierPriceId } from "@/lib/billing/tiers";
+import { paidTierByName, passportIntroCoupon, tierPriceId } from "@/lib/billing/tiers";
+import { passportPromo } from "@/lib/pricing/passportPromo";
 import { requestIsSameOrigin } from "@/lib/broker/credentialProbeGate";
 import { CANONICAL_URL } from "@/lib/canonicalUrl";
 import { publicFailure } from "@/lib/publicFailure";
@@ -70,16 +71,19 @@ export async function POST(request: Request) {
 
   // WHICH LEGAL TEXT THE BUYER COULD READ, recorded with the purchase (one owner: lib/legal/legalVersion).
   const legalShown = legalShownAtPurchase();
-  const metadata = { [PASSPORT_REF_KEY]: auth.user.sub, product: BILLING_PRODUCT, wm_tier: tier, legal_shown: legalShown };
+  // The Passport intro offer is charged as the pricing card shows it: half off the first month, by coupon.
+  const introCoupon = tier === "PASSPORT" ? passportIntroCoupon(process.env, passportPromo(process.env.NEXT_PUBLIC_PASSPORT_PROMO_ENDS).active) : null;
+  const metadata = { [PASSPORT_REF_KEY]: auth.user.sub, product: BILLING_PRODUCT, wm_tier: tier, legal_shown: legalShown, ...(introCoupon ? { wm_offer: "PASSPORT_INTRO" } : {}) };
   const session = await stripeCall(process.env, "checkout/sessions", {
     method: "POST",
     // Not clock-based: the same member asking for the same tier gets the same session back.
-    idempotencyKey: `wmpro-checkout-${standing.mode}-${auth.user.sub}-${tier}`,
+    idempotencyKey: `wmpro-checkout-${standing.mode}-${auth.user.sub}-${tier}${introCoupon ? "-intro" : ""}`,
     params: {
       mode: "subscription",
       customer: customer.customerId,
       client_reference_id: auth.user.sub,
       line_items: { 0: { price: priceId, quantity: 1 } },
+      ...(introCoupon ? { discounts: { 0: { coupon: introCoupon } } } : {}),
       success_url: `${CANONICAL_URL}/pricing?billing=success`,
       cancel_url: `${CANONICAL_URL}/pricing?billing=cancelled`,
       metadata,

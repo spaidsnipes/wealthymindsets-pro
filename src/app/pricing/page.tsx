@@ -66,7 +66,7 @@ export default function PricingPage() {
   // WHAT IS ON SALE is the server's to say. The public read carries booleans and one word; the member's own
   // standing (their tier) is read only when signed in. Until both are known every paid button stays "Not on sale yet".
   const { user } = useAuth();
-  const [sale, setSale] = useState<{ mode: "NOT_CONFIGURED" | "TEST" | "LIVE"; tiers: Record<string, boolean> } | null>(null);
+  const [sale, setSale] = useState<{ mode: "NOT_CONFIGURED" | "TEST" | "LIVE"; tiers: Record<string, boolean>; passportIntro?: boolean } | null>(null);
   const [memberTier, setMemberTier] = useState<BillingTier | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [said, setSaid] = useState<string | null>(null);
@@ -74,7 +74,7 @@ export default function PricingPage() {
     let live = true;
     fetch("/api/billing/tiers", { cache: "no-store" })
       .then(r => (r.ok ? r.json() : null))
-      .then(j => { if (live && j && typeof j.mode === "string" && j.tiers && typeof j.tiers === "object") setSale({ mode: j.mode, tiers: j.tiers }); })
+      .then(j => { if (live && j && typeof j.mode === "string" && j.tiers && typeof j.tiers === "object") setSale({ mode: j.mode, tiers: j.tiers, passportIntro: j.passportIntro === true }); })
       .catch(() => { /* stays "Not on sale yet" */ });
     return () => { live = false; };
   }, []);
@@ -88,6 +88,10 @@ export default function PricingPage() {
     return () => { live = false; };
   }, [user]);
   const anyOnSale = !!sale && sale.mode !== "NOT_CONFIGURED" && Object.values(sale.tiers).some(Boolean);
+  // An offer on a plan that is ON SALE shows only when checkout will charge it (the server says so);
+  // before sale it reads as the announced launch offer.
+  const passportOnSale = !!sale && sale.mode !== "NOT_CONFIGURED" && sale.tiers.PASSPORT === true;
+  const offerHonoured = !passportOnSale || sale?.passportIntro === true;
   /** Start Stripe Checkout (the body names the tier and nothing else) or open Manage billing; the server answers with the URL. */
   const go = async (path: "checkout" | "portal", tier?: PaidTier) => {
     if (busy) return;
@@ -139,7 +143,7 @@ export default function PricingPage() {
                   <span style={{ color: MUTED, fontSize: 13 }}> / month</span>
                 </div>
                 <p style={{ color: MUTED, fontSize: 13, margin: "6px 0 0" }}>{t.tagline}</p>
-                {t.offer ? (
+                {t.offer && offerHonoured ? (
                   <p data-testid="passport-intro-offer" style={{ margin: "10px 0 0", padding: "8px 10px", borderRadius: 8, border: `1px solid ${GOLD}`, background: "rgba(201,165,92,0.10)", color: INK, fontSize: 13, lineHeight: 1.5 }}>{t.offer}</p>
                 ) : null}
               </div>

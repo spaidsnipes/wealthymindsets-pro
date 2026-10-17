@@ -87,3 +87,18 @@ export function tierForPriceId(priceId: unknown, env: BillingEnv): PaidTier | nu
 export function billingPriceEnvNames(): readonly string[] {
   return [...PAID_TIERS.map(t => TIER_SPEC[t].priceEnv!), ...BILLING_BUNDLES.map(b => b.priceEnv)];
 }
+
+/*
+ * THE PASSPORT INTRO OFFER IS CHARGED AS IT IS SHOWN (2026-10-17). The pricing card promised "first month
+ * $10 (half off)" while checkout charged the full $20 price: the offer was display only. Checkout now applies
+ * the Founder's Stripe coupon (WM_STRIPE_COUPON_PASSPORT_INTRO: 50% off, duration "once") while the offer
+ * runs, and the card shows the offer on sale only when that coupon is configured.
+ */
+const COUPON_ID = /^[A-Za-z0-9_-]{3,64}$/;
+
+/** SERVER ONLY: the Passport intro coupon to apply at checkout, or null (no coupon configured, or the offer ended). */
+export function passportIntroCoupon(env: BillingEnv, offerActive: boolean): string | null {
+  if (!offerActive) return null;
+  const v = (env.WM_STRIPE_COUPON_PASSPORT_INTRO ?? "").trim();
+  return COUPON_ID.test(v) ? v : null;
+}

@@ -31,7 +31,7 @@ const newKv = () => { const store = new Map<string, string>(); return { store, g
 
 beforeEach(() => {
   vi.resetModules(); vi.unstubAllEnvs();
-  for (const k of ["STRIPE_SECRET_KEY", "WM_STRIPE_WEBHOOK_SECRET", "WM_BILLING_LIVE", "WM_STRIPE_PRICE_APP", "WM_STRIPE_PRICE_PASSPORT", "WM_STRIPE_PRICE_OS"]) vi.stubEnv(k, "");
+  for (const k of ["STRIPE_SECRET_KEY", "WM_STRIPE_WEBHOOK_SECRET", "WM_BILLING_LIVE", "WM_STRIPE_PRICE_APP", "WM_STRIPE_PRICE_PASSPORT", "WM_STRIPE_PRICE_OS", "WM_STRIPE_COUPON_PASSPORT_INTRO", "NEXT_PUBLIC_PASSPORT_PROMO_ENDS"]) vi.stubEnv(k, "");
   mocks.who = { sub: USER, email: EMAIL };
   mocks.kv = newKv();
   sent = []; logs.length = 0;
@@ -73,20 +73,20 @@ describe("GET /api/billing/tiers — public, booleans and one word", () => {
     mocks.who = null;
     const res = await get();
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ mode: "NOT_CONFIGURED", tiers: { APP: false, PASSPORT: false, OS: false } });
+    expect(await res.json()).toEqual({ mode: "NOT_CONFIGURED", tiers: { APP: false, PASSPORT: false, OS: false }, passportIntro: false });
   });
 
   it("configured → only the tiers with a price id are on sale; no id, no key information in the body", async () => {
     configure();
     const res = await get();
     const text = await res.text();
-    expect(JSON.parse(text)).toEqual({ mode: "TEST", tiers: { APP: false, PASSPORT: true, OS: false } });
+    expect(JSON.parse(text)).toEqual({ mode: "TEST", tiers: { APP: false, PASSPORT: true, OS: false }, passportIntro: false });
     noSecret(text);
   });
 
   it("a price id set while billing is NOT configured still sells nothing", async () => {
     vi.stubEnv("WM_STRIPE_PRICE_PASSPORT", "price_passport001");
-    expect(await (await get()).json()).toEqual({ mode: "NOT_CONFIGURED", tiers: { APP: false, PASSPORT: false, OS: false } });
+    expect(await (await get()).json()).toEqual({ mode: "NOT_CONFIGURED", tiers: { APP: false, PASSPORT: false, OS: false }, passportIntro: false });
   });
 });
 
@@ -138,6 +138,25 @@ describe("POST /api/billing/checkout", () => {
     expect(session.params.get("subscription_data[metadata][legal_shown]")).toBe("policies 2026-10-05 · risk 2026-10-05 · terms+privacy 2026-10-17 IN EFFECT");
     expect(JSON.parse(mocks.kv!.store.get(`billing:v1:user:${USER}`)!).legalShown).toBe("policies 2026-10-05 · risk 2026-10-05 · terms+privacy 2026-10-17 IN EFFECT");
     expect(session.params.get("subscription_data[metadata][passport_id_ref]")).toBe(USER);
+  });
+
+  it("THE PASSPORT INTRO OFFER IS CHARGED AS SHOWN: the configured coupon rides Passport checkout only, and the public read says so", async () => {
+    configure({ WM_STRIPE_PRICE_APP: "price_app0000001", WM_STRIPE_COUPON_PASSPORT_INTRO: "wm_intro_half" }); stripeWith();
+    expect((await checkout({ tier: "PASSPORT" })).status).toBe(201);
+    const pass = sent.filter(s => s.path === "checkout/sessions").at(-1)!;
+    expect(pass.params.get("discounts[0][coupon]")).toBe("wm_intro_half");
+    expect(pass.params.get("metadata[wm_offer]")).toBe("PASSPORT_INTRO");
+    expect(JSON.parse(await (await (await import("./tiers/route")).GET(new Request("https://wealthymindsetspro.com/api/billing/tiers", { headers: { "cf-connecting-ip": "203.0.113.9" } }))).text())).toMatchObject({ passportIntro: true });
+    sent = [];
+    expect((await checkout({ tier: "APP" })).status).toBe(201);
+    expect(sent.find(s => s.path === "checkout/sessions")!.params.get("discounts[0][coupon]")).toBeNull();
+  });
+
+  it("…an ENDED offer applies no coupon, and the public read stops promising it", async () => {
+    configure({ WM_STRIPE_COUPON_PASSPORT_INTRO: "wm_intro_half", NEXT_PUBLIC_PASSPORT_PROMO_ENDS: "2020-01-01" }); stripeWith();
+    expect((await checkout({ tier: "PASSPORT" })).status).toBe(201);
+    expect(sent.find(s => s.path === "checkout/sessions")!.params.get("discounts[0][coupon]")).toBeNull();
+    expect(JSON.parse(await (await (await import("./tiers/route")).GET(new Request("https://wealthymindsetspro.com/api/billing/tiers", { headers: { "cf-connecting-ip": "203.0.113.9" } }))).text())).toMatchObject({ passportIntro: false });
   });
 
   it("a tier with no price id configured is not on sale (503), and Stripe is not asked", async () => {
