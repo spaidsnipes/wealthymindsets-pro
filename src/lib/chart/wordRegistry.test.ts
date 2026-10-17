@@ -150,7 +150,7 @@ describe("chips and cards ask for their box before the backing; on-top words are
 describe("priority — truth first, then the answer, then everything else", () => {
   it("names truth lines in one place", () => {
     for (const s of ["5 SENSES SILENT — TOOLS › ACTIVE", "ZERO-GAMMA · WITHHELD — ONLY THE ~141 CONTRACTS NEAREST PRICE ARE HEARD", "CONTRADICTION · not enough finished bars",
-      "LIVING PROFILE · UNAVAILABLE ON THIS FEED", "VALUE CANDLE · tape required", "PRINT TAPE FROM 07:50 AM CDT — earlier bars: bar totals only", "EXPECTED ENVELOPE · needs 3 completed sessions",
+      "LIVING PROFILE · UNAVAILABLE ON THIS FEED", "VALUE CANDLE · tape required", "ORDER FLOW FROM 07:50 AM CDT — earlier bars: candle totals", "EXPECTED ENVELOPE · needs 3 completed sessions",
       "196 BARS BEHIND", "PROOF SCENE — sample market state, not live", "CANDLE-ESTIMATED · NODES WITHHELD"]) expect(isTruthLine(s)).toBe(true);
     for (const s of ["LIVING VAH 31211.00", "SWING ABOVE · 31194.50", "CALL OI 31200 · 515", "2 MARKET EVENTS", "WAIT", "DECREASING EFFORT", "TAPE REGIME · TREND · magnets dim"]) expect(isTruthLine(s)).toBe(false);
   });

@@ -28224,8 +28224,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.setLineDash([]);
             const when = new Date(firstSided.t * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
             const wordsFull = candleSidesT
-              ? `PRINT TAPE FROM ${when} — earlier bars: bar totals only`
-              : `SIGNED TAPE FROM ${when} — earlier bars carry none`;
+              ? `ORDER FLOW FROM ${when} — earlier bars: candle totals`
+              : `ORDER FLOW FROM ${when} — earlier bars: candle totals`;
             ctx.font = marketFont("OBJECT_NAME");
             ctx.textBaseline = "bottom";
             // A phone plot cannot hold the full line (it ran under the price axis, "…earlier bars car"):
@@ -28235,10 +28235,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const whenShort = new Date(firstSided.t * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
             const words = [
               wordsFull,
-              candleSidesT ? `TAPE FROM ${when} · BAR TOTALS ONLY` : `TAPE FROM ${when} · EARLIER CARRY NONE`,
+              `ORDER FLOW FROM ${when}`,
               candleSidesT ? `TAPE ${whenShort} · TOTALS BEFORE` : `TAPE ${whenShort} · NONE BEFORE`,
-              `TAPE FROM ${whenShort}`,
-            ].find(w => ctx.measureText(w).width <= plotRight - 12) ?? `TAPE FROM ${whenShort}`;
+              `FLOW FROM ${whenShort}`,
+            ].find(w => ctx.measureText(w).width <= plotRight - 12) ?? `FLOW FROM ${whenShort}`;
             const tw = ctx.measureText(words).width;
             // Clamped to the PLOT, not the canvas: the canvas runs under the price axis.
             const tx = Math.max(6, Math.min(bx - tw - 6, plotRight - tw - 6));
