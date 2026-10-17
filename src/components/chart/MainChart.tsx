@@ -29459,7 +29459,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         try { wordRects = wordGate.rects().map(q => ({ x: q.x, y: q.y, w: q.w, h: q.h })); } catch { /* no registry this frame */ }
         // The event-note sentence pills are DOM buttons too (iPhone 17 Pro, Brick Walls alone, 2026-10-17: "50 calls at
         // 75,000 sold" sat on "▲ Call wall 90,000 · Show me") — the query above takes them with the tap slops.
-        const placed = paintEdgeBeacons(ctx, chooseBeacons(edgeBeaconCandsRef.current, fr.spot), fr, [...slops, ...wordRects, ...(fr.avoid ?? [])], beaconCard);
+        const placed = paintEdgeBeacons(ctx, chooseBeacons(edgeBeaconCandsRef.current, fr.spot), fr, [...slops, ...wordRects], beaconCard, fr.avoid ?? []);
         for (const p of placed) {
           const lead = p.choice.lead;
           if (lead.wallStrike != null) pressureWallHitRef.current.push({ strike: lead.wallStrike, x: p.x, y: p.y, w: p.w, h: p.h, off: true });

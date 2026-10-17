@@ -115,6 +115,8 @@ export function paintEdgeBeacons(
   blockers: readonly BeaconRect[],
   /** Called with each pill before its words paint (the chart declares it an opaque card to its word gate). */
   onPill?: (r: BeaconRect) => void,
+  /** Avoided when possible (the candles); `blockers` (words, buttons, pills) are never covered when any row clears them. */
+  soft: readonly BeaconRect[] = [],
 ): PlacedBeacon[] {
   const placed: PlacedBeacon[] = [];
   ctx.save();
@@ -125,7 +127,10 @@ export function paintEdgeBeacons(
   for (const choice of choices) {
     const words = beaconWords(choice.lead, choice.more);
     const w = Math.ceil(ctx.measureText(words).width) + PAD_X * 2;
-    const r = placeBeacon(choice.lead.dir, w, frame, [...blockers, ...placed]);
+    const hard = [...blockers, ...placed];
+    const hitsHard = (q: BeaconRect) => hard.some(b => q.x < b.x + b.w && q.x + q.w > b.x && q.y < b.y + b.h && q.y + q.h > b.y);
+    let r = placeBeacon(choice.lead.dir, w, frame, [...hard, ...soft]);
+    if (hitsHard(r)) r = placeBeacon(choice.lead.dir, w, frame, hard);
     ctx.fillStyle = "rgba(12,10,8,0.94)";
     ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, 7); ctx.fill();
     ctx.strokeStyle = "rgba(212,175,55,0.95)";
