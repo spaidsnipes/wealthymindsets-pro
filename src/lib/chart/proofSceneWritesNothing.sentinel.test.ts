@@ -122,7 +122,8 @@ describe("the component-level writers ask the same hold (source pins)", () => {
     expect(read("contexts/SymbolContext.tsx").match(/if \(!proofSceneHoldsWrites\(\)\) (window\.)?localStorage\.setItem\(LAST_SYMBOL_KEY/g)?.length).toBe(2);
     expect(read("components/chart/AlertsPanel.tsx")).toContain("if (!proofSceneHoldsWrites()) localStorage.setItem(ALERTS_KEY, JSON.stringify(alerts));");
     expect(read("components/chart/ChartsDashboard.tsx")).toContain('if (!proofSceneHoldsWrites()) localStorage.setItem("wm_price_alerts"');
-    expect(read("components/chart/MainChart.tsx")).toContain('if (!proofSceneHoldsWrites()) sessionStorage.setItem("wm_flow_opacity"');
+    // 2026-10-17: the overlay dim is no longer persisted at all; the old keys are only ever removed, and never in a proof scene.
+    expect(read("components/chart/MainChart.tsx")).toContain('if (!proofSceneHoldsWrites()) { localStorage.removeItem("wm_flow_opacity"); sessionStorage.removeItem("wm_flow_opacity"); }');
     // wm_theme and wm_activeInds go through the dashboard's two held writers.
     const dash = read("components/chart/ChartsDashboard.tsx");
     expect(dash).toMatch(/function lsSet\(key: string, val: unknown\) \{\s*if \(typeof window === "undefined"\) return;\s*if \(proofSceneHoldsWrites\(\)\) return;/);

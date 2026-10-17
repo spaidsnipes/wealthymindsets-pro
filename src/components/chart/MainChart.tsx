@@ -3297,12 +3297,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // … that we're finally getting now"). This canvas carries EVERY invention, not just order flow, and the
   // dim was saved per device: one stray tap left a tablet at 40 % or 15 % on every later load. A dim now
   // lasts for the visit (sessionStorage); a dim saved by the old build is put down on first read.
+  // THIS PAGE ONLY (same morning, measured: a sessionStorage dim survived a reload — an iPad Safari tab keeps its
+  // session for days). The dim lives in memory; every load opens at 100 %. Any dim an older build saved is put down.
   const [flowOpacity, setFlowOpacity] = useState<number>(() => {
     if (typeof window === "undefined") return 1;
-    try { if (!proofSceneHoldsWrites()) localStorage.removeItem("wm_flow_opacity"); } catch { /* storage blocked */ }
-    let v = 1;
-    try { v = parseFloat(sessionStorage.getItem("wm_flow_opacity") || "1"); } catch { /* storage blocked */ }
-    return Number.isFinite(v) && v > 0 && v <= 1 ? v : 1;
+    try {
+      if (!proofSceneHoldsWrites()) { localStorage.removeItem("wm_flow_opacity"); sessionStorage.removeItem("wm_flow_opacity"); }
+    } catch { /* storage blocked */ }
+    return 1;
   });
   // Auto-scale: when OFF the user can freely drag the price axis up/down to see
   // higher/lower price levels (TradingView-style). When ON the chart auto-fits.
@@ -30903,7 +30905,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // are on other layers and stay fully opaque.
   useEffect(() => {
     if (canvasRef.current) canvasRef.current.style.opacity = String(flowOpacity);
-    try { if (!proofSceneHoldsWrites()) sessionStorage.setItem("wm_flow_opacity", String(flowOpacity)); } catch {}
+    // Not persisted: the dim is this page's only (see the state's comment).
   }, [flowOpacity]);
 
   /* ── Right-click context menu handler ──────────────────────── */
@@ -32922,7 +32924,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             aria-label={`Inventions overlay opacity ${Math.round(flowOpacity * 100)} percent`}
             className="wm-tap-slop"
             onClick={() => setFlowOpacity(o => (o > 0.7 ? 0.4 : o > 0.25 ? 0.15 : 1))}
-            title={`Inventions overlay: ${Math.round(flowOpacity * 100)}% — dims every invention so drawings and price stand out (cycles 100 → 40 → 15%; back to 100% on your next visit)`}
+            title={`Inventions overlay: ${Math.round(flowOpacity * 100)}% — dims every invention so drawings and price stand out (cycles 100 → 40 → 15%; any reload opens at 100%)`}
             style={{
               height: 22, padding: "0 6px", borderRadius: 4, fontSize: 9, fontWeight: 800, cursor: "pointer",
               display: "flex", alignItems: "center", gap: 3, whiteSpace: "nowrap",
