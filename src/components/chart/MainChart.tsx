@@ -2382,6 +2382,25 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     scaffoldingStructureRef.current = scaffoldingStructure;
   }, [scaffoldingDepthOnChart, scaffoldingStructure]);
   useEffect(() => { marketStructureRef.current = marketStructureGlass ?? null; }, [marketStructureGlass]);
+  // SCAFFOLDING FRAMES ITS READ ONCE (plate S-12G, Founder 2026-10-16: "you should actually see this stuff"): the
+  // read is the newest SCAFFOLDING_WINDOW bars; on a 150-bar camera it was an eighth of the glass and every step
+  // crowded the right edge. Switching Foundation / Intermediate ON frames the newest ~48 bars once; after that the
+  // camera is the trader's.
+  const scaffoldFramedRef = useRef<string>("OFF");
+  useEffect(() => {
+    const d = scaffoldingDepthOnChart ?? "OFF";
+    const was = scaffoldFramedRef.current;
+    scaffoldFramedRef.current = d;
+    if (!(d === "FOUNDATION" || d === "INTERMEDIATE") || was === "FOUNDATION" || was === "INTERMEDIATE") return;
+    let tries = 0;
+    const frame = () => {
+      const n = barsRef.current?.length ?? 0;
+      const ts = chartRef.current?.timeScale();
+      if (!ts || n < 30) { if (tries++ < 20) setTimeout(frame, 250); return; }
+      try { ts.setVisibleLogicalRange({ from: n - 48, to: n + 3 }); } catch { /* the chart is rebuilding */ }
+    };
+    frame();
+  }, [scaffoldingDepthOnChart]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const tpoProfileRef = useRef<TpoProfileVM | null>(null);
   useEffect(() => { tpoProfileRef.current = tpoProfile ?? null; }, [tpoProfile]);
