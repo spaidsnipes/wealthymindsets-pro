@@ -9618,7 +9618,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const halfC = Math.floor(cellW / 2);
           const maxSide = Math.max(1e-12, ...gridLevels.map(l => Math.max(l.bid, l.ask)));
           const gPoc = gridLevels.reduce((mi, l, i, arr) => l.total > arr[mi].total ? i : mi, 0);
-          const fsG = gRowH >= FP_GRID_ROW_PX - 1 ? 13 : 0;
+          // ONE SIZE PER GRID (BTC 1m, 2026-10-17): a 27px half held two characters at 13px, so every ".05" was
+          // dropped and the grid read empty. A half too narrow for three 13px characters sets the WHOLE grid at 12px
+          // (still a market number, above the 9px floor); a number that still does not fit is dropped, never shrunk.
+          const fsG = gRowH >= FP_GRID_ROW_PX - 1 ? (halfC - 5 >= 24 ? 13 : 12) : 0;
           const numbersFit = fpNumbers && fsG >= MARKET_NUMBER_MIN_PX;
           // Each number is judged alone: one that does not fit its half is dropped, never shrunk.
           if (numbersFit) ctx.font = marketFont("FOOTPRINT_NUMBER", fsG);
