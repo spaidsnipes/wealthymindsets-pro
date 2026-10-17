@@ -6905,7 +6905,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const viewFit = (containerRef.current?.parentElement as HTMLElement | null)?.clientHeight || 0;
         const oscN = n - 1;
         const oscFit = viewFit > 0 ? Math.max(56, Math.min(84, (viewFit - 30 - 260) / oscN)) : 84;
-        panes[0].setStretchFactor(Math.max(3.1, 260 / oscFit));
+        // A tall screen gives its spare height to the CANDLES (iPad 820×1180: four oscillators grew to 127 px each and
+        // the candles kept 42 %); an oscillator never grows past its 84 px comfortable size.
+        panes[0].setStretchFactor(Math.max(3.1, 260 / oscFit, viewFit > 0 ? (viewFit - 30 - oscN * oscFit) / oscFit : 0));
         for (let i = 1; i < n; i++) panes[i].setStretchFactor(1);
       }
 
