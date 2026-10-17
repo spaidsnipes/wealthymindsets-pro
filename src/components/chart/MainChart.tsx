@@ -29180,7 +29180,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // never holds them (serving 82e12a2…eb2a112, NQ1! 15m: the gate held "▲ Call wall 30,200 +1 · Show me"
         // and left an empty pill).
         const beaconCard = (r: { x: number; y: number; w: number; h: number }) => { onTop(r, "OPAQUE_CARD"); };
-        const placed = paintEdgeBeacons(ctx, chooseBeacons(edgeBeaconCandsRef.current, fr.spot), fr, slops, beaconCard);
+        // …and the words already on the glass (phone 375, Oct 16: "▲ Put wall 29,430 +1 · Show me" sat on the Question
+        // Lens's question and its "0/4 PAID · WAIT" line). The registry's rects are this frame's words.
+        let wordRects: { x: number; y: number; w: number; h: number }[] = [];
+        try { wordRects = wordGate.rects().map(q => ({ x: q.x, y: q.y, w: q.w, h: q.h })); } catch { /* no registry this frame */ }
+        const placed = paintEdgeBeacons(ctx, chooseBeacons(edgeBeaconCandsRef.current, fr.spot), fr, [...slops, ...wordRects], beaconCard);
         for (const p of placed) {
           const lead = p.choice.lead;
           if (lead.wallStrike != null) pressureWallHitRef.current.push({ strike: lead.wallStrike, x: p.x, y: p.y, w: p.w, h: p.h, off: true });

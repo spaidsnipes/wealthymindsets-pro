@@ -93,8 +93,10 @@ export function placeBeacon(
   const y = dir === "above" ? frame.top + 6 : frame.bottom - 6 - BEACON_H;
   const span = Math.max(0, frame.plotRight - frame.plotLeft - w - 8);
   const hits = (r: BeaconRect) => blockers.some(b => r.x < b.x + b.w && r.x + r.w > b.x && r.y < b.y + b.h && r.y + r.h > b.y);
-  for (const f of [0.62, 0.45, 0.8, 0.3, 0.95, 0.15]) {
-    const r = { x: Math.round(frame.plotLeft + 4 + span * f), y, w, h: BEACON_H };
+  // Its own edge row first; then one row in from the edge (a phone's row is nearly all beacon — Oct 16).
+  const rows = [y, dir === "above" ? y + BEACON_H + 4 : y - BEACON_H - 4];
+  for (const yy of rows) for (const f of [0.62, 0.45, 0.8, 0.3, 0.95, 0.15]) {
+    const r = { x: Math.round(frame.plotLeft + 4 + span * f), y: yy, w, h: BEACON_H };
     if (!hits(r)) return r;
   }
   return { x: Math.round(frame.plotLeft + 4 + span * 0.62), y, w, h: BEACON_H };
