@@ -118,7 +118,7 @@ describe("1 · ONE candle cut-out for the whole profile family", () => {
     const clipAt = TPO.indexOf('clipProfileToCandles("TPO");');
     expect(clipAt).toBeGreaterThan(TPO.indexOf('ctx.clip("evenodd");'));
     expect(TPO).toContain("const tpoCandles = profileCandleCut().rects.filter(");
-    between(TPO, "const x = leftEdge + k * cellW;", "if (onCandle(x, y, cellW, h)) { tpoCellsYielded++; continue; }", "ctx.fillText(r.letters[k], x, y + h / 2 + 0.5);");
+    between(TPO, "const x = leftEdge + k * cellW;", "if (onCandle(x, y, cellW, h)) { tpoCellsYielded++; continue; }", "ctx.fillText(r.letters[k], x + Math.max(0, (cellW - 1 - ctx.measureText(r.letters[k]).width) / 2), y + h / 2 + 0.5);");
     expect(TPO).toContain("ds.tpoCellsYielded = String(tpoCellsYielded);");
     expect(TPO).toContain("delete ds.tpoCellsYielded;");
   });
@@ -380,7 +380,7 @@ describe("9 · every species wears its organism glyph (Garden 11 recognition tes
     expect(TPO).toContain('const asText = rowH >= 11 && cellW >= ctx.measureText("M").width;');
     const texts = [...TPO.matchAll(/ctx\.fillText\(/g)];
     expect(texts.length, "TPO's only fillText is the period letter").toBe(1);
-    between(TPO, "if (asText) {", "ctx.fillText(r.letters[k], x, y + h / 2 + 0.5);", "} else {");
+    between(TPO, "if (asText) {", "ctx.fillText(r.letters[k], x + Math.max(0, (cellW - 1 - ctx.measureText(r.letters[k]).width) / 2), y + h / 2 + 0.5);", "} else {");
     expect(TPO).toContain("const rgb = tpoPlateRamp(late);");
     expect(TPO).toContain("for (const [st, bp] of blockBatches) { ctx.fillStyle = st; ctx.fill(bp); }");
   });

@@ -4036,7 +4036,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     if (!product) return;
     const ctrl = new AbortController();
     const intervalSec = getIntervalSec(timeframe);
-    const sinceMs = Date.now() - Math.min(400 * intervalSec, 6 * 3600) * 1000;
+    // The whole camera, not its newest third (Founder 2026-10-16: "I should never see real tape from anywhere
+    // anymore. We have actual data"): a 5m camera is ~13h; the 6h / 40-page cap left a seam mid-chart.
+    const sinceMs = Date.now() - Math.min(400 * intervalSec, 12 * 3600) * 1000;
     tapeBackfillRef.current = `LOADING:${product}`;
     // Folded PAGE BY PAGE (2026-10-04): the newest page paints its bars at
     // once and the trail fills backward, instead of every older bar waiting
@@ -4048,7 +4050,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       tickFlushRef.current(false);
       flowLadderPublisherRef.current?.changed();
     };
-    void fetchCoinbaseTradeHistory(product, canonicalSym, { sinceMs, maxPages: 40, signal: ctrl.signal, onPage })
+    void fetchCoinbaseTradeHistory(product, canonicalSym, { sinceMs, maxPages: 160, signal: ctrl.signal, onPage })
       .then(({ ticks, pages, reachedMs, complete }) => {
         if (ctrl.signal.aborted) return;
         for (const t of ticks) if (foldPrintRef.current(t, false)) folded++;
@@ -23774,9 +23776,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               return g;
             };
             const vrpLit = {
-              poc: vrpLitOf(pk.rgba("POC", 0.5), pk.rgba("POC", 0.9)),
-              value: vrpLitOf(pk.rgba("VALUE", 0.16), pk.rgba("VALUE", 0.58)),
-              tail: vrpLitOf(pk.rgbaAs("TAIL", "VALUE", 0.07), pk.rgbaAs("TAIL", "VALUE", 0.26)),
+              // Screen-bright (Founder 2026-10-16: VRP "dark as fuck … is it blue or gray? I can't tell").
+              poc: vrpLitOf(pk.rgba("POC", 0.8), pk.rgba("POC", 1)),
+              value: vrpLitOf(pk.rgba("VALUE", 0.5), pk.rgba("VALUE", 0.92)),
+              tail: vrpLitOf(pk.rgbaAs("TAIL", "VALUE", 0.3), pk.rgbaAs("TAIL", "VALUE", 0.6)),
             };
             // P-110 · BEHIND THE CANDLES: serving showed these as grey
             // hairlines through the newest candles. Same hollow "this camera"
@@ -24197,7 +24200,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const y = Math.round(r.y) - Math.floor(rowH / 2);
               const h = Math.max(1, rowH - 1);
               tpoTop = Math.min(tpoTop, y);
-              const base = r.isPoc ? 1 : r.insideValueArea ? 0.92 : 0.6;
+              const base = r.isPoc ? 1 : r.insideValueArea ? 1 : 0.72;
               for (let k = 0; k < r.letters.length; k++) {
                 const L = r.letters.charCodeAt(k) - 65;
                 const late = Math.min(1, L / lastL);
@@ -24206,10 +24209,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 const rgb = tpoPlateRamp(late);
                 if (asText) {
                   // The letter on a tile tinted its own period: the shape survives with every word hidden.
-                  ctx.fillStyle = ink(rgb, r.isPoc ? 0.55 : 0.4 * base);
+                  // Founder 2026-10-16 ("dark as fuck … trying to be dark red … orange … blue"): a letter in its tile's
+                  // own hue on a 0.4 tile had no contrast. The tile is the colour, solid; the letter is dark on it.
+                  ctx.fillStyle = ink(rgb, r.isPoc ? 1 : 0.92 * base);
                   ctx.fillRect(x, y, cellW - 1, h);
-                  ctx.fillStyle = ink(rgb, base);
-                  ctx.fillText(r.letters[k], x, y + h / 2 + 0.5);
+                  ctx.fillStyle = "rgba(10,9,7,0.92)";
+                  ctx.fillText(r.letters[k], x + Math.max(0, (cellW - 1 - ctx.measureText(r.letters[k]).width) / 2), y + h / 2 + 0.5);
                 } else {
                   const st = ink(rgb, base * 0.9);
                   let bp = blockBatches.get(st);
@@ -28181,8 +28186,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.fillStyle = "#E8C877"; ctx.fillText(text, r.x + 9, r.y + h / 2 + 0.5);
               floatingChips.push(r);
             };
-            seamChip("Real tape from here", bx + 8, top + 8);
-            if (bx > 190) seamChip("Before here: bar totals only", 8, bot - 34);
+            // One plain chip, no "real tape" (Founder 2026-10-16): the hatch already says the earlier bars hold totals.
+            seamChip(`Order flow from ${new Date(firstSided.t * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`, bx + 8, top + 8);
             ctx.restore();
             canvas.dataset.tapeCoverageWords = "SEAM";
           } else if (startsInView && firstSided) {

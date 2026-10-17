@@ -395,8 +395,9 @@ export function drawingSpeciesAlpha(siteAlpha: number, dial: unknown): number {
  * trader's stored choice wins, and every ink still passes the law below.
  */
 export const SPECIES_INK_DEFAULTS: Readonly<Partial<Record<string, string>>> = Object.freeze({
-  COMPOSITE: "#2fb89a",
-  VISIBLE_RANGE: "#4a8fe0",
+  // Screen-bright since 2026-10-16 (Founder: "everything that's not gold or yellow, you can barely see").
+  COMPOSITE: "#3fe0c0",
+  VISIBLE_RANGE: "#5fa8ff",
 });
 export const SPECIES_INK_KEYS: readonly ProfileSpeciesKey[] = PROFILE_SPECIES.filter(sp => sp !== "SESSION_CLASSIC" && sp !== "BID_ASK");
 export interface LawfulSpeciesInks {
