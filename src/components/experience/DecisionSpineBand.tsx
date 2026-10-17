@@ -2149,7 +2149,7 @@ function RailCard({ testId, title, accent, children, ...rest }: {
 } & Omit<React.HTMLAttributes<HTMLElement>, "title">): React.ReactElement {
   return (
     <section data-testid={testId} {...rest}
-      style={{ position: "relative", display: "flex", flexDirection: "column", gap: 6, margin: "0 2px 12px", padding: "12px 12px 11px",
+      style={{ position: "relative", display: "flex", flexDirection: "column", flexShrink: 0, gap: 6, margin: "0 2px 12px", padding: "12px 12px 11px",
         borderRadius: 10, overflow: "hidden",
         background: `linear-gradient(180deg, ${accent}1f 0%, rgba(20,17,12,0.96) 38%, rgba(14,12,9,0.98) 100%)`,
         border: `1px solid ${accent}66`, boxShadow: `0 0 0 1px rgba(0,0,0,0.4), 0 8px 22px rgba(0,0,0,0.35), inset 0 1px 0 ${accent}55` }}>
