@@ -50,8 +50,9 @@ const FLOATING_STYLE: React.CSSProperties = {
  * a 300px box sat over the lower indicator pane and its price label.
  */
 const COLLAPSED_STYLE: React.CSSProperties = {
-  left: 12,
-  top: 100,
+  // In the EFFORT / INSPECT icon row (y 64–88), between them — off the candles (phone 375, same morning).
+  left: 50,
+  top: 58,
   width: "auto",
   background: "rgba(11,10,8,0.92)",
 };
