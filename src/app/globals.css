@@ -2896,6 +2896,13 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   /* SpaidBot docks IN the bar, as it does in the four-door nav (Sheriff batch 8): the app bar gives up 56px
      at its end so the launcher never sits on a tab (measured /profile 393: it covered More). */
   body:not(:has(.wm-spaidbot-chart-context)):has(.wm-spaidbot-launcher) .wm-mobile-tabbar { padding-inline-end: calc(56px + env(safe-area-inset-right)) !important; }
+  /* …and the launcher actually sits IN that space (phone /desk, 2026-10-17: it floated at bottom 20px over the bar's
+     corner and the chart's scale toggle). Centred on the bar's 52px row, above the home indicator. */
+  body:not(:has(.wm-spaidbot-chart-context)):has(.wm-mobile-tabbar) .wm-spaidbot-launcher {
+    bottom: calc(4px + env(safe-area-inset-bottom)) !important;
+    inset-inline-end: calc(6px + env(safe-area-inset-right)) !important;
+    width: 44px !important; height: 44px !important; z-index: 90 !important;
+  }
   .wm-mobile-tab--current { color: #d4af37; }
   /* The Watchlist tab is lit while its sheet is the one open, as an app's current tab is. */
   body:has(#chart-watchlist-sheet) .wm-mobile-tab[data-tab="watchlist"] { color: #d4af37; }
