@@ -809,7 +809,7 @@ import { type CameraReveal, applyReveal, askReveal, revealReceipt } from "@/lib/
 import { DELTA_VIEW_EVENT, type DeltaView, deltaBarPx, deltaBubbleR, deltaScale, readDeltaView, deltaBeyondScale } from "@/lib/chart/deltaView";
 import { deltaPaneDivergence } from "@/lib/chart/deltaPanePivots";
 import { memoryMass } from "@/lib/chart/memoryMass";
-import { type BeaconCandidate, beaconKindOf, beaconReceipt, chooseBeacons, paintEdgeBeacons } from "@/components/chart/edgeBeacon";
+import { BEACON_H, type BeaconCandidate, beaconKindOf, beaconReceipt, chooseBeacons, paintEdgeBeacons } from "@/components/chart/edgeBeacon";
 import type { IndexFuturesMappingVM } from "@/lib/marketData/viewModels/selectIndexFuturesMapping";
 
 /* ── Symbol base prices — verified against MooMoo/TradingView Jun 16 2026 ── */
@@ -2642,7 +2642,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const edgeChipHitRef = useRef<{ price: number; what: string; x: number; y: number; w: number; h: number }[]>([]);
   // EDGE BEACONS (plate 22b): this frame's off-camera levels, painted once at the end of draw().
   const edgeBeaconCandsRef = useRef<BeaconCandidate[]>([]);
-  const edgeBeaconFrameRef = useRef<{ plotLeft: number; plotRight: number; top: number; bottom: number; spot: number } | null>(null);
+  const edgeBeaconFrameRef = useRef<{ plotLeft: number; plotRight: number; top: number; bottom: number; spot: number; avoid?: { x: number; y: number; w: number; h: number }[] } | null>(null);
   /** Options Flow marks on this frame (for a tap), and the one a tap pinned (touch has no hover). */
   const flowHitRef = useRef<{ id: string; x: number; y: number; r: number }[]>([]);
   const pinnedFlowRef = useRef<string | null>(null);
@@ -13184,6 +13184,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
       }
       // Every candle body and wick under a row band: the keep-out for profile words.
+      // EDGE BEACONS STAY OFF THE MARKET (iPhone 17 Pro BTC 5m, Brick Walls alone, 2026-10-17: "▲ Call wall 90,000 ·
+      // Show me" sat on the 4 PM candles and "▼ Put wall 80,000" on the volume bars). The frame's foot is the
+      // volume band's top, and the candles on both rows a beacon may take are blockers.
+      function beaconFrameClear(plotRight: number, paneBot: number, spot: number) {
+        const bottom = Math.round(paneBot * volumeTopMargin(W));
+        const rowsUp = HEADER_FLOOR_Y + 6 + 2 * BEACON_H + 4, rowsDn = bottom - 6 - 2 * BEACON_H - 4;
+        const avoid = [...profileCandlesAt(HEADER_FLOOR_Y, rowsUp), ...profileCandlesAt(rowsDn, bottom)];
+        return { plotLeft: 0, plotRight, top: HEADER_FLOOR_Y, bottom, spot, avoid };
+      }
       function profileCandlesAt(yTop: number, yBot: number) {
         return profileCandleCut().rects.filter(r => r.y < yBot && r.y + r.h > yTop);
       }
@@ -14325,6 +14334,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // other layer uses, so a trader can tell Flow Current is on — its
             // streak cores are DOTTED (2·2) with the arrow head kept solid.
             const quietDash = flowSpeaks ? [] : [2, 2];
+            // ON MEANS SEEN, AND NEVER IN THE VOLUME BARS (iPhone 17 Pro BTC 5m, Flow Current alone, 2026-10-17:
+            // faint dotted streaks read as "vague lines", and the session low's streak ran down into the volume).
+            { let pbF = H; try { const ps = (chart as any).paneSize?.(0); if (ps && ps.height > 0) pbF = ps.height; } catch { /* canvas height */ }
+              ctx.beginPath(); ctx.rect(0, 0, W, Math.round(pbF * volumeTopMargin(W)) - 2); ctx.clip(); }
             for (const r of rows) {
               const total = r.buy + r.sell;
               const net = r.buy - r.sell;
@@ -14359,13 +14372,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 const ph = ((tt * 0.8 + k * 0.37 + r.x * 0.013) % 1);
                 const y0 = base + dir * ph * len * 0.35;
                 const y1 = y0 + dir * len * (0.7 + 0.3 * ((k * 0.61) % 1));
-                const a = 0.28 + 0.5 * oneRel;
+                const a = 0.6 + 0.4 * oneRel;
                 // Halo then core (two solid strokes; a gradient per streak cost ~1k/frame).
                 ctx.strokeStyle = `rgba(${rgb},${(a * 0.28).toFixed(3)})`;
                 ctx.lineWidth = Math.min(4 + 3 * weight, pitch);
                 ctx.beginPath(); ctx.moveTo(r.x + off, y0); ctx.lineTo(r.x + off, y1); ctx.stroke();
                 ctx.strokeStyle = `rgba(${rgb},${a.toFixed(3)})`;
-                ctx.lineWidth = Math.min(1.4 + 1.2 * weight, Math.max(1, pitch * 0.6));
+                ctx.lineWidth = Math.min(1.8 + 1.2 * weight, Math.max(1.6, pitch * 0.6));
                 ctx.setLineDash(quietDash);
                 ctx.beginPath(); ctx.moveTo(r.x + off, y0); ctx.lineTo(r.x + off, y1); ctx.stroke();
                 ctx.setLineDash([]);
@@ -19262,15 +19275,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.save();
                 ctx.beginPath();
                 ctx.moveTo(xA, yUA); ctx.lineTo(xB, yUB); ctx.lineTo(xB, yLB); ctx.lineTo(xA, yLA); ctx.closePath();
-                ctx.fillStyle = "rgba(237,230,211,0.03)";
+                // A PLAIN TINT, NOT A HATCH (iPhone 17 Pro BTC 5m, Regime Lighting alone, 2026-10-17: 45° strokes every
+                // 9px behind the candles read as the Founder's "vague, opaque lines scribbled in"). The channel is
+                // its three rules and this tint.
+                ctx.fillStyle = "rgba(237,230,211,0.06)";
                 ctx.fill();
-                ctx.clip();
-                // The plate's hatch: 45° strokes inside the channel only.
-                const hTop = Math.min(yUA, yUB), hBot = Math.max(yLA, yLB), span = hBot - hTop;
-                ctx.strokeStyle = "rgba(237,230,211,0.22)"; ctx.lineWidth = 1;
-                ctx.beginPath();
-                for (let hx = xA - span; hx < xB; hx += 9) { ctx.moveTo(hx, hBot); ctx.lineTo(hx + span, hTop); }
-                ctx.stroke();
                 ctx.restore();
                 ctx.strokeStyle = "rgba(237,230,211,0.95)"; ctx.lineWidth = 1.5;
                 for (const [ya, yb, dash] of [[yLA, yLB, [6, 4]], [yCA, yCB, [2, 4]], [yUA, yUB, [6, 4]]] as [number, number, number[]][]) {
@@ -20810,7 +20819,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               {
                 const nUp = offWalls.filter(o => o.up).length, nDown = offWalls.length - nUp;
                 for (const o of offWalls) edgeBeaconCandsRef.current.push({ dir: o.up ? "above" : "below", price: o.strike, what: o.put ? "PUT_WALL" : "CALL_WALL", priceText: fmtD(o.strike), wallStrike: o.strike });
-                if (offWalls.length) edgeBeaconFrameRef.current = { plotLeft: 0, plotRight: plotRightD, top: HEADER_FLOOR_Y, bottom: paneBotD, spot: dp.spot };
+                if (offWalls.length) edgeBeaconFrameRef.current = beaconFrameClear(plotRightD, paneBotD, dp.spot);
                 ds.pressureWallsOffCamera = `UP:${nUp}|DOWN:${nDown}`;
                 ds.brickWallsOffCamera = `ABOVE:${nUp}|BELOW:${nDown}|MARK:${nUp + nDown > 0 ? "DRAWN" : "NONE"}`;
               }
@@ -21754,7 +21763,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             }
             if (out.offCamera.above.length + out.offCamera.below.length > 0 && !edgeBeaconFrameRef.current) {
               const lastG = barsG[barsG.length - 1]?.close;
-              edgeBeaconFrameRef.current = { plotLeft: 0, plotRight: plotRightG, top: HEADER_FLOOR_Y, bottom: paneBotG, spot: Number.isFinite(lastG) ? Number(lastG) : 0 };
+              edgeBeaconFrameRef.current = beaconFrameClear(plotRightG, paneBotG, Number.isFinite(lastG) ? Number(lastG) : 0);
             }
             // INSPECT — the bucket under the crosshair: strike, expiry, GEX, OI, IV, source, as-of.
             const cpG = crosshairPointRef.current;
@@ -23587,7 +23596,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   const yRef = yW != null ? +yW : +yTop;
                   const bodyLeft = xR - widest.share * silW;
                   const prefD = { x: Math.round(bodyLeft - tw - 8), y: Math.round(yRef) - 10, w: tw, h: 20 };
-                  const spotD = placeClearOfKeepOut(prefD, keepOut(), {
+                  // The candles under its rows are keep-out too (iPhone 17 Pro BTC 5m, DNA alone, 2026-10-17:
+                  // "P-shape profile" printed on the top of the session's big red candle).
+                  const dnaRowsTop = Math.min(prefD.y - 28, Math.round(+yTop) + 6), dnaRowsBot = Math.max(prefD.y + 48, Math.round(+yTop) + 26);
+                  const spotD = placeClearOfKeepOut(prefD, [...keepOut(), ...newestColumnRects(), ...profileCandlesAt(dnaRowsTop, dnaRowsBot)], {
                     minX: keepOutMinX(), blockers: floatingChips, strict: true,
                     alternates: [{ ...prefD, y: prefD.y - 28 }, { ...prefD, y: prefD.y + 28 }, { ...prefD, y: Math.round(+yTop) + 6, x: xR - tw - 4 }],
                   });
@@ -24748,7 +24760,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ds.structureProfileSilence = form;
             } else {
               chip(
-                `STRUCTURE · FROM ${kind} ${gPx(sp.anchor.price)} · ${sp.legBars} BARS${est}`,
+                // A phone reads the short form whole (iPhone 17 Pro, 2026-10-17: "STRUCTURE · FROM SWING LO…").
+                narrowGlass ? `STRUCTURE · ${kind} ${gPx(sp.anchor.price)}` : `STRUCTURE · FROM ${kind} ${gPx(sp.anchor.price)} · ${sp.legBars} BARS${est}`,
                 // The chip's box is y−12…y+2: its top never rises into the header chrome.
                 x0 + 4, Math.max(HEADER_FLOOR_Y + 12, top - 4),
               );
@@ -25899,6 +25912,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             }
             ds.marketStructurePivotForms = `FILLED:${pivFilled}|HOLLOW:${pivHollow}`;
 
+            const tipY0 = (m: { y: number; kind: string; isLast?: boolean }) => m.y + (m.kind === "HIGH" ? -1 : 1) * (3 + (m.isLast ? 7 : 5.5) * 0.65);
             // THE LETTERS — beyond the chevron, clear of every candle body on
             // their row; a letter that cannot sit by its own swing is dropped.
             ctx.font = `800 10px ${MARKET_SANS}`;
@@ -25911,7 +25925,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const cy = m.y + dir * (3 + (m.isLast ? 6 : 4.5) * 1.3 + 8);
               const pref = { x: m.x - tw / 2, y: cy - th / 2, w: tw, h: th };
               if (pref.y < HEADER_FLOOR_Y || pref.y + th > paneBotS) continue;
-              const spot = placeClearOfKeepOut(pref, [...keepOut(), ...rowBodiesAt(pref.y, pref.y + th)], { minX: keepOutMinX(), blockers: floatingChips, strict: true });
+              // The volume band is keep-out too; a letter whose row would fall in it starts BESIDE its chevron
+              // instead (iPhone 17 Pro BTC 5m, 2026-10-17: the session low's "LL" printed down in the volume bars).
+              const volBandTop = Math.round(paneBotS * volumeTopMargin(W));
+              if (pref.y + th > volBandTop) { pref.x = m.x + 9; pref.y = Math.round(tipY0(m) - th / 2); }
+              const spot = placeClearOfKeepOut(pref, [...keepOut(), ...rowBodiesAt(pref.y, pref.y + th), { x: 0, y: volBandTop, w: W, h: Math.max(0, paneBotS - volBandTop) }], { minX: keepOutMinX(), blockers: floatingChips, strict: true });
               // §16: a held letter goes to the note composer, never silently away.
               if (spot.mode === "BLOCKED" || Math.abs(spot.rect.x - pref.x) > 10) displacedNotes.push({ layer: "STRUCTURE", text: m.label, x: m.x, y: cy });
               if (spot.mode === "BLOCKED" || Math.abs(spot.rect.x - pref.x) > 10) continue;
@@ -29439,7 +29457,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // Lens's question and its "0/4 PAID · WAIT" line). The registry's rects are this frame's words.
         let wordRects: { x: number; y: number; w: number; h: number }[] = [];
         try { wordRects = wordGate.rects().map(q => ({ x: q.x, y: q.y, w: q.w, h: q.h })); } catch { /* no registry this frame */ }
-        const placed = paintEdgeBeacons(ctx, chooseBeacons(edgeBeaconCandsRef.current, fr.spot), fr, [...slops, ...wordRects], beaconCard);
+        const placed = paintEdgeBeacons(ctx, chooseBeacons(edgeBeaconCandsRef.current, fr.spot), fr, [...slops, ...wordRects, ...(fr.avoid ?? [])], beaconCard);
         for (const p of placed) {
           const lead = p.choice.lead;
           if (lead.wallStrike != null) pressureWallHitRef.current.push({ strike: lead.wallStrike, x: p.x, y: p.y, w: p.w, h: p.h, off: true });
