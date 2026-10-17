@@ -93,7 +93,7 @@ export function paintScaffoldOnGlass(ctx: Ctx, g: ScaffoldGlassInput): ScaffoldG
       rail.push({ x: Math.round(plot.x0 + 8), y, w, h }, { x: Math.round(plot.x1 - w - 8), y, w, h });
     }
     // A phone's plot also steps across the top and bottom bands (its side rails are mostly candles).
-    if (compact) for (let k = 0; k < 6; k++) for (let c = 0; c < 4; c++) {
+    if (compact) for (let k = 0; k < 12; k++) for (let c = 0; c < 4; c++) {
       const x = Math.round(plot.x0 + 6 + c * Math.max(1, (plot.x1 - plot.x0 - w - 12) / 3));
       rail.push({ x, y: plot.y0 + 6 + k * (h + 4), w, h }, { x, y: plot.y1 - h - 6 - k * (h + 4), w, h });
     }
