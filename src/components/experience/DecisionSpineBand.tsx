@@ -2121,73 +2121,116 @@ const CELL_WORDS: Readonly<Record<string, string>> = {
   QUIET: "small effort, small move",
   ORDINARY: "near normal on both",
 };
+/** What each cell MEANS for a trader, in plain words (Founder 2026-10-16: "it doesn't say what the shit means"). */
+const CELL_MEANS: Readonly<Record<string, string>> = {
+  ABSORBED: "Someone soaked up the push — watch for a turn.",
+  INITIATIVE: "A real push that moved price — the move has fuel.",
+  VACUUM: "Price slid with little trading — thin, can snap back.",
+  QUIET: "Nothing happening — wait.",
+  ORDINARY: "A normal bar.",
+};
+const CELL_INK: Readonly<Record<string, string>> = {
+  ABSORBED: "#f5a524", INITIATIVE: "#c084fc", VACUUM: "#5fa8ff", QUIET: "#a8a29e", ORDINARY: "#d6cfbd",
+};
+const BREATH_INK: Readonly<Record<string, string>> = { COMPRESSED: "#5fa8ff", EXPANDED: "#f97316", NORMAL: "#d6cfbd" };
+const BREATH_MEANS: Readonly<Record<string, string>> = {
+  COMPRESSED: "Bars are small — the market is coiling. Coils tend to release.",
+  EXPANDED: "Bars are big — the market is moving fast. Size down.",
+  NORMAL: "Bars are a normal size.",
+};
+
+/**
+ * A RAIL CARD THAT POPS (Founder 2026-10-16: "the evidence lineage, market breathing, response matrix … just a bunch
+ * of writing … make it pop … make people want to look at it"): a gold-lit header, one big coloured answer, what it
+ * means in plain words, then the numbers for whoever wants them.
+ */
+function RailCard({ testId, title, accent, children, ...rest }: {
+  readonly testId: string; readonly title: string; readonly accent: string; readonly children: React.ReactNode;
+} & Omit<React.HTMLAttributes<HTMLElement>, "title">): React.ReactElement {
+  return (
+    <section data-testid={testId} {...rest}
+      style={{ position: "relative", display: "flex", flexDirection: "column", gap: 6, margin: "0 2px 12px", padding: "12px 12px 11px",
+        borderRadius: 10, overflow: "hidden",
+        background: `linear-gradient(180deg, ${accent}1f 0%, rgba(20,17,12,0.96) 38%, rgba(14,12,9,0.98) 100%)`,
+        border: `1px solid ${accent}66`, boxShadow: `0 0 0 1px rgba(0,0,0,0.4), 0 8px 22px rgba(0,0,0,0.35), inset 0 1px 0 ${accent}55` }}>
+      <span aria-hidden="true" style={{ position: "absolute", left: 0, right: 0, top: 0, height: 3, background: `linear-gradient(90deg, transparent, ${accent}, transparent)` }} />
+      <span style={{ font: "700 13px/16px Georgia, 'Times New Roman', serif", letterSpacing: "0.16em", textTransform: "uppercase", color: "#F3D78A", textAlign: "center" }}>{title}</span>
+      {children}
+    </section>
+  );
+}
+const BIG = (ink: string): React.CSSProperties => ({ font: "800 18px/22px ui-sans-serif, system-ui, sans-serif", letterSpacing: "0.04em", color: ink, textAlign: "center", textShadow: `0 0 18px ${ink}55` });
+const MEANS: React.CSSProperties = { fontSize: 13, lineHeight: "18px", color: "#EDE6D3", textAlign: "center", fontWeight: 500 };
+const NUMS: React.CSSProperties = { fontSize: 11.5, lineHeight: "16px", color: "#b9b09b", textAlign: "center", fontVariantNumeric: "tabular-nums" };
+const FOOT: React.CSSProperties = { fontSize: 10.5, lineHeight: "14px", color: "#8a8271", fontStyle: "italic", textAlign: "center" };
 
 function EffortEvidenceCard({ ted, matrix }: { readonly ted: TemporalEvidenceDensity | null; readonly matrix: ResponseMatrix | null }): React.ReactElement {
-  const row: React.CSSProperties = { fontSize: 11, lineHeight: "15px", color: "#c8c0ae", textAlign: "center", fontVariantNumeric: "tabular-nums" };
+  const ink = matrix ? CELL_INK[matrix.newest] ?? "#d6cfbd" : "#d6cfbd";
   return (
-    <section
-      data-testid="spine-effort-evidence"
-      data-response-cell={matrix?.newest ?? ""}
-      style={{ display: "flex", flexDirection: "column", gap: 4, margin: "0 2px 10px", padding: "9px 11px 9px", border: "1px solid rgba(196,165,116,0.24)", borderRadius: 2 }}
-    >
+    <RailCard testId="spine-effort-evidence" title="Response matrix" accent={ink} data-response-cell={matrix?.newest ?? ""}>
       {matrix ? (
         <>
-          <span style={{ ...LABEL, fontSize: 11, lineHeight: "16px", letterSpacing: "0.14em", textAlign: "center" }}>Response matrix</span>
-          <span data-testid="spine-response-newest" style={{ fontSize: 13, lineHeight: "17px", fontWeight: 800, color: "#ede6d3", textAlign: "center", letterSpacing: "0.06em" }}>
-            Last bar: {matrix.newest}
-          </span>
-          <span style={row}>{CELL_WORDS[matrix.newest]} — effort {matrix.newestEffort.toFixed(2)}×, move {matrix.newestResponse.toFixed(2)}× normal</span>
-          <span style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 3, marginTop: 2 }}>
-            {(["ABSORBED", "INITIATIVE", "QUIET", "VACUUM"] as const).map(c => (
-              <span key={c} data-response-count={c} style={{ fontSize: 10, lineHeight: "14px", color: c === matrix.newest ? "#ede6d3" : "#8a8271", border: "1px solid rgba(196,165,116,0.14)", borderRadius: 2, padding: "2px 4px", textAlign: "center", fontVariantNumeric: "tabular-nums" }}>
-                {c} {matrix.counts[c]}
-              </span>
-            ))}
+          <span data-testid="spine-response-newest" style={BIG(ink)}>Last bar: {matrix.newest}</span>
+          <span style={MEANS}>{CELL_MEANS[matrix.newest]}</span>
+          <span style={NUMS}>{CELL_WORDS[matrix.newest]} — effort {matrix.newestEffort.toFixed(2)}×, move {matrix.newestResponse.toFixed(2)}× normal</span>
+          {/* Effort up the side, move along the bottom: the four cells as a lit map, the live one glowing. */}
+          <span style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, marginTop: 2 }}>
+            {(["ABSORBED", "INITIATIVE", "QUIET", "VACUUM"] as const).map(c => {
+              const on = c === matrix.newest, k = CELL_INK[c];
+              return (
+                <span key={c} data-response-count={c} title={`${c}: ${CELL_WORDS[c]}`}
+                  style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, padding: "5px 4px", borderRadius: 7,
+                    background: on ? `${k}33` : "rgba(255,255,255,0.03)", border: `1px solid ${on ? k : `${k}44`}`,
+                    boxShadow: on ? `0 0 14px ${k}55` : "none", fontVariantNumeric: "tabular-nums" }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.06em", color: on ? "#fff" : k }}>{c} {matrix.counts[c]}</span>
+                  <span style={{ fontSize: 10, color: on ? "#EDE6D3" : "#8a8271" }}>{CELL_WORDS[c]}</span>
+                </span>
+              );
+            })}
           </span>
         </>
       ) : null}
       {ted ? (
-        <span data-testid="spine-ted" style={{ display: "flex", flexDirection: "column", gap: 2, borderTop: matrix ? "1px solid rgba(196,165,116,0.14)" : undefined, paddingTop: matrix ? 5 : 0 }}>
-          <span style={{ ...LABEL, fontSize: 10, lineHeight: "14px", letterSpacing: "0.12em", textAlign: "center" }}>Evidence density (TED)</span>
-          <span style={row}>{Math.round(ted.topFifthShare * 100)}% of the volume sits in the busiest fifth of {ted.sample} bars</span>
-          <span style={row}>last bar {ted.newestDensity.toFixed(2)}× a normal bar · {ted.thinBars} thin bar{ted.thinBars === 1 ? "" : "s"}</span>
+        <span data-testid="spine-ted" style={{ display: "flex", flexDirection: "column", gap: 3, borderTop: matrix ? "1px solid rgba(196,165,116,0.18)" : undefined, paddingTop: matrix ? 7 : 0 }}>
+          <span style={{ font: "700 11px/14px Georgia, serif", letterSpacing: "0.14em", textTransform: "uppercase", color: "#d9c48a", textAlign: "center" }}>Where the volume sits</span>
+          <span style={{ position: "relative", height: 8, borderRadius: 4, background: "rgba(255,255,255,0.07)", overflow: "hidden" }} aria-hidden="true">
+            <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${Math.round(Math.min(1, ted.topFifthShare) * 100)}%`, background: "linear-gradient(90deg, #C9A55C, #F3D78A)" }} />
+          </span>
+          <span style={MEANS}>{Math.round(ted.topFifthShare * 100)}% of the volume is in the busiest fifth of {ted.sample} bars</span>
+          <span style={NUMS}>last bar {ted.newestDensity.toFixed(2)}× a normal bar · {ted.thinBars} thin bar{ted.thinBars === 1 ? "" : "s"}</span>
         </span>
       ) : null}
-      <span style={{ fontSize: 10, lineHeight: "14px", color: "#8a8271", fontStyle: "italic", textAlign: "center" }}>from traded volume and range of closed bars — describes each bar, not a signal</span>
-    </section>
+      <span style={FOOT}>from traded volume and range of closed bars — describes each bar, not a signal</span>
+    </RailCard>
   );
 }
 
 function BreathingCard({ b }: { readonly b: MarketBreathing }): React.ReactElement {
+  const ink = BREATH_INK[b.state] ?? "#d6cfbd";
+  const pct = Math.max(0, Math.min(100, b.atrPercentile));
   return (
-    <section
-      data-testid="spine-market-breathing"
-      data-breath-state={b.state}
-      aria-label={`Market breathing. ${breathingSentence(b)}`}
-      style={{ display: "flex", flexDirection: "column", gap: 4, margin: "0 2px 10px", padding: "9px 11px 9px", border: "1px solid rgba(196,165,116,0.24)", borderRadius: 2 }}
-    >
-      <span style={{ ...LABEL, fontSize: 11, lineHeight: "16px", letterSpacing: "0.14em", textAlign: "center" }}>Market breathing</span>
-      <span style={{ fontSize: 13, lineHeight: "17px", fontWeight: 800, color: "#ede6d3", textAlign: "center", letterSpacing: "0.06em" }}>{b.state} · {b.phase}</span>
-      <span style={{ fontSize: 11, lineHeight: "15px", color: "#c8c0ae", textAlign: "center", fontVariantNumeric: "tabular-nums" }}>
-        ATR {b.atrRatio.toFixed(2)}× normal · {b.atrPercentile}th pct · {b.barsInState} bar{b.barsInState === 1 ? "" : "s"} in state
+    <RailCard testId="spine-market-breathing" title="Market breathing" accent={ink} data-breath-state={b.state} aria-label={`Market breathing. ${breathingSentence(b)}`}>
+      <span style={BIG(ink)}>{b.state} · {b.phase}</span>
+      <span style={MEANS}>{BREATH_MEANS[b.state]}</span>
+      {/* Small bars ← → big bars: where this camera's bar size sits against its own history. */}
+      <span aria-hidden="true" style={{ position: "relative", height: 10, borderRadius: 5, background: "linear-gradient(90deg, #5fa8ff55, #d6cfbd33 50%, #f9731655)" }}>
+        <span style={{ position: "absolute", top: -3, left: `calc(${pct}% - 2px)`, width: 4, height: 16, borderRadius: 2, background: ink, boxShadow: `0 0 10px ${ink}` }} />
       </span>
-      <span style={{ fontSize: 11, lineHeight: "15px", color: "#c8c0ae", textAlign: "center", fontVariantNumeric: "tabular-nums" }}>
-        Realized σ {b.realizedVolPct.toFixed(2)}% per bar · {b.cycles} squeeze→release cycle{b.cycles === 1 ? "" : "s"} in {b.sample} bars
-      </span>
-      <span style={{ fontSize: 10, lineHeight: "14px", color: "#8a8271", fontStyle: "italic", textAlign: "center" }}>from range and dispersion of closed bars — describes, does not forecast</span>
-    </section>
+      <span style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#8a8271" }}><span>coiled</span><span>normal</span><span>stretched</span></span>
+      <span style={NUMS}>Bar size {b.atrRatio.toFixed(2)}× normal ({b.atrPercentile}th pct) · {b.barsInState} bar{b.barsInState === 1 ? "" : "s"} in state</span>
+      <span style={NUMS}>Realized σ {b.realizedVolPct.toFixed(2)}% per bar · {b.cycles} squeeze→release cycle{b.cycles === 1 ? "" : "s"} in {b.sample} bars</span>
+      <span style={FOOT}>from range and dispersion of closed bars — describes, does not forecast</span>
+    </RailCard>
   );
 }
 
 function EvidenceLineageCard({ vm }: { readonly vm: EvidenceLineageVM }): React.ReactElement {
   return (
-    <section
-      data-testid="spine-evidence-lineage"
-      aria-label={`Evidence lineage: ${vm.summary}.${vm.warning ? ` ${vm.warning} — readings in one family are one piece of evidence.` : ""}`}
-      style={{ display: "flex", flexDirection: "column", gap: 6, margin: "0 2px 10px", padding: "9px 11px 9px", border: "1px solid rgba(196,165,116,0.24)", borderRadius: 2 }}
-    >
-      <span style={{ ...LABEL, fontSize: 11, lineHeight: "16px", letterSpacing: "0.14em", textAlign: "center" }}>Evidence lineage</span>
-      <span style={{ fontSize: 11, lineHeight: "15px", color: "#c8c0ae", textAlign: "center", fontVariantNumeric: "tabular-nums" }}>{vm.summary}</span>
+    <RailCard testId="spine-evidence-lineage" title="Evidence lineage" accent={vm.warning ? "#ff9696" : "#C9A55C"}
+      aria-label={`Evidence lineage: ${vm.summary}.${vm.warning ? ` ${vm.warning} — readings in one family are one piece of evidence.` : ""}`}>
+      <span style={BIG(vm.warning ? "#ff9696" : "#F3D78A")}>{vm.families.length} independent {vm.families.length === 1 ? "witness" : "witnesses"}</span>
+      <span style={MEANS}>Tools in the same family read the same data — they count once, not many times.</span>
+      <span style={NUMS}>{vm.summary}</span>
       {vm.warning ? (
         <span data-testid="spine-evidence-warning" style={{ ...PLAQUE_STAMP, color: "#ff9696", fontWeight: 800, textAlign: "center", border: "1px solid rgba(255,150,150,0.45)", borderRadius: 2, padding: "3px 6px" }}>
           ⚠ {vm.warning}
@@ -2195,8 +2238,8 @@ function EvidenceLineageCard({ vm }: { readonly vm: EvidenceLineageVM }): React.
       ) : null}
       {vm.families.map((f, i) => (
         <span key={f.id} data-evidence-family={f.id} style={{ display: "flex", flexDirection: "column", gap: 1, borderTop: "1px solid rgba(196,165,116,0.14)", paddingTop: 5 }}>
-          <span style={{ fontSize: 11, lineHeight: "15px", fontWeight: 800, color: "#ede6d3", letterSpacing: "0.06em" }}>({i + 1}) {f.label.toUpperCase()} family</span>
-          <span style={{ fontSize: 11, lineHeight: "15px", color: "#c8c0ae" }}>{f.members.join(", ")}</span>
+          <span style={{ fontSize: 12.5, lineHeight: "16px", fontWeight: 800, color: "#F3D78A", letterSpacing: "0.06em" }}>({i + 1}) {f.label.toUpperCase()} family</span>
+          <span style={{ fontSize: 12.5, lineHeight: "17px", color: "#EDE6D3" }}>{f.members.join(", ")}</span>
           <span style={{ fontSize: 10, lineHeight: "14px", color: "#8a8271", fontStyle: "italic" }}>from {f.from}</span>
         </span>
       ))}
@@ -2217,6 +2260,6 @@ function EvidenceLineageCard({ vm }: { readonly vm: EvidenceLineageVM }): React.
       <span style={{ ...PLAQUE_STAMP, fontSize: 10, textAlign: "center", borderTop: "1px solid rgba(196,165,116,0.14)", paddingTop: 5 }}>
         {vm.families.length} {vm.families.length === 1 ? "family" : "families"} · independent
       </span>
-    </section>
+    </RailCard>
   );
 }
