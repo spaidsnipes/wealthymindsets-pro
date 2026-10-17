@@ -16,3 +16,35 @@ export const FIRST_VISIT_ON: ReadonlySet<string> = new Set(["wm_ofLivingProfile"
 export function firstVisitOn(key: string): boolean {
   return FIRST_VISIT_ON.has(key);
 }
+
+/*
+ * ONE RESET, ONCE PER DEVICE (Founder 2026-10-17, on his own phone: "my phone version don't look like this phone
+ * version … vague, opaque lines scribbled in"). The first-visit set above only reaches a device that never saved a
+ * choice; his phone still held every invention it had switched on before. On its next load each device forgets its
+ * saved invention switches ONCE, at this epoch, and opens on the one-by-one view; what is switched on after that is
+ * kept. Settings that are not inventions (extended hours, sessions, keys, the kill switch) are never in this list.
+ */
+export const LAYER_RESET_EPOCH = "2026-10-17";
+export const LAYER_RESET_MARK = "wm_layerResetEpoch";
+export const INVENTION_SWITCH_KEYS: readonly string[] = [
+  "wm_absorptionAnatomy", "wm_bigtrades_on", "wm_breathRibbon", "wm_cvdNotch", "wm_deltaKeel", "wm_effortResponse",
+  "wm_exhaustion", "wm_fixedVP", "wm_fp_enabled", "wm_ofAnatomyCards", "wm_ofBrickWalls", "wm_ofClarityCandle",
+  "wm_ofCompositeProfile", "wm_ofContradiction", "wm_ofDeltaDivergence", "wm_ofDeltaLevels", "wm_ofDerivativesPressure",
+  "wm_ofEffortMark", "wm_ofExpectedEnvelope", "wm_ofFlowCurrent", "wm_ofImbalanceStack", "wm_ofLiquidityLifecycle",
+  "wm_ofLiquidityWeather", "wm_ofLivingProfile", "wm_ofMarketStructure", "wm_ofMemoryGhost", "wm_ofMtfAncestry",
+  "wm_ofProfileDna", "wm_ofProfileFusion", "wm_ofProfileMemory", "wm_ofQuestionLens", "wm_ofRegimeLighting",
+  "wm_ofRiskOnPrice", "wm_ofStructureProfile", "wm_ofTpoProfile", "wm_ofValueCandle", "wm_ofValueMigration",
+  "wm_ofVisibleRangeProfile", "wm_rvolTone", "wm_sessionVP", "wm_wisdomLine",
+];
+
+type KeyStore = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+
+/** Forget the device's saved invention switches once per epoch. Returns true when it reset. Never throws. */
+export function resetInventionSwitchesOnce(store: KeyStore | null | undefined): boolean {
+  try {
+    if (!store || store.getItem(LAYER_RESET_MARK) === LAYER_RESET_EPOCH) return false;
+    for (const k of INVENTION_SWITCH_KEYS) store.removeItem(k);
+    store.setItem(LAYER_RESET_MARK, LAYER_RESET_EPOCH);
+    return true;
+  } catch { return false; }
+}

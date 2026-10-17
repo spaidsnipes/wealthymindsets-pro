@@ -343,7 +343,7 @@ import { cboeSymbolFor, type CboeOptionsReceipt } from "@/lib/marketData/cboeDel
 import { deribitCurrencyFor, dvolFrom, normalizeDeribitOptions } from "@/lib/marketData/deribitOptions";
 import { ANATOMY_MODES, readAnatomyMode, writeAnatomyMode, type AnatomyMode } from "@/lib/chart/anatomyMode";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
-import { firstVisitOn } from "@/lib/chart/firstVisitLayers";
+import { firstVisitOn, resetInventionSwitchesOnce } from "@/lib/chart/firstVisitLayers";
 import { selectLiquidityWeatherFromBars, type LiquidityWeatherVM } from "@/lib/marketData/viewModels/selectLiquidityWeather";
 import { selectDerivativesPressure, WALL_TEST_WINDOW_DAYS, type DerivativesPressureVM } from "@/lib/marketData/viewModels/selectDerivativesPressure";
 import selectDeltaLevelsGlass from "@/lib/marketData/viewModels/selectDeltaLevelsGlass";
@@ -704,6 +704,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     // A proof scene (proofScene.ts) loads its own switches for this page only.
     const proof = proofSceneValue(currentProofScene(), key);
     if (proof !== undefined) return proof as T;
+    resetInventionSwitchesOnce(typeof localStorage === "undefined" ? null : localStorage); // once per device (firstVisitLayers)
     try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
   }
   function lsSet(key: string, val: unknown) {
