@@ -284,7 +284,12 @@ export function paintScaffoldOnGlass(ctx: Ctx, g: ScaffoldGlassInput): ScaffoldG
   /* 6 · CAUTION — one plaque at price. */
   const lastBar = win[win.length - 1];
   const px = lastBar ? xOf(lastBar.time) : null, py = lastBar ? yOf(lastBar.close) : null;
-  if (px != null && py != null) {
+  if (px != null && py != null && compact) {
+    // Phone: the caution is one more one-line tag (its rails and leader), never a plaque the glass cannot hold.
+    const ink = sc.caution ? I.AMBER : I.GOLD;
+    const title = sc.caution ? `CAUTION · ${sc.cautionFlags.length} FLAG${sc.cautionFlags.length > 1 ? "S" : ""}` : "NO FLAG";
+    if (tag(foundation ? 6 : null, px, py, title, "", ink)) painted++;
+  } else if (px != null && py != null) {
     const ink = sc.caution ? I.AMBER : I.GOLD;
     const title = sc.caution ? `CAUTION · ${sc.cautionFlags.length} FLAG${sc.cautionFlags.length > 1 ? "S" : ""}` : "NO FLAG";
     const line1 = compact ? "" : sc.caution ? sc.cautionFlags.join(" · ") : "no flag fired in the window";
