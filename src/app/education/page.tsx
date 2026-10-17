@@ -35,6 +35,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { proofFixtureScene } from "@/lib/chart/proofScene";
 import { persistAcademyNote, readAcademyNote } from "@/lib/educationNotesStorage";
 import { persistAcademyProgress } from "@/lib/educationProgressStorage";
+import { WOW_ORIGIN } from "@/lib/passport/wowBridge";
 import { useShellModalFocus } from "@/components/layout/useShellModalFocus";
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
@@ -780,6 +781,23 @@ export default function EducationPage() {
           $100 Challenge Preview
         </Link>
       </div>
+
+      {/* ONE ACADEMY (Founder directive 2026-10-16): the school — campus, A+ Student of the
+          Game, live classrooms, Book Club, Bible Study — is WOW Academy. This room keeps WM Pro's
+          own chart lessons, because the chart tools deep-link here and market truth stays in WM
+          Pro. The door below is the way into the school, one click, no handoff page. */}
+      <nav
+        aria-label="WOW Academy"
+        data-testid="wow-academy-door"
+        className="shrink-0 flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-[12px] sm:px-4"
+        style={{ borderBottom: "1px solid rgba(139,106,41,0.25)", background: "linear-gradient(90deg, rgba(212,175,55,0.10), rgba(11,10,8,0.6))", color: "#ede6d3" }}
+      >
+        <span>The school lives in <b style={{ color: "#d4af37" }}>WOW Academy</b> — these are WM Pro&apos;s chart lessons.</span>
+        <a className="inline-flex min-h-11 items-center font-semibold" style={{ color: "#d4af37" }} href={`${WOW_ORIGIN}/academy/a-plus`}>A+ Student of the Game →</a>
+        <a className="inline-flex min-h-11 items-center" style={{ color: "#c9a55c" }} href={`${WOW_ORIGIN}/academy/a-plus/candlestick-foundations`}>Candlestick Foundations</a>
+        <a className="inline-flex min-h-11 items-center" style={{ color: "#c9a55c" }} href={`${WOW_ORIGIN}/academy/classrooms`}>Live classrooms</a>
+        <a className="inline-flex min-h-11 items-center" style={{ color: "#c9a55c" }} href={`${WOW_ORIGIN}/academy/book-club`}>Book Club</a>
+      </nav>
 
       {priorPracticeMarks > 0 && (
         <div className="shrink-0 border-b border-amber-700/20 bg-amber-950/20 px-3 py-1.5 text-[11px] text-amber-100 sm:px-4" role="status">

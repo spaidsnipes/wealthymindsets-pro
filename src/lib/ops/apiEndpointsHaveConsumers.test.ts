@@ -84,6 +84,13 @@ const NO_IN_APP_CALLER: Readonly<Record<string, OrphanEntry>> = {
       "the webhook endpoint the Founder creates in the Stripe dashboard, never src. The route refuses anything " +
       "without a valid Stripe-Signature (billingRoutes.route.test.ts), so an in-app caller could not use it.",
   },
+  "/api/livekit/classroom": {
+    cls: "CROSS_PRODUCT",
+    evidence:
+      "Registered at birth, 2026-10-16 (Academy SUPERMAX §6). WOW World's Worker (wow-world-os worker/classroom.js " +
+      "mediaToken) POSTs an HMAC-signed classroom grant here and receives a LiveKit token; WOW Academy owns the rooms, " +
+      "this host holds ATH's LiveKit key. No browser can use it: unsigned or forged grants are refused (classroomGrant.test.ts).",
+  },
   "/api/diagnostics/supabase": {
     cls: "OPERATOR_DIAGNOSTIC",
     evidence:
@@ -357,7 +364,9 @@ describe("every API endpoint has something that actually calls it", () => {
     expect(every.filter((e) => e.cls === "EXTERNAL_TOOLING").length).toBe(1);
     // 1 -> 2 on 2026-10-02: /api/passport/from-wow, WOW World's door into WM
     // with the same Passport, registered at birth.
-    expect(every.filter((e) => e.cls === "CROSS_PRODUCT").length).toBe(2);
+    // 2 -> 3 on 2026-10-16: /api/livekit/classroom, WOW Academy classrooms' LiveKit token broker,
+    // called server-to-server by WOW World with a signed grant, registered at birth.
+    expect(every.filter((e) => e.cls === "CROSS_PRODUCT").length).toBe(3);
 
     // Every DARK entry must point at the ticket that owns paying it down.
     for (const [path, entry] of dark) {
