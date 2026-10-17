@@ -426,3 +426,29 @@ export function lawfulSpeciesInks(v: unknown, ctx: { field: string; poc: string 
   }
   return { inks, refused };
 }
+
+/* ── PER-TOOL THICKNESS (Founder 2026-10-16: "fix the lines, make the lines thicker … a setting for each thing
+   you're using … like TradingView"). One multiplier per species / invention dial, on the lines that tool strokes.
+   Lawful steps only; 1 = as shipped. ───────────────────────────────────────────────────────────────────────── */
+export const LINE_WEIGHT_STEPS = [1, 1.5, 2, 3] as const;
+export function lawfulLineWeight(v: unknown): number {
+  const n = typeof v === "number" && Number.isFinite(v) ? v : 1;
+  return LINE_WEIGHT_STEPS.reduce((best, s) => (Math.abs(s - n) < Math.abs(best - n) ? s : best), 1 as number);
+}
+/** Per governed layer, its line-weight multiplier (species weight × invention weight; absent = 1). */
+export function layerLineWeight(species: unknown, inventions: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (species && typeof species === "object") {
+    for (const sp of PROFILE_SPECIES) {
+      const w = lawfulLineWeight((species as Record<string, unknown>)[sp]);
+      if (w !== 1) for (const layer of PROFILE_SPECIES_LAYERS[sp]) out[layer] = w;
+    }
+  }
+  if (inventions && typeof inventions === "object") {
+    for (const k of INVENTION_DIALS) {
+      const w = lawfulLineWeight((inventions as Record<string, unknown>)[k]);
+      if (w !== 1) for (const layer of INVENTION_DIAL_LAYERS[k]) out[layer] = Math.min(3, (out[layer] ?? 1) * w);
+    }
+  }
+  return out;
+}

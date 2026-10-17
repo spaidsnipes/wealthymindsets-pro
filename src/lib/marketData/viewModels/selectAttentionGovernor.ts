@@ -272,6 +272,11 @@ export const LAYER_ATTENTION = {
 export type AttentionLayerKey = keyof typeof LAYER_ATTENTION;
 
 export interface AttentionGovernorInput {
+  /**
+   * Told the layer that is about to paint, each time one asks for its alpha or its permission
+   * (2026-10-16: the trader's per-tool THICKNESS rides on this — the room sets the line weight for it).
+   */
+  readonly onLayerAsk?: (key: string) => void;
   /** Garden 18 §XXXVII: the trader's visual role per layer (absent = SUPPORTING, the canon alpha). */
   readonly roles?: Readonly<Partial<Record<string, "PRIMARY" | "SUPPORTING" | "AMBIENT" | "LATENT">>>;
   /** The frame's one depth owner. UNMEASURED leaves every depth multiplier at 1. */
@@ -448,6 +453,7 @@ export function selectAttentionGovernor(
     MEMORY: TIER_CEILING.MEMORY / TIER_CEILING.SUPPORTING,
   };
   const alpha = (key: AttentionLayerKey, opts?: AttentionAlphaOpts): number => {
+    input.onLayerAsk?.(key);
     const spec: LayerAttention = LAYER_ATTENTION[key];
     const tier = tierOf(key, opts);
     let a = 1;
@@ -554,6 +560,7 @@ export function selectAttentionGovernor(
     tiersReceipt: () => [...asked].filter(([k]) => !withheld.has(k)).map(([k, v]) => `${k}:${v.tier}:${r2(v.alpha)}`).join(","),
     permission,
     paints: (layer: DepthLayer, opts?: PermissionOpts) => {
+      input.onLayerAsk?.(layer);
       const ok = permission.paints(layer, opts);
       if (!ok) withheld.add(layer);
       return ok;

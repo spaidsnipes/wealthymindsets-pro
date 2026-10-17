@@ -12,7 +12,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  PROFILE_PALETTE_KEYS, PROFILE_PRESET_RED_GREEN, applyProfilePreset,
+  PROFILE_PALETTE_KEYS, PROFILE_PRESET_RED_GREEN, applyProfilePreset, LINE_WEIGHT_STEPS, lawfulLineWeight,
   INVENTION_DIAL_LABEL, PROFILE_SPECIES_LABEL, SPECIES_INK_DEFAULTS, lawfulInventionOpacity, lawfulSpeciesInks,
   lawfulSpeciesOpacity, type InventionDialKey, type ProfileSpeciesKey,
 } from "@/lib/chart/appearanceLaw";
@@ -61,6 +61,11 @@ export function ToolStylePopover({ target, settings, onChange, onClose, onMore }
     else if (inv) set({ inventionOpacity: lawfulInventionOpacity({ ...(settings.inventionOpacity ?? {}), [inv]: n }) });
   };
 
+  const weight = lawfulLineWeight(species ? settings.profileSpeciesWeight?.[species] : inv ? settings.inventionWeight?.[inv] : 1);
+  const setWeight = (w: number) => {
+    if (species) set({ profileSpeciesWeight: { ...(settings.profileSpeciesWeight ?? {}), [species]: lawfulLineWeight(w) } });
+    else if (inv) set({ inventionWeight: { ...(settings.inventionWeight ?? {}), [inv]: lawfulLineWeight(w) } });
+  };
   const colourable = species != null && COLOUR_SPECIES.includes(species);
   const current = species ? settings.profileSpeciesInk?.[species] ?? SPECIES_INK_DEFAULTS[species] ?? FAMILY_GOLD : FAMILY_GOLD;
   const law = species ? lawfulSpeciesInks(settings.profileSpeciesInk, { field: settings.background, poc: `rgb(${PROFILE_INK_AT_REST.rgb("POC")})` }) : null;
@@ -117,8 +122,36 @@ export function ToolStylePopover({ target, settings, onChange, onClose, onMore }
             style={{ width: "100%", accentColor: "#C9A55C", minHeight: 28 }} />
         </label>
       ) : null}
+      {species || inv ? (
+        <div data-testid="tool-style-thickness" style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 12, color: "#c0b8a0", marginBottom: 6 }}>Line thickness</div>
+          <div style={{ display: "grid", gridTemplateColumns: `repeat(${LINE_WEIGHT_STEPS.length}, 1fr)`, gap: 6 }}>
+            {LINE_WEIGHT_STEPS.map(w => {
+              const on = w === weight;
+              return (
+                <button key={w} type="button" aria-pressed={on} aria-label={`${label} lines ${w}×`} onClick={() => setWeight(w)}
+                  style={{ minHeight: 34, borderRadius: 7, cursor: "pointer", background: on ? "rgba(212,175,55,0.18)" : "transparent",
+                    border: `1px solid ${on ? "#E8C877" : "rgba(212,175,55,0.3)"}`, color: on ? "#F3D78A" : "#c0b8a0", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <span aria-hidden="true" style={{ display: "inline-block", width: 16, height: Math.round(w * 1.5), background: "currentColor", borderRadius: 1 }} />
+                  {w}×
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
       <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-        <button type="button" onClick={() => { if (species) set({ profileSpeciesInk: Object.fromEntries(Object.entries(settings.profileSpeciesInk ?? {}).filter(([k]) => k !== species)) }); setOpacity(1); }}
+        <button type="button" onClick={() => {
+            // ONE patch: separate writes each spread the same old settings and undid each other.
+            if (species) {
+              const { [species]: _i, ...ink } = settings.profileSpeciesInk ?? {};
+              set({ profileSpeciesInk: ink, profileSpeciesWeight: { ...(settings.profileSpeciesWeight ?? {}), [species]: 1 },
+                profileSpeciesOpacity: lawfulSpeciesOpacity({ ...(settings.profileSpeciesOpacity ?? {}), [species]: 1 }) });
+            } else if (inv) {
+              set({ inventionWeight: { ...(settings.inventionWeight ?? {}), [inv]: 1 },
+                inventionOpacity: lawfulInventionOpacity({ ...(settings.inventionOpacity ?? {}), [inv]: 1 }) });
+            }
+          }}
           style={{ flex: 1, minHeight: 36, borderRadius: 8, border: "1px solid rgba(212,175,55,0.35)", background: "transparent", color: "#d6c9a6", cursor: "pointer" }}>Reset</button>
         <button type="button" onClick={onMore}
           style={{ flex: 1, minHeight: 36, borderRadius: 8, border: "1px solid rgba(212,175,55,0.35)", background: "transparent", color: "#a99f86", cursor: "pointer" }}>All settings…</button>

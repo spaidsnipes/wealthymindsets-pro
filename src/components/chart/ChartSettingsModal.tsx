@@ -77,6 +77,9 @@ export interface ChartSettings {
   // Made lawful by appearanceLaw.lawfulSpeciesInks (never the field, never the
   // POC, never two species alike); a refused ink is named here, not hidden.
   profileSpeciesInk?: Partial<Record<ProfileSpeciesKey, string>>;
+  /** Per-tool line THICKNESS (appearanceLaw.lawfulLineWeight: 1 / 1.5 / 2 / 3). */
+  profileSpeciesWeight?: Partial<Record<ProfileSpeciesKey, number>>;
+  inventionWeight?: Partial<Record<InventionDialKey, number>>;
   /** The session-tape telemetry chip (LIVE TAPE · fidelity · Δ) over the chart. OFF unless the trader asks
    *  (Founder 2026-10-11: "remove the permanent telemetry-style display from the top of Market Home"). */
   tapeTelemetryChip?: boolean;

@@ -66,7 +66,7 @@ import { GLASS_NAME_MIN_PX, installTypeFloor } from "@/lib/chart/typeFloor";
 import { partitionVolumeIndicators } from "@/lib/chart/volumeIndicatorTruth";
 import { createLongPress } from "@/lib/chart/longPress";
 import { clampBubbleScale, clampWallThickness, footprintNumberPx, lawfulOrderLineLooks, lawfulSettings, volumeInk } from "@/lib/chart/appearanceLaw";
-import { drawingSpeciesAlpha, inksDistinct, lawfulSpeciesInks, layerDialOpacity, SPECIES_INK_DEFAULTS } from "@/lib/chart/appearanceLaw";
+import { drawingSpeciesAlpha, inksDistinct, lawfulSpeciesInks, layerDialOpacity, layerLineWeight, SPECIES_INK_DEFAULTS } from "@/lib/chart/appearanceLaw";
 import { DEFAULT_CHART_SETTINGS, FLOW_COLOR_DEFAULTS, VOLUME_COLOR_PICKER_DEFAULTS } from "./ChartSettingsModal";
 import { currentProofScene, proofCaptureOpen, proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { inspectedBarMark } from "@/lib/chart/inspectedBarMark";
@@ -789,6 +789,7 @@ import {
   VP_VALUE_AREA_DEFAULT,
   migrateVolumeProfilePalette,
 } from "@/lib/chart/marketFieldMaterial";
+import { installLineWeight } from "@/lib/chart/lineWeight";
 import { PROFILE_INK_AT_REST, PROFILE_STRENGTH_STORAGE_KEY, parseProfileStrength, resolveProfileInk, type ProfileStrength } from "@/lib/chart/profileFamilyInk";
 import { mergeIntoBands, rowsPerBand, PROFILE_ROW_MIN_PX } from "@/lib/chart/profileDisplayBands";
 // The legend headline steps past an open Workspace/Tools door (see openDoorEdge.ts).
@@ -1213,6 +1214,8 @@ interface Props {
     profileSpeciesOpacity?: Partial<Record<string, number>>;
     inventionOpacity?: Partial<Record<string, number>>;
     profileSpeciesInk?: Partial<Record<string, string>>;
+    profileSpeciesWeight?: Partial<Record<string, number>>;
+    inventionWeight?: Partial<Record<string, number>>;
     /** The session-tape telemetry chip over the chart (OFF unless the trader asks). */
     tapeTelemetryChip?: boolean;
     bubbleScale?: number; footprintNumberStep?: number; wallThickness?: number;
@@ -2292,6 +2295,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // governor, drawings at their paint site.
   const speciesOpacityRef = useRef<Record<string, number>>({});
   speciesOpacityRef.current = layerDialOpacity(chartSettings?.profileSpeciesOpacity, chartSettings?.inventionOpacity);
+  // Per-tool THICKNESS (2026-10-16): each governed layer's line-weight multiplier (lineWeight.ts).
+  const lineWeightRef = useRef<Record<string, number>>({});
+  lineWeightRef.current = layerLineWeight(chartSettings?.profileSpeciesWeight, chartSettings?.inventionWeight);
   const speciesDrawDialRef = useRef<{ FIXED_RANGE?: number; BID_ASK?: number }>({});
   speciesDrawDialRef.current = { FIXED_RANGE: chartSettings?.profileSpeciesOpacity?.FIXED_RANGE, BID_ASK: chartSettings?.profileSpeciesOpacity?.BID_ASK };
   // Slice B marks (Chart Settings › Marks), read by the paint loop; clamped in appearanceLaw.
@@ -8024,6 +8030,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // `gate=enforce` on the address withholds. The newest candles' column is
       // a blocker from the first word: last frame's until this frame measures.
       const wordGate = installWordGate(ctx);
+      const lineWeight = installLineWeight(ctx);
+      lineWeight.scale = 1;
       const wordGateMode = wordGateModeFor(window.location.search);
       const wordGateHeld: HeldWord[] = [];
       wordGate.beginFrame({ mode: wordGateMode, dpr, column: wordGateColumnRef.current, onHeld: w => { wordGateHeld.push(w); } });
@@ -8826,6 +8834,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       } catch (err) { layerFault("ATTENTION_FOCUS", err); /* camera mid-transition: no focus this frame */ }
       let att = selectAttentionGovernor({
         density: semanticDensity,
+        // The trader's per-tool THICKNESS: the layer about to paint sets the overlay's line weight.
+        onLayerAsk: k => { lineWeight.scale = lineWeightRef.current[k] ?? 1; },
         // The trader's opacity dials (Chart Settings › Layer Opacity), applied last, floored.
         userOpacity: userOpacityRef.current,
         speciesOpacity: speciesOpacityRef.current,
