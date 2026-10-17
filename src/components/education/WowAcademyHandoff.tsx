@@ -32,7 +32,7 @@ export function WowAcademyHandoff({ lessonId, from }: { lessonId: string | null;
           </button>
           {back ? (
             <a href={back} className="inline-flex h-12 items-center rounded-xl px-6 text-[13px] font-bold" style={{ border: "1px solid rgba(227,183,74,.45)", color: "#e3b74a" }}>
-              {returnLabel(back)}
+              ← Back to {returnLabel(back)}
             </a>
           ) : null}
         </div>
