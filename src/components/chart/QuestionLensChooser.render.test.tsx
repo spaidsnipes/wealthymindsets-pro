@@ -116,7 +116,9 @@ describe("the chooser itself", () => {
     const html = renderToStaticMarkup(chooser({ placement: "floating" }));
     expect(html).toContain('data-placement="floating"');
     expect(html).toMatch(/class="absolute /);
-    expect(html).toContain("top:min(532px, calc(100% - 96px))");
+    // 2026-10-17: closed, the chip rests in the question band (top 100), only as wide as its words.
+    expect(html).toContain("top:100px");
+    expect(html).toContain("width:auto");
     expect(html).not.toMatch(/\bhidden\b/);
     // L20 (2026-10-16): floating, it rests as one chip naming the question; a tap opens the list.
     expect(html).toContain('data-collapsed="true"');

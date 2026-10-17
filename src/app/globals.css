@@ -2852,7 +2852,9 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-chart-market-summary { display: contents !important; }
   body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-chart-market-summary .wm-fidelity-badge--chrome { margin-left: auto !important; }
   body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-chart-market-summary .wm-chart-header-price { order: 9; flex: 1 0 100%; font-size: 26px !important; line-height: 1.2 !important; letter-spacing: -0.01em; white-space: normal !important; }
-  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-chart-market-summary .wm-chart-header-change { display: inline !important; font-size: 13px !important; }
+  /* The change keeps its words together (phone 375, 2026-10-17: "vs prior 5m" / "bar" stranded the last word on a
+     row of its own — a whole header row for one word). It wraps as one unit, never inside itself. */
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-chart-market-summary .wm-chart-header-change { display: inline-block !important; font-size: 13px !important; white-space: nowrap !important; }
   body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-chart-market-summary .wm-chart-header-price-note { font-size: 13px; font-weight: 600; letter-spacing: 0.06em; opacity: 0.8; }
   /* …so the legend's copy of the symbol and price steps back (its status words stay). */
   .wm-chart-market-pane[data-market-primary="true"] :is([data-chart-identity], [data-legend-group="price"]) { display: none !important; }

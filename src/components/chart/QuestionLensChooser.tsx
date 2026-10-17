@@ -44,6 +44,18 @@ const FLOATING_STYLE: React.CSSProperties = {
   background: "rgba(11,10,8,0.92)",
 };
 
+/**
+ * The CLOSED chip is only as wide as its words, and it rests in the band the chart keeps free for the question
+ * (y 96–152: canvas cards and words already step around it). Phone 375, 2026-10-17: closed at the open list's spot,
+ * a 300px box sat over the lower indicator pane and its price label.
+ */
+const COLLAPSED_STYLE: React.CSSProperties = {
+  left: 12,
+  top: 100,
+  width: "auto",
+  background: "rgba(11,10,8,0.92)",
+};
+
 export function QuestionLensChooser(props: QuestionLensChooserProps) {
   // L20 (Garden 19, serving 455949c at 375px): floating over the chart, the eight questions + Raw stood over
   // the lower third of the candles. Floating, the chooser rests as ONE chip naming the question asked; a tap
@@ -57,7 +69,7 @@ function FloatingChooser(props: QuestionLensChooserProps) {
     const asked = QUESTION_CHOICES.find(c => c.id === props.choice)?.label ?? "Auto";
     return (
       <div role="radiogroup" aria-label="Ask the chart a question" data-testid="question-lens-chooser" data-placement={props.placement} data-collapsed="true"
-        className="absolute z-[60] flex items-center rounded-md border border-wm-gold/40 px-1 py-1" style={FLOATING_STYLE}>
+        className="absolute z-[60] flex items-center rounded-md border border-wm-gold/40 px-1 py-1" style={COLLAPSED_STYLE}>
         <button type="button" aria-expanded={false} data-testid="question-lens-open" onClick={() => setOpen(true)}
           className="min-h-7 rounded px-2 text-[13px] font-semibold text-wm-gold">
           Ask · {asked} ▾
