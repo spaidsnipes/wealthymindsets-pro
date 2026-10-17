@@ -29124,9 +29124,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           let placedTags = 0;
           let overlapTags = 0;
           for (const t of [...axisLevelTags].sort((a, b) => a.y - b.y)) {
-            let ty = t.y;
+            // An off-camera level searches from the pane's EDGE, not from its own far row (phone 375 BTC, 2026-10-17:
+            // "▼ LIVING POC" and "▼ LIVING VAL" both sat beyond the 12-step search and were forced onto one row).
+            const t0 = Math.max(tagH / 2, Math.min(pane0Bottom - tagH / 2, t.y));
+            let ty = t0;
             for (let k = 1; !free(ty) && k < 12; k++) {
-              const up = t.y - k * (tagH / 2 + 1), dn = t.y + k * (tagH / 2 + 1);
+              const up = t0 - k * (tagH / 2 + 1), dn = t0 + k * (tagH / 2 + 1);
               if (free(dn)) { ty = dn; break; }
               if (free(up)) { ty = up; break; }
             }
@@ -29139,7 +29142,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.fillStyle = "#0b0a08"; ctx.fillRect(x, ty - tagH / 2, w, tagH);
             ctx.fillStyle = t.ink; ctx.fillRect(x, ty - tagH / 2, w, tagH);
             // a hairline from the tag's edge to the level's own row when it had to step
-            if (Math.abs(ty - t.y) > 1) { ctx.strokeStyle = t.ink; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x - 1, ty); ctx.lineTo(x - 6, t.y); ctx.stroke(); }
+            if (Math.abs(ty - t.y) > 1 && t0 === t.y) { ctx.strokeStyle = t.ink; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x - 1, ty); ctx.lineTo(x - 6, t.y); ctx.stroke(); }
             ctx.fillStyle = "rgba(11,10,8,0.95)";
             ctx.fillText(t.text, x + 4, ty + 0.5);
             taken.push({ y0: ty - tagH / 2, y1: ty + tagH / 2 });
