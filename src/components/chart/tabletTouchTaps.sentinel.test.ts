@@ -17,7 +17,9 @@ describe("a tablet finger drives the chart", () => {
     expect(SRC).toContain("if (fingers.size > 1) { dragging = false; return; }");
   });
   it("a chart toggle fires on the finger's release and the late click is swallowed", () => {
-    expect(SRC).toContain('closest?.("button[aria-pressed]")');
+    // 2026-10-17 second pass: every chart button, never an order line, broker tag or trade control.
+    expect(SRC).toContain('const b = (e.target as Element | null)?.closest?.("button");');
+    expect(SRC).toContain('[data-testid*="order"], [data-testid*="ticket"], [data-testid*="trade"]');
     expect(SRC).toContain("swallow = { btn: p.btn, until: performance.now() + 800 };");
     expect(SRC).toContain("if (!swallow || !e.isTrusted) return;");
   });

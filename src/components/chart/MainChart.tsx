@@ -7655,8 +7655,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     let swallow: { btn: Element; until: number } | null = null;
     const down = (e: PointerEvent) => {
       if (e.pointerType !== "touch") return;
-      const b = (e.target as Element | null)?.closest?.("button[aria-pressed]");
-      pressed = b instanceof HTMLButtonElement && root.contains(b) ? { id: e.pointerId, x: e.clientX, y: e.clientY, btn: b } : null;
+      // Every chart button, not only toggles (2026-10-17, second pass: the timeframe chip and the room's chips sit
+      // under the same hover-driven repaint) — never an order line, a broker tag or anything that trades.
+      const b = (e.target as Element | null)?.closest?.("button");
+      const trades = !!b?.closest?.('[data-order-line], [data-testid="draft-line-handle"], [data-testid="broker-line-tag"], [data-testid*="order"], [data-testid*="ticket"], [data-testid*="trade"]');
+      pressed = b instanceof HTMLButtonElement && root.contains(b) && !trades ? { id: e.pointerId, x: e.clientX, y: e.clientY, btn: b } : null;
     };
     const up = (e: PointerEvent) => {
       const p = pressed; pressed = null;
