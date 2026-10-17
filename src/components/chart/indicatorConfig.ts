@@ -128,6 +128,15 @@ export function isConfigurable(name: string): boolean {
   return name in INDICATOR_CONFIG;
 }
 
+/**
+ * Every indicator has a style (Founder 2026-10-16): one not in the table above gets the main line's colour here,
+ * and the modal's Style tab (width / style / visibility). MainChart applies it to the series that indicator adds.
+ */
+export const GENERIC_INDICATOR_CONFIG: IndConfig = { fields: [{ key: "color", label: "Main line colour", type: "color" }], defaults: {} };
+export function configFor(name: string): IndConfig | null {
+  return INDICATOR_CONFIG[name] ?? (name.trim() ? GENERIC_INDICATOR_CONFIG : null);
+}
+
 /** True if `name` should render at the given timeframe per its visibility map. */
 export function visibleAtTf(params: IndicatorParams | undefined, tf: string): boolean {
   const v = params?.visibility;

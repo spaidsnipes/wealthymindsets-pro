@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import { clsx } from "clsx";
 import { type ChartLayout } from "./ChartLayoutManager";
-import { isConfigurable } from "./indicatorConfig";
 import { InventionInfoButton, InventionPreview } from "./InventionInfo";
 import { INDICATOR_EDUCATION, indicatorEducationId } from "@/lib/chart/indicatorEducation";
 import { REPLAY_EDUCATION, REPLAY_EDUCATION_ID } from "@/lib/chart/surfaceEducation";
@@ -1428,8 +1427,8 @@ export function ChartToolbar({
                         <InventionInfoButton scope="ind" id={indicatorEducationId(ind.name)} label={ind.name} open={showDesc}
                           onToggle={() => setDescOpen(prev => (prev.has(ind.name) ? new Set() : new Set([ind.name])))} />
 
-                        {/* settings gear — only for configurable indicators */}
-                        {isConfigurable(ind.name) && onIndicatorSettings && (
+                        {/* settings gear — every indicator has a style (colour, width, style, visibility); 2026-10-16 */}
+                        {onIndicatorSettings && (
                           <button
                             onClick={e => { e.stopPropagation(); onIndicatorSettings(ind.name); }}
                             title="Indicator settings"

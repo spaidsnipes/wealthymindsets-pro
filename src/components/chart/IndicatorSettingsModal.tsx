@@ -4,7 +4,7 @@ import React, { useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { X, RotateCcw } from "lucide-react";
 import {
-  INDICATOR_CONFIG, resolveParams, TF_GROUPS,
+  configFor, resolveParams, TF_GROUPS,
   type IndicatorParams, type IndicatorSettings, type TfGroup,
 } from "./indicatorConfig";
 import { SchemePresets } from "./SchemePresets";
@@ -33,7 +33,7 @@ export function IndicatorSettingsModal({
   onClose: () => void;
 }) {
   const dlgRef = useRef<HTMLDivElement>(null);
-  const cfg = INDICATOR_CONFIG[name];
+  const cfg = configFor(name);
   const [local, setLocal] = useState<IndicatorParams>(() => resolveParams(name, settings));
   const [tab, setTab] = useState<Tab>("inputs");
 

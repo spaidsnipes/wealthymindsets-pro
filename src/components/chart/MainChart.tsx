@@ -23,7 +23,7 @@ import { barTimeContaining } from "@/lib/desk/deskLinkBus";
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import type { FootprintType, CandleType } from "./ChartsDashboard";
-import { resolveParams, visibleAtTf, type IndicatorSettings } from "./indicatorConfig";
+import { INDICATOR_CONFIG, resolveParams, visibleAtTf, type IndicatorSettings } from "./indicatorConfig";
 import { parseExchangeSymbol } from "@/lib/exchanges";
 import { canonicalAssetClass, canonicalInstrumentId, cryptoBaseTicker, marketClockET } from "@/lib/marketData/canonicalIdentity";
 import { DataVersionGuard } from "@/lib/chartContext";
@@ -5758,7 +5758,28 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     // adds no series at all, and its silence is said once in the silence stack.
     const volGate = partitionVolumeIndicators(activeInds ?? [], symbol, bars);
     volGateRef.current = volGate;
-    const inds   = new Set<string>([...(activeInds ?? new Set<string>())].filter(n => !volGate.withheld.includes(n)));
+    // EVERY INDICATOR HAS A STYLE (Founder 2026-10-16: "indicators should have that too … like TradingView … change
+    // the colors, make it thicker"). The 23 configured indicators read their params at their own sites; for every
+    // other one, the series it adds take the trader's stored colour (main line) and width/style. `inds.has(name)`
+    // is how each block starts, so it names the indicator the next series belong to.
+    let curInd: string | null = null;
+    const indLineN = new Map<string, number>();
+    class IndicatorSet extends Set<string> {
+      override has(n: string): boolean { const r = super.has(n); curInd = r ? n : null; return r; }
+    }
+    const styleInd = (series: { applyOptions: (o: Record<string, unknown>) => void } | null, refLineOnly = false) => {
+      if (!series || refLineOnly || !curInd || curInd in INDICATOR_CONFIG) return;
+      const o = indSettings?.[curInd];
+      if (!o) return;
+      const k = indLineN.get(curInd) ?? 0;
+      indLineN.set(curInd, k + 1);
+      const opt: Record<string, unknown> = {};
+      if (o.lineWidth) opt.lineWidth = o.lineWidth;
+      if (o.lineStyle != null) opt.lineStyle = o.lineStyle;
+      if (k === 0 && o.color) opt.color = o.color;
+      if (Object.keys(opt).length) { try { series.applyOptions(opt); } catch { /* option not for this series */ } }
+    };
+    const inds   = new IndicatorSet([...(activeInds ?? new Set<string>())].filter(n => !volGate.withheld.includes(n)));
     paneSeriesRef.current = new Map();
     paneLastRef.current = new Map();
     levelTitlesRef.current = [];
@@ -5776,6 +5797,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const s = chart.addSeries(LW.LineSeries,{ color, lineWidth: width, lineStyle: style, priceLineVisible: false, lastValueVisible: lastVal, crosshairMarkerVisible: false, priceFormat: overlayPriceFormat });
         s.setData(bars.map((b, i) => ({ time: b.time as any, value: vals[i] })).filter(d => isFinite(d.value)));
         indSeriesRef.current.push(s);
+        styleInd(s as never);
         return s;
       } catch { return null; }
     };
@@ -5839,6 +5861,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const s = chart.addSeries(LW.LineSeries, { color, lineWidth: width, lineStyle: dashed ? LW.LineStyle.Dashed : LW.LineStyle.Solid, priceLineVisible: false, lastValueVisible: !dashed, crosshairMarkerVisible: false }, paneFor(scaleId));
         s.setData(bars.map((b, i) => ({ time: b.time as any, value: vals[i] })).filter(d => isFinite(d.value)));
         indSeriesRef.current.push(s);
+        styleInd(s as never, dashed);
         if (!dashed && !paneSeriesRef.current.has(scaleId)) { paneSeriesRef.current.set(scaleId, s); const lv = [...vals].reverse().find(v => isFinite(v)); if (lv != null) paneLastRef.current.set(scaleId, lv); }
         return s;
       } catch { return null; }
@@ -5850,6 +5873,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const s = chart.addSeries(LW.HistogramSeries, { priceLineVisible: false, lastValueVisible: true }, paneFor(scaleId));
         s.setData(bars.map((b, i) => ({ time: b.time as any, value: vals[i], color: Array.isArray(colors) ? colors[i] : colors })).filter(d => isFinite(d.value)));
         indSeriesRef.current.push(s);
+        styleInd(s as never);
         if (!paneSeriesRef.current.has(scaleId)) { paneSeriesRef.current.set(scaleId, s); const lv = [...vals].reverse().find(v => isFinite(v)); if (lv != null) paneLastRef.current.set(scaleId, lv); }
         return s;
       } catch { return null; }

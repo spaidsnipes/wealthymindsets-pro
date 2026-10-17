@@ -222,7 +222,8 @@ describe("the chart menu on iPhone / iPad, handles clear of the phone ticket she
     expect(gate).toBeGreaterThan(0);
     const firstAdd = CHART.indexOf("chart.addSeries(LW.LineSeries", gate - 4000);
     expect(firstAdd).toBeGreaterThan(gate);
-    expect(CHART).toContain("const inds   = new Set<string>([...(activeInds ?? new Set<string>())].filter(n => !volGate.withheld.includes(n)));");
+    // Restated 2026-10-16: the set also names the indicator each new series belongs to (IndicatorSet → styleInd).
+    expect(CHART).toContain("const inds   = new IndicatorSet([...(activeInds ?? new Set<string>())].filter(n => !volGate.withheld.includes(n)));");
     expect(CHART).toContain("canvas.dataset.volumeIndicatorsWithheld = vg.receipt;");
     expect(CHART).toContain("ctx.fillText(fitSilence(vg.silence.words), silenceX, yV);");
   });
