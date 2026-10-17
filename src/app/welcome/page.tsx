@@ -144,11 +144,17 @@ export default function WelcomePage() {
             <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Simulated ${m.id} sample chart, ${view.toLowerCase()} view`} style={{ width: "100%", height: "auto", display: "block" }}>
               {view === "PROFILE" && (
                 <g>
-                  <rect x={0} y={y(prof.vah)} width={plotW} height={y(prof.val) - y(prof.vah)} fill="rgba(201,165,92,0.08)" />
+                  <rect x={0} y={y(prof.vah)} width={plotW} height={y(prof.val) - y(prof.vah)} fill="rgba(232,196,104,0.1)" />
+                  {/* The product's Living Profile ink, lit (Founder 2026-10-17: the sample profile read dull brown beside the
+                      bright gold the product paints) — value-area rows bright gold, the rest a quieter gold, POC brightest. */}
                   {prof.vol.map((v, r) => {
                     const max = Math.max(...prof.vol);
                     const top = y(prof.lo + (r + 1) * prof.size), bot = y(prof.lo + r * prof.size);
-                    return <rect key={r} x={plotW + 6} y={top} width={(v / max) * (lane - 12)} height={Math.max(1, bot - top - 1)} fill="rgba(201,165,92,0.28)" />;
+                    const mid = prof.lo + (r + 0.5) * prof.size;
+                    const inVA = mid >= prof.val && mid <= prof.vah;
+                    const isPoc = prof.poc >= prof.lo + r * prof.size && prof.poc < prof.lo + (r + 1) * prof.size;
+                    const fill = isPoc ? "#f3d78a" : inVA ? "rgba(232,196,104,0.9)" : "rgba(232,196,104,0.5)";
+                    return <rect key={r} x={plotW + 6} y={top} width={(v / max) * (lane - 12)} height={Math.max(1, bot - top - 1)} fill={fill} />;
                   })}
                   <line x1={0} x2={plotW + lane} y1={y(prof.poc)} y2={y(prof.poc)} stroke={GOLD} strokeDasharray="5 4" />
                 </g>
