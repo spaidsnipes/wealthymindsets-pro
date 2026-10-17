@@ -37,6 +37,7 @@ import { persistAcademyNote, readAcademyNote } from "@/lib/educationNotesStorage
 import { persistAcademyProgress } from "@/lib/educationProgressStorage";
 import { WOW_ORIGIN } from "@/lib/passport/wowBridge";
 import { openWowWorld } from "@/lib/passport/openWowWorld";
+import { WowAcademyHandoff } from "@/components/education/WowAcademyHandoff";
 import { useShellModalFocus } from "@/components/layout/useShellModalFocus";
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
@@ -621,7 +622,7 @@ const ACADEMY_SCROLL: React.CSSProperties = { scrollbarWidth: "thin", scrollbarC
 /* ── Main ────────────────────────────────────────────────── */
 const EDU_KEY = "wm_edu_progress";
 
-export default function EducationPage() {
+function LegacyEducationPage() {
   // This room carries no market feed. See /lounge for the measurement and
   // why silence must be declared rather than inferred.
   usePublishOsStanding({ surface: "Academy", feed: FEEDLESS_SURFACE });
@@ -1033,4 +1034,18 @@ export default function EducationPage() {
       </div>
     </div>
   );
+}
+
+/**
+ * /education is the door to WOW Academy (one education owner, Founder 2026-10-17). The older catalogue
+ * renders only with ?stay=1 or inside the education proof scene, which pins its own fixture.
+ */
+export default function EducationPage() {
+  const [view, setView] = useState<{ legacy: boolean; lesson: string | null; from: string | null } | null>(null);
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    setView({ legacy: q.get("stay") === "1" || proofFixtureScene(window.location.search) === "education-fixture", lesson: q.get("lesson"), from: q.get("from") });
+  }, []);
+  if (!view) return null;
+  return view.legacy ? <LegacyEducationPage /> : <WowAcademyHandoff lessonId={view.lesson} from={view.from} />;
 }

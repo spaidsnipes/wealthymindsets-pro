@@ -25,6 +25,8 @@
  * Escape closes the panel only (the drawer stays open) and focus returns to ⓘ.
  */
 
+import { openWowWorld } from "@/lib/passport/openWowWorld";
+import { wowAcademyPath, lessonIdFromHref } from "@/lib/academy/wowAcademyPath";
 import { toolSimpleFor } from "@/lib/academy/toolSimple";
 import React, { useEffect, useRef } from "react";
 import { educationFor, type EducationTruth } from "@/lib/chart/inventionEducation";
@@ -211,9 +213,11 @@ export function InventionPreview({ scope, id, label, what, familyWord, symbol, t
       {/* A taught concept carries its Academy lesson (CONCEPT_EDUCATION, e.g. FVG → fvg-1). */}
       {"academy" in edu && (edu as { academy?: { href: string; title: string } }).academy ? (
         <a href={(edu as { academy: { href: string } }).academy.href} data-testid="edu-academy"
+          target="_blank" rel="noopener"
+          onClick={(ev) => { if (ev.metaKey || ev.ctrlKey || ev.shiftKey) return; ev.preventDefault(); openWowWorld(wowAcademyPath(lessonIdFromHref((edu as { academy: { href: string } }).academy.href))); }}
           className="mt-2 inline-block text-[11.5px] font-semibold underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold"
           style={{ color: GOLD }}>
-          Academy · learn {(edu as { academy: { title: string } }).academy.title} — full + simple ›
+          WOW Academy · learn {(edu as { academy: { title: string } }).academy.title} — full + simple ↗
         </a>
       ) : null}
 
