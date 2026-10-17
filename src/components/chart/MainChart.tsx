@@ -10427,7 +10427,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           cardsAP.push(r);
           // …and the frame's shared ledger, so every later word steps around it (phone 375, 2026-10-17: the walls &
           // gamma disclosure printed over "Aggressive: market orders pushing" and "Sellers held 4×, then broke").
-          forceChips.push({ ...r });
+          // Through the late-bound ledger: this painter runs after the frame's chip ledger was copied from forceChips.
+          (silenceObstacles() as { x: number; y: number; w: number; h: number }[]).push({ ...r });
           forceChips.push(r);
         };
         ctx.save();
