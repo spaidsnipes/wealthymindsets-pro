@@ -101,8 +101,10 @@ describe("Plate 24 (2026-10-15, supersedes M46's one-cell text) · Bid × Ask is
   it("an untraded row is blank; bid in the left half on the sell ink, ask in the right half on the buy ink; a number that does not fit is dropped", () => {
     const b = bidAsk();
     expect(b).toContain("if (!(lv.total > 0)) return;");
-    expect(b).toContain("if (fitsHalf(bt)) { cellNum(bt, gx + halfC - 4, rowY + rH / 2, \"right\", fsG); cellText++; }");
-    expect(b).toContain("if (fitsHalf(at)) { cellNum(at, gx + halfC + 4, rowY + rH / 2, \"left\", fsG); cellText++; }");
+    // 2026-10-17: crypto cells print US dollars traded and flag the unit for the delta row's tag.
+    expect(b).toContain("if (fitsHalf(bt)) { cellNum(bt, gx + halfC - 4, rowY + rH / 2, \"right\", fsG); cellText++;");
+    expect(b).toContain("if (fitsHalf(at)) { cellNum(at, gx + halfC + 4, rowY + rH / 2, \"left\", fsG); cellText++;");
+    expect(b).toContain("const bt = usdCells ? fmtUsdCell(lv.bid * lv.priceLevel) : gridV(lv.bid);");
     expect(b).toContain("const fitsHalf = (t: string) => numbersFit && ctx.measureText(t).width <= halfC - 5;");
     expect(b).toContain("const askImb = !!below && imb(lv.ask, below.bid);");
   });

@@ -2102,6 +2102,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   chartSettingsRef.current = chartSettings;
   const containerRef  = useRef<HTMLDivElement>(null);
   const wrapRef       = useRef<HTMLDivElement>(null);
+  /** This frame's footprint grid printed crypto cells in US dollars traded (the delta row's tag names the unit). */
+  const fpUsdCellsRef = useRef(false);
   const canvasRef     = useRef<HTMLCanvasElement>(null);
   // `debug=fold` on the address: the live fold writes its receipt (liveFoldTail).
   const foldDebugRef  = useRef<boolean>(typeof window !== "undefined" && /(?:^|[?&])debug=fold(?:&|$)/.test(window.location.search));
@@ -9556,6 +9558,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       ══════════════════════════════════════════════════════ */
       try { if (effectiveFP === "bid-ask") {
         let cellText = 0, deltaText = 0;
+        // CRYPTO CELLS IN DOLLARS TRADED (BTC 1m, 2026-10-17: most rows trade < 0.005 BTC, so the grid printed
+        // "<.01" or nothing). A crypto cell's number is its side's size × its row's own price, in US dollars
+        // ("277", "1.2k"); the delta row's tag says "cells: $ traded" whenever this grid printed one.
+        const usdCells = classifySymbol(symbol) === "CRYPTO";
+        const fmtUsdCell = (n: number) => !(n > 0) ? "0" : n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 10_000 ? `${Math.round(n / 1000)}k` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${Math.round(n)}`;
+        fpUsdCellsRef.current = false;
         ctx.save();
         ctx.globalAlpha = att.alpha("footprint");
         visibleBars.forEach(c => {
@@ -9646,9 +9654,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // A fraction drops its leading zero in the grid (".12", the footprint convention): BTC 1m on serving
               // fea156c painted no number at all — "0.12" is wider than a 27px half at 13px, and the rule drops it.
               const gridV = (v: number) => { const t = fmtV(v); return t.startsWith("0.") ? t.slice(1) : t.startsWith("<0.") ? `<${t.slice(2)}` : t; };
-              const bt = gridV(lv.bid), at = gridV(lv.ask);
-              if (fitsHalf(bt)) { cellNum(bt, gx + halfC - 4, rowY + rH / 2, "right", fsG); cellText++; }
-              if (fitsHalf(at)) { cellNum(at, gx + halfC + 4, rowY + rH / 2, "left", fsG); cellText++; }
+              const bt = usdCells ? fmtUsdCell(lv.bid * lv.priceLevel) : gridV(lv.bid);
+              const at = usdCells ? fmtUsdCell(lv.ask * lv.priceLevel) : gridV(lv.ask);
+              if (fitsHalf(bt)) { cellNum(bt, gx + halfC - 4, rowY + rH / 2, "right", fsG); cellText++; if (usdCells && bt !== "0") fpUsdCellsRef.current = true; }
+              if (fitsHalf(at)) { cellNum(at, gx + halfC + 4, rowY + rH / 2, "left", fsG); cellText++; if (usdCells && at !== "0") fpUsdCellsRef.current = true; }
             }
           });
           if (gridLevels[gPoc] && gridLevels[gPoc].total > 0) {
@@ -9689,6 +9698,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         });
         ctx.restore();
         canvas.dataset.fpCellText = String(cellText);
+        canvas.dataset.fpCellUnit = fpUsdCellsRef.current ? "USD_TRADED" : "SIZE";
         canvas.dataset.fpDeltaText = String(deltaText);
       } } catch (err) { layerFault("FP_BID_ASK", err); }
 
@@ -11348,7 +11358,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const basisD = weakestAggressorProvenance(sawP, sawI, sawU);
           const chipD = aggressorProvenanceNote(basisD)?.chip;
           const sidesShown = pickD.filter(p => p.r.viaSides).length;
-          const tagD = `Δ${chipD ? ` · ${chipD}` : ""}${sidesShown ? ` · ${sidesShown === pickD.length ? "" : "older "}bars: provider bid / ask` : ""}${strideD > 1 ? ` · 1 IN ${strideD} BARS` : ""}`;
+          const tagD = `Δ${chipD ? ` · ${chipD}` : ""}${sidesShown ? ` · ${sidesShown === pickD.length ? "" : "older "}bars: provider bid / ask` : ""}${strideD > 1 ? ` · 1 IN ${strideD} BARS` : ""}${fpUsdCellsRef.current && effectiveFP === "bid-ask" ? " · cells: $ traded" : ""}`;
           ctx.font = marketFont("OBJECT_NAME");
           const tagW = ctx.measureText(tagD).width + 4, tagY = yD - 20;
           const tagX = [6, plotRight - tagW - 6].find(x => !hitD(x, tagY, tagW, 12));
