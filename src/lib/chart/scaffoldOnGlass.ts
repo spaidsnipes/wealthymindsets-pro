@@ -65,6 +65,7 @@ export function paintScaffoldOnGlass(ctx: Ctx, g: ScaffoldGlassInput): ScaffoldG
   const rects: GlassBox[] = [];
   const listed: { text: string; x: number; y: number }[] = [];
   const listedWhy: string[] = [];
+  let discOnly = 0;
   const foundation = g.depth === "FOUNDATION";
   let painted = 0;
   const inPlot = (r: GlassBox) => r.x >= plot.x0 && r.x + r.w <= plot.x1 && r.y >= plot.y0 && r.y + r.h <= plot.y1;
@@ -100,7 +101,25 @@ export function paintScaffoldOnGlass(ctx: Ctx, g: ScaffoldGlassInput): ScaffoldG
     }
     rail.sort((p, q) => Math.hypot(p.x + p.w / 2 - ax, p.y + p.h / 2 - ay) - Math.hypot(q.x + q.w / 2 - ax, q.y + q.h / 2 - ay));
     const r = cands.find(c => inPlot(c) && !hits(c, taken)) ?? rail.find(c => inPlot(c) && !hits(c, taken));
-    if (!r) { listed.push({ text: `${title} — ${sub}`, x: ax, y: ay }); listedWhy.push(`${n ?? "-"}:${w}x${h}`); return false; }
+    if (!r) {
+      listed.push({ text: `${title} — ${sub}`, x: ax, y: ay }); listedWhy.push(`${n ?? "-"}:${w}x${h}`);
+      // Phone: the words are listed, but the step's numbered disc still stands on its evidence (18px, clear of candles).
+      if (compact && n != null) {
+        const d = [[10, -26], [-28, -26], [10, 8], [-28, 8], [-9, -34], [-9, 16]].map(([dx, dy]) => ({ x: Math.round(ax + dx), y: Math.round(ay + dy), w: 18, h: 18 }))
+          .find(c => inPlot(c) && !hits(c, taken));
+        if (d) {
+          ctx.save();
+          ctx.beginPath(); ctx.arc(d.x + 9, d.y + 9, 8.5, 0, Math.PI * 2); ctx.fillStyle = "rgba(8,7,6,1)"; ctx.fill();
+          ctx.strokeStyle = rgba(ink, 1); ctx.lineWidth = 2; ctx.stroke();
+          ctx.fillStyle = rgba(ink, 1); ctx.font = `800 10.5px ${g.sans}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.fillText(String(n), d.x + 9, d.y + 9.5);
+          ctx.restore();
+          taken.push(d); rects.push(d); discOnly++;
+          return true;
+        }
+      }
+      return false;
+    }
     // Leader: anchor → nearest edge of the tag.
     const ex = ax < r.x ? r.x : ax > r.x + r.w ? r.x + r.w : ax;
     const ey = ay < r.y ? r.y : ay > r.y + r.h ? r.y + r.h : ay;
@@ -329,5 +348,5 @@ export function paintScaffoldOnGlass(ctx: Ctx, g: ScaffoldGlassInput): ScaffoldG
   }
 
   const expected = foundation ? 6 : 4;
-  return { receipt: `GLASS:${g.depth}|STEPS:${painted}/${expected}|LISTED:${listed.length}${listedWhy.length ? `[${listedWhy.join(",")}]` : ""}|PLOT:${Math.round(plot.x0)},${Math.round(plot.y0)},${Math.round(plot.x1)},${Math.round(plot.y1)}`, rects, listed };
+  return { receipt: `GLASS:${g.depth}|STEPS:${painted}/${expected}|LISTED:${listed.length}${discOnly ? `|DISC:${discOnly}` : ""}${listedWhy.length ? `[${listedWhy.join(",")}]` : ""}|PLOT:${Math.round(plot.x0)},${Math.round(plot.y0)},${Math.round(plot.x1)},${Math.round(plot.y1)}`, rects, listed };
 }
