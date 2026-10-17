@@ -29448,7 +29448,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const fr = edgeBeaconFrameRef.current, dsB = canvasRef.current?.dataset;
         if (!fr || !edgeBeaconCandsRef.current.length) { if (dsB) dsB.edgeBeacons = "NONE"; return; }
         const host = canvas.parentElement, hr = host?.getBoundingClientRect();
-        const slops = host && hr ? [...host.querySelectorAll(".wm-tap-slop")].map(el => el.getBoundingClientRect()).filter(b => b.width > 0 && b.height > 0).map(b => ({ x: b.left - hr.left, y: b.top - hr.top, w: b.width, h: b.height })) : [];
+        const slops = host && hr ? [...host.querySelectorAll('.wm-tap-slop, [data-testid="event-note-anchor"]')].map(el => el.getBoundingClientRect()).filter(b => b.width > 0 && b.height > 0).map(b => ({ x: b.left - hr.left, y: b.top - hr.top, w: b.width, h: b.height })) : [];
         // A beacon is an opaque card: its pill is declared on top before its words paint, so the word gate
         // never holds them (serving 82e12a2…eb2a112, NQ1! 15m: the gate held "▲ Call wall 30,200 +1 · Show me"
         // and left an empty pill).
@@ -29457,6 +29457,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // Lens's question and its "0/4 PAID · WAIT" line). The registry's rects are this frame's words.
         let wordRects: { x: number; y: number; w: number; h: number }[] = [];
         try { wordRects = wordGate.rects().map(q => ({ x: q.x, y: q.y, w: q.w, h: q.h })); } catch { /* no registry this frame */ }
+        // The event-note sentence pills are DOM buttons too (iPhone 17 Pro, Brick Walls alone, 2026-10-17: "50 calls at
+        // 75,000 sold" sat on "▲ Call wall 90,000 · Show me") — the query above takes them with the tap slops.
         const placed = paintEdgeBeacons(ctx, chooseBeacons(edgeBeaconCandsRef.current, fr.spot), fr, [...slops, ...wordRects, ...(fr.avoid ?? [])], beaconCard);
         for (const p of placed) {
           const lead = p.choice.lead;
