@@ -14621,6 +14621,18 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       const floatingChips: { x: number; y: number; w: number; h: number }[] = [...forceChips];
       silenceObstacles = () => floatingChips;
       if (candleTimerRect) floatingChips.push(candleTimerRect);
+      // THE GLASS'S SEAT, FROM LAST FRAME (all-on stress, 2026-10-17: "ABSORPTION SHELF · Force is hitting…" and the
+      // EFFORT words were placed before the Weather lens painted, then sat under its glass as smudge). Words placed
+      // earlier in the frame step around where the lens stood last frame; the seat is taken back out of the ledger
+      // the moment the lens block begins, so the lens's own title and readout are placed exactly as before.
+      let lensSeat: { x: number; y: number; w: number; h: number } | null = null;
+      {
+        const seat = weatherLensHitRef.current;
+        if (seat) {
+          lensSeat = { x: seat.cx - seat.rx - LENS_BEZEL_W, y: seat.cy - seat.ry - LENS_BEZEL_W, w: 2 * (seat.rx + LENS_BEZEL_W), h: 2 * (seat.ry + LENS_BEZEL_W) };
+          floatingChips.push(lensSeat);
+        }
+      }
       // LEVEL NAMES ON THE AXIS (serving ES1! 5m, Oct 16): the library draws "PDH" in a red pill just left
       // of the price axis; the regime title took its right-edge slot and covered "PD" ("H 7808.00"). Each
       // level's name is an obstacle every later word steps around.
@@ -26785,6 +26797,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                       preferring a slot no candle body sits under.
            Nothing is printed in the bottom-left corner. */
         {
+          if (lensSeat) { const ix = floatingChips.indexOf(lensSeat); if (ix >= 0) floatingChips.splice(ix, 1); lensSeat = null; }
           const L = weatherLens;
           ds.liquidityWeatherLensState = weatherLensWhy;
           weatherLensHitRef.current = null;
