@@ -108,6 +108,11 @@ export function HeatLensGauge({ vm }: { vm: HeatLensVM }) {
           {missing.join(" + ")} not measured
         </span>
       )}
+      {/* What the two needles MEAN (Founder 2026-10-16: "what is persistence? response? … it doesn't say"). */}
+      <span data-testid="heat-gauge-explain" style={{ flexBasis: "100%", textTransform: "none", letterSpacing: 0, fontSize: 11.5, lineHeight: "15px", color: "#cfc6b0" }}>
+        <b style={{ color: GOLD }}>Persistence</b> — how steadily these prices stay crowded with orders (1.00 = always there, 0 = gone).{" "}
+        <b style={{ color: GOLD }}>Response</b> — how far price moved for the trading it took, against normal (1.00× = normal; under 1 = something is blocking).
+      </span>
     </div>
   );
 }
