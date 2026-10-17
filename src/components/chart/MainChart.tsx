@@ -27097,10 +27097,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const bodyHit = (r: { x: number; y: number; w: number; h: number }) =>
               rowBodiesAt(r.y, r.y + r.h).some(b => r.x < b.x + b.w && r.x + r.w > b.x);
             const slotsFor = (rw: number, rh: number) => [
-              { x: L.cx - L.rx - 14 - rw, y: L.cy - rh / 2, w: rw, h: rh },
+              // Clear of the BEZEL, not just the glass (BTC 5m, 2026-10-17: the card's gauges ran under the rim).
+              { x: L.cx - L.rx - LENS_BEZEL_W - 8 - rw, y: L.cy - rh / 2, w: rw, h: rh },
               { x: L.cx - L.rx * 0.7 - rw, y: L.cy + L.ry * 0.7 + 8, w: rw, h: rh },
               { x: L.cx - L.rx * 0.7 - rw, y: L.cy - L.ry * 0.7 - 8 - rh, w: rw, h: rh },
-              { x: L.cx + L.rx + 14, y: L.cy - rh / 2, w: rw, h: rh },
+              { x: L.cx + L.rx + LENS_BEZEL_W + 8, y: L.cy - rh / 2, w: rw, h: rh },
               { x: L.cx - rw / 2, y: L.cy + L.ry + 20, w: rw, h: rh },
               { x: L.cx - rw / 2, y: L.cy - L.ry - 24 - rh, w: rw, h: rh },
             ].filter(inPlot);
@@ -27115,12 +27116,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const roValueW = (px: number) => Math.max(roMeasure(marketFont("OBJECT_NAME", px), [`● ${glass.stage}`]), roMeasure(marketFont("MICRO_NUMBER", px), readRows.map(r => r.v)));
             const roValX = (bigCard: boolean) => Math.max(bigCard ? 100 : 74, roLabelW(bigCard ? 10 : 9) + 14);
             const roW = (bigCard: boolean) => Math.max(bigCard ? 208 : 178, roValX(bigCard) + roValueW(bigCard ? 11 : 9) + 8 + (bigCard ? 46 : 34) + 6);
-            const largeSlots = slotsFor(roW(true), 8 + 4 * 16 + 6);
+            // Rows hold the glass floor as it PAINTS (13px names; BTC 5m 2026-10-17: 15px rows, labels touching).
+            const RO_ROW_BIG = Math.max(16, GLASS_NAME_MIN_PX + 5), RO_ROW_SMALL = Math.max(15, GLASS_NAME_MIN_PX + 5);
+            const largeSlots = slotsFor(roW(true), 8 + 4 * RO_ROW_BIG + 6);
             const largeQuiet = quietIn(largeSlots);
             const big = largeQuiet != null;
-            const RO_ROW = big ? 16 : 15, RO_VAL_X = roValX(big), RO_BAR = big ? 46 : 34;
+            const RO_ROW = big ? RO_ROW_BIG : RO_ROW_SMALL, RO_VAL_X = roValX(big), RO_BAR = big ? 46 : 34;
             const RO_LABEL_PX = big ? 10 : 9, RO_VALUE_PX = big ? 11 : 9, RO_TITLE_PX = big ? 11 : 9;
-            const slots = big ? largeSlots : slotsFor(roW(false), 6 + 4 * 15 + 4);
+            const slots = big ? largeSlots : slotsFor(roW(false), 6 + 4 * RO_ROW_SMALL + 4);
             const quiet = big ? largeQuiet : quietIn(slots);
             const spot = quiet
               ? { mode: quiet === slots[0] ? "CLEAR" as const : "MOVED" as const, rect: quiet, onCandles: false, displaced: quiet !== slots[0] }
