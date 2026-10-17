@@ -21679,10 +21679,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               let seatN = seatFor(rowsN);
               // What gives way is said, never dropped silently: the last row names where the rest is read.
               for (let k = rowsAll.length - 2; !seatN && k >= 1; k--) { rowsN = [...rowsAll.slice(0, k), "… MORE IN TOOLS › ACTIVE"]; seatN = seatFor(rowsN); }
-              if (!seatN) rowsN = rowsAll;
+              // NO CLEAR SEAT AT ALL (a crowded phone): the truth still speaks, in its SHORTEST form — the headline and where
+              // the rest is read — at the seat that covers the fewest words, never the first seat that merely fits the pane.
+              if (!seatN && rowsAll.length > 1) rowsN = [rowsAll[0], "… MORE IN TOOLS › ACTIVE"];
               const boxAt = seatN ? seatN.boxAtR : (y0: number, i: number) => ({ x: silenceX - 3, y: y0 + i * RH, w: Math.max(...rowsN.map(r => ctx.measureText(r).width)) + 6, h: RH });
-              const starts = [...Array.from({ length: 10 }, (_, k) => paneBotG - (rowsN.length + k) * RH - 4), ...Array.from({ length: 10 }, (_, k) => HEADER_FLOOR_Y + 44 + k * RH)];
-              const y0N = seatN ? seatN.y : starts.find(y0 => rowsN.every((_, i) => { const q = boxAt(y0, i); return q.y >= HEADER_FLOOR_Y && q.y + q.h <= paneBotG && !onNewestColumn(q.x, q.y, q.w, q.h); }));
+              const starts = [...Array.from({ length: 10 }, (_, k) => paneBotG - (rowsN.length + k) * RH - 4), ...Array.from({ length: 40 }, (_, k) => HEADER_FLOOR_Y + 44 + k * RH)];
+              const overlapArea = (y0: number) => rowsN.reduce((sum, _, i) => {
+                const q = boxAt(y0, i);
+                return sum + floatingChips.reduce((s2, r) => s2 + Math.max(0, Math.min(q.x + q.w, r.x + r.w) - Math.max(q.x, r.x)) * Math.max(0, Math.min(q.y + q.h, r.y + r.h) - Math.max(q.y, r.y)), 0);
+              }, 0);
+              const fitsPane = (y0: number) => rowsN.every((_, i) => { const q = boxAt(y0, i); return q.y >= HEADER_FLOOR_Y && q.y + q.h <= paneBotG && !onNewestColumn(q.x, q.y, q.w, q.h); });
+              const y0N = seatN ? seatN.y : starts.filter(fitsPane).sort((a, b2) => overlapArea(a) - overlapArea(b2))[0];
               if (rowsN !== rowsAll) ds.wallsGammaNarrowKept = `${rowsN.length - 1}/${rowsAll.length}`; else delete ds.wallsGammaNarrowKept;
               if (rowsN.length && y0N !== undefined) {
                 const nA = Math.max(att.textAlpha("gammaHeatmap"), att.textAlpha("callWall"));
