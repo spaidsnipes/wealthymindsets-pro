@@ -19680,6 +19680,22 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const inView = cols.filter(c => c.x >= 0 && c.x <= plotRightE);
             const fwd = inView.filter(c => c.k > fan.nowK).length;
             const nNow = fan.steps[Math.min(fan.nowK, fan.steps.length - 1)].n;
+            // A SMALL SAMPLE IS SMOOTHED, AND SAYS SO (BTC 5m, 2026-10-17 02:00 CDT: with n=3 the five percentile
+            // lines jumped bar to bar — a squiggle, not a fan). Each line is a centred mean over ±r steps of its own
+            // values (r = 3 under 6 sessions, 2 under 10, else 1); the caption names r. Nothing is added or moved
+            // between lines — every point is still that percentile's own neighbourhood.
+            const smoothR = nNow < 6 ? 3 : nNow < 10 ? 2 : 1;
+            {
+              const src = cols.map(c => ({ ...c }));
+              for (let i = 0; i < cols.length; i++) {
+                const a = Math.max(0, i - smoothR), b = Math.min(cols.length - 1, i + smoothR);
+                for (const key of ["y10", "y25", "y50", "y75", "y90"] as const) {
+                  let sum = 0;
+                  for (let j = a; j <= b; j++) sum += src[j][key];
+                  cols[i][key] = sum / (b - a + 1);
+                }
+              }
+            }
             if (cols.length >= 2 && inView.length >= 1) {
               ds.expectedEnvelopeFan = `STEPS:${cols.length}|IN_VIEW:${inView.length}|NOW:${fan.nowK}|FWD:${fwd}|N:${nNow}|FROM:${tailFromE}`;
               // THE FAN — behind the market: every candle in its span is cut
@@ -19781,7 +19797,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // Offscreen evidence is explained, never silently cut (super order
               // §4): when most of the fan reaches past the camera, the caption says so.
               const fanPastView = clippedTop + clippedBot > inView.length / 2;
-              const capT = `analogue envelope n=${nNow} · prior sessions, same bar from the open`;
+              const capT = `analogue envelope n=${nNow} · prior sessions, same bar from the open · smoothed ±${smoothR} bars`;
               // Provenance with its sample size is evidence (coordinator ruling
               // 2026-10-09): declared truth — never held, never listed.
               wordGate.declareTruth(capT);

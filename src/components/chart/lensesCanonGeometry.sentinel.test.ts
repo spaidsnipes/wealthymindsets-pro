@@ -136,7 +136,8 @@ const PINS: Pin[] = [
       b.envelope.length > 0 &&
       !/applyOptions|setVisibleRange|setVisibleLogicalRange|scrollToPosition|scrollToRealTime|fitContent|autoscaleInfoProvider|addSeries|addLineSeries|addAreaSeries|setAutoScale|manualPriceRangeRef/.test(b.envelope) },
   { name: "H-801 caption and MARKET SURPRISE flag, with receipts", holds: b =>
-      b.envelope.includes("const capT = `analogue envelope n=${nNow} · prior sessions, same bar from the open`;") &&
+      // 2026-10-17: a small sample is smoothed and the caption names the radius.
+      b.envelope.includes("const capT = `analogue envelope n=${nNow} · prior sessions, same bar from the open · smoothed ±${smoothR} bars`;") &&
       b.envelope.includes("const flagT = `MARKET SURPRISE · ${sp.matchedBy} of ${sp.n} went this far`;") &&
       b.envelope.includes("delete ds.expectedEnvelopeFan;") &&
       b.envelope.includes("ds.expectedEnvelopeFan = `STEPS:") },
