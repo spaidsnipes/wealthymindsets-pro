@@ -207,7 +207,8 @@ export const SCAFFOLD_CARD_BOX = {
   // 560 (2026-10-16 one-at-a-time pass, serving NQ1! 15m): at 470 the verdicts read "DISPLACEMENT STE…" and the
   // conclusion "WAIT FOR CONFIRMAT…" — a student card that cuts its own words is not the plate.
   FOUNDATION: { w: 560, h: 271 },
-  FOUNDATION_COMPACT: { w: 340, h: 151 },
+  // 440 since 2026-10-16 (serving BTC 5m: the 340 compact card read "1 MARKET STRUCTU…", "CONCLUSION: … WAI…").
+  FOUNDATION_COMPACT: { w: 440, h: 151 },
   // 380 since 2026-10-16: at 252 every line cut its own words ("a confirmed swing cl…", "pushing into a s…").
   INTERMEDIATE: { w: 380, h: 112 },
 } as const;
