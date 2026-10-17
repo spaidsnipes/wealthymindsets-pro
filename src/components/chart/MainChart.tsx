@@ -22872,6 +22872,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // left of the body's widest reach (it used to sit at the old
                 // lane edge, which now cuts through the middle of the body).
                 ctx.save();
+                // BEHIND EVERY WORD (real iPad BTC 5m, 2026-10-17: the spine ran straight through
+                // "CANDLE-ESTIMATED · NODES WITHHELD"): each chip already on the glass is cut out of the DNA paint.
+                clipOutChips(ctx, W, H, floatingChips, null, 2);
                 ctx.lineCap = "butt";
                 // ASK-6 (one step, 2026-10-08): the spine 0.45 → DNA_SPINE_A and
                 // 1.5px — readable at MID, still under the profile it describes.
