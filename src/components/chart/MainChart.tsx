@@ -26918,6 +26918,20 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const L = weatherLens;
           ds.liquidityWeatherLensState = weatherLensWhy;
           weatherLensHitRef.current = null;
+          // A LOUPE THAT YIELDS SAYS SO (iPhone 17 Pro BTC 5m, Weather alone, 2026-10-17: switched on, the phone pane is
+          // under the loupe's 520px floor, and the glass said nothing at all).
+          if (on && weatherLensWhy === "YIELDED_SMALL_PANE") {
+            const quietW = "LIQUIDITY WEATHER · reads on a wider screen (tablet or desktop)";
+            ctx.save();
+            ctx.font = marketFont("OBJECT_NAME");
+            ctx.fillStyle = "rgba(200,192,174,0.85)";
+            ctx.textAlign = "left"; ctx.textBaseline = "middle";
+            const rowW = takeSilenceRow();
+            const shownW = fitSilence(quietW);
+            ctx.fillText(shownW, silenceX, rowW);
+            floatingChips.push({ x: silenceX, y: rowW - 7, w: ctx.measureText(shownW).width, h: 14 });
+            ctx.restore();
+          }
           if (on && L && (glass.drawn || aperture)) {
             ctx.save();
             ctx.globalAlpha = att.alpha("weather");
