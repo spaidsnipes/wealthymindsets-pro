@@ -2667,7 +2667,7 @@ Trade the system, trust the process, winners every day 🚀`,
 
           <div className="flex-1 overflow-y-auto">
             {filtered.length === 0 && (
-              <div className="flex h-full items-center justify-center p-3">
+              <div className="flex items-start justify-center p-3 pt-6">
                 <RoomStatePlaque kind="empty" align="center" testId="journal-list-empty" icon={<FileText size={12} />}
                   title={linkedFilterActive ? "No linked decisions found" : "No entries found"}>
                   {linkedFilterActive ? "No journal entry is linked to this decision yet." : "Nothing in the journal matches these filters."}
@@ -2765,7 +2765,7 @@ Trade the system, trust the process, winners every day 🚀`,
 
           {/* Placeholder */}
           {!selected && !newMode && (
-            <div className="flex min-h-full items-center justify-center px-4 py-6">
+            <div className="flex items-start justify-center px-4 py-6">
               <RoomStatePlaque kind="empty" align="center" testId="journal-detail-empty" icon={<BarChart2 size={12} />}
                 title="Select an entry or create a new one">
                 <p>Track every trade — wins and losses both teach.</p>
