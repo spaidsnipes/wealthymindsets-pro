@@ -9595,7 +9595,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // ("277", "1.2k"); the delta row's tag says "cells: $ traded" whenever this grid printed one.
         const usdCells = classifySymbol(symbol) === "CRYPTO";
         // Three characters at most so a 12px half holds it ("1.2k" was dropped): thousands round to whole k.
-        const fmtUsdCell = (n: number) => !(n > 0) ? "0" : n >= 999_500 ? `${Math.round(n / 1_000_000)}M` : n >= 999.5 ? `${Math.round(n / 1000)}k` : `${Math.round(n)}`;
+        // A row that traded under half a dollar says "<1", never "0" (iPad BTC 1m, 2026-10-17: weekend prints rounded to
+        // "0", and the zero rule left every traded cell blank).
+        const fmtUsdCell = (n: number) => !(n > 0) ? "0" : n < 0.5 ? "<1" : n >= 999_500 ? `${Math.round(n / 1_000_000)}M` : n >= 999.5 ? `${Math.round(n / 1000)}k` : `${Math.round(n)}`;
         fpUsdCellsRef.current = false;
         ctx.save();
         ctx.globalAlpha = att.alpha("footprint");
