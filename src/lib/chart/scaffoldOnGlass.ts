@@ -106,8 +106,13 @@ export function paintScaffoldOnGlass(ctx: Ctx, g: ScaffoldGlassInput): ScaffoldG
       // word on the glass beats a long one in the list.
       if (compact) {
         // Each retry is one word shorter (3 → 2 → 1): a phone keeps the step's first word on the glass.
-        const words = title.split(/ — | · |, /)[0].split(" ");
-        const head = words.slice(0, Math.max(1, Math.min(3, words.length - (title.includes(" — ") || title.includes(" · ") || title.includes(", ") ? 0 : 1)))).join(" ");
+        // Little leading words go first (phone 375, 2026-10-17: "AT A SWING ABOVE" shortened to "AT A").
+        const STOP = new Set(["AT", "A", "AN", "THE", "TO", "OF", "IN", "ON", "BY", "FOR"]);
+        const words0 = title.split(/ — | · |, /)[0].split(" ");
+        let lead = 0; while (lead < words0.length - 1 && STOP.has(words0[lead])) lead++;
+        const words = words0.slice(lead);
+        const sep = title.includes(" — ") || title.includes(" · ") || title.includes(", ");
+        const head = words.slice(0, Math.max(1, Math.min(3, words.length - (sep || lead > 0 ? 0 : 1)))).join(" ");
         if (head.length >= 3 && head !== title) return tag(n, ax, ay, head, "", ink, listOnFail);
       }
       if (!listOnFail) return false;

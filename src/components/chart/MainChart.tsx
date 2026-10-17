@@ -2102,6 +2102,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   chartSettingsRef.current = chartSettings;
   const containerRef  = useRef<HTMLDivElement>(null);
   const wrapRef       = useRef<HTMLDivElement>(null);
+  /** The drawings' shared Delta+VP tape absence, said once in the overlay's silence stack (null when none). */
+  const dvpTapeNoteRef = useRef<string | null>(null);
   /** This frame's footprint grid printed crypto cells in US dollars traded (the delta row's tag names the unit). */
   const fpUsdCellsRef = useRef(false);
   const canvasRef     = useRef<HTMLCanvasElement>(null);
@@ -21659,7 +21661,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const clear = (y0: number) => rowsN.every((_, i) => { const q = boxAt(y0, i); return q.y >= HEADER_FLOOR_Y && q.y + q.h <= paneBotG && !onNewestColumn(q.x, q.y, q.w, q.h) && !onBody(q) && !floatingChips.some(r => q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y); });
               const starts = [...Array.from({ length: 10 }, (_, k) => paneBotG - (rowsN.length + k) * RH - 4), ...Array.from({ length: 10 }, (_, k) => HEADER_FLOOR_Y + 44 + k * RH)];
               // A truth line is never folded into the note list: with no fully clear seat it takes the first seat off the newest column.
-              const y0N = starts.find(clear) ?? starts.find(y0 => rowsN.every((_, i) => { const q = boxAt(y0, i); return q.y >= HEADER_FLOOR_Y && q.y + q.h <= paneBotG && !onNewestColumn(q.x, q.y, q.w, q.h); }));
+              // …then a seat clear of every WORD even if it crosses an older body (phone 375 defaults + Aggressive/Passive,
+              // 2026-10-17: the last resort printed the box over "Aggressive: market orders pushing" and "Sellers held 4×").
+              const clearOfWords = (y0: number) => rowsN.every((_, i) => { const q = boxAt(y0, i); return q.y >= HEADER_FLOOR_Y && q.y + q.h <= paneBotG && !onNewestColumn(q.x, q.y, q.w, q.h) && !floatingChips.some(r => q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y); });
+              const startsAll = [...starts, ...Array.from({ length: 30 }, (_, k) => HEADER_FLOOR_Y + 44 + (10 + k) * RH)];
+              const y0N = starts.find(clear) ?? startsAll.find(clearOfWords) ?? starts.find(y0 => rowsN.every((_, i) => { const q = boxAt(y0, i); return q.y >= HEADER_FLOOR_Y && q.y + q.h <= paneBotG && !onNewestColumn(q.x, q.y, q.w, q.h); }));
               if (rowsN.length && y0N !== undefined) {
                 const nA = Math.max(att.textAlpha("gammaHeatmap"), att.textAlpha("callWall"));
                 rowsN.forEach((r, i) => {
@@ -28478,6 +28484,22 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         if (truthForSilence.length) canvas.dataset.truthToSilence = String(truthForSilence.length); else delete canvas.dataset.truthToSilence;
       } catch (err) { layerFault("TRUTH_TO_SILENCE", err); }
 
+      // The drawings' Delta+VP tape absence (dvpTapeNoteRef), one line of the silence stack.
+      try {
+        const dvpNote = dvpTapeNoteRef.current;
+        if (dvpNote) {
+          ctx.save();
+          ctx.font = marketFont("OBJECT_NAME");
+          ctx.fillStyle = "rgba(200,192,174,0.85)"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+          const yN = takeSilenceRow();
+          const shownN = fitSilence(dvpNote);
+          ctx.fillText(shownN, silenceX, yN);
+          if (yN > 0) floatingChips.push({ x: silenceX, y: yN - 7, w: ctx.measureText(shownN).width, h: 14 });
+          ctx.restore();
+          canvas.dataset.dvpTapeNote = yN > 0 ? "STACK" : "FOLDED";
+        } else delete canvas.dataset.dvpTapeNote;
+      } catch (err) { layerFault("DVP_TAPE_NOTE", err); }
+
       // The folded silences, as one line (see takeSilenceRow).
       try { if (silenceFolded > 0) {
         // PHONE ASK 8 (erasure, 2026-10-07): on narrow glass the summary line
@@ -29815,9 +29837,6 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     // at any saved box's price. Keep it on the chart edge where FL-06 places
     // global instrument truth; spatial callouts remain reserved for real bars
     // and selected objects.
-    // ON THE D BUTTON'S ROW, RIGHT OF IT (Founder's Chrome NQ 5m, 2026-10-17: at { x: 16, y: 62 } the note's box ran
-    // under the D toggle, which moved below the price legend). Derived from the toggle's own constants so they cannot drift.
-    const groupedNoLevelsAnchor = { x: PANE_TOP_LEFT_INSET + DATA_WINDOW_TOGGLE_PX + 8, y: BELOW_PRICE_LEGEND + DATA_WINDOW_TOGGLE_PX / 2 + 6, color: "#8B92AC" } as const;
 
     const drawOne = (d: Drawing, selected: boolean) => {
       const s = d.style, t = d.tool, col = s.color, fillCol = col + "22";
@@ -30199,14 +30218,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         } }, false);
       }
     }
-    if (groupedNoLevels.count > 0) {
-      chip(
-        dvpGroupedRefusalMessage("no-levels", groupedNoLevels.count),
-        groupedNoLevelsAnchor.x,
-        groupedNoLevelsAnchor.y,
-        groupedNoLevelsAnchor.color,
-      );
-    }
+    // THE SILENCE STACK SAYS IT (phone 375 default layers, 2026-10-17: at the D toggle's row the note printed over
+    // "EFFORT · VOLUME", which the overlay seats on that row). The drawings canvas cannot see the overlay's words, so the
+    // sentence is handed to the overlay's one silence stack — folded on a phone, stepped past words, stopped at chips.
+    dvpTapeNoteRef.current = groupedNoLevels.count > 0 ? dvpGroupedRefusalMessage("no-levels", groupedNoLevels.count) : null;
     if (dvpReceipts.length) canvas.dataset.bidAskSplit = dvpReceipts.join(",");
     else delete canvas.dataset.bidAskSplit;
     // Serving probes read the OVERLAY canvas; mirror both drawing receipts
