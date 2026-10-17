@@ -27318,6 +27318,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             delete ds.liquidityLifecycleBasis;
             delete ds.liquidityLifecycleRefused;
             delete ds.liquidityLifecycleVenue;
+            delete ds.liquidityLifecycleMagnets;
             delete ds.liquidityDepthTint;
           } else {
             ds.liquidityLifecycle = lc.drawn ? lc.pools.map(p => p.stage).join(",") : lc.reason;
@@ -27732,12 +27733,88 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               delete ds.liquidityLifecycleTag;
             }
             ctx.restore();
+            /* MAGNET & PATH (plates 25 / 62, "pulled toward remembered pool"; Founder 2026-10-17 shift: NQ 15m drew
+               only "NO POOL IN VIEW — 6 POOLS OUTSIDE THIS CAMERA" over an empty glass). The nearest STANDING pool
+               above and below price that sits off this camera is drawn where it is: concentric gold rings at the
+               pane's edge on its side, a dashed gold path from the live price to them, and one word with its
+               price, its stage and how far it is. A remembered pool is a fact (the owner measured it); the path
+               says where it is, not that price will go there. */
+            let magnetsL = 0;
+            const MAGNET_BACKING = "11,10,8"; // the glass's own dark, not a stage hue
+            const magnetRx: string[] = [];
+            const yNowL = Number.isFinite(priceNowL) ? srs.priceToCoordinate(priceNowL) : null;
+            if (yNowL != null && xLastBar != null && Number.isFinite(+yNowL)) {
+              const standingL = lc.pools
+                .map(pl => ({ pl, sp: poolSpan(pl.events) }))
+                .filter(o => o.sp && !o.sp.consumed && !o.sp.pulled);
+              const upL = standingL.filter(o => o.pl.low > priceNowL).sort((a, b) => a.pl.low - b.pl.low)[0];
+              const dnL = standingL.filter(o => o.pl.high < priceNowL).sort((a, b) => b.pl.high - a.pl.high)[0];
+              for (const [o, dir] of [[upL, "UP"], [dnL, "DN"]] as const) {
+                if (!o) continue;
+                const mid = (o.pl.high + o.pl.low) / 2;
+                const ymL = srs.priceToCoordinate(mid);
+                const offTop = dir === "UP" && (ymL == null || +ymL < paneTopL + 8);
+                const offBot = dir === "DN" && (ymL == null || +ymL > paneBotL - 8);
+                if (!offTop && !offBot) continue;
+                const cx = Math.max(40, Math.min(rightL - 30, xLastBar + 34));
+                const cy = offTop ? paneTopL + 20 : paneBotL - 20;
+                const x0p = xLastBar, y0p = +yNowL;
+                ctx.save();
+                ctx.globalAlpha = Math.max(0.85, att.textAlpha("liquidityLifecycle"));
+                clipToPaneL();
+                ctx.clip(cutL, "evenodd");
+                // THE PATH — a dashed gold curve from the live price to the pool's edge.
+                ctx.strokeStyle = `rgba(${INK},0.95)`; ctx.lineWidth = 2; ctx.setLineDash([5, 4]);
+                ctx.shadowColor = `rgba(${INK},0.8)`; ctx.shadowBlur = 6;
+                ctx.beginPath(); ctx.moveTo(x0p, y0p);
+                ctx.quadraticCurveTo(cx, y0p + (cy - y0p) * 0.15, cx, cy + (offTop ? 10 : -10));
+                ctx.stroke(); ctx.setLineDash([]);
+                // THE POOL — a lit core and three rings, flattened like the plate's attractor.
+                const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, 26);
+                glow.addColorStop(0, `rgba(${INK},0.95)`); glow.addColorStop(0.35, `rgba(${INK},0.4)`); glow.addColorStop(1, `rgba(${INK},0)`);
+                ctx.fillStyle = glow; ctx.beginPath(); ctx.ellipse(cx, cy, 30, 12, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.shadowBlur = 8;
+                [[9, 3.4, 1], [17, 6.4, 0.75], [25, 9.4, 0.5]].forEach(([rx, ry, a]) => {
+                  ctx.strokeStyle = `rgba(${INK},${a})`; ctx.lineWidth = 1.6;
+                  ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.stroke();
+                });
+                // Its side: a chevron past the ring, toward the pool off camera.
+                ctx.strokeStyle = `rgba(${INK},1)`; ctx.lineWidth = 2;
+                const cv = offTop ? -1 : 1;
+                ctx.beginPath(); ctx.moveTo(cx - 6, cy + cv * 12); ctx.lineTo(cx, cy + cv * 17); ctx.lineTo(cx + 6, cy + cv * 12); ctx.stroke();
+                ctx.restore();
+                // THE WORD — price, stage, distance; clear of candles and chips, or held.
+                const wordM = `${offTop ? "▲" : "▼"} MAGNET · POOL ${gPx(mid)} · ${o.pl.stage} · ${gPx(Math.abs(mid - priceNowL))} away`;
+                ctx.save();
+                ctx.font = marketFont("OBJECT_NAME");
+                const wM = Math.ceil(ctx.measureText(wordM).width) + 10, hM = 16;
+                const prefM = { x: cx - 34 - wM, y: cy - hM / 2, w: wM, h: hM };
+                const altM = [{ x: cx - wM / 2, y: offTop ? cy + 16 : cy - 16 - hM, w: wM, h: hM }, { x: cx - 34 - wM, y: offTop ? cy + 14 : cy - 14 - hM, w: wM, h: hM }];
+                const spotM = placeClearOfKeepOut(prefM, [...keepOut(), ...rowBodiesAt(Math.min(prefM.y, ...altM.map(a => a.y)), Math.max(prefM.y, ...altM.map(a => a.y)) + hM)], {
+                  minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: altM,
+                });
+                recordKeepOut(keepOutLedger, spotM);
+                if (spotM.mode !== "BLOCKED") {
+                  const r = spotM.rect;
+                  ctx.fillStyle = `rgba(${MAGNET_BACKING},0.88)`; ctx.fillRect(r.x, r.y, r.w, r.h);
+                  ctx.strokeStyle = `rgba(${INK},0.85)`; ctx.lineWidth = 1; ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+                  ctx.fillStyle = "rgba(237,230,211,1)"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+                  ctx.fillText(wordM, r.x + 5, r.y + hM / 2 + 0.5);
+                  floatingChips.push({ ...r });
+                }
+                ctx.restore();
+                floatingChips.push({ x: cx - 30, y: cy - 18, w: 60, h: 36 });
+                magnetsL++;
+                magnetRx.push(`${dir}:${mid.toFixed(2)}:${o.pl.stage}:${spotM.mode}`);
+              }
+            }
+            if (magnetsL > 0) ds.liquidityLifecycleMagnets = magnetRx.join("|"); else delete ds.liquidityLifecycleMagnets;
             ds.liquidityLifecyclePainted = `${painted}/${lc.pools.length}`;
             ds.liquidityLifecycleSalience = `MIN_H${LIFECYCLE_MIN_H}|LIFTED:${liftedL}|BIRTH_W2`;
             // NO SILENT NOTHING (§VIII · §CV): ON with every pool off this
             // camera (serving MNQ 1m: 0/6 painted — five consumed before the
             // view began, one off-price) left an empty glass. Say so.
-            if (painted === 0) {
+            if (painted === 0 && magnetsL === 0) {
               const why = lc.pools.length === 0 ? "NO POOL MEASURED"
                 : skipL.tail > 0 && skipL.price === 0 && skipL.time === 0 ? `${lc.pools.length} POOLS ENDED BEFORE THIS CAMERA`
                 : `${lc.pools.length} POOLS OUTSIDE THIS CAMERA`;
@@ -27787,6 +27864,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           delete ds.liquidityLifecycleBasis;
           delete ds.liquidityLifecycleRefused;
           delete ds.liquidityLifecycleVenue;
+          delete ds.liquidityLifecycleMagnets;
           delete ds.liquidityDepthTint;
         }
 

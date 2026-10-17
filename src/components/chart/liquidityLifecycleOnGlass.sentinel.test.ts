@@ -162,7 +162,8 @@ describe("no caption on the glass — the honesty is a receipt and one compact t
     const named = [...CHART.matchAll(/LIQUIDITY LIFECYCLE ·/g)];
     expect(named.length).toBe(1);
     const at = named[0].index ?? 0;
-    expect(CHART.lastIndexOf("if (painted === 0) {", at)).toBeGreaterThan(at - 600);
+    // 2026-10-17: an off-camera standing pool drawn as a magnet (plates 25/62) also answers the empty glass.
+    expect(CHART.lastIndexOf("if (painted === 0 && magnetsL === 0) {", at)).toBeGreaterThan(at - 600);
     expect(block).not.toMatch(/floatingChips\.push\(\{ x: 8, y: cy - 11/);
   });
 
