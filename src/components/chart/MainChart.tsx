@@ -29777,7 +29777,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     // at any saved box's price. Keep it on the chart edge where FL-06 places
     // global instrument truth; spatial callouts remain reserved for real bars
     // and selected objects.
-    const groupedNoLevelsAnchor = { x: 16, y: 62, color: "#8B92AC" } as const;
+    // ON THE D BUTTON'S ROW, RIGHT OF IT (Founder's Chrome NQ 5m, 2026-10-17: at { x: 16, y: 62 } the note's box ran
+    // under the D toggle, which moved below the price legend). Derived from the toggle's own constants so they cannot drift.
+    const groupedNoLevelsAnchor = { x: PANE_TOP_LEFT_INSET + DATA_WINDOW_TOGGLE_PX + 8, y: BELOW_PRICE_LEGEND + DATA_WINDOW_TOGGLE_PX / 2 + 6, color: "#8B92AC" } as const;
 
     const drawOne = (d: Drawing, selected: boolean) => {
       const s = d.style, t = d.tool, col = s.color, fillCol = col + "22";

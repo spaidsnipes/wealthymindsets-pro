@@ -188,7 +188,8 @@ describe("deltaVPGeometry adoption — the draw loop must delegate (Sentinel)", 
   });
 
   it("keeps the shared tape absence on chart chrome, never at a saved box price", () => {
-    expect(chartSrc).toContain("const groupedNoLevelsAnchor = { x: 16, y: 62");
+    // 2026-10-17: on the D toggle's row, right of it — still fixed chart chrome, never a saved box's price.
+    expect(chartSrc).toContain("const groupedNoLevelsAnchor = { x: PANE_TOP_LEFT_INSET + DATA_WINDOW_TOGGLE_PX + 8, y: BELOW_PRICE_LEGEND + DATA_WINDOW_TOGGLE_PX / 2 + 6");
     expect(chartSrc).toContain("groupedNoLevelsAnchor.x");
     expect(chartSrc).toContain("groupedNoLevelsAnchor.y");
     expect(BLOCK).not.toMatch(/groupedNoLevels\.(?:x|y)\s*=\s*r[xy]/);
