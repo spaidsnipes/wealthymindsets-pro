@@ -12758,7 +12758,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           }
           ctx.setLineDash([]);
           ctx.restore();
-          canvas.dataset.cvdNotches = `PROPOSED:${drawnN}|SIDES:${rd.sidesRows}|M${rd.measured}|U${rd.unmeasured}`;
+          canvas.dataset.cvdNotches = `S-CVD1:${drawnN}|SIDES:${rd.sidesRows}|M${rd.measured}|U${rd.unmeasured}`;
         }
       } catch (err) { layerFault("CVD_NOTCH", err); }
 

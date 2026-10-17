@@ -16,7 +16,8 @@
  * any bar lacking sides is UNMEASURED — never zero-filled. A window holding a
  * provider-sides row is INFERRED (the painter dashes it); tape-only is OBSERVED.
  *
- * Proposed: no "CVD / Delta relationship" Founder plate exists yet (G19-P02),
+ * Plate: canon S-CVD1 (Drive 14ga8Z1A0NGF71fjXzyVJdV8pfOSXJC_6, 2026-10-16) — drawn after the Founder authorised plates for
+ * every layer that had none. Before it: no "CVD / Delta relationship" Founder plate existed (G19-P02),
  * so the layer is default OFF and its receipt says PROPOSED. Pure; no I/O.
  */
 
