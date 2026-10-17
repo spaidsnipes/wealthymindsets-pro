@@ -74,7 +74,7 @@ export function paintScaffoldOnGlass(ctx: Ctx, g: ScaffoldGlassInput): ScaffoldG
      everything taken; a dotted leader ties it back. No clear place → listed. */
   // A phone's plot (< 520px) takes the compact form: one line — number + the verdict — no evidence line.
   const compact = plot.x1 - plot.x0 < 520;
-  const tag = (n: number | null, ax: number, ay: number, title0: string, sub0: string, ink: string): boolean => {
+  const tag = (n: number | null, ax: number, ay: number, title0: string, sub0: string, ink: string, listOnFail = true): boolean => {
     const title = compact ? title0.replace(/^[A-Z ]+ — /, "") : title0;
     const sub = compact ? "" : sub0;
     ctx.font = `800 ${compact ? 11.5 : 13}px ${g.sans}`;
@@ -102,6 +102,7 @@ export function paintScaffoldOnGlass(ctx: Ctx, g: ScaffoldGlassInput): ScaffoldG
     rail.sort((p, q) => Math.hypot(p.x + p.w / 2 - ax, p.y + p.h / 2 - ay) - Math.hypot(q.x + q.w / 2 - ax, q.y + q.h / 2 - ay));
     const r = cands.find(c => inPlot(c) && !hits(c, taken)) ?? rail.find(c => inPlot(c) && !hits(c, taken));
     if (!r) {
+      if (!listOnFail) return false;
       listed.push({ text: `${title} — ${sub}`, x: ax, y: ay }); listedWhy.push(`${n ?? "-"}:${w}x${h}`);
       // Phone: the words are listed, but the step's numbered disc still stands on its evidence (18px, clear of candles).
       if (compact && n != null) {
@@ -346,7 +347,7 @@ export function paintScaffoldOnGlass(ctx: Ctx, g: ScaffoldGlassInput): ScaffoldG
     }
     ctx.restore();
     // No room for the full plaque (tablet): the caution still stands — as a step tag with its flags.
-    if (!r && tag(foundation ? 6 : null, px, py, title, line1, ink)) painted++;
+    if (!r && (tag(foundation ? 6 : null, px, py, title, line1, ink, false) || tag(foundation ? 6 : null, px, py, title, "", ink))) painted++;
   }
 
   const expected = foundation ? 6 : 4;
