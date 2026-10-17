@@ -285,7 +285,10 @@ export function paintScaffoldOnGlass(ctx: Ctx, g: ScaffoldGlassInput): ScaffoldG
       { x: px + g.barSpacing + 12, y: py - h / 2, w, h }, { x: plot.x1 - w - 4, y: py - h - 30, w, h }, { x: plot.x1 - w - 4, y: py + 30, w, h },
       { x: plot.x1 - w - 4, y: py - h - 90, w, h }, { x: plot.x1 - w - 4, y: py + 90, w, h },
     ].map(r => ({ ...r, x: Math.round(r.x), y: Math.round(r.y) }));
-    for (let k = 0; k < 6; k++) cands.push({ x: Math.round(plot.x1 - w - 8), y: Math.round(plot.y0 + 8 + k * (h + 10)), w, h });
+    for (let k = 0; k < 8; k++) {
+      const y = Math.round(plot.y0 + 8 + k * (h + 10));
+      cands.push({ x: Math.round(plot.x1 - w - 8), y, w, h }, { x: Math.round((plot.x0 + plot.x1) / 2 - w / 2), y, w, h }, { x: Math.round(plot.x0 + 8), y, w, h });
+    }
     const r = cands.find(c => inPlot(c) && !hits(c, taken));
     if (r) {
       ctx.strokeStyle = rgba(ink, 0.8); ctx.lineWidth = 1.4; ctx.setLineDash([3, 3]);
