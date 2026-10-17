@@ -91,7 +91,8 @@ export function vpColumnLayout(
   if (usable <= 0) return none;
 
   const multi = nCols > 1;
-  const width = Math.min(multi ? 84 : 116, usable * (multi ? 0.1 : 0.13));
+  // 84 → 104 (2026-10-16: stacked Composite read as a 35px sliver beside Living).
+  const width = Math.min(multi ? 104 : 116, usable * (multi ? 0.1 : 0.13));
   if (!(width > 0)) return none;
 
   const right =

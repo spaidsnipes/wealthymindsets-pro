@@ -48,7 +48,7 @@ describe("vpColumnLayout — the histogram is a lane, never a wall", () => {
   });
 
   it("narrows both columns when Fixed and Session VP are both on", () => {
-    expect(vpColumnLayout(3000, 90, 0, 2).width).toBe(84);
+    expect(vpColumnLayout(3000, 90, 0, 2).width).toBe(104); // 84 → 104 on 2026-10-16 (stacked lanes read as slivers)
     expect(vpColumnLayout(600, 90, 0, 2).width).toBeCloseTo((600 - 90) * 0.1, 6);
   });
 
