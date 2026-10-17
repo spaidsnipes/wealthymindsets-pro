@@ -26108,6 +26108,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
            Everything the lens paints sits BEHIND the candles: one candle
            cut-out over the lens's span, shared by the field, the glass tint,
            the shelves and the ring. */
+        // The seat leaves the ledger BEFORE any lens geometry reads it (4b40129 removed it too late: the lens's
+        // chip cut-out was built from the ledger first, the seat covered the whole glass, and the glass vanished).
+        if (lensSeat) { const ix = floatingChips.indexOf(lensSeat); if (ix >= 0) floatingChips.splice(ix, 1); lensSeat = null; }
         let weatherLens: WeatherLens | null = null;
         let weatherLensCut: Path2D | null = null;
         /** Chips already on the glass that the lens passes BEHIND (value band, SWING labels, …). */
@@ -26797,7 +26800,6 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                       preferring a slot no candle body sits under.
            Nothing is printed in the bottom-left corner. */
         {
-          if (lensSeat) { const ix = floatingChips.indexOf(lensSeat); if (ix >= 0) floatingChips.splice(ix, 1); lensSeat = null; }
           const L = weatherLens;
           ds.liquidityWeatherLensState = weatherLensWhy;
           weatherLensHitRef.current = null;
