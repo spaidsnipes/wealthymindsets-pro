@@ -15049,7 +15049,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.font = marketFont("FIDELITY");
             const winW = ctx.measureText(winTxt).width;
             const desktopWindowChrome = W >= 960;
-            if (!absorbPaints) {
+            // ITS ROW, OR ONE ABOVE, OR HELD (tablet 744–1180 with Aggressive/Passive on, 2026-10-17: the count printed
+            // over the evidence legend "Passive: prices that held"). It is provenance; Tools keeps it when the glass cannot.
+            const ledgerW = silenceObstacles();
+            const freeAt = (dy: number) => { const q = { x: firstX + 3, y: plotBottom - 18 - dy, w: winW + 10, h: 13 }; return !ledgerW.some(r => q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y); };
+            const winDy = freeAt(0) ? 0 : freeAt(16) ? 16 : null;
+            if (!absorbPaints || winDy == null) {
               // Withheld with the field it counts.
             } else if (narrowGlass) {
               // The phone's word budget: the window count is provenance, and
@@ -15065,15 +15070,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.shadowBlur = 3;
               ctx.textAlign = "left";
               ctx.textBaseline = "middle";
-              ctx.fillText(winTxt, firstX + 3, plotBottom - 11.5);
+              ctx.fillText(winTxt, firstX + 3, plotBottom - 11.5 - winDy);
               ctx.restore();
+              (ledgerW as { x: number; y: number; w: number; h: number }[]).push({ x: firstX + 3, y: plotBottom - 18 - winDy, w: winW + 10, h: 13 });
             } else {
               ctx.fillStyle = "rgba(14,12,8,0.86)";
-              ctx.fillRect(firstX + 3, plotBottom - 18, winW + 10, 13);
+              ctx.fillRect(firstX + 3, plotBottom - 18 - winDy, winW + 10, 13);
+              (ledgerW as { x: number; y: number; w: number; h: number }[]).push({ x: firstX + 3, y: plotBottom - 18 - winDy, w: winW + 10, h: 13 });
               ctx.fillStyle = "rgba(201,165,92,0.9)";
               ctx.textAlign = "left";
               ctx.textBaseline = "middle";
-              ctx.fillText(winTxt, firstX + 8, plotBottom - 11.5);
+              ctx.fillText(winTxt, firstX + 8, plotBottom - 11.5 - winDy);
             }
 
             // ── ABSORPTION ZONE: pinned at the price the auction happened at.
