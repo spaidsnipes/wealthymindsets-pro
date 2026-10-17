@@ -22875,6 +22875,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // BEHIND EVERY WORD (real iPad BTC 5m, 2026-10-17: the spine ran straight through
                 // "CANDLE-ESTIMATED · NODES WITHHELD"): each chip already on the glass is cut out of the DNA paint.
                 clipOutChips(ctx, W, H, floatingChips, null, 2);
+                // …and behind every candle (same iPad view: the bracket stood on the newest bodies) — the family's one cut-out.
+                clipProfileToCandles("DNA");
                 ctx.lineCap = "butt";
                 // ASK-6 (one step, 2026-10-08): the spine 0.45 → DNA_SPINE_A and
                 // 1.5px — readable at MID, still under the profile it describes.
