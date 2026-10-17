@@ -9562,7 +9562,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // "<.01" or nothing). A crypto cell's number is its side's size × its row's own price, in US dollars
         // ("277", "1.2k"); the delta row's tag says "cells: $ traded" whenever this grid printed one.
         const usdCells = classifySymbol(symbol) === "CRYPTO";
-        const fmtUsdCell = (n: number) => !(n > 0) ? "0" : n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 10_000 ? `${Math.round(n / 1000)}k` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${Math.round(n)}`;
+        // Three characters at most so a 12px half holds it ("1.2k" was dropped): thousands round to whole k.
+        const fmtUsdCell = (n: number) => !(n > 0) ? "0" : n >= 999_500 ? `${Math.round(n / 1_000_000)}M` : n >= 999.5 ? `${Math.round(n / 1000)}k` : `${Math.round(n)}`;
         fpUsdCellsRef.current = false;
         ctx.save();
         ctx.globalAlpha = att.alpha("footprint");
