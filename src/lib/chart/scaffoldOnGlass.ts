@@ -226,16 +226,20 @@ export function paintScaffoldOnGlass(ctx: Ctx, g: ScaffoldGlassInput): ScaffoldG
   }
 
   /* 4 · LOCATION — the swing price is pushing into (the room draws its dashed rule). */
-  const lvl = sc.pushingInto === "SWING ABOVE" ? sc.swingAbove : sc.pushingInto === "SWING BELOW" ? sc.swingBelow : (sc.swingAbove ?? sc.swingBelow);
-  const yl = lvl == null ? null : yOf(lvl);
+  // The level the VERDICT names (one brain: "AT A SWING ABOVE" is drawn on the swing above), else the one the
+  // recent half is pushing into (BTC 5m, Oct 16: the tag said ABOVE and named the swing BELOW).
   const s4 = step(4);
+  const side: "SWING ABOVE" | "SWING BELOW" | null = s4?.verdict.includes("ABOVE") ? "SWING ABOVE" : s4?.verdict.includes("BELOW") ? "SWING BELOW"
+    : sc.pushingInto ?? (sc.swingAbove != null ? "SWING ABOVE" : sc.swingBelow != null ? "SWING BELOW" : null);
+  const lvl = side === "SWING ABOVE" ? sc.swingAbove : side === "SWING BELOW" ? sc.swingBelow : null;
+  const yl = lvl == null ? null : yOf(lvl);
   if (yl != null && s4 && lvl != null) {
     const ax = Math.min(plot.x1 - 40, (xb1 ?? plot.x1) - 10);
     ctx.save();
     ctx.strokeStyle = rgba(I.RED, 0.9); ctx.lineWidth = 2; ctx.setLineDash([9, 5]);
     ctx.beginPath(); ctx.moveTo(xa0 ?? plot.x0, yl); ctx.lineTo(plot.x1, yl); ctx.stroke();
     ctx.restore();
-    if (tag(foundation ? 4 : null, ax, yl, `LOCATION — ${s4.verdict}`, `${sc.pushingInto ?? "nearest swing"} ${g.fmtPx(lvl)}`, I.RED)) painted++;
+    if (tag(foundation ? 4 : null, ax, yl, `LOCATION — ${s4.verdict}`, `${side} ${g.fmtPx(lvl)}`, I.RED)) painted++;
   }
 
   /* 5 · ORDER FLOW — absorption boxed, exhaustion ringed (Foundation). */
