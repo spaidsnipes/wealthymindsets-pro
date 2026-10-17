@@ -81,7 +81,15 @@ export function paintScaffoldOnGlass(ctx: Ctx, g: ScaffoldGlassInput): ScaffoldG
       [16, -h - 16], [16, 16], [-w - 16, -h - 16], [-w - 16, 16], [16, -h - 60], [-w - 16, -h - 60], [16, 60], [-w - 16, 60],
       [-w / 2, -h - 30], [-w / 2, 30], [16, -h - 110], [-w - 16, -h - 110],
     ].map(([dx, dy]) => ({ x: Math.round(ax + dx), y: Math.round(ay + dy), w, h }));
-    const r = cands.find(c => inPlot(c) && !hits(c, taken));
+    // Then the plate's rails: clear slots down the left and right of the plot, tied back by the leader
+    // (a crowded newest edge must not cost a step its place on the glass).
+    const rail: GlassBox[] = [];
+    for (let k = 0; k < 9; k++) {
+      const y = plot.y0 + 8 + k * (h + 8);
+      rail.push({ x: Math.round(plot.x0 + 8), y, w, h }, { x: Math.round(plot.x1 - w - 8), y, w, h });
+    }
+    rail.sort((p, q) => Math.hypot(p.x + p.w / 2 - ax, p.y + p.h / 2 - ay) - Math.hypot(q.x + q.w / 2 - ax, q.y + q.h / 2 - ay));
+    const r = cands.find(c => inPlot(c) && !hits(c, taken)) ?? rail.find(c => inPlot(c) && !hits(c, taken));
     if (!r) { listed.push({ text: `${title} — ${sub}`, x: ax, y: ay }); return false; }
     // Leader: anchor → nearest edge of the tag.
     const ex = ax < r.x ? r.x : ax > r.x + r.w ? r.x + r.w : ax;
@@ -179,7 +187,8 @@ export function paintScaffoldOnGlass(ctx: Ctx, g: ScaffoldGlassInput): ScaffoldG
       ctx.fillStyle = "rgba(255,255,255,0.07)"; ctx.fillRect(x0, y, x1 - x0, 9);
       ctx.fillStyle = rgba(ink, 0.92); ctx.fillRect(x0, y, (x1 - x0) * (e / peak), 9);
       ctx.font = `700 10.5px ${g.sans}`; ctx.fillStyle = rgba(ink, 0.95); ctx.textAlign = "left"; ctx.textBaseline = "bottom";
-      ctx.fillText(word, x0, y - 2);
+      const said = ctx.measureText(word).width + 6 <= x1 - x0 ? word : ctx.measureText(word.split(" ")[0]).width + 6 <= x1 - x0 ? word.split(" ")[0] : "";
+      if (said) ctx.fillText(said, x0, y - 2);
       const r = { x: x0, y: y - 14, w: x1 - x0, h: 24 };
       taken.push(r); rects.push(r);
     }
@@ -276,6 +285,7 @@ export function paintScaffoldOnGlass(ctx: Ctx, g: ScaffoldGlassInput): ScaffoldG
       { x: px + g.barSpacing + 12, y: py - h / 2, w, h }, { x: plot.x1 - w - 4, y: py - h - 30, w, h }, { x: plot.x1 - w - 4, y: py + 30, w, h },
       { x: plot.x1 - w - 4, y: py - h - 90, w, h }, { x: plot.x1 - w - 4, y: py + 90, w, h },
     ].map(r => ({ ...r, x: Math.round(r.x), y: Math.round(r.y) }));
+    for (let k = 0; k < 6; k++) cands.push({ x: Math.round(plot.x1 - w - 8), y: Math.round(plot.y0 + 8 + k * (h + 10)), w, h });
     const r = cands.find(c => inPlot(c) && !hits(c, taken));
     if (r) {
       ctx.strokeStyle = rgba(ink, 0.8); ctx.lineWidth = 1.4; ctx.setLineDash([3, 3]);
