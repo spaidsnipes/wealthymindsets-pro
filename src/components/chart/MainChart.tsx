@@ -22657,7 +22657,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           if (!chipBox(text, r)) return;
           ctx.save();
           ctx.font = LEVEL_CHIP_FONT;
-          ctx.globalAlpha = chipAlpha;
+          // A NAMED LEVEL IS READ AT THE FLOOR (Founder ruling, faint-word pass; his NQ 5m stack 2026-10-17: the CMP chips
+          // inherited the profile's governed 0.5 and read washed out). The governor decides IF the name speaks, not how grey.
+          ctx.globalAlpha = Math.max(0.85, chipAlpha);
           if (!movedToStack && levelChipNeedsLeader(r, y, spotL.mode === "SLID")) {
             ctx.save();
             ctx.globalAlpha *= 0.6;
