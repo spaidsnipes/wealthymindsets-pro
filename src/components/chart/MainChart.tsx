@@ -14541,7 +14541,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // edge (Founder 2026-10-11, true mobile read: it sat on the candles). Desk unchanged.
           const axisW = (() => {
             // Narrow glass too (a phone on its side: wide but short), where the left-edge box sat on the oldest candles.
-            if (W >= 640 && !narrowGlass) return 0;
+            // EVERY DEVICE (Founder iPad, 2026-10-17: the "4m 13s" box sat at the far left over the session's candles):
+            // the countdown hangs under the price tag wherever the axis column can hold it; the left box is the fallback.
             try { const w = chart?.priceScale("right").width(); return Number.isFinite(w) && (w as number) > 0 ? (w as number) : 0; } catch { return 0; }
           })();
           const inAxis = axisW > 0 && tw + 20 <= axisW - 2;
