@@ -23377,7 +23377,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               Muted ivory: an honesty note, not an alarm. Placed like every
               profile word: never on a candle, never on a chip.
             */
-            if (lp.estimated || lp.nodesWithheld) {
+            // Not on a phone's glass (375 all-on, 2026-10-17: it printed through the forced "▼ LIVING VAL" truth chip,
+            // which is placed after it): the fidelity note lives in Tools › Active and ds.livingProfileFidelity there.
+            if ((lp.estimated || lp.nodesWithheld) && !narrowGlass) {
               const anchor = lp.val ?? lp.poc;
               const ya = anchor != null ? srs.priceToCoordinate(anchor) : null;
               if (ya != null) {
@@ -28455,10 +28457,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const wS = Math.ceil(ctx.measureText(words).width) + 8;
           let taken: readonly { x: number; y: number; w: number; h: number }[] = [];
           try { taken = wordGate.rects(); } catch { /* no registry */ }
+          // …and the chip ledger (phone 375 all-on, 2026-10-17: "▲ LIVING VAH" stacked at the same top row).
+          taken = [...taken, ...floatingChips];
           for (let k = 0; k < 4 && taken.some(q => silenceX - 4 < q.x + q.w && silenceX - 4 + wS > q.x && y - 7 < q.y + q.h && y + 7 > q.y) && y + 16 < pane0Bottom - 8; k++) y += 16;
         }
+        silenceRowLimitX = silenceRowLimit(y);
         ctx.fillStyle = "rgba(7,9,15,0.62)";
-        ctx.fillRect(Math.max(0, silenceX - 4), y - 7, narrowGlass ? Math.ceil(ctx.measureText(words).width) + 8 : Math.min(W * 0.62, 760), 14);
+        ctx.fillRect(Math.max(0, silenceX - 4), y - 7, Math.max(0, Math.min(narrowGlass ? Math.ceil(ctx.measureText(words).width) + 8 : Math.min(W * 0.62, 760), silenceRowLimitX - 6 - Math.max(0, silenceX - 4))), 14);
         ctx.fillStyle = "rgba(200,192,174,0.85)";
         ctx.textAlign = "left"; ctx.textBaseline = "middle";
         ctx.fillText(fitSilence(words), silenceX, y);
