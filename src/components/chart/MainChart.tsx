@@ -24762,6 +24762,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   const x0m = Math.round(xEndM) + 2;
                   const vah1 = mem.levels.find(l => l.sessionsAgo === 1 && l.kind === "VAH")?.price;
                   const val1 = mem.levels.find(l => l.sessionsAgo === 1 && l.kind === "VAL")?.price;
+                  // Behind today's candles: the family's one cut-out (BTC 5m, Oct 16 — the mass lay over the candles where
+                  // yesterday's session ends mid-camera).
+                  ctx.save();
+                  ctx.clip(profileCandleCut().path, "evenodd");
                   for (const r of massRows) {
                     const ya = srs.priceToCoordinate(r.lo), yb = srs.priceToCoordinate(r.hi);
                     if (ya == null || yb == null) continue;
@@ -24772,6 +24776,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     ctx.fillRect(x0m, top, Math.max(1, r.share * massW), hh);
                     memMassRows++;
                   }
+                  ctx.restore();
                 }
               }
             }
