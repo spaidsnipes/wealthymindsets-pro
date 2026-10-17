@@ -81,14 +81,11 @@ describe("chips ask for their box; on-top words are named; the teaching card nev
   it("the trader's own drawings are never withheld", () => {
     expect(CHART).toContain('paneWordGate.beginFrame({ mode: "OBSERVE", dpr });');
   });
-  it("the teaching card docks around the registry's words, and with no candle-free dock it is withheld with a receipt (desktop yield stays canon)", () => {
-    const a = CHART.indexOf("floatingChips.push(...cardWordReserve);");
-    const dock = CHART.indexOf("bounds, candles: candleRects, blockers: floatingChips,", a);
-    const rel = CHART.indexOf("floatingChips.splice(chipsBeforeCard, cardWordReserve.length);", a);
-    expect(a).toBeGreaterThan(0); expect(dock).toBeGreaterThan(a); expect(rel).toBeGreaterThan(dock);
-    expect(CHART).toContain("const cardNoClearDock = !cardOnNewest && yielded && (W < 1024 || cardWordsBeneath > 0);");
-    expect(CHART).toContain('ds.scaffoldingDock = cardWordsBeneath > 0 ? `WITHHELD_WORDS_BENEATH:${cardWordsBeneath}` : "WITHHELD_NO_CLEAR_DOCK";');
-    expect(CHART).toContain("ctx.fillStyle = panel(yielded ? 0.3 : 0.97);"); // canon untouched
+  // Restated 2026-10-16: the teaching card is retired (plate S-12G draws the steps on the glass). Its tags step around
+  // every word already on the glass and are LISTED when no clear place exists — never laid on candles.
+  it("the scaffolding glass tags step around the registry's words and are listed when there is no clear place", () => {
+    expect(CHART).toContain("const avoidS: { x: number; y: number; w: number; h: number }[] = [...keepOut(), ...floatingChips];");
+    expect(CHART).toContain('for (const l of outG.listed) displacedNotes.push({ layer: "STRUCTURE", text: l.text, x: l.x, y: l.y });');
   });
   it("a note chip still on a word after stepping becomes the wordless pip", () => {
     expect(CHART).toContain("pipForm = true; crowdedToPip++;");

@@ -1926,8 +1926,6 @@ const HEADER_CLEAR_PX = 96;
 
 /** Plate 24 (2026-10-15): the NEAR footprint grid — row height for 13px numbers, widest grid, imbalance ratio. */
 const FP_GRID_ROW_PX = 18;
-/** Scaffolding FOUNDATION / INTERMEDIATE draw on the candles (plate S-12G); the card form is retired from the glass. */
-const SCAFFOLD_ON_GLASS = true;
 /** Footprint: at MID, bar spacing from which the bid × ask grid (no numbers) stands on every candle. */
 const FP_MID_GRID_MIN_BSP = 16;
 const FP_GRID_MAX_W = 112;
@@ -16935,7 +16933,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   // …and when a card already stands there (phone 375, Oct 16: "Sellers held 4×, then broke" from
                   // Aggressive · Passive under "SWING BELOW · 29,303.25"), the tag yields the same way.
                   // On the glass (S-12G) the swing price pushes into is said once — by step 4's tag.
-                  if (SCAFFOLD_ON_GLASS && depth !== "PRO" && tag === (sc.steps.find(st => st.n === 4)?.verdict.includes("ABOVE") ? "SWING ABOVE" : sc.steps.find(st => st.n === 4)?.verdict.includes("BELOW") ? "SWING BELOW" : sc.pushingInto)) continue;
+                  if (depth !== "PRO" && tag === (sc.steps.find(st => st.n === 4)?.verdict.includes("ABOVE") ? "SWING ABOVE" : sc.steps.find(st => st.n === 4)?.verdict.includes("BELOW") ? "SWING BELOW" : sc.pushingInto)) continue;
                   const swingR = { x: W - 84 - tw - 8, y: y - 7, w: tw + 8, h: 14 };
                   if (onNewestColumn(W - 84 - tw - 8, y - 7, tw + 8, 14)
                     || floatingChips.some(o => swingR.x < o.x + o.w && swingR.x + swingR.w > o.x && swingR.y < o.y + o.h && swingR.y + swingR.h > o.y)) {
@@ -17280,7 +17278,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.textAlign = "left";
                   floatingChips.push(plaque);
                   }
-                } else if (SCAFFOLD_ON_GLASS) {
+                } else {
                   /* FOUNDATION / INTERMEDIATE ON THE GLASS — canon plate S-12G (Founder 2026-10-16: "the scaffolding
                      shouldn't be just cards … you should actually see this stuff"). The six steps are drawn where their
                      evidence is (scaffoldOnGlass.ts); every tag is placed clear of candles and words, or listed. */
@@ -17309,222 +17307,6 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ds.scaffoldingGlass = outG.receipt;
                   for (const r of outG.rects) floatingChips.push(r);
                   for (const l of outG.listed) displacedNotes.push({ layer: "STRUCTURE", text: l.text, x: l.x, y: l.y });
-                } else {
-                  /* FOUNDATION / INTERMEDIATE — the plate's student and
-                     compressed views, as ONE docked card that covers no
-                     candle. Candidates are tried plate-first: the full card
-                     magnified, at plate scale, then (Foundation) the six steps
-                     as six lines. The card's first choice is still the left
-                     column at y≈176; the dock moves it only when that spot
-                     would hide price. */
-                  const candleRects: GlassRect[] = [];
-                  {
-                    const barsD = barsRef.current ?? [];
-                    const vrD = tsS.getVisibleLogicalRange();
-                    const half = Math.max(3, bsp * 0.5);
-                    if (vrD) {
-                      const lo = Math.max(0, Math.floor(vrD.from)), hi = Math.min(barsD.length - 1, Math.ceil(vrD.to));
-                      for (let i = lo; i <= hi; i++) {
-                        const b = barsD[i];
-                        if (!b) continue;
-                        const xb = xOf(b.time), yh = yOf(b.high), yl = yOf(b.low);
-                        if (xb == null || yh == null || yl == null) continue;
-                        candleRects.push({ x: xb - half, y: Math.min(yh, yl) - 3, w: half * 2, h: Math.abs(yl - yh) + 6 });
-                      }
-                    }
-                  }
-                  // The card lives over history, never over "now": its room
-                  // ends a bar short of the newest candle in view.
-                  const newestX = candleRects.length ? Math.max(...candleRects.map(r => r.x + r.w)) : plotRight;
-                  const bounds = { x0: minX, y0: HEADER_FLOOR_Y + 4, x1: Math.min(plotRight - 8, newestX + bsp), y1: floorY };
-                  const x0 = minX;
-                  const y0 = 176;
-                  // MOCKUP SCALE. At desktop size the Founder's plate reads its
-                  // tiers at ~1.3× what the 8–11px chrome gave; the whole plate
-                  // is magnified as one piece so its geometry never drifts.
-                  const scafK = depth === "FOUNDATION" && W >= 1280 && H >= 820
-                    ? Math.max(1, Math.min(1.32, (H - y0 - 40) / 300, (W - x0 - 120) / 470)) : 1;
-                  const forms: { form: "FULL" | "COMPACT"; w: number; h: number; k: number }[] = depth === "FOUNDATION"
-                    ? [
-                        ...(scafK > 1 ? [{ form: "FULL" as const, ...SCAFFOLD_CARD_BOX.FOUNDATION, k: scafK }] : []),
-                        { form: "FULL" as const, ...SCAFFOLD_CARD_BOX.FOUNDATION, k: 1 },
-                        { form: "COMPACT" as const, ...SCAFFOLD_CARD_BOX.FOUNDATION_COMPACT, k: 1 },
-                      ]
-                    : [{ form: "COMPACT" as const, ...SCAFFOLD_CARD_BOX.INTERMEDIATE, k: 1 }];
-                  // TRUTH WORDS ARE NOT PAINTED THROUGH THE TEACHING CARD (serving
-                  // all-on NQ1! 5m b290eef, 2026-10-09: the bottom-left silence
-                  // lines — "ZERO-GAMMA · WITHHELD…" among them — ran across the
-                  // card's lower rows; the card docks before those lines exist).
-                  // The silence stack's band is reserved for the dock, then released.
-                  const silenceBase = shortPane ? H - 40 : H - 114;
-                  const silenceBandReserve = { x: 0, y: silenceBase - SILENCE_ROWS_SHOWN * silenceStep - 7, w: silenceX + Math.min(W * 0.62, 760), h: (SILENCE_ROWS_SHOWN + 1) * silenceStep + 14 };
-                  floatingChips.push(silenceBandReserve);
-                  // …and so is every word already on the glass (the registry): the
-                  // card never docks across a word it would hide or print through.
-                  const cardWordReserve = wordGate.rects().map(q => ({ x: q.x, y: q.y, w: q.w, h: q.h }));
-                  const chipsBeforeCard = floatingChips.length;
-                  floatingChips.push(...cardWordReserve);
-                  let pick: { form: "FULL" | "COMPACT"; w: number; h: number; k: number; dock: ReturnType<typeof dockClearOfCandles> } | null = null;
-                  for (const f of forms) {
-                    const dock = dockClearOfCandles({
-                      size: { w: f.w * f.k, h: f.h * f.k },
-                      bounds, candles: candleRects, blockers: floatingChips,
-                      preferred: { x: x0, y: y0 - 9 },
-                    });
-                    if (dock.mode !== "NONE") { pick = { ...f, dock }; break; }
-                  }
-                  // Nowhere clear on this camera: the smallest form keeps its
-                  // preferred spot and its backing YIELDS — the words stay, the
-                  // candles read through, and the receipt counts what it covers.
-                  if (!pick) {
-                    const f = forms[forms.length - 1];
-                    pick = { ...f, dock: dockClearOfCandles({ size: { w: f.w, h: f.h }, bounds, candles: candleRects, blockers: floatingChips, preferred: { x: x0, y: y0 - 9 } }) };
-                  }
-                  floatingChips.splice(chipsBeforeCard, cardWordReserve.length);
-                  { const iR = floatingChips.indexOf(silenceBandReserve); if (iR >= 0) floatingChips.splice(iR, 1); }
-                  ds.scaffoldingSilenceBand = `RESERVED:${Math.round(silenceBandReserve.y)}+${Math.round(silenceBandReserve.h)}`;
-                  const { x: cx0, y: cy0 } = pick.dock.rect;
-                  const k = pick.k, w = pick.w, h = pick.h;
-                  const yielded = pick.dock.mode === "NONE";
-                  ds.scaffoldingForm = depth === "FOUNDATION" ? `CARD:${pick.form}` : "LINES";
-                  ds.scaffoldingDock = yielded ? "YIELDED" : pick.dock.mode;
-                  ds.scaffoldingCardCandleHits = String(countRectHits(pick.dock.rect, candleRects));
-                  ds.scaffoldingScale = k.toFixed(2);
-                  // P1-A (Sheriff §15, 390: the FOUNDATION card lay across the
-                  // newest bars and the price row). The card may yield its
-                  // backing over history (canon), never over NOW: a dock that
-                  // reaches the newest column withholds the card; the read stays
-                  // in Tools › Active and the receipts.
-                  const cardOnNewest = onNewestColumn(cx0, cy0, w * k, h * k);
-                  if (cardOnNewest) { ds.scaffoldingDock = "WITHHELD_NEWEST_COLUMN"; ds.scaffoldingForm = `${ds.scaffoldingForm}:WITHHELD`; }
-                  // NO CANDLE-FREE DOCK (serving all-on NQ1! 5m at 834, 92895d6,
-                  // 2026-10-09: the card yielded onto 17 candles with two other
-                  // lines printed through it). Under 1024px the card is withheld
-                  // rather than laid over the candles; at any width it is withheld
-                  // when words lie beneath it. The desktop translucent yield over
-                  // history is canon and stays. The read remains in Tools › Active.
-                  const cardRect = { x: cx0, y: cy0, w: w * k, h: h * k };
-                  const cardWordsBeneath = yielded ? cardWordReserve.filter(q => q.x < cardRect.x + cardRect.w && q.x + q.w > cardRect.x && q.y < cardRect.y + cardRect.h && q.y + q.h > cardRect.y).length : 0;
-                  const cardNoClearDock = !cardOnNewest && yielded && (W < 1024 || cardWordsBeneath > 0);
-                  if (cardNoClearDock) { ds.scaffoldingDock = cardWordsBeneath > 0 ? `WITHHELD_WORDS_BENEATH:${cardWordsBeneath}` : "WITHHELD_NO_CLEAR_DOCK"; ds.scaffoldingForm = `${ds.scaffoldingForm}:WITHHELD`; }
-                  // An opaque (docked) card owns its rows; a yielded one is judged like any panel.
-                  if (!cardOnNewest && !cardNoClearDock && !yielded) onTop(cardRect, "OPAQUE_CARD");
-                  if (!cardOnNewest && !cardNoClearDock) {
-                  floatingChips.push({ x: cx0, y: cy0, w: w * k, h: h * k });
-
-                  // The read window, bracketed under its own bars: which
-                  // candles this card is about (a hairline may cross wicks).
-                  {
-                    const xa = firstW ? xOf(firstW.time) : null, xb = lastW ? xOf(lastW.time) : null;
-                    const lowY = Math.max(...sc.window.map(b => yOf(b.low) ?? -1e9));
-                    if (xa != null && xb != null && lowY > -1e9) {
-                      const by = Math.min(floorY, Math.round(lowY + 10)) + 0.5;
-                      ctx.strokeStyle = HAIR; ctx.lineWidth = 1;
-                      ctx.beginPath();
-                      ctx.moveTo(xa - bsp / 2, by - 4); ctx.lineTo(xa - bsp / 2, by); ctx.lineTo(xb + bsp / 2, by); ctx.lineTo(xb + bsp / 2, by - 4);
-                      ctx.stroke();
-                      ctx.font = font(700, 7); ctx.fillStyle = DIM;
-                      ctx.textAlign = "right";
-                      // L20 (Garden 19, serving 46f62ee at 1440): "20 BARS READ" printed through a shelf card and two
-                      // option-wall ticks — the caption was placed blind. It paints only where the glass is free (the
-                      // bracket itself still marks the window) and then claims its box.
-                      const brT = `${sc.window.length} BARS READ`;
-                      const brW = Math.ceil(ctx.measureText(brT).width) + 4;
-                      const brR = { x: xb + bsp / 2 - brW, y: by, w: brW, h: 15 };
-                      if (!floatingChips.some(q => brR.x < q.x + q.w && brR.x + brR.w > q.x && brR.y < q.y + q.h && brR.y + brR.h > q.y)) {
-                        ctx.fillText(brT, xb + bsp / 2, by + 7);
-                        floatingChips.push(brR);
-                      }
-                      ctx.textAlign = "left";
-                    }
-                  }
-
-                  ctx.save();
-                  ctx.translate(cx0, cy0);
-                  if (k !== 1) ctx.scale(k, k);
-                  ctx.fillStyle = panel(yielded ? 0.3 : 0.97);
-                  ctx.fillRect(0, 0, w, h);
-                  ctx.strokeStyle = HAIR; ctx.lineWidth = 1; ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
-                  crumb(10, 10, depth === "FOUNDATION" && pick.form === "FULL" ? 9 : 7.5, w - 20);
-                  const top = 21;
-                  ctx.strokeStyle = "rgba(201,165,92,0.25)";
-                  ctx.beginPath(); ctx.moveTo(6, top - 1.5); ctx.lineTo(w - 6, top - 1.5); ctx.stroke();
-                  if (depth === "FOUNDATION" && pick.form === "FULL") {
-                    // The plate's student view, all six steps fully expanded.
-                    const rowH = 30;
-                    ctx.font = font(700, 11); ctx.fillStyle = GOLD;
-                    ctx.fillText("FOUNDATION VIEW", 12, top + 14);
-                    ctx.font = font(500, 8); ctx.fillStyle = DIM;
-                    ctx.fillText("Full scaffolding · six steps fully expanded · every verdict measured", 12, top + 28);
-                    let ry = top + 40;
-                    for (const st of sc.steps) {
-                      ctx.strokeStyle = "rgba(201,165,92,0.18)";
-                      ctx.beginPath(); ctx.moveTo(8, ry + 0.5); ctx.lineTo(w - 8, ry + 0.5); ctx.stroke();
-                      ctx.font = font(700, 13); ctx.fillStyle = GOLD;
-                      ctx.fillText(String(st.n), 12, ry + rowH / 2);
-                      ctx.font = font(700, 9); ctx.fillStyle = CREAM;
-                      ctx.fillText(clip(st.title, w - 196 - 48), 30, ry + 10);
-                      ctx.font = font(500, 8); ctx.fillStyle = DIM;
-                      const cw = 196, cx = w - cw - 10;
-                      ctx.fillText(clip(st.evidence, cx - 38), 30, ry + 22);
-                      ctx.strokeStyle = HAIR; ctx.strokeRect(cx + 0.5, ry + 4.5, cw, rowH - 9);
-                      ctx.font = font(700, 8); ctx.fillStyle = CREAM;
-                      ctx.textAlign = "center";
-                      ctx.fillText(clip(st.verdict, cw - 8), cx + cw / 2, ry + rowH / 2);
-                      ctx.textAlign = "left";
-                      ry += rowH;
-                    }
-                    ctx.strokeStyle = HAIR; ctx.strokeRect(8.5, ry + 4.5, w - 17, 20);
-                    ctx.fillStyle = GOLD;
-                    ctx.textAlign = "center";
-                    // The conclusion reads whole: its type steps down (8.5 → 7) before a word is ever cut.
-                    const concl = `CONCLUSION: ${sc.conclusion}`;
-                    let cfs = 8.5;
-                    ctx.font = font(700, cfs);
-                    while (cfs > 7 && ctx.measureText(concl).width > w - 30) { cfs -= 0.5; ctx.font = font(700, cfs); }
-                    ctx.fillText(clip(concl, w - 30), w / 2, ry + 14.5);
-                    ctx.textAlign = "left";
-                  } else if (depth === "FOUNDATION") {
-                    // Same six steps, one line each: the number, the step, its verdict.
-                    const rowH = 15;
-                    ctx.font = font(700, 9); ctx.fillStyle = GOLD;
-                    ctx.fillText("FOUNDATION VIEW · SIX STEPS", 10, top + 9);
-                    let ry = top + 18;
-                    for (const st of sc.steps) {
-                      ctx.font = font(700, 9); ctx.fillStyle = GOLD;
-                      ctx.fillText(String(st.n), 10, ry + rowH / 2);
-                      ctx.font = font(700, 8); ctx.fillStyle = CREAM;
-                      ctx.fillText(clip(st.title, 140), 24, ry + rowH / 2);
-                      ctx.textAlign = "right"; ctx.fillStyle = GOLD;
-                      ctx.fillText(clip(st.verdict, w - 180), w - 10, ry + rowH / 2);
-                      ctx.textAlign = "left";
-                      ry += rowH;
-                    }
-                    ctx.font = font(700, 7.5); ctx.fillStyle = GOLD;
-                    ctx.fillText(clip(`CONCLUSION: ${sc.conclusion}`, w - 20), 10, ry + 9);
-                  } else {
-                    // The plate's compressed view: three dynamics, one posture.
-                    let ry = top + 3;
-                    for (const d of sc.dynamics) {
-                      ctx.font = font(700, 13); ctx.fillStyle = GOLD;
-                      ctx.fillText(d.trend === "UP" ? "↑" : d.trend === "DOWN" ? "↓" : "•", 10, ry + 8);
-                      ctx.font = font(700, 9); ctx.fillStyle = CREAM;
-                      ctx.fillText(d.label, 26, ry + 8);
-                      const lw = ctx.measureText(d.label).width;
-                      ctx.font = font(500, 8); ctx.fillStyle = DIM;
-                      ctx.fillText(clip(d.line, w - 40 - lw), 32 + lw, ry + 8);
-                      ry += 17;
-                    }
-                    ctx.strokeStyle = sc.caution ? GOLD : HAIR;
-                    ctx.strokeRect(6.5, ry + 3.5, w - 13, 32);
-                    ctx.font = font(800, 13); ctx.fillStyle = GOLD;
-                    ctx.fillText(sc.posture, 14, ry + 19.5);
-                    const pw = ctx.measureText(sc.posture).width;
-                    ctx.font = font(500, 7.5); ctx.fillStyle = CREAM;
-                    ctx.fillText(clip(sc.caution ? `${sc.cautionFlags.length} flag${sc.cautionFlags.length > 1 ? "s" : ""}: ${sc.cautionFlags.join(" · ")}` : "no flag fired — the read is yours", w - pw - 34), 22 + pw, ry + 20);
-                  }
-                  ctx.restore();
-                  } // P1-A: card painted only off the newest column
                 }
                 ctx.restore();
               }

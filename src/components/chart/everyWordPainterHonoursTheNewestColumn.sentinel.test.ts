@@ -46,6 +46,7 @@ describe("every word / plate painter honours the newest column (P1-A)", () => {
     // Tightened 2026-10-09: the newest column is still a keep-out, now beside the inspect sheet.
     expect(SRC).toContain("[...rowBodiesAt(-1e9, 1e9), ...newestColumnRects(), ...chartSheetRects()], floatingChips);");
     expect(SRC).toContain("const koC = [...keepOut(), ...rowBodiesAt(aboveY, belowY + tallest)];");
-    expect(SRC).toContain("const cardOnNewest = onNewestColumn(cx0, cy0, w * k, h * k);");
+    // Restated 2026-10-16: the scaffolding card is retired; its glass tags avoid every candle in view, the newest included.
+    expect(SRC).toContain("avoidS.push({ x: xb - hG, y: Math.min(yh, yl) - 3, w: hG * 2, h: Math.abs(yl - yh) + 6 });");
   });
 });

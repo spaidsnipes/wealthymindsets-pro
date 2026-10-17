@@ -292,14 +292,10 @@ describe("all-on collisions read on serving (NQ1! 5m, 2026-10-09)", () => {
     expect(CHART).toContain("for (let g = 0; g < 12 && onAnchor(r); g++) {");
     expect(CHART).toContain("anchorRects.push({ ...r });");
   });
-  it("the teaching card docks clear of the silence band, and the reserve is released after the dock", () => {
-    const a = CHART.indexOf("floatingChips.push(silenceBandReserve);");
-    const dock = CHART.indexOf("bounds, candles: candleRects, blockers: floatingChips,", a);
-    const rel = CHART.indexOf("const iR = floatingChips.indexOf(silenceBandReserve); if (iR >= 0) floatingChips.splice(iR, 1);", a);
-    expect(a).toBeGreaterThan(0);
-    expect(dock).toBeGreaterThan(a);
-    expect(rel).toBeGreaterThan(dock);
-    expect(CHART).toContain("ds.scaffoldingSilenceBand = `RESERVED:");
+  // Restated 2026-10-16: the teaching card is retired (scaffolding draws on the glass, plate S-12G); its tags step
+  // around every word already placed — the silence stack included — through the room's own chip ledger.
+  it("the scaffolding glass steps around every word already on the glass", () => {
+    expect(CHART).toContain("const avoidS: { x: number; y: number; w: number; h: number }[] = [...keepOut(), ...floatingChips];");
   });
 });
 

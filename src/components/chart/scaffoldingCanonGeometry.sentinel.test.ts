@@ -42,8 +42,7 @@ const block = scaffoldingBlock();
 const code = strip(block);
 const proAt = code.indexOf('if (depth === "PRO") {');
 const cardAt = code.indexOf("} else {", code.indexOf('ds.scaffoldingPlaque = `${spot.mode}', proAt) + 1);
-const pro = code.slice(proAt, code.indexOf("const candleRects: GlassRect[] = [];", proAt));
-const cards = code.slice(code.indexOf("const candleRects: GlassRect[] = [];", proAt));
+const pro = code.slice(proAt, code.indexOf("const avoidS", proAt));
 
 describe("ADVANCED / PRO — geometry on the real candles, no card", () => {
   it("the branch exists and is the geometry, not the old card", () => {
@@ -164,33 +163,29 @@ describe("ADVANCED / PRO — the plate's resistance rule and plaque hierarchy", 
   });
 });
 
-describe("FOUNDATION / INTERMEDIATE — one card, docked clear of every candle", () => {
-  it("the dock reads every candle in view (high→low, wicks included) and every chip on the glass", () => {
-    expect(cards).toMatch(/const xb = xOf\(b\.time\), yh = yOf\(b\.high\), yl = yOf\(b\.low\);/);
-    expect(cards).toMatch(/candleRects\.push\(\{ x: xb - half, y: Math\.min\(yh, yl\) - 3, w: half \* 2, h: Math\.abs\(yl - yh\) \+ 6 \}\);/);
-    expect(cards).toMatch(/dockClearOfCandles\(\{\s*size: \{ w: f\.w \* f\.k, h: f\.h \* f\.k \},\s*bounds, candles: candleRects, blockers: floatingChips,/);
+// Restated 2026-10-16 (Founder: "the scaffolding shouldn't be just cards"): FOUNDATION / INTERMEDIATE are drawn ON the
+// candles from canon plate S-12G (src/lib/chart/scaffoldOnGlass.ts). The card form is retired from the glass.
+describe("FOUNDATION / INTERMEDIATE — on the glass (plate S-12G), no card", () => {
+  const GLASS = readFileSync(path.join(process.cwd(), "src/lib/chart/scaffoldOnGlass.ts"), "utf8");
+  it("the room hands the painter every candle in view and every word already on the glass", () => {
+    expect(SRC).toContain("const avoidS: { x: number; y: number; w: number; h: number }[] = [...keepOut(), ...floatingChips];");
+    expect(SRC).toContain("avoidS.push({ x: xb - hG, y: Math.min(yh, yl) - 3, w: hG * 2, h: Math.abs(yl - yh) + 6 });");
+    expect(SRC).toContain("const outG = paintScaffoldOnGlass(ctx, {");
   });
-
-  it("the card paints only at the docked rect, and yields its backing when the camera has no room", () => {
-    expect(cards).toMatch(/const \{ x: cx0, y: cy0 \} = pick\.dock\.rect;/);
-    expect(cards).toMatch(/ctx\.translate\(cx0, cy0\);/);
-    expect(cards).toMatch(/ctx\.fillStyle = panel\(yielded \? 0\.3 : 0\.97\);\s*ctx\.fillRect\(0, 0, w, h\);/);
-    // Exactly one filled box: the card itself (the old separate crumb strip is gone).
-    expect([...cards.matchAll(/ctx\.fillRect\(/g)]).toHaveLength(1);
-    expect(code).not.toMatch(/ctx\.fillRect\(x0, top, w, h\)|ctx\.fillRect\(x0, y0 - 9, 290, 18\)/);
-    expect(cards).toMatch(/floatingChips\.push\(\{ x: cx0, y: cy0, w: w \* k, h: h \* k \}\);/);
+  it("every tag it places is registered, and a tag with no clear place is listed — never laid on price", () => {
+    expect(SRC).toContain("for (const r of outG.rects) floatingChips.push(r);");
+    expect(SRC).toContain('for (const l of outG.listed) displacedNotes.push({ layer: "STRUCTURE", text: l.text, x: l.x, y: l.y });');
+    expect(GLASS).toContain("const r = cands.find(c => inPlot(c) && !hits(c, taken)) ?? rail.find(c => inPlot(c) && !hits(c, taken));");
   });
-
-  it("the card's room is under the header, inside the plot, left of now, right of an active lens column", () => {
-    expect(code).toMatch(/const minX = Math\.max\(12, keepOutMinX\(\) \+ \(lensColumnActive \? 2 : 8\)\);/);
-    expect(cards).toMatch(/const bounds = \{ x0: minX, y0: HEADER_FLOOR_Y \+ 4, x1: Math\.min\(plotRight - 8, newestX \+ bsp\), y1: floorY \};/);
+  it("the six steps are drawn where their evidence is", () => {
+    for (const k of ["1 · STRUCTURE", "2 · EFFORT", "3 · RESULT", "4 · LOCATION", "5 · ORDER FLOW", "6 · CAUTION"]) expect(GLASS).toContain(k);
+    expect(GLASS).toContain('`STRUCTURE — ${s1.verdict}`');
+    expect(GLASS).toContain("arrow(xb0, yb0 + off, xb1, yb1 + off, I.BLUE, 3.2);");
   });
-
-  it("publishes what it did: form, dock, candles covered, scale", () => {
-    for (const k of ["scaffoldingForm", "scaffoldingDock", "scaffoldingCardCandleHits", "scaffoldingScale"]) {
-      expect(cards, k).toMatch(new RegExp(`ds\\.${k} = `));
-    }
-    expect(cards).toMatch(/ds\.scaffoldingCardCandleHits = String\(countRectHits\(pick\.dock\.rect, candleRects\)\);/);
+  it("publishes what it did: form and steps on the glass", () => {
+    expect(SRC).toContain("ds.scaffoldingForm = `GLASS:${depth}`;");
+    expect(SRC).toContain("ds.scaffoldingGlass = outG.receipt;");
+    expect(SRC).not.toContain("CARD:${pick.form}");
   });
 });
 

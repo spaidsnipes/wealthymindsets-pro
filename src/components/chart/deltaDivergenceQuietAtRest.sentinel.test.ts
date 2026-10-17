@@ -57,8 +57,9 @@ describe("at rest: the compact tag only", () => {
     expect(atRest).toContain('ds.deltaDivergenceTag = dvTagSpot.mode === "CLEAR" ? "CLEAR" : "MOVED";');
   });
 
-  it("the scaffold card is on the chip ledger before this block places anything", () => {
-    const scaffoldPush = CHART.indexOf("floatingChips.push({ x: cx0, y: cy0, w: w * k, h: h * k });");
+  it("the scaffold's glass tags are on the chip ledger before this block places anything", () => {
+    // Restated 2026-10-16: the card is retired; the S-12G tags register the same way.
+    const scaffoldPush = CHART.indexOf("for (const r of outG.rects) floatingChips.push(r);");
     expect(scaffoldPush).toBeGreaterThan(-1);
     expect(scaffoldPush).toBeLessThan(blockAt);
   });
