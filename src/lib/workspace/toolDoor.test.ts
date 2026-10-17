@@ -72,7 +72,8 @@ describe("the doors listen; Configure uses the owner", () => {
   });
   it("Active Tools' Configure opens the door, falling back to the card only when none holds the tool", () => {
     const src = readFileSync("src/components/chart/ActiveToolsPanel.tsx", "utf8");
-    expect(src).toContain("if (anchor) { window.dispatchEvent(new CustomEvent<{ section: ChartSettingsSection }>(CHART_SETTINGS_SECTION_EVENT, { detail: { section: anchor as ChartSettingsSection } })); return; }");
+    // Restated 2026-10-16: the gear carries its own rect so the tool's style card opens beside it (ToolStylePopover).
+    expect(src).toContain("if (anchor) { window.dispatchEvent(new CustomEvent(CHART_SETTINGS_SECTION_EVENT, { detail: { section: anchor as ChartSettingsSection, rect: { left: b.left, top: b.top, right: b.right, bottom: b.bottom } } })); return; }");
     expect(src).toContain("if (!openDoor(id)) onConfigure(id);");
     expect(src).toContain("openDoor = openToolDoor");
   });

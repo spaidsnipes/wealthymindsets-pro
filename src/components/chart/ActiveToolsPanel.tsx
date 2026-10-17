@@ -107,9 +107,10 @@ export function ActiveToolsPanel({ entries, instruments = [], receipts, roles, o
       title={settingsAnchorFor(id) ? "Appearance — its colour and opacity" : familyDoorFor(id) ? "Configure — open its tools door" : "Configure — its card"}
       // A tool with a look of its own opens ON its appearance controls (Founder 2026-10-11: "no hunting
       // through unrelated menus"); others keep their family door or card.
-      onClick={() => {
+      onClick={e => {
         const anchor = settingsAnchorFor(id);
-        if (anchor) { window.dispatchEvent(new CustomEvent<{ section: ChartSettingsSection }>(CHART_SETTINGS_SECTION_EVENT, { detail: { section: anchor as ChartSettingsSection } })); return; }
+        const b = e.currentTarget.getBoundingClientRect();
+        if (anchor) { window.dispatchEvent(new CustomEvent(CHART_SETTINGS_SECTION_EVENT, { detail: { section: anchor as ChartSettingsSection, rect: { left: b.left, top: b.top, right: b.right, bottom: b.bottom } } })); return; }
         if (!openDoor(id)) onConfigure(id);
       }}
       style={{ ...BTN, color: configureOpenId === id ? GOLD : MUTED }}

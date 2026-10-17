@@ -360,7 +360,7 @@ export function ProfilesMenu({
                   return (
                     <button type="button" data-testid={`appearance-gear-${entry.id}`}
                       aria-label={`${entry.label} appearance — colour and opacity`} title={`${entry.label} · colour and opacity`}
-                      onClick={e => { e.stopPropagation(); window.dispatchEvent(new CustomEvent<{ section: ChartSettingsSection }>(CHART_SETTINGS_SECTION_EVENT, { detail: { section: anchor as ChartSettingsSection } })); }}
+                      onClick={e => { e.stopPropagation(); const b = e.currentTarget.getBoundingClientRect(); window.dispatchEvent(new CustomEvent(CHART_SETTINGS_SECTION_EVENT, { detail: { section: anchor as ChartSettingsSection, rect: { left: b.left, top: b.top, right: b.right, bottom: b.bottom } } })); }}
                       className="inline-flex h-11 w-9 shrink-0 items-center justify-center rounded-lg hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold"
                       style={{ background: "none", border: "none", cursor: "pointer", padding: 0, color: "#c9a55c" }}>
                       <Settings2 size={15} aria-hidden="true" />

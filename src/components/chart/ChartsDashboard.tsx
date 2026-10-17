@@ -90,6 +90,7 @@ import { LeftDrawingSidebar } from "./LeftDrawingSidebar";
 import { WatchlistPanel } from "./WatchlistPanel";
 import { AlertsPanel, type PriceAlert } from "./AlertsPanel";
 import { ChartSettingsModal, type ChartSettings, DEFAULT_CHART_SETTINGS } from "./ChartSettingsModal";
+import { ToolStylePopover, type ToolStyleTarget } from "./ToolStylePopover";
 import { deliverChartDraftPrice, useChartLineModifyAsk } from "@/lib/execution/chartOrderLines";
 import {
   CANDLE_DOWN_DEFAULT,
@@ -1230,8 +1231,18 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [settingsOpen,   setSettingsOpen]   = useState(false);
   // A tool's ⚙ (Active tools) can open Chart Settings at its own section (toolDoor.settingsSectionFor).
   const [settingsSection, setSettingsSection] = useState<ChartSettingsSection | null>(null);
+  const [toolStyle, setToolStyle] = useState<ToolStyleTarget | null>(null);
   useEffect(() => {
-    const onSection = (e: Event) => { const sec = (e as CustomEvent<{ section?: ChartSettingsSection }>).detail?.section; if (sec) { setSettingsSection(sec); setSettingsOpen(true); } };
+    // A species / invention gear opens ITS OWN style card beside the gear (Founder 2026-10-16: "I thought I was
+    // clicking on that to change the colors … why is there a chart settings tool on each one"); anything else
+    // (gamma heat, marks) still opens Chart Settings at its section.
+    const onSection = (e: Event) => {
+      const d = (e as CustomEvent<{ section?: ChartSettingsSection; rect?: ToolStyleTarget["rect"]; full?: boolean }>).detail;
+      const sec = d?.section;
+      if (!sec) return;
+      if (!d?.full && (sec.startsWith("species:") || sec.startsWith("inv:"))) { setToolStyle({ section: sec, rect: d?.rect ?? null }); return; }
+      setSettingsSection(sec); setSettingsOpen(true);
+    };
     window.addEventListener(CHART_SETTINGS_SECTION_EVENT, onSection);
     return () => window.removeEventListener(CHART_SETTINGS_SECTION_EVENT, onSection);
   }, []);
@@ -8084,6 +8095,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         alerts={allAlerts}
       />
 
+      {toolStyle ? (
+        <ToolStylePopover target={toolStyle} settings={effChartSettings} onChange={applyChartSettings}
+          onClose={() => setToolStyle(null)}
+          onMore={() => { setSettingsSection(toolStyle.section as ChartSettingsSection); setToolStyle(null); setSettingsOpen(true); }} />
+      ) : null}
       {/* Chart Settings Modal */}
       <ChartSettingsModal
         open={settingsOpen}
