@@ -213,7 +213,7 @@ const KEEL_ATR_WAIT_FRAMES = 2;
 const KEEL_MIN_L = 3;
 /** Desk keel (Oct 16 one-at-a-time pass, serving NQ1! 15m: 45 keels drawn at 3 × 2 px — none could be seen). */
 const KEEL_DESK_MIN_L = 6;
-const KEEL_DESK_H = 3;
+const KEEL_DESK_H = 4;
 /** A FAILED keel (failed aggression) on wide glass: at least this long and tall (G19, Oct 10). */
 const KEEL_FAIL_MIN_L = 8;
 const KEEL_FAIL_H = 4;
@@ -12662,7 +12662,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             for (const [gk, g] of groups) {
               const ink = gk[0] === "B" ? flowColorsRef.current.dBuy : flowColorsRef.current.dSell;
               const b = Number(gk.slice(1));
-              const a = b === 4 ? 0.95 : 0.55 * (0.6 + 0.4 * (b + 0.5) / 4);
+              // Founder 2026-10-16 (delta "some little shit … I don't see what it is"): age steps 0.85 → 1, never a whisper.
+              const a = b === 4 ? 1 : 0.85 + 0.15 * (b / 4);
               if (g.solid.length) { rects(g.solid); ctx.fillStyle = `rgba(${ink},${a.toFixed(3)})`; ctx.fill(); }
               if (g.hollow.length) { rects(g.hollow); ctx.strokeStyle = `rgba(${ink},${Math.min(1, a + 0.15).toFixed(3)})`; ctx.stroke(); }
             }
@@ -12732,21 +12733,25 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           let drawnN = 0;
           ctx.save();
           ctx.globalAlpha = att.alpha("cvdNotch");
-          ctx.strokeStyle = "rgba(237,230,211,0.6)";
-          ctx.lineWidth = 1;
+          // Founder 2026-10-16 (no plate yet; "penciled in"): a 6px hollow ivory tick was a guess you had to hunt for.
+          // The notch is a solid gold arrowhead (10 × 9px) on a dark rim, past the wick it marks; inferred stays dashed.
+          ctx.lineWidth = 1.5;
           for (const n of rd.notches) {
             const b = byTime.get(n.time);
             const xr = tsN.timeToCoordinate(n.time as never);
             if (!b || xr == null || +xr < 0 || +xr > plotRight) continue;
             const yw = srs.priceToCoordinate(n.dir > 0 ? b.high : b.low);
             if (yw == null) continue;
-            const x = Math.round(+xr) + 0.5, tip = +yw - n.dir * 3, base = tip + n.dir * 4;
-            ctx.setLineDash(n.inferred ? [1, 1] : []);
+            const x = Math.round(+xr) + 0.5, tip = +yw - n.dir * 5, base = tip - n.dir * 9;
+            ctx.setLineDash(n.inferred ? [2, 2] : []);
             ctx.beginPath();
-            ctx.moveTo(x, tip - n.dir * 4);
-            ctx.lineTo(x - 3, base - n.dir * 4);
-            ctx.lineTo(x + 3, base - n.dir * 4);
+            ctx.moveTo(x, tip);
+            ctx.lineTo(x - 5, base);
+            ctx.lineTo(x + 5, base);
             ctx.closePath();
+            ctx.fillStyle = n.inferred ? "rgba(243,215,138,0.35)" : "rgba(243,215,138,0.95)";
+            ctx.fill();
+            ctx.strokeStyle = "rgba(8,7,5,0.9)";
             ctx.stroke();
             drawnN++;
             if (inspectedBarRef.current?.time === n.time) canvas.dataset.cvdNotchInspect = cvdNotchProvenance(n);
