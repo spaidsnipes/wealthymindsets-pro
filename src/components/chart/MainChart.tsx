@@ -24951,9 +24951,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 const t1 = s1.formedAt, t0 = s2 ? s2.formedAt : t1 - 86400;
                 const massRows = memoryMass(barsM, t0, t1);
                 const xEnd = ts.timeToCoordinate(t1 as any);
-                if (massRows.length && xEnd != null && +xEnd < endX - 20) {
-                  const massW = Math.min(140, Math.max(60, (endX - +xEnd) * 0.35));
-                  const x0m = Math.round(+xEnd) + 2;
+                // Founder 2026-10-16 ("Memory … you can barely see it"): yesterday's session usually ends LEFT of
+                // today's camera, so the mass was painted off the glass. Off camera, it stands at the plot's left edge.
+                const xEndM = xEnd != null && +xEnd >= keepOutMinX() + 4 ? +xEnd : keepOutMinX() + 4;
+                if (massRows.length && xEndM < endX - 20) {
+                  const massW = Math.min(140, Math.max(60, (endX - xEndM) * 0.35));
+                  const x0m = Math.round(xEndM) + 2;
                   const vah1 = mem.levels.find(l => l.sessionsAgo === 1 && l.kind === "VAH")?.price;
                   const val1 = mem.levels.find(l => l.sessionsAgo === 1 && l.kind === "VAL")?.price;
                   for (const r of massRows) {
@@ -24962,7 +24965,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     const top = Math.min(+ya, +yb), hh = Math.max(1, Math.abs(+ya - +yb) - (Math.abs(+ya - +yb) > 3 ? 1 : 0));
                     const midP = (r.lo + r.hi) / 2;
                     const inVA = vah1 != null && val1 != null && midP <= vah1 && midP >= val1;
-                    ctx.fillStyle = `rgba(${MEMORY_MASS_RGB},${inVA ? 0.62 : 0.34})`;
+                    ctx.fillStyle = `rgba(${MEMORY_MASS_RGB},${inVA ? 0.8 : 0.5})`;
                     ctx.fillRect(x0m, top, Math.max(1, r.share * massW), hh);
                     memMassRows++;
                   }
