@@ -57,6 +57,7 @@ describe("the envelope's words (Sentinel)", () => {
   });
 
   it("its refusal line is a chip too, so TPO letters yield to it", () => {
-    expect(CHART).toContain("floatingChips.push({ x: 12, y: H - 86 - 7, w: ctx.measureText(refusal).width, h: 14 });");
+    // 2026-10-17: the refusal rides the silence stack (folds on a phone, stops at the next chip) and stays a chip.
+    expect(CHART).toContain("if (rowE > 0) floatingChips.push({ x: silenceX, y: rowE - 7, w: ctx.measureText(shownE).width, h: 14 });");
   });
 });

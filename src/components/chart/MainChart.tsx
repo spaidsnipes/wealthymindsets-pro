@@ -19963,9 +19963,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.font = marketFont("OBJECT_NAME");
             ctx.fillStyle = "rgba(200,192,174,0.85)";
             ctx.textAlign = "left";
-            ctx.fillText(refusal, 12, H - 86);
+            ctx.textBaseline = "middle";
+            // THE SILENCE STACK, not a fixed seat (phone 375 BTC, 2026-10-17: printed at H − 86 it ran over the gamma
+            // disclosure and off the glass). It folds on a phone, steps with the others, stops at the next chip.
+            const rowE = takeSilenceRow();
+            const shownE = fitSilence(refusal);
+            ctx.fillText(shownE, silenceX, rowE);
             // A chip, so TPO letters painted later yield to these words.
-            floatingChips.push({ x: 12, y: H - 86 - 7, w: ctx.measureText(refusal).width, h: 14 });
+            if (rowE > 0) floatingChips.push({ x: silenceX, y: rowE - 7, w: ctx.measureText(shownE).width, h: 14 });
           }
           ctx.restore();
         } else {

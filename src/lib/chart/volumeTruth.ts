@@ -95,6 +95,25 @@ const CASH_INDEX: VolumeTruth = {
     "volume. Its futures (ES1!, NQ1!) and ETFs (SPY, QQQ) carry the traded volume. No volume bar is drawn.",
 };
 
+/**
+ * HISTORY WITHOUT VOLUME, A LIVE TAIL WITH IT (serving BTC-USD 4h, 2026-10-17): the venue has no 4h candle, so the
+ * history came from a candle feed that reports no traded volume (every bar 0), while the forming bar folded the
+ * live tape's real prints. "Any bar is real" called the whole series real, and the histogram drew ONE full-height
+ * bar under the newest candle. When the first real volume sits only in the newest tail — the last 15% of bars,
+ * never fewer than 3 — the history's field is a placeholder and the tail alone cannot stand for it.
+ */
+const LIVE_TAIL_ONLY: VolumeTruth = {
+  real: false,
+  reason: "PLACEHOLDER_VOLUME",
+  text: "NO VOLUME IN HISTORY · live tape only",
+  short: "live tape only",
+  title:
+    "This chart's history came from a feed that reports no traded volume; only the newest live bars carry " +
+    "tape volume. A histogram of a few real bars over a history of zeros would draw a false spike, so no " +
+    "volume bar is drawn and no volume-weighted layer is read from it.",
+};
+export const LIVE_TAIL_SHARE = 0.15;
+
 export function volumeTruthFor(
   symbol: string,
   bars: readonly { readonly volume: number }[] | null | undefined,
@@ -104,9 +123,12 @@ export function volumeTruthFor(
   if (isUsCashIndexSymbol(symbol)) return CASH_INDEX;
   const bs = bars ?? [];
   if (bs.length < PLACEHOLDER_MIN_BARS) return REAL;
-  for (const b of bs) {
-    const v = b?.volume;
-    if (Number.isFinite(v) && v !== 0 && v !== 1) return REAL;
+  for (let i = 0; i < bs.length; i++) {
+    const v = bs[i]?.volume;
+    if (Number.isFinite(v) && v !== 0 && v !== 1) {
+      const tail = Math.max(3, Math.ceil(bs.length * LIVE_TAIL_SHARE));
+      return i >= bs.length - tail ? LIVE_TAIL_ONLY : REAL;
+    }
   }
   return PLACEHOLDER;
 }

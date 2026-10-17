@@ -99,3 +99,17 @@ describe("volume-weighted layers do not draw from the placeholder", () => {
     expect(volumeBearingBars("TSLA", TSLA)).toBe(TSLA);
   });
 });
+
+// Serving BTC-USD 4h, 2026-10-17: history from a feed with no volume, the forming bar folded the live tape.
+describe("a live tail does not make a history of zeros real", () => {
+  const zeros = (n: number) => Array.from({ length: n }, () => ({ volume: 0 }));
+  it("real volume only in the newest tail is LIVE TAIL ONLY, not real", () => {
+    const t = volumeTruthFor("BTC-USD", [...zeros(120), { volume: 0.0023 }]);
+    expect(t.real).toBe(false);
+    if (!t.real) expect(t.text).toBe("NO VOLUME IN HISTORY · live tape only");
+  });
+  it("real volume that starts before the tail is real", () => {
+    expect(volumeTruthFor("BTC-USD", [...zeros(10), { volume: 2 }, ...zeros(100)]).real).toBe(true);
+    expect(volumeTruthFor("NQ1!", Array.from({ length: 50 }, (_, i) => ({ volume: 100 + i }))).real).toBe(true);
+  });
+});
