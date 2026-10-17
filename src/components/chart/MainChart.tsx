@@ -1925,6 +1925,8 @@ const HEADER_CLEAR_PX = 96;
 
 /** Plate 24 (2026-10-15): the NEAR footprint grid — row height for 13px numbers, widest grid, imbalance ratio. */
 const FP_GRID_ROW_PX = 18;
+/** Footprint: at MID, bar spacing from which the bid × ask grid (no numbers) stands on every candle. */
+const FP_MID_GRID_MIN_BSP = 16;
 const FP_GRID_MAX_W = 112;
 const FP_IMBALANCE_RATIO = 3;
 /** The NEAR grid's width for a bar: wider than the candle body (two numbers side by side), never past FP_GRID_MAX_W. */
@@ -9500,7 +9502,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // its volume clustered: its POC row as one slim gold bar across the
           // candle, the dominant side's tip on that bar's edge. The real
           // candle stays untouched. NEAR keeps the full bid × ask grid.
-          if (!fpNumbers) {
+          // Founder 2026-10-16 ("bid/ask … only on a few candles"): when the candles are wide enough to hold a
+          // two-sided grid (bar spacing ≥ FP_MID_GRID_MIN_BSP), MID draws the grid too — tint and imbalances, no
+          // numbers. Only a compressed camera keeps the one POC bar.
+          if (!fpNumbers && bsp < FP_MID_GRID_MIN_BSP) {
             const lvP = levels[pocIdx];
             if (lvP && lvP.total > 0) {
               const pocY = Math.round(yH + pocIdx * rowH);
