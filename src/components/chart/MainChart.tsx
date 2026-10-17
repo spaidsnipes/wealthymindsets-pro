@@ -22424,6 +22424,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
            rows they won are handed back in price order before anything paints. */
         let levelChipGroup: { y: number; r: { x: number; y: number; w: number; h: number }; paint: (r: { x: number; y: number; w: number; h: number }) => void }[] | null = null;
         let levelChipsReordered = 0;
+        // CHIPS PAINT LAST (Founder 2026-10-17, NQ 5m Composite + Living: the teal Composite rows, a later lane,
+        // painted over "LIVING VAH 29,877.50"). A chip still takes its row the moment its species places it;
+        // the paint waits until every profile lane has painted, so no lane is ever drawn over a level's name.
+        const profileChipPaints: (() => void)[] = [];
         const flushLevelChipGroup = () => {
           const g = levelChipGroup;
           levelChipGroup = null;
@@ -22431,7 +22435,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const rowsTopDown = g.map(e => e.r.y).sort((a, b) => a - b);
           const byPrice = [...g].sort((a, b) => a.y - b.y);
           if (byPrice.some((e, i) => e.r.y !== rowsTopDown[i])) levelChipsReordered++;
-          byPrice.forEach((e, i) => e.paint({ ...e.r, y: rowsTopDown[i] }));
+          byPrice.forEach((e, i) => { const rr = { ...e.r, y: rowsTopDown[i] }; profileChipPaints.push(() => e.paint(rr)); });
         };
         let levelChipsQuieted = 0;
         let levelChipsMoved = 0;
@@ -22613,7 +22617,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ctx.restore();
           // In a level set, the paint waits for the set's price order.
           if (levelChipGroup) { levelChipGroup.push({ y, r, paint: paintAt }); return; }
-          paintAt(r);
+          profileChipPaints.push(() => paintAt(r));
         };
         /*
           A SPECIES' QUIET WORDS (a caption, a named silence): the same keep-out
@@ -25207,6 +25211,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           }
         }
 
+        for (const paintChip of profileChipPaints) paintChip();
+        profileChipPaints.length = 0;
         /*
           THE PROFILE FAMILY'S CANON RECEIPTS (P-110 canon pass, 2026-09-25) —
           published after the last profile species painted, withdrawn when none

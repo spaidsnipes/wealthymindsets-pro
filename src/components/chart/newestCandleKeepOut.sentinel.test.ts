@@ -265,7 +265,9 @@ describe("a level set keeps its price order after the keep-out", () => {
   it("Living's three chips are placed as a group and painted on the won rows in price order", () => {
     expect(CHART).toContain("const rowsTopDown = g.map(e => e.r.y).sort((a, b) => a - b);");
     expect(CHART).toContain("const byPrice = [...g].sort((a, b) => a.y - b.y);");
-    expect(CHART).toContain("byPrice.forEach((e, i) => e.paint({ ...e.r, y: rowsTopDown[i] }));");
+    // 2026-10-17: the won rows still go in price order; the paint itself waits until every lane has painted.
+    expect(CHART).toContain("byPrice.forEach((e, i) => { const rr = { ...e.r, y: rowsTopDown[i] }; profileChipPaints.push(() => e.paint(rr)); });");
+    expect(CHART).toContain("for (const paintChip of profileChipPaints) paintChip();");
     expect(CHART).toContain("if (levelChipGroup) { levelChipGroup.push({ y, r, paint: paintAt }); return; }");
     const open = CHART.indexOf("levelChipGroup = [];");
     const flush = CHART.indexOf("} finally { flushLevelChipGroup(); }", open);
