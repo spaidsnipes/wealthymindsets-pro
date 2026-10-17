@@ -102,6 +102,12 @@ export function paintScaffoldOnGlass(ctx: Ctx, g: ScaffoldGlassInput): ScaffoldG
     rail.sort((p, q) => Math.hypot(p.x + p.w / 2 - ax, p.y + p.h / 2 - ay) - Math.hypot(q.x + q.w / 2 - ax, q.y + q.h / 2 - ay));
     const r = cands.find(c => inPlot(c) && !hits(c, taken)) ?? rail.find(c => inPlot(c) && !hits(c, taken));
     if (!r) {
+      // Phone: before listing, try the verdict's head (its first clause, at most three words) — a short
+      // word on the glass beats a long one in the list.
+      if (compact) {
+        const head = title.split(/ — | · |, /)[0].split(" ").slice(0, 3).join(" ");
+        if (head.length >= 3 && head !== title) return tag(n, ax, ay, head, "", ink, listOnFail);
+      }
       if (!listOnFail) return false;
       listed.push({ text: `${title} — ${sub}`, x: ax, y: ay }); listedWhy.push(`${n ?? "-"}:${w}x${h}`);
       // Phone: the words are listed, but the step's numbered disc still stands on its evidence (18px, clear of candles).
