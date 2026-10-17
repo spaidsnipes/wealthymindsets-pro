@@ -343,8 +343,10 @@ export function paintScaffoldOnGlass(ctx: Ctx, g: ScaffoldGlassInput): ScaffoldG
       ctx.font = `500 12px ${g.sans}`; ctx.fillStyle = rgba(I.IVORY, 0.95); ctx.fillText(line1, r.x + 14, r.y + 42);
       ctx.font = `700 12px ${g.sans}`; ctx.fillStyle = rgba(I.GOLD2, 1); ctx.fillText(line2, r.x + 14, r.y + 59);
       taken.push(r); rects.push(r); painted++;
-    } else listed.push({ text: `${title} — ${line1}`, x: px, y: py });
+    }
     ctx.restore();
+    // No room for the full plaque (tablet): the caution still stands — as a step tag with its flags.
+    if (!r && tag(foundation ? 6 : null, px, py, title, line1, ink)) painted++;
   }
 
   const expected = foundation ? 6 : 4;
