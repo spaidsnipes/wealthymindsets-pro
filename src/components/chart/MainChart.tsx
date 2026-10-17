@@ -16884,7 +16884,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   // newest candles' column (serving 390 + 834 all-on, 92895d6,
                   // 2026-10-09: "SWING ABOVE · 31194.50" across the forming candle)
                   // the dashed level stays and the words are listed instead.
-                  if (onNewestColumn(W - 84 - tw - 8, y - 7, tw + 8, 14)) {
+                  // …and when a card already stands there (phone 375, Oct 16: "Sellers held 4×, then broke" from
+                  // Aggressive · Passive under "SWING BELOW · 29,303.25"), the tag yields the same way.
+                  const swingR = { x: W - 84 - tw - 8, y: y - 7, w: tw + 8, h: 14 };
+                  if (onNewestColumn(W - 84 - tw - 8, y - 7, tw + 8, 14)
+                    || floatingChips.some(o => swingR.x < o.x + o.w && swingR.x + swingR.w > o.x && swingR.y < o.y + o.h && swingR.y + swingR.h > o.y)) {
                     displacedNotes.push({ layer: "STRUCTURE", text: t, x: W - 84 - tw / 2, y });
                     swingTagsListed++;
                     continue;

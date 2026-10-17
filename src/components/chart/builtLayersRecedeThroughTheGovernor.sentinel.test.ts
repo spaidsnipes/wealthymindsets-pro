@@ -336,7 +336,8 @@ describe("tablet all-on: names leave the newest candles' column (serving 834 + 3
     expect(CHART).toContain("if (W < 640 && spotL.onCandles) {");
   });
   it("a swing tag and an OI tick word on the newest column are listed, not painted", () => {
-    expect(CHART).toContain("if (onNewestColumn(W - 84 - tw - 8, y - 7, tw + 8, 14)) {");
+    // Restated 2026-10-16: the tag also yields to a card already standing on its spot (phone A/P shelf card).
+    expect(CHART).toContain("if (onNewestColumn(W - 84 - tw - 8, y - 7, tw + 8, 14)\n                    || floatingChips.some(o => swingR.x < o.x + o.w");
     expect(CHART).toContain("ds.scaffoldingSwingTags = `LISTED:${swingTagsListed}`;");
     expect(CHART).toContain("const offColumn = (k: number) => {");
     expect(CHART).toContain("if (onNewestColumn(q.x, q.y, q.w, q.h)) return false;");
