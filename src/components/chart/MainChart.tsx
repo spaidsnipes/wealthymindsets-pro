@@ -9640,7 +9640,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.fillRect(gx + halfC, rowY, cellW - halfC, rH);
             if (numbersFit) {
               ctx.font = marketFont("FOOTPRINT_NUMBER", fsG);
-              const bt = fmtV(lv.bid), at = fmtV(lv.ask);
+              // A fraction drops its leading zero in the grid (".12", the footprint convention): BTC 1m on serving
+              // fea156c painted no number at all — "0.12" is wider than a 27px half at 13px, and the rule drops it.
+              const gridV = (v: number) => { const t = fmtV(v); return t.startsWith("0.") ? t.slice(1) : t.startsWith("<0.") ? `<${t.slice(2)}` : t; };
+              const bt = gridV(lv.bid), at = gridV(lv.ask);
               if (fitsHalf(bt)) { cellNum(bt, gx + halfC - 4, rowY + rH / 2, "right", fsG); cellText++; }
               if (fitsHalf(at)) { cellNum(at, gx + halfC + 4, rowY + rH / 2, "left", fsG); cellText++; }
             }
