@@ -64,6 +64,7 @@ export function paintScaffoldOnGlass(ctx: Ctx, g: ScaffoldGlassInput): ScaffoldG
   const taken: GlassBox[] = [...g.avoid];
   const rects: GlassBox[] = [];
   const listed: { text: string; x: number; y: number }[] = [];
+  const listedWhy: string[] = [];
   const foundation = g.depth === "FOUNDATION";
   let painted = 0;
   const inPlot = (r: GlassBox) => r.x >= plot.x0 && r.x + r.w <= plot.x1 && r.y >= plot.y0 && r.y + r.h <= plot.y1;
@@ -99,7 +100,7 @@ export function paintScaffoldOnGlass(ctx: Ctx, g: ScaffoldGlassInput): ScaffoldG
     }
     rail.sort((p, q) => Math.hypot(p.x + p.w / 2 - ax, p.y + p.h / 2 - ay) - Math.hypot(q.x + q.w / 2 - ax, q.y + q.h / 2 - ay));
     const r = cands.find(c => inPlot(c) && !hits(c, taken)) ?? rail.find(c => inPlot(c) && !hits(c, taken));
-    if (!r) { listed.push({ text: `${title} — ${sub}`, x: ax, y: ay }); return false; }
+    if (!r) { listed.push({ text: `${title} — ${sub}`, x: ax, y: ay }); listedWhy.push(`${n ?? "-"}:${w}x${h}`); return false; }
     // Leader: anchor → nearest edge of the tag.
     const ex = ax < r.x ? r.x : ax > r.x + r.w ? r.x + r.w : ax;
     const ey = ay < r.y ? r.y : ay > r.y + r.h ? r.y + r.h : ay;
@@ -328,5 +329,5 @@ export function paintScaffoldOnGlass(ctx: Ctx, g: ScaffoldGlassInput): ScaffoldG
   }
 
   const expected = foundation ? 6 : 4;
-  return { receipt: `GLASS:${g.depth}|STEPS:${painted}/${expected}|LISTED:${listed.length}`, rects, listed };
+  return { receipt: `GLASS:${g.depth}|STEPS:${painted}/${expected}|LISTED:${listed.length}${listedWhy.length ? `[${listedWhy.join(",")}]` : ""}|PLOT:${Math.round(plot.x0)},${Math.round(plot.y0)},${Math.round(plot.x1)},${Math.round(plot.y1)}`, rects, listed };
 }
