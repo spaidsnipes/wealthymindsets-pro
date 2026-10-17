@@ -12008,7 +12008,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const key = `${from}|${to}`;
           if (sessionSpansCacheRef.current?.key !== key) sessionSpansCacheRef.current = { key, spans: sessionSpans(from, to) };
           const spans = sessionSpansCacheRef.current.spans;
-          const LANE_H = 3, GAP = 1;
+          const LANE_H = 6, GAP = 2; // 3 → 6 (2026-10-16: the lanes read as nothing on a screen)
           const floorY = pane0Bottom - 2;
           const laneY: Record<string, number> = {
             ASIA: floorY - 3 * LANE_H - 2 * GAP,
@@ -12055,11 +12055,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             if (b - a < 1) continue;
             counts[sp.id]++;
             if (sp.id === "LDN_NY_OVERLAP") {
-              ctx.fillStyle = `rgba(${INK[sp.id]},0.22)`;
+              ctx.fillStyle = `rgba(${INK[sp.id]},0.35)`;
               ctx.fillRect(a, laneY.LONDON, b - a, 2 * LANE_H + GAP);
               continue;
             }
-            ctx.fillStyle = `rgba(${INK[sp.id]},0.42)`;
+            ctx.fillStyle = `rgba(${INK[sp.id]},0.8)`;
             ctx.fillRect(a, laneY[sp.id], b - a, LANE_H);
             if (b - a >= 12) {
               ctx.fillStyle = "rgba(8,7,5,0.9)";
