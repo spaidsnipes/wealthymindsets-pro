@@ -20,7 +20,7 @@ describe("scaffolding crumb is bounded", () => {
     expect(MC).toContain('ds.scaffoldingCrumb = "DEPTH_ONLY";');
   });
   it("both call sites pass their box width", () => {
-    expect(MC).toContain("crumb(qx + 8, qy + 9, 6.5, qw - 16);");
+    expect(MC).toContain("crumb(qx + 8, qy + 10, 8, qw - 16);");
     expect(MC).toContain('crumb(10, 10, depth === "FOUNDATION" && pick.form === "FULL" ? 9 : 7.5, w - 20);');
     expect(MC.match(/\bcrumb\(/g)?.length).toBe(2);
   });

@@ -116,7 +116,7 @@ describe("PRO — the pressure mass is drawn on the REAL candles", () => {
       expect(r.y + r.h).toBeLessThanOrEqual(bounds.y1);
     }
     // Small: a plaque, not a card (the old Pro card was 300 × 266 with its own chart).
-    expect(PRO_PLAQUE.w * PRO_PLAQUE.h).toBeLessThan((300 * 266) / 5);
+    expect(PRO_PLAQUE.w * PRO_PLAQUE.h).toBeLessThan((300 * 266) / 2.5); // restated 2026-10-16: plate S-12H plaque scale, still a plaque
   });
 });
 
@@ -176,7 +176,7 @@ describe("PRO plaque grade — the owner's conversion word, out of three", () =>
   });
   it("the plaque grows only to hold the plate's four rows and stays a plaque", () => {
     expect(PRO_PLAQUE.h).toBeGreaterThanOrEqual(70);
-    expect(PRO_PLAQUE.w * PRO_PLAQUE.h).toBeLessThan((300 * 266) / 5);
+    expect(PRO_PLAQUE.w * PRO_PLAQUE.h).toBeLessThan((300 * 266) / 2.5); // restated 2026-10-16: plate S-12H plaque scale, still a plaque
   });
 });
 

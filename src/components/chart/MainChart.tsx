@@ -17241,20 +17241,21 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   // three levels (gradeMarks), not five stars nobody measured;
                   // no conversion, no marks.
                   const { x: qx, y: qy, w: qw, h: qh } = plaque;
-                  ctx.strokeStyle = HAIR; ctx.lineWidth = 1;
-                  ctx.strokeRect(qx + 0.5, qy + 0.5, qw - 1, qh - 1);
-                  crumb(qx + 8, qy + 9, 6.5, qw - 16);
+                  // Canon plate S-12H (2026-10-16): the plaque at the plate's scale — the ratio is the one big number.
+                  ctx.strokeStyle = sc.caution ? "rgba(245,165,36,0.95)" : GOLD; ctx.lineWidth = 2;
+                  ctx.strokeRect(qx + 1, qy + 1, qw - 2, qh - 2);
+                  crumb(qx + 8, qy + 10, 8, qw - 16);
                   const qc = qx + qw / 2;
                   ctx.textAlign = "center";
-                  ctx.font = font(700, 7.5); ctx.fillStyle = GOLD;
-                  ctx.fillText("RESULT PER EFFORT · RECENT HALF", qc, qy + 21);
-                  ctx.font = font(800, 20); ctx.fillStyle = GOLD;
+                  ctx.font = font(700, 10.5); ctx.fillStyle = GOLD;
+                  ctx.fillText("RESULT PER EFFORT · RECENT HALF", qc, qy + 27);
+                  ctx.font = font(800, 30); ctx.fillStyle = "rgba(243,215,138,1)";
                   const ratio = sc.resultPerEffort == null ? "—" : `${sc.resultPerEffort.toFixed(2)}×`;
-                  ctx.fillText(ratio, qc, qy + 37);
+                  ctx.fillText(ratio, qc, qy + 54);
                   const marks = gradeMarks(sc.conversion);
-                  if (marks) { ctx.font = font(700, 10); ctx.fillStyle = GOLD; ctx.fillText(marks, qc, qy + 53); }
-                  ctx.font = font(700, 7.5); ctx.fillStyle = CREAM;
-                  ctx.fillText(clip(`${sc.conversion ?? "NO EFFORT"} · ${sc.posture}`, qw - 16), qc, qy + 66);
+                  if (marks) { ctx.font = font(700, 13); ctx.fillStyle = GOLD; ctx.fillText(marks, qc, qy + 76); }
+                  ctx.font = font(700, 11.5); ctx.fillStyle = CREAM;
+                  ctx.fillText(clip(`${sc.conversion ?? "NO EFFORT"} · ${sc.posture}`, qw - 16), qc, qy + 94);
                   ctx.textAlign = "left";
                   floatingChips.push(plaque);
                   }

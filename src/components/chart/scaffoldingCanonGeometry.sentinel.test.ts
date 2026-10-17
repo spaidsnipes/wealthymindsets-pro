@@ -132,14 +132,14 @@ describe("ADVANCED / PRO — the plate's resistance rule and plaque hierarchy", 
   it("the plaque reads title → big ratio → grade marks → grade line, with no invented percent", () => {
     const words = pro.slice(pro.indexOf("const { x: qx, y: qy, w: qw, h: qh } = plaque;"), pro.indexOf("floatingChips.push(plaque);"));
     const order = [
-      'ctx.fillText("RESULT PER EFFORT · RECENT HALF", qc, qy + 21);',
-      "ctx.fillText(ratio, qc, qy + 37);",
-      "ctx.fillText(marks, qc, qy + 53);",
-      "qc, qy + 66);",
+      'ctx.fillText("RESULT PER EFFORT · RECENT HALF", qc, qy + 27);',
+      "ctx.fillText(ratio, qc, qy + 54);",
+      "ctx.fillText(marks, qc, qy + 76);",
+      "qc, qy + 94);",
     ].map(k => words.indexOf(k));
     for (const i of order) expect(i).toBeGreaterThan(-1);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
-    expect(words).toMatch(/ctx\.font = font\(800, 20\);/);
+    expect(words).toMatch(/ctx\.font = font\(800, 30\);/); // S-12H scale, 2026-10-16
     expect(words).toContain("`${sc.resultPerEffort.toFixed(2)}×`");
     expect(words).not.toMatch(/%|\* 100|EFFICIENCY RATIO/);
     // Marks come from the owner grade only.

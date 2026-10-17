@@ -213,7 +213,8 @@ export const SCAFFOLD_CARD_BOX = {
   INTERMEDIATE: { w: 380, h: 112 },
 } as const;
 /** The Pro plaque: crumb, small-caps title, the big ratio, the grade marks, the grade line. */
-export const PRO_PLAQUE = { w: 212, h: 74 } as const;
+// 280 × 106 since 2026-10-16 (canon plate S-12H: the ratio is read across a room, not squinted at).
+export const PRO_PLAQUE = { w: 280, h: 106 } as const;
 
 /**
  * THE PLAQUE'S STARS ARE THE OWNER'S GRADE, NOTHING ELSE. Plate UI-12 prints
