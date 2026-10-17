@@ -332,6 +332,30 @@ function WowWorldDoor(): React.ReactElement {
   );
 }
 
+/**
+ * THE DOOR TO WOW ACADEMY (2026-10-16, Academy SUPERMAX P0). The school —
+ * A+ Student of the Game, live classrooms, Book Club, Bible Study — is a WOW
+ * destination, not a WM room. Same bridge as the WOW World door: its own tab,
+ * the trader's chart and workspace stay exactly where they were.
+ */
+function WowAcademyDoor(): React.ReactElement {
+  return (
+    <button
+      type="button"
+      data-testid="os-wow-academy-door"
+      onClick={() => { openWowWorld("/academy/a-plus"); }}
+      style={{
+        display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2, width: "calc(100% - 20px)",
+        margin: "0 10px 4px", padding: "10px 12px", background: "transparent", cursor: "pointer", textAlign: "left",
+        border: `1px solid ${RULE}`, borderRadius: 2,
+      }}
+    >
+      <span style={{ ...EYEBROW, color: GOLD }}>WOW Academy ↗</span>
+      <span style={{ fontSize: 11, color: MUTED, lineHeight: "15px" }}>A+ Student of the Game, live classrooms, Book Club.</span>
+    </button>
+  );
+}
+
 function RailLink({
   href,
   label,
@@ -2478,6 +2502,7 @@ export function WMOperatingSystem({
                 <RailLink key={d.href} href={d.href} label={d.label} activeHref={activeHref} quiet />
               ))}
               <WowWorldDoor />
+              <WowAcademyDoor />
             </>
           )}
 

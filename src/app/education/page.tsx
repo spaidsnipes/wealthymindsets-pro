@@ -36,6 +36,7 @@ import { proofFixtureScene } from "@/lib/chart/proofScene";
 import { persistAcademyNote, readAcademyNote } from "@/lib/educationNotesStorage";
 import { persistAcademyProgress } from "@/lib/educationProgressStorage";
 import { WOW_ORIGIN } from "@/lib/passport/wowBridge";
+import { openWowWorld } from "@/lib/passport/openWowWorld";
 import { useShellModalFocus } from "@/components/layout/useShellModalFocus";
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
@@ -792,11 +793,11 @@ export default function EducationPage() {
         className="shrink-0 flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-[12px] sm:px-4"
         style={{ borderBottom: "1px solid rgba(139,106,41,0.25)", background: "linear-gradient(90deg, rgba(212,175,55,0.10), rgba(11,10,8,0.6))", color: "#ede6d3" }}
       >
-        <span>The school lives in <b style={{ color: "#d4af37" }}>WOW Academy</b> — these are WM Pro&apos;s chart lessons.</span>
-        <a className="inline-flex min-h-11 items-center font-semibold" style={{ color: "#d4af37" }} href={`${WOW_ORIGIN}/academy/a-plus`}>A+ Student of the Game →</a>
-        <a className="inline-flex min-h-11 items-center" style={{ color: "#c9a55c" }} href={`${WOW_ORIGIN}/academy/a-plus/candlestick-foundations`}>Candlestick Foundations</a>
-        <a className="inline-flex min-h-11 items-center" style={{ color: "#c9a55c" }} href={`${WOW_ORIGIN}/academy/classrooms`}>Live classrooms</a>
-        <a className="inline-flex min-h-11 items-center" style={{ color: "#c9a55c" }} href={`${WOW_ORIGIN}/academy/book-club`}>Book Club</a>
+        <span>The school lives in <b style={{ color: "#d4af37" }}>WOW Academy</b> — these are WM Pro&apos;s chart lessons. Your Passport opens it in a new tab; your chart stays here.</span>
+        <a className="inline-flex min-h-11 items-center font-semibold" style={{ color: "#d4af37" }} href={`${WOW_ORIGIN}/academy/a-plus`} target="_blank" rel="noopener" onClick={(e) => { if (openWowWorld("/academy/a-plus")) e.preventDefault(); }}>A+ Student of the Game →</a>
+        <a className="inline-flex min-h-11 items-center" style={{ color: "#c9a55c" }} href={`${WOW_ORIGIN}/academy/a-plus/candlestick-foundations`} target="_blank" rel="noopener" onClick={(e) => { if (openWowWorld("/academy/a-plus/candlestick-foundations")) e.preventDefault(); }}>Candlestick Foundations</a>
+        <a className="inline-flex min-h-11 items-center" style={{ color: "#c9a55c" }} href={`${WOW_ORIGIN}/academy/classrooms`} target="_blank" rel="noopener" onClick={(e) => { if (openWowWorld("/academy/classrooms")) e.preventDefault(); }}>Live classrooms</a>
+        <a className="inline-flex min-h-11 items-center" style={{ color: "#c9a55c" }} href={`${WOW_ORIGIN}/academy/book-club`} target="_blank" rel="noopener" onClick={(e) => { if (openWowWorld("/academy/book-club")) e.preventDefault(); }}>Book Club</a>
       </nav>
 
       {priorPracticeMarks > 0 && (
