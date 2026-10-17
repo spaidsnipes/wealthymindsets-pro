@@ -2848,7 +2848,7 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   body:has(.wm-chart-market-pane[data-market-primary="true"]):has(.wm-os-feed-standing[data-tone="LIVE"][data-established="true"]) .wm-os-masthead.wm-os-masthead { display: none !important; }
   /* …and when the market screen's own fidelity chip states the reading (iPhone 17 Pro NQ1!, 2026-10-17: "SESSION
      CLOSED — LAST VERIFIED" printed twice, masthead + chip). The word is kept once, on the chip beside the price. */
-  body:has(.wm-chart-market-pane[data-market-primary="true"] .wm-fidelity-badge) .wm-os-masthead.wm-os-masthead { display: none !important; }
+  body:has(.wm-chart-market-pane[data-market-primary="true"]):has(.wm-fidelity-badge) .wm-os-masthead.wm-os-masthead { display: none !important; }
   body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-os-masthead :is([data-testid="os-identity"], .wm-os-equipment-plates, div:has(> .wm-shell-access)) { display: none !important; }
   /* THE QUOTE HEADER: the asset picker and the symbol on top, the price BIG with its change under
      them, the fidelity chip at the right — one price on the screen. */
