@@ -12327,6 +12327,20 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const n = ptsBR.length;
             if (n >= 2) {
               ctx.save();
+              // CANDLES STAND IN FRONT (Founder's NQ 5m, 2026-10-17: the lowest candles dip into the volume well's top
+              // edge and the band painted over their bodies and wicks — "never on a candle" was a comment, not a clip).
+              if (srs) {
+                const cutBR = new Path2D();
+                cutBR.rect(0, 0, W, H);
+                const vrBR = tsBR.getVisibleLogicalRange();
+                for (const r of candleCutOutRects(bs as never, {
+                  visible: vrBR ? { from: +vrBR.from, to: +vrBR.to } : null,
+                  barSpacing: bsp,
+                  timeToX: t => { const xk = tsBR.timeToCoordinate(t as never); return xk == null ? null : +xk; },
+                  priceToY: pr => { const yk = srs.priceToCoordinate(pr); return yk == null ? null : +yk; },
+                }, 0, plotRight)) cutBR.rect(r.x, r.y, r.w, r.h);
+                ctx.clip(cutBR, "evenodd");
+              }
               ctx.globalAlpha = att.alpha("breathRibbon");
               const changeSet = new Set(rib.changes);
               // One segment per bar step, filled and stroked in that bar's state ink.
