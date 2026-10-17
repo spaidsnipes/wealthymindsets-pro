@@ -21657,19 +21657,33 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.save();
               ctx.font = marketFont("OBJECT_NAME");
               ctx.textAlign = "left"; ctx.textBaseline = "middle";
-              const rowsN = foldNarrowLine([...wgNarrowTruth], Math.max(80, plotRightG - silenceX - 10), t => ctx.measureText(t).width);
+              const rowsAll = foldNarrowLine([...wgNarrowTruth], Math.max(80, plotRightG - silenceX - 10), t => ctx.measureText(t).width);
               const RH = 13;
-              const boxAt = (y0: number, i: number) => ({ x: silenceX - 3, y: y0 + i * RH, w: Math.max(...rowsN.map(r => ctx.measureText(r).width)) + 6, h: RH });
               // PRICE SOVEREIGNTY: never on a candle body either — the volume floor is tried first.
               const onBody = (q: { x: number; y: number; w: number; h: number }) => rowBodiesAt(q.y, q.y + q.h).some(b => q.x < b.x + b.w && q.x + q.w > b.x);
-              const clear = (y0: number) => rowsN.every((_, i) => { const q = boxAt(y0, i); return q.y >= HEADER_FLOOR_Y && q.y + q.h <= paneBotG && !onNewestColumn(q.x, q.y, q.w, q.h) && !onBody(q) && !floatingChips.some(r => q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y); });
+              const hitsWord = (q: { x: number; y: number; w: number; h: number }) => floatingChips.some(r => q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y);
+              const seatFor = (rows: readonly string[]) => {
+                const wB = Math.max(...rows.map(r => ctx.measureText(r).width)) + 6;
+                const boxAtR = (y0: number, i: number) => ({ x: silenceX - 3, y: y0 + i * RH, w: wB, h: RH });
+                const inPane = (q: { x: number; y: number; w: number; h: number }) => q.y >= HEADER_FLOOR_Y && q.y + q.h <= paneBotG && !onNewestColumn(q.x, q.y, q.w, q.h);
+                const startsR = [...Array.from({ length: 10 }, (_, k) => paneBotG - (rows.length + k) * RH - 4), ...Array.from({ length: 40 }, (_, k) => HEADER_FLOOR_Y + 44 + k * RH)];
+                const clearR = (y0: number) => rows.every((_, i) => { const q = boxAtR(y0, i); return inPane(q) && !onBody(q) && !hitsWord(q); });
+                const wordsR = (y0: number) => rows.every((_, i) => { const q = boxAtR(y0, i); return inPane(q) && !hitsWord(q); });
+                const y = startsR.find(clearR) ?? startsR.find(wordsR);
+                return y === undefined ? null : { y, boxAtR };
+              };
+              // A PHONE GIVES WAY ROW BY ROW (375 defaults + Aggressive/Passive + walls, 2026-10-17: seven rows found no seat
+              // clear of words and the last resort printed over two cards). The box keeps as many of its rows as fit clear
+              // of every word — at least its headline — and only with no such seat takes the first seat off the newest column.
+              let rowsN = rowsAll;
+              let seatN = seatFor(rowsN);
+              // What gives way is said, never dropped silently: the last row names where the rest is read.
+              for (let k = rowsAll.length - 2; !seatN && k >= 1; k--) { rowsN = [...rowsAll.slice(0, k), "… MORE IN TOOLS › ACTIVE"]; seatN = seatFor(rowsN); }
+              if (!seatN) rowsN = rowsAll;
+              const boxAt = seatN ? seatN.boxAtR : (y0: number, i: number) => ({ x: silenceX - 3, y: y0 + i * RH, w: Math.max(...rowsN.map(r => ctx.measureText(r).width)) + 6, h: RH });
               const starts = [...Array.from({ length: 10 }, (_, k) => paneBotG - (rowsN.length + k) * RH - 4), ...Array.from({ length: 10 }, (_, k) => HEADER_FLOOR_Y + 44 + k * RH)];
-              // A truth line is never folded into the note list: with no fully clear seat it takes the first seat off the newest column.
-              // …then a seat clear of every WORD even if it crosses an older body (phone 375 defaults + Aggressive/Passive,
-              // 2026-10-17: the last resort printed the box over "Aggressive: market orders pushing" and "Sellers held 4×").
-              const clearOfWords = (y0: number) => rowsN.every((_, i) => { const q = boxAt(y0, i); return q.y >= HEADER_FLOOR_Y && q.y + q.h <= paneBotG && !onNewestColumn(q.x, q.y, q.w, q.h) && !floatingChips.some(r => q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y); });
-              const startsAll = [...starts, ...Array.from({ length: 30 }, (_, k) => HEADER_FLOOR_Y + 44 + (10 + k) * RH)];
-              const y0N = starts.find(clear) ?? startsAll.find(clearOfWords) ?? starts.find(y0 => rowsN.every((_, i) => { const q = boxAt(y0, i); return q.y >= HEADER_FLOOR_Y && q.y + q.h <= paneBotG && !onNewestColumn(q.x, q.y, q.w, q.h); }));
+              const y0N = seatN ? seatN.y : starts.find(y0 => rowsN.every((_, i) => { const q = boxAt(y0, i); return q.y >= HEADER_FLOOR_Y && q.y + q.h <= paneBotG && !onNewestColumn(q.x, q.y, q.w, q.h); }));
+              if (rowsN !== rowsAll) ds.wallsGammaNarrowKept = `${rowsN.length - 1}/${rowsAll.length}`; else delete ds.wallsGammaNarrowKept;
               if (rowsN.length && y0N !== undefined) {
                 const nA = Math.max(att.textAlpha("gammaHeatmap"), att.textAlpha("callWall"));
                 rowsN.forEach((r, i) => {
