@@ -766,7 +766,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const clearOptionSelection = useCallback(() => setOptionSelection(null), []);
   const [pineBuilderOpen, setPineBuilderOpen] = useState(false);
   const [footprintType,   setFootprintType]   = useState<FootprintType>(() => lsGet("wm_footprint", "bid-ask") as FootprintType);
-  const [footprintEnabled, setFootprintEnabled] = useState<boolean>(() => lsGet("wm_fp_enabled", true) as boolean);
+  const [footprintEnabled, setFootprintEnabled] = useState<boolean>(() => lsGet("wm_fp_enabled", firstVisitOn("wm_fp_enabled")) as boolean);
   // Big Trades "Simultaneous Mode": when ON, Big Trades bubbles overlay on top of
   // the active order-flow tool instead of replacing it. `bigTradesOverlay` tracks
   // whether the overlay is currently toggled on (only meaningful while simul ON).
