@@ -8347,6 +8347,19 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       const silenceBeacons = [...edgeChipHitRef.current, ...pressureWallHitRef.current.filter(r => r.off)];
       let silenceTaken = 0, silenceFolded = 0;
       const silenceStep = shortPane ? 11 : 14;
+      // A SILENCE STOPS AT THE FIRST WORD ON ITS ROW (all-on stress, NQ 5m 2026-10-17: "LIQUIDITY LIFECYCLE · …
+      // NO POOL IN VIEW" and its backing ran through the "LIVING VAL" chip). The row's backing and its words end
+      // 6px before the first chip on that row; the full line stays in Tools › Active. Obstacles are the frame's
+      // chips (late-bound: the chip ledger is declared further down the frame).
+      let silenceObstacles: () => readonly { x: number; y: number; w: number; h: number }[] = () => forceChips;
+      let silenceRowLimitX = Infinity;
+      const silenceRowLimit = (yy: number) => {
+        let lim = Infinity;
+        for (const o of silenceObstacles()) {
+          if (o.y < yy + 7 && o.y + o.h > yy - 7 && o.x > silenceX + 60 && o.x < lim) lim = o.x;
+        }
+        return lim;
+      };
       const takeSilenceRow = (): number => {
         // THE PHONE FOLDS THEM ALL (2026-10-04, narrow-glass word budget):
         // "ORDER FLOW · ACTIVE · NO CURRENT EVENT…" and "FOUNDER ANATOMY ·
@@ -8361,10 +8374,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const rowBand = (yy: number) => ({ x: Math.max(0, silenceX - 4), y: yy - 7, w: Math.min(W * 0.62, 760), h: 14 });
         for (let k = 0; k < 6 && silenceBeacons.some(b => { const q = rowBand(silenceRowY); return q.x < b.x + b.w && q.x + q.w > b.x && q.y < b.y + b.h && q.y + q.h > b.y; }); k++) silenceRowY -= silenceStep;
         const y = silenceRowY; silenceRowY -= silenceStep;
+        silenceRowLimitX = silenceRowLimit(y);
         // A soft backing so the words never print bare over candle bodies.
         const prevFill = ctx.fillStyle;
         ctx.fillStyle = "rgba(7,9,15,0.62)";
-        ctx.fillRect(Math.max(0, silenceX - 4), y - 7, Math.min(W * 0.62, 760), 14);
+        ctx.fillRect(Math.max(0, silenceX - 4), y - 7, Math.max(0, Math.min(W * 0.62, 760, silenceRowLimitX - 6 - Math.max(0, silenceX - 4))), 14);
         ctx.fillStyle = prevFill;
         return y;
       };
@@ -8397,10 +8411,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // every line of the silence stack passes through this one function, so
         // this is where it is declared truth to the word registry — in its full
         // and its fitted form — and can never be held or listed, whatever it says.
+        const maxW = Math.min(silenceMaxW, silenceRowLimitX - 6 - silenceX);
+        silenceRowLimitX = Infinity;
         const fitted = ((): string => {
-        if (ctx.measureText(t).width <= silenceMaxW) return t;
+        if (ctx.measureText(t).width <= maxW) return t;
         let lo = 0, hi = t.length;
-        while (lo < hi) { const m = (lo + hi + 1) >> 1; if (ctx.measureText(t.slice(0, m) + "\u2026").width <= silenceMaxW) lo = m; else hi = m - 1; }
+        while (lo < hi) { const m = (lo + hi + 1) >> 1; if (ctx.measureText(t.slice(0, m) + "\u2026").width <= maxW) lo = m; else hi = m - 1; }
         return t.slice(0, lo).trimEnd() + "\u2026";
         })();
         wordGate.declareTruth(t);
@@ -14591,6 +14607,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // Chips that float with price and were painted this frame; later chrome
       // steps around them instead of printing through them.
       const floatingChips: { x: number; y: number; w: number; h: number }[] = [...forceChips];
+      silenceObstacles = () => floatingChips;
       if (candleTimerRect) floatingChips.push(candleTimerRect);
       // LEVEL NAMES ON THE AXIS (serving ES1! 5m, Oct 16): the library draws "PDH" in a red pill just left
       // of the price axis; the regime title took its right-edge slot and covered "PD" ("H 7808.00"). Each
@@ -27152,7 +27169,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.restore();
               ctx.fillStyle = "rgba(201,165,92,0.95)";
               ctx.fillRect(onRing.x - 1.5, onRing.y - 1.5, 3, 3);
-              ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spot, 0.86)})`;
+              // Over candle bodies the readout is SOLID (BTC 5m, 2026-10-17: wicks read through "PERSISTENCE 0.83").
+              ctx.fillStyle = `rgba(11,10,8,${bodyHit(R) ? 0.97 : keepOutBackingAlpha(spot, 0.86)})`;
               ctx.fillRect(R.x, R.y, R.w, R.h);
               ctx.strokeStyle = "rgba(201,165,92,0.55)";
               ctx.strokeRect(R.x + 0.5, R.y + 0.5, R.w - 1, R.h - 1);
