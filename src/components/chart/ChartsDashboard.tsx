@@ -343,6 +343,7 @@ import { cboeSymbolFor, type CboeOptionsReceipt } from "@/lib/marketData/cboeDel
 import { deribitCurrencyFor, dvolFrom, normalizeDeribitOptions } from "@/lib/marketData/deribitOptions";
 import { ANATOMY_MODES, readAnatomyMode, writeAnatomyMode, type AnatomyMode } from "@/lib/chart/anatomyMode";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
+import { firstVisitOn } from "@/lib/chart/firstVisitLayers";
 import { selectLiquidityWeatherFromBars, type LiquidityWeatherVM } from "@/lib/marketData/viewModels/selectLiquidityWeather";
 import { selectDerivativesPressure, WALL_TEST_WINDOW_DAYS, type DerivativesPressureVM } from "@/lib/marketData/viewModels/selectDerivativesPressure";
 import selectDeltaLevelsGlass from "@/lib/marketData/viewModels/selectDeltaLevelsGlass";
@@ -990,13 +991,13 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // spot FX only, sessionBandsDefaultOn); a trader's press stores true/false.
   const [sessionBandsPref, setSessionBandsPref] = useState<boolean | null>(() => lsGet<boolean | null>("wm_sessionBands", null));
   // EFFORT → RESPONSE field (Garden 19 §7): on by default; silent on markets without traded volume.
-  const [effortResponseOn, setEffortResponseOn] = useState<boolean>(() => lsGet("wm_effortResponse", true) as boolean);
+  const [effortResponseOn, setEffortResponseOn] = useState<boolean>(() => lsGet("wm_effortResponse", firstVisitOn("wm_effortResponse")) as boolean);
   // BAR DELTA KEEL (Garden 19 §6): on by default; silent without signed evidence.
-  const [deltaKeelOn, setDeltaKeelOn] = useState<boolean>(() => lsGet("wm_deltaKeel", true) as boolean);
+  const [deltaKeelOn, setDeltaKeelOn] = useState<boolean>(() => lsGet("wm_deltaKeel", firstVisitOn("wm_deltaKeel")) as boolean);
   // CROSS-CANDLE WISDOM (Garden 19 §17): one quiet line, only from real evidence.
-  const [wisdomLineOn, setWisdomLineOn] = useState<boolean>(() => lsGet("wm_wisdomLine", true) as boolean);
+  const [wisdomLineOn, setWisdomLineOn] = useState<boolean>(() => lsGet("wm_wisdomLine", firstVisitOn("wm_wisdomLine")) as boolean);
   // RELATIVE VOLUME TONE (census C-03): on by default; silent without traded volume.
-  const [rvolToneOn, setRvolToneOn] = useState<boolean>(() => lsGet("wm_rvolTone", true) as boolean);
+  const [rvolToneOn, setRvolToneOn] = useState<boolean>(() => lsGet("wm_rvolTone", firstVisitOn("wm_rvolTone")) as boolean);
   // F15 BREATH RIBBON (PROPOSED — no Founder plate for Breathing yet): OFF by default.
   const [breathRibbonOn, setBreathRibbonOn] = useState<boolean>(() => lsGet("wm_breathRibbon", false) as boolean);
   // C-06 CVD ⇄ price notch (G19.CVD_REL): PROPOSED, no Founder plate — default OFF.
@@ -1064,9 +1065,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
    * choice persists, because a layer that paints owes the trader a way to stop
    * it painting. What changed is only which way it points before anyone asks.
    */
-  const [absorptionAnatomy, setAbsorptionAnatomy] = useState<boolean>(() => lsGet("wm_absorptionAnatomy", true) as boolean);
+  const [absorptionAnatomy, setAbsorptionAnatomy] = useState<boolean>(() => lsGet("wm_absorptionAnatomy", firstVisitOn("wm_absorptionAnatomy")) as boolean);
   // Garden 18 §XXI: Exhaustion is its own switch (it rode the shelf's until now).
-  const [exhaustionOn, setExhaustionOn] = useState<boolean>(() => lsGet("wm_exhaustion", lsGet("wm_absorptionAnatomy", true)) as boolean);
+  const [exhaustionOn, setExhaustionOn] = useState<boolean>(() => lsGet("wm_exhaustion", lsGet("wm_absorptionAnatomy", firstVisitOn("wm_absorptionAnatomy"))) as boolean);
 
   /*
     ── THE FOUR ORDER-FLOW LAYERS THE TRADER MAY QUIET ───────────────────────
@@ -1085,22 +1086,22 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     answer different questions and a trader who wants the stall shelves without
     the divergence marks should not have to give up both.
   */
-  const [imbalanceStackOn, setImbalanceStackOn] = useState<boolean>(() => lsGet("wm_ofImbalanceStack", true) as boolean);
-  const [valueCandleOn, setValueCandleOn] = useState<boolean>(() => lsGet("wm_ofValueCandle", true) as boolean);
+  const [imbalanceStackOn, setImbalanceStackOn] = useState<boolean>(() => lsGet("wm_ofImbalanceStack", firstVisitOn("wm_ofImbalanceStack")) as boolean);
+  const [valueCandleOn, setValueCandleOn] = useState<boolean>(() => lsGet("wm_ofValueCandle", firstVisitOn("wm_ofValueCandle")) as boolean);
   // F06A Flow Current — a sense with its own switch (it painted unswitched; §XXI/§CIII).
-  const [flowCurrentOn, setFlowCurrentOn] = useState<boolean>(() => lsGet("wm_ofFlowCurrent", true) as boolean);
+  const [flowCurrentOn, setFlowCurrentOn] = useState<boolean>(() => lsGet("wm_ofFlowCurrent", firstVisitOn("wm_ofFlowCurrent")) as boolean);
   // F05A Clarity Candle — ON by default (2026-10-04). Plate 72 is titled
   // "Clarity is the default language of the room": the gold / bronze species
   // IS the plate's candle (re-read beside the plate after a mistaken revert),
   // with the live bar's glow, the hollow squares on refusing wicks and the
   // bar's reading. A trader's stored choice still wins.
-  const [clarityCandleOn, setClarityCandleOn] = useState<boolean>(() => lsGet("wm_ofClarityCandle", true) as boolean);
-  const [deltaDivergenceOn, setDeltaDivergenceOn] = useState<boolean>(() => lsGet("wm_ofDeltaDivergence", true) as boolean);
-  const [liquidityWeatherOn, setLiquidityWeatherOn] = useState<boolean>(() => lsGet("wm_ofLiquidityWeather", true) as boolean);
-  const [effortMarkOn, setEffortMarkOn] = useState<boolean>(() => lsGet("wm_ofEffortMark", true) as boolean);
-  const [deltaLevelsOn, setDeltaLevelsOn] = useState<boolean>(() => lsGet("wm_ofDeltaLevels", true) as boolean);
-  const [livingProfileOn, setLivingProfileOn] = useState<boolean>(() => lsGet("wm_ofLivingProfile", true) as boolean);
-  const [marketStructureOn, setMarketStructureOn] = useState<boolean>(() => lsGet("wm_ofMarketStructure", true) as boolean);
+  const [clarityCandleOn, setClarityCandleOn] = useState<boolean>(() => lsGet("wm_ofClarityCandle", firstVisitOn("wm_ofClarityCandle")) as boolean);
+  const [deltaDivergenceOn, setDeltaDivergenceOn] = useState<boolean>(() => lsGet("wm_ofDeltaDivergence", firstVisitOn("wm_ofDeltaDivergence")) as boolean);
+  const [liquidityWeatherOn, setLiquidityWeatherOn] = useState<boolean>(() => lsGet("wm_ofLiquidityWeather", firstVisitOn("wm_ofLiquidityWeather")) as boolean);
+  const [effortMarkOn, setEffortMarkOn] = useState<boolean>(() => lsGet("wm_ofEffortMark", firstVisitOn("wm_ofEffortMark")) as boolean);
+  const [deltaLevelsOn, setDeltaLevelsOn] = useState<boolean>(() => lsGet("wm_ofDeltaLevels", firstVisitOn("wm_ofDeltaLevels")) as boolean);
+  const [livingProfileOn, setLivingProfileOn] = useState<boolean>(() => lsGet("wm_ofLivingProfile", firstVisitOn("wm_ofLivingProfile")) as boolean);
+  const [marketStructureOn, setMarketStructureOn] = useState<boolean>(() => lsGet("wm_ofMarketStructure", firstVisitOn("wm_ofMarketStructure")) as boolean);
   // P-110 #10. OFF by default: HOME stays calm, and the Profiles door lights it.
   const [tpoProfileOn, setTpoProfileOn] = useState<boolean>(() => lsGet("wm_ofTpoProfile", false) as boolean);
   // P-110 #2. OFF by default for the same reason.
@@ -1141,7 +1142,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [contradictionOn, setContradictionOn] = useState<boolean>(() => lsGet("wm_ofContradiction", false) as boolean);
   // H-1001 — ON by default: risk is visible, bracketed, on the book. It only
   // draws when the trader has drawn a Long / Short Position with a stop.
-  const [riskOnPriceOn, setRiskOnPriceOn] = useState<boolean>(() => lsGet("wm_ofRiskOnPrice", true) as boolean);
+  const [riskOnPriceOn, setRiskOnPriceOn] = useState<boolean>(() => lsGet("wm_ofRiskOnPrice", firstVisitOn("wm_ofRiskOnPrice")) as boolean);
   const [liquidityLifecycleOn, setLiquidityLifecycleOn] = useState<boolean>(() => lsGet("wm_ofLiquidityLifecycle", false) as boolean);
   // T-210 / F10 — higher-TF ancestry on the one chart. OFF by default.
   const [mtfAncestryOn, setMtfAncestryOn] = useState<boolean>(() => lsGet("wm_ofMtfAncestry", false) as boolean);

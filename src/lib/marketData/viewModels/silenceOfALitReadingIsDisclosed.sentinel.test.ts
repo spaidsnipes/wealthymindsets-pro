@@ -56,6 +56,7 @@
  * `toEqual([])` to go vacuously green.
  */
 
+import { firstVisitOn } from "@/lib/chart/firstVisitLayers";
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -86,6 +87,8 @@ const SWITCH_KEY: Readonly<Partial<Record<ProfileId, string>>> = {
 };
 
 function defaultFor(key: string): boolean {
+  // 2026-10-17: the defaults read through the one first-visit owner (firstVisitLayers.ts) — taught, not deleted.
+  if (new RegExp(`lsGet\\(\\s*["']${key}["']\\s*,\\s*firstVisitOn\\(\\s*["']${key}["']\\s*\\)\\s*\\)`).test(DASHBOARD)) return firstVisitOn(key);
   const m = DASHBOARD.match(
     new RegExp(`lsGet\\(\\s*["']${key}["']\\s*,\\s*(true|false)\\s*\\)`),
   );
