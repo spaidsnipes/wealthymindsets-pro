@@ -94,7 +94,10 @@ export function placeBeacon(
   const span = Math.max(0, frame.plotRight - frame.plotLeft - w - 8);
   const hits = (r: BeaconRect) => blockers.some(b => r.x < b.x + b.w && r.x + r.w > b.x && r.y < b.y + b.h && r.y + r.h > b.y);
   // Its own edge row first; then one row in from the edge (a phone's row is nearly all beacon — Oct 16).
-  const rows = [y, dir === "above" ? y + BEACON_H + 4 : y - BEACON_H - 4];
+  // Two more rows in when a wide sentence pill holds both (iPhone 17 Pro, 2026-10-17: "50 calls at 75,000 sold" spanned
+  // the plot on the beacon's own row and the fallback painted under it).
+  const step = dir === "above" ? BEACON_H + 4 : -(BEACON_H + 4);
+  const rows = [y, y + step, y + 2 * step, y + 3 * step];
   for (const yy of rows) for (const f of [0.62, 0.45, 0.8, 0.3, 0.95, 0.15]) {
     const r = { x: Math.round(frame.plotLeft + 4 + span * f), y: yy, w, h: BEACON_H };
     if (!hits(r)) return r;

@@ -13189,7 +13189,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // volume band's top, and the candles on both rows a beacon may take are blockers.
       function beaconFrameClear(plotRight: number, paneBot: number, spot: number) {
         const bottom = Math.round(paneBot * volumeTopMargin(W));
-        const rowsUp = HEADER_FLOOR_Y + 6 + 2 * BEACON_H + 4, rowsDn = bottom - 6 - 2 * BEACON_H - 4;
+        const rowsUp = HEADER_FLOOR_Y + 6 + 4 * (BEACON_H + 4), rowsDn = bottom - 6 - 4 * (BEACON_H + 4);
         const avoid = [...profileCandlesAt(HEADER_FLOOR_Y, rowsUp), ...profileCandlesAt(rowsDn, bottom)];
         return { plotLeft: 0, plotRight, top: HEADER_FLOOR_Y, bottom, spot, avoid };
       }
