@@ -724,6 +724,18 @@
   .wm-chart-market-pane[data-market-primary="true"] div { min-height: 0; }
 }
 
+/* A FINGER CAN REACH THE SPINE — touch tablets in portrait (2026-10-17). Founder, teaching a class on an iPad:
+   "problems with scrolling". Measured at 820x1180: the page is 1515px tall, and the chart (touch-action: none, it
+   owns every finger) ran from y 209 to the bottom of the glass — only the 209px header could scroll the page down to
+   the decision spine. The market still fits the screen, less one 44px touch row: the spine's top edge shows under the
+   chart, a strip a thumb can drag. */
+@media (min-width: 768px) and (max-width: 1023px) and (min-height: 521px) and (pointer: coarse) {
+  .wm-chart-market-pane[data-market-primary="true"] {
+    height: max(360px, calc(100svh - var(--wm-chart-fit-top, 300px) - 44px)) !important;
+    min-height: max(360px, calc(100svh - var(--wm-chart-fit-top, 300px) - 44px)) !important;
+  }
+}
+
 /* Phones in landscape are a distinct command state, not a compressed desktop.
    Put the five primary destinations on a safe-area-aware left rail, remove the
    global chrome and nonessential chart-page tabs, and give the chart the full
