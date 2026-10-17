@@ -9,14 +9,16 @@
  * owners Chart Settings uses (appearanceLaw), so the chart repaints at once and the full sheet agrees.
  * A colour is offered only where the glass paints its body with it (a picker that changes nothing is a lie).
  */
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
+  PROFILE_PALETTE_KEYS, PROFILE_PRESET_RED_GREEN, applyProfilePreset,
   INVENTION_DIAL_LABEL, PROFILE_SPECIES_LABEL, SPECIES_INK_DEFAULTS, lawfulInventionOpacity, lawfulSpeciesInks,
   lawfulSpeciesOpacity, type InventionDialKey, type ProfileSpeciesKey,
 } from "@/lib/chart/appearanceLaw";
 import type { ChartSettings } from "./ChartSettingsModal";
 import { PROFILE_INK_AT_REST } from "@/lib/chart/profileFamilyInk";
+import { VP_DOWN_DEFAULT, VP_POC_DEFAULT, VP_UP_DEFAULT, VP_VALUE_AREA_DEFAULT } from "@/lib/chart/marketFieldMaterial";
 
 /** Species whose BODY is painted in its stored ink (MainChart pkFamily.species). TPO's tiles are its period ramp. */
 export const COLOUR_SPECIES: readonly ProfileSpeciesKey[] = ["LIVING", "STRUCTURE", "FUSION", "MEMORY", "DNA", "VISIBLE_RANGE", "COMPOSITE"];
@@ -101,6 +103,8 @@ export function ToolStylePopover({ target, settings, onChange, onClose, onMore }
             </div>
           ) : null}
         </div>
+      ) : species === "SESSION_CLASSIC" ? (
+        <ClassicVpColours />
       ) : species === "TPO" ? (
         <div style={{ fontSize: 12, color: "#c0b8a0", marginBottom: 10 }}>TPO colours are its time periods: early blue → green → gold → late red.</div>
       ) : null}
@@ -121,5 +125,45 @@ export function ToolStylePopover({ target, settings, onChange, onClose, onMore }
       </div>
     </div>,
     document.body,
+  );
+}
+
+/** What the chart paints when a key is unset (MainChart VP_DEFAULT_TRIPLETS reads the same owner). */
+const VP_HOUSE: Readonly<Record<(typeof PROFILE_PALETTE_KEYS)[number], string>> = {
+  wm_vp_up: VP_UP_DEFAULT, wm_vp_dn: VP_DOWN_DEFAULT, wm_vp_poc: VP_POC_DEFAULT, wm_vp_vah: VP_VALUE_AREA_DEFAULT, wm_vp_val: VP_VALUE_AREA_DEFAULT,
+};
+/** Classic VP's own palette — the five keys its renderer reads (`wm_vp_*`), told to the chart by "wm-vp-colors". */
+const VP_LABEL: Readonly<Record<(typeof PROFILE_PALETTE_KEYS)[number], string>> = {
+  wm_vp_up: "Buy volume", wm_vp_dn: "Sell volume", wm_vp_poc: "POC", wm_vp_vah: "VAH", wm_vp_val: "VAL",
+};
+function ClassicVpColours(): React.ReactElement {
+  const read = () => Object.fromEntries(PROFILE_PALETTE_KEYS.map(k => {
+    let v: string | null = null;
+    try { v = localStorage.getItem(k); } catch { /* storage closed */ }
+    return [k, v && /^#[0-9a-f]{6}$/i.test(v) ? v : VP_HOUSE[k]];
+  })) as Record<(typeof PROFILE_PALETTE_KEYS)[number], string>;
+  const [vals, setVals] = useState(read);
+  const tell = () => { try { window.dispatchEvent(new Event("wm-vp-colors")); } catch { /* no window */ } };
+  const setKey = (k: (typeof PROFILE_PALETTE_KEYS)[number], hex: string) => {
+    try { localStorage.setItem(k, hex); } catch { /* storage closed */ }
+    setVals(v => ({ ...v, [k]: hex })); tell();
+  };
+  return (
+    <div data-testid="tool-style-vp-colours" style={{ marginBottom: 10 }}>
+      <div style={{ fontSize: 12, color: "#c0b8a0", marginBottom: 6 }}>Colours</div>
+      {PROFILE_PALETTE_KEYS.map(k => (
+        <label key={k} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "3px 0", fontSize: 12.5, color: "#EDE6D3" }}>
+          {VP_LABEL[k]}
+          <input type="color" value={vals[k]} aria-label={`Classic VP ${VP_LABEL[k]} colour`} onChange={e => setKey(k, e.target.value)}
+            style={{ width: 44, height: 26, border: "1px solid rgba(212,175,55,0.4)", borderRadius: 6, background: "none", padding: 0, cursor: "pointer" }} />
+        </label>
+      ))}
+      <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+        <button type="button" onClick={() => { try { applyProfilePreset(localStorage, PROFILE_PRESET_RED_GREEN, tell); } catch { /* */ } setVals(read()); }}
+          style={{ flex: 1, minHeight: 32, borderRadius: 7, border: "1px solid rgba(212,175,55,0.35)", background: "transparent", color: "#d6c9a6", cursor: "pointer", fontSize: 12 }}>Red / green</button>
+        <button type="button" onClick={() => { try { applyProfilePreset(localStorage, null, tell); } catch { /* */ } setVals(read()); }}
+          style={{ flex: 1, minHeight: 32, borderRadius: 7, border: "1px solid rgba(212,175,55,0.35)", background: "transparent", color: "#d6c9a6", cursor: "pointer", fontSize: 12 }}>House gold</button>
+      </div>
+    </div>
   );
 }
