@@ -28703,7 +28703,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // the WAIT strip under the chart carries the word (it always does).
               // …and at any width the plate asks the registry for its box first:
               // withheld → no leader, no pin, no plate (the WAIT strip carries it).
-              if ((narrowGlass && (spotT.mode === "BLOCKED" || spotT.onCandles || onNewestColumn(spotT.rect.x, spotT.rect.y, spotT.rect.w, spotT.rect.h))) || !chipBox(tagT.word, spotT.rect)) {
+              // BLOCKED IS HELD AT ANY WIDTH (iPad mini 744, 2026-10-17: with no clear seat the plate painted at its
+              // refused spot over "Sellers held 4×, then broke"); the WAIT strip under the chart carries the word.
+              if (spotT.mode === "BLOCKED" || (narrowGlass && (spotT.onCandles || onNewestColumn(spotT.rect.x, spotT.rect.y, spotT.rect.w, spotT.rect.h))) || !chipBox(tagT.word, spotT.rect)) {
                 waitFolded = true;
                 sovereigntyHeld++;
                 ctx.restore();
