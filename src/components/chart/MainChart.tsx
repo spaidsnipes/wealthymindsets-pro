@@ -27808,8 +27808,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 const offTop = dir === "UP" && (ymL == null || +ymL < paneTopL + 8);
                 const offBot = dir === "DN" && (ymL == null || +ymL > paneBotL - 8);
                 if (!offTop && !offBot) continue;
-                const cx = Math.max(40, Math.min(rightL - 30, xLastBar + 34));
-                const cy = offTop ? paneTopL + 20 : paneBotL - 20;
+                const cx = Math.max(48, Math.min(rightL - 44, xLastBar + 40));
+                const cy = offTop ? paneTopL + 22 : paneBotL - 22;
                 const x0p = xLastBar, y0p = +yNowL;
                 ctx.save();
                 ctx.globalAlpha = Math.max(0.85, att.textAlpha("liquidityLifecycle"));
@@ -27822,12 +27822,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.quadraticCurveTo(cx, y0p + (cy - y0p) * 0.15, cx, cy + (offTop ? 10 : -10));
                 ctx.stroke(); ctx.setLineDash([]);
                 // THE POOL — a lit core and three rings, flattened like the plate's attractor.
-                const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, 26);
+                // Plate 25's attractor is a lit target, not a pencil ring (canon beside glass, 2026-10-17).
+                const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, 40);
                 glow.addColorStop(0, `rgba(${INK},0.95)`); glow.addColorStop(0.35, `rgba(${INK},0.4)`); glow.addColorStop(1, `rgba(${INK},0)`);
-                ctx.fillStyle = glow; ctx.beginPath(); ctx.ellipse(cx, cy, 30, 12, 0, 0, Math.PI * 2); ctx.fill();
-                ctx.shadowBlur = 8;
-                [[9, 3.4, 1], [17, 6.4, 0.75], [25, 9.4, 0.5]].forEach(([rx, ry, a]) => {
-                  ctx.strokeStyle = `rgba(${INK},${a})`; ctx.lineWidth = 1.6;
+                ctx.fillStyle = glow; ctx.beginPath(); ctx.ellipse(cx, cy, 44, 17, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.shadowBlur = 12;
+                [[10, 3.8, 1], [20, 7.6, 0.85], [30, 11.4, 0.65], [40, 15.2, 0.4]].forEach(([rx, ry, a]) => {
+                  ctx.strokeStyle = `rgba(${INK},${a})`; ctx.lineWidth = 1.8;
                   ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.stroke();
                 });
                 // Its side: a chevron past the ring, toward the pool off camera.
@@ -27842,8 +27843,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 const wM = Math.ceil(ctx.measureText(wordM).width) + 10, hM = 16;
                 // Every seat stays inside the plot (serving db1e0ba NQ 15m: the centred seat ran under the price axis).
                 const seatX = (x: number) => Math.max(keepOutMinX(), Math.min(x, rightL - wM - 4));
-                const prefM = { x: seatX(cx - 34 - wM), y: cy - hM / 2, w: wM, h: hM };
-                const altM = [{ x: seatX(cx - wM / 2), y: offTop ? cy + 16 : cy - 16 - hM, w: wM, h: hM }, { x: seatX(cx - 34 - wM), y: offTop ? cy + 14 : cy - 14 - hM, w: wM, h: hM }];
+                const prefM = { x: seatX(cx - 48 - wM), y: cy - hM / 2, w: wM, h: hM };
+                const altM = [{ x: seatX(cx - wM / 2), y: offTop ? cy + 22 : cy - 22 - hM, w: wM, h: hM }, { x: seatX(cx - 48 - wM), y: offTop ? cy + 18 : cy - 18 - hM, w: wM, h: hM }];
                 const spotM = placeClearOfKeepOut(prefM, [...keepOut(), ...rowBodiesAt(Math.min(prefM.y, ...altM.map(a => a.y)), Math.max(prefM.y, ...altM.map(a => a.y)) + hM)], {
                   minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: altM,
                 });
@@ -27857,7 +27858,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   floatingChips.push({ ...r });
                 }
                 ctx.restore();
-                floatingChips.push({ x: cx - 30, y: cy - 18, w: 60, h: 36 });
+                floatingChips.push({ x: cx - 44, y: cy - 20, w: 88, h: 40 });
                 magnetsL++;
                 magnetRx.push(`${dir}:${mid.toFixed(2)}:${o.pl.stage}:${spotM.mode}`);
               }
