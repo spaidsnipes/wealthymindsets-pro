@@ -3,6 +3,7 @@
 // graphite + warm-gold family (gold, bronze, champagne, copper) — no teal,
 // violet or cyan as decoration. Red stays only where it means ON AIR / LIVE.
 
+import { WowSurfaceDoor } from "@/components/os/WowSurfaceDoor";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Play, Pause, Radio, Mic, Music2,
@@ -851,6 +852,7 @@ export default function RadioPage() {
             <h1 className="text-[20px] font-black text-wm-text tracking-tight">WOW Radio</h1>
             <p className="text-[11px] text-wm-text-muted">Music, podcasts & live streams from the WM community</p>
           </div>
+          <WowSurfaceDoor to="/wow-radio" label="WOW Radio in WOW World" testId="radio-wow-world-door" />
 
           {/* Live badge */}
           <div className="ml-auto flex shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-full"

@@ -3,6 +3,7 @@
 // graphite + warm-gold family (gold, bronze, champagne, copper) — no teal,
 // violet or cyan as decoration. Red stays only where it means ON AIR / LIVE.
 
+import { WowSurfaceDoor } from "@/components/os/WowSurfaceDoor";
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
 import {
@@ -140,7 +141,7 @@ function WMTVHome({ onOpenLive, onOpenPodcast }: { onOpenLive: () => void; onOpe
           <p className="font-semibold mb-6" style={{ color: "#E8B923", fontFamily: 'Georgia, serif', fontSize: 14, maxWidth: 460 }}>A studio for podcasts and live conversations — honouring Black excellence on air since the 1900s</p>
 
           {/* CTAs */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <motion.button onClick={onOpenLive} whileTap={{ scale: 0.96 }} whileHover={{ scale: 1.03 }}
               className="flex items-center gap-2 px-6 h-11 rounded-xl text-black text-xs font-black"
               style={{ background: "linear-gradient(135deg,#E8B923,#8B6A29)", boxShadow: "0 10px 26px rgba(232,185,35,0.3)" }}>
@@ -151,6 +152,7 @@ function WMTVHome({ onOpenLive, onOpenPodcast }: { onOpenLive: () => void; onOpe
               style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(232,185,35,0.3)" }}>
               <Podcast size={15} /> Podcast Stage
             </motion.button>
+            <WowSurfaceDoor to="/wow-tv" label="WOW TV in WOW World" testId="tv-wow-world-door" />
           </div>
 
           <div className="mt-4 text-[11px] text-wm-text-muted">Live status appears only after a host starts a verified room.</div>
