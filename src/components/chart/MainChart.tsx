@@ -31428,7 +31428,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           >
             {/* A long unit word ("contracts", "shares") is its own span, which a phone drops (globals.css) —
                 the 96px caption read "Vol 1.39K co" on NQ (iPhone 17 Pro, 2026-10-17). The title keeps it. */}
-            {(() => { const m = /^(.*\S)\s+([A-Za-z]{5,})$/.exec(fact.text); return m ? (<>{m[1]}<span className="wm-vol-unit"> {m[2]}</span></>) : fact.text; })()}
+            {(() => { const m = /^(.*\S)\s+([A-Za-z]{5,})$/.exec(fact.text); return m ? (<>{m[1]}<span className="wm-vol-unit">{" " + m[2]}</span></>) : fact.text; })()}
             {/* The unit (coin, contracts, shares) now travels in fact.text, from
                 sizeUnitFor — one owner, every asset class (2026-10-08). */}
             {fxDoor ? (
@@ -32928,8 +32928,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         </button>
         {/* ── Scale buttons — bottom-right, above the time axis so they
              no longer clutter / overlap the price action at top ─── */}
+        {/* Size container: globals.css drops the row into the footer band on wide panes (iPad, 2026-10-17). */}
+        <div className="wm-chart-scale-band" style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 0, zIndex: 50, pointerEvents: "none", containerType: "inline-size", containerName: "wm-scale-band" }}>
         <div className="wm-chart-scale-row" id="wm-chart-scale-row" data-phone-open={scaleRowOpen ? "true" : "false"} style={{
-          position:"absolute", right: 64, bottom: 30, display:"flex", flexDirection:"row", gap: 4, zIndex: 50, alignItems:"center",
+          position:"absolute", right: 64, bottom: 30, display:"flex", flexDirection:"row", gap: 4, zIndex: 50, alignItems:"center", pointerEvents: "auto",
           padding: "3px 4px", borderRadius: 6,
           background: "rgba(8,12,20,0.55)", backdropFilter: "blur(3px)",
         }}>
@@ -33067,6 +33069,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             {/* …nor is a replayed past (Sheriff batch 3, 2026-10-08). */}
             {livingMarket === "LIVE" ? (sessionOpen === false || replayActive ? "● MOTION" : "● LIVE") : "❚❚ STILL"}
           </button>
+        </div>
         </div>
 
         {/* ── Data Window ──────────────────────────────────
