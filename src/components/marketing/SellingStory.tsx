@@ -57,7 +57,9 @@ export function SellingStory({ variant = "full", withProductLine = true }: { var
       {full ? (
         <div style={{ marginTop: 20 }}>
           <TerritoryStrip />
-          <ol style={{ listStyle: "none", padding: 0, margin: "12px 0 0", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 10 }}>
+          {/* Six stages split evenly — 2 · 3 · 6 across, never 5 + 1 (iPad Air 13, 2026-10-17: "Education" sat alone). */}
+          <style>{`.wm-life-grid{grid-template-columns:repeat(2,minmax(0,1fr))}@media(min-width:640px){.wm-life-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(min-width:1180px){.wm-life-grid{grid-template-columns:repeat(6,minmax(0,1fr))}}`}</style>
+          <ol className="wm-life-grid" style={{ listStyle: "none", padding: 0, margin: "12px 0 0", display: "grid", gap: 10 }}>
             {TERRITORY_LIFE.map(t => (
               <li key={t.stage} style={{ border: `1px solid ${WM.border.line}`, borderRadius: 10, padding: "10px 12px", background: WM.surface.deep }}>
                 <div style={{ fontFamily: SERIF, fontSize: 15, color: WM.gold.hero }}>{t.stage}</div>
