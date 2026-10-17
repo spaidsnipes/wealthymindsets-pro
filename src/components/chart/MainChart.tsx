@@ -31428,7 +31428,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           >
             {/* A long unit word ("contracts", "shares") is its own span, which a phone drops (globals.css) —
                 the 96px caption read "Vol 1.39K co" on NQ (iPhone 17 Pro, 2026-10-17). The title keeps it. */}
-            {(() => { const m = /^(.*\S)\s+([A-Za-z]{5,})$/.exec(fact.text); return m ? (<>{m[1]}<span className="wm-vol-unit">{" " + m[2]}</span></>) : fact.text; })()}
+            {(() => { const m = /^(.*\S)\s+([A-Za-z]{5,})$/.exec(fact.text); return m ? (<>{m[1]}<span className="wm-vol-unit" style={{ marginLeft: "0.6ch" }}>{m[2]}</span></>) : fact.text; })()}
             {/* The unit (coin, contracts, shares) now travels in fact.text, from
                 sizeUnitFor — one owner, every asset class (2026-10-08). */}
             {fxDoor ? (

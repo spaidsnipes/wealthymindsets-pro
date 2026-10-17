@@ -3108,5 +3108,5 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
    the time axis's newest label). Footer band = the timeframe chip's row (bottom 3, 28 tall); its right side is free
    once the pane is 680px wide. Phones keep their own rule (closed row, toggle chip) — !important there wins. */
 @container wm-scale-band (min-width: 680px) {
-  .wm-chart-scale-row { bottom: 3px; height: 28px; }
+  .wm-chart-scale-row { bottom: 3px !important; height: 28px; } /* !important: the row carries an inline bottom */
 }
