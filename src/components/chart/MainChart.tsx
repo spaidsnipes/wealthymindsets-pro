@@ -10425,6 +10425,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ctx.fillStyle = "#F3EBDD"; ctx.font = CARD_FONT_AP; ctx.textAlign = "left"; ctx.textBaseline = "middle";
           ctx.fillText(words, r.x + 10, r.y + r.h / 2 + 0.5);
           cardsAP.push(r);
+          // …and the frame's shared ledger, so every later word steps around it (phone 375, 2026-10-17: the walls &
+          // gamma disclosure printed over "Aggressive: market orders pushing" and "Sellers held 4×, then broke").
+          forceChips.push({ ...r });
           forceChips.push(r);
         };
         ctx.save();
