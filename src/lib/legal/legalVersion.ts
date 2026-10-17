@@ -19,9 +19,11 @@ export const RISK_DISCLOSURE_VERSION = "2026-10-05" as const;
 export const MARKET_DATA_DISCLOSURE_VERSION = "2026-10-12" as const;
 
 export type TermsPrivacyState = "NOT_IN_EFFECT" | "IN_EFFECT";
-export const TERMS_PRIVACY_STATE: TermsPrivacyState = "NOT_IN_EFFECT";
+// Founder 2026-10-17: "turn payments on — this needs to be guest ready". Published with the operator, contact and
+// governing law the Founder already published for WOW World (lib/legal/legalParty).
+export const TERMS_PRIVACY_STATE: TermsPrivacyState = "IN_EFFECT";
 /** The date of the Terms + Privacy text once in effect; null while they are not. */
-export const TERMS_PRIVACY_VERSION: string | null = null;
+export const TERMS_PRIVACY_VERSION: string | null = "2026-10-17";
 
 export const TERMS_PRIVACY_WORDS: Readonly<Record<TermsPrivacyState, string>> = {
   NOT_IN_EFFECT: "NOT IN EFFECT",

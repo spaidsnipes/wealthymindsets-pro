@@ -134,9 +134,9 @@ describe("POST /api/billing/checkout", () => {
     expect(session.params.get("metadata[wm_tier]")).toBe("PASSPORT");
     expect(session.params.get("metadata[passport_id_ref]")).toBe(USER);
     // Which legal text the buyer could read, recorded with the purchase — on the session, its subscription and the record.
-    expect(session.params.get("metadata[legal_shown]")).toBe("policies 2026-10-05 · risk 2026-10-05 · terms+privacy NOT IN EFFECT");
-    expect(session.params.get("subscription_data[metadata][legal_shown]")).toBe("policies 2026-10-05 · risk 2026-10-05 · terms+privacy NOT IN EFFECT");
-    expect(JSON.parse(mocks.kv!.store.get(`billing:v1:user:${USER}`)!).legalShown).toBe("policies 2026-10-05 · risk 2026-10-05 · terms+privacy NOT IN EFFECT");
+    expect(session.params.get("metadata[legal_shown]")).toBe("policies 2026-10-05 · risk 2026-10-05 · terms+privacy 2026-10-17 IN EFFECT");
+    expect(session.params.get("subscription_data[metadata][legal_shown]")).toBe("policies 2026-10-05 · risk 2026-10-05 · terms+privacy 2026-10-17 IN EFFECT");
+    expect(JSON.parse(mocks.kv!.store.get(`billing:v1:user:${USER}`)!).legalShown).toBe("policies 2026-10-05 · risk 2026-10-05 · terms+privacy 2026-10-17 IN EFFECT");
     expect(session.params.get("subscription_data[metadata][passport_id_ref]")).toBe(USER);
   });
 

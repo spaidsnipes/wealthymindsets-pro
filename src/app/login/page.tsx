@@ -536,7 +536,9 @@ function LoginPage() {
                     gets `text.muted` (5.35:1). The old #3A4250 was dimmer still. */}
                 {mode === "signup" && (
                   <p className="text-[11px] text-center mt-3" style={{ color: WM.text.muted }}>
-                    Terms of Service and Privacy Policy documents must be published before public enrollment.
+                    By creating an account you agree to the{" "}
+                    <Link href="/legal/terms" className="inline-flex min-h-11 items-center" style={{ color: WM.gold.mark }}>Terms of Service</Link> and{" "}
+                    <Link href="/legal/privacy" className="inline-flex min-h-11 items-center" style={{ color: WM.gold.mark }}>Privacy Policy</Link>.
                   </p>
                 )}
               </form>
@@ -555,6 +557,8 @@ function LoginPage() {
               <nav aria-label="Before you join" className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 text-[11px]">
                 <Link href="/welcome" className="inline-flex min-h-11 items-center font-bold" style={{ color: WM.gold.mark }}>Explore as a guest →</Link>
                 <Link href="/pricing" className="inline-flex min-h-11 min-w-11 items-center justify-center" style={{ color: WM.gold.mark }}>Pricing</Link>
+                <Link href="/legal/terms" className="inline-flex min-h-11 items-center" style={{ color: WM.gold.mark }}>Terms</Link>
+                <Link href="/legal/privacy" className="inline-flex min-h-11 items-center" style={{ color: WM.gold.mark }}>Privacy</Link>
                 <Link href="/legal/risk" className="inline-flex min-h-11 items-center" style={{ color: WM.gold.mark }}>Risk disclosure</Link>
                 <Link href="/legal/market-data" className="inline-flex min-h-11 items-center" style={{ color: WM.gold.mark }}>Market data</Link>
                 <Link href="/legal" className="inline-flex min-h-11 min-w-11 items-center justify-center" style={{ color: WM.gold.mark }}>Policies</Link>

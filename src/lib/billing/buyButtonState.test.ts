@@ -53,7 +53,7 @@ describe("the pricing page", () => {
   it("Terms & Privacy and the trading-risk disclosure sit beside the button", () => {
     const buy = page.slice(page.indexOf('data-testid="tier-buy"'), page.indexOf("})() : t.cta.href"));
     expect(buy.length).toBeGreaterThan(400);
-    expect(buy).toContain('<Link href="/legal"');
+    expect(buy).toContain('<Link href="/legal/terms"'); // 2026-10-17: the published Terms themselves
     expect(buy).toContain('<Link href="/legal/risk"');
     expect(buy).toContain("Not investment advice.");
   });

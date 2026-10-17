@@ -165,7 +165,7 @@ export default function PricingPage() {
                       {b.note ? <p style={{ margin: "6px 0 0", color: MUTED, fontSize: 12 }}>{b.note}</p> : null}
                       {/* Beside the button: what the buyer should read first. */}
                       <p style={{ margin: "6px 0 0", fontSize: 12, color: MUTED, lineHeight: 1.6 }}>
-                        Before you buy, read the <Link href="/legal" style={{ color: GOLD }}>Terms &amp; Privacy</Link> and the <Link href="/legal/risk" style={{ color: GOLD }}>trading risk disclosure</Link>. Not investment advice.
+                        Before you buy, read the <Link href="/legal/terms" style={{ color: GOLD }}>Terms</Link> &amp; <Link href="/legal/privacy" style={{ color: GOLD }}>Privacy Policy</Link> and the <Link href="/legal/risk" style={{ color: GOLD }}>trading risk disclosure</Link>. Not investment advice.
                       </p>
                     </div>
                   );
@@ -183,6 +183,8 @@ export default function PricingPage() {
           WM Pro is analysis and trading software, not investment advice. Read the risk and market-data disclosures before you trade.
         </p>
         <nav aria-label="Policies" style={{ display: "flex", flexWrap: "wrap", gap: 12, fontSize: 12 }}>
+          <Link href="/legal/terms" style={TAP}>Terms</Link>
+          <Link href="/legal/privacy" style={TAP}>Privacy</Link>
           <Link href="/legal/risk" style={TAP}>Risk disclosure</Link>
           <Link href="/legal/market-data" style={TAP}>Market-data disclosure</Link>
           <Link href="/legal" style={TAP}>All policies</Link>

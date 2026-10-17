@@ -11,11 +11,12 @@ import { LEGAL_INDEX_VERSION, RISK_DISCLOSURE_VERSION, TERMS_PRIVACY_STATE, TERM
 const read = (p: string) => readFileSync(path.join(process.cwd(), "src", p), "utf8");
 
 describe("legal version", () => {
-  it("today: the Terms and Privacy Policy are NOT IN EFFECT, and the purchase line says so with the page dates", () => {
-    expect(TERMS_PRIVACY_STATE).toBe("NOT_IN_EFFECT");
-    expect(TERMS_PRIVACY_VERSION).toBeNull();
-    expect(termsPrivacyInEffect()).toBe(false);
-    expect(legalShownAtPurchase()).toBe(`policies ${LEGAL_INDEX_VERSION} · risk ${RISK_DISCLOSURE_VERSION} · terms+privacy NOT IN EFFECT`);
+  // 2026-10-17: published (Founder: "turn payments on — this needs to be guest ready").
+  it("today: the Terms and Privacy Policy are IN EFFECT, dated, and the purchase line names that date", () => {
+    expect(TERMS_PRIVACY_STATE).toBe("IN_EFFECT");
+    expect(TERMS_PRIVACY_VERSION).toBe("2026-10-17");
+    expect(termsPrivacyInEffect()).toBe(true);
+    expect(legalShownAtPurchase()).toBe(`policies ${LEGAL_INDEX_VERSION} · risk ${RISK_DISCLOSURE_VERSION} · terms+privacy 2026-10-17 IN EFFECT`);
     expect(legalShownAtPurchase().length).toBeLessThanOrEqual(200);
     for (const v of [LEGAL_INDEX_VERSION, RISK_DISCLOSURE_VERSION]) expect(v).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
