@@ -2545,7 +2545,9 @@ export function WMOperatingSystem({
                 marginTop: "auto",
                 flex: "none" as const,
                 padding: "18px 14px 10px",
-                background: `linear-gradient(180deg, rgba(7,8,10,0) 0%, ${FIELD} 45%)`,
+                // Solid by 28% (Founder's Chrome, Tools open, 2026-10-17: the shelf's buttons read through
+                // "CLOSE · ESC — THE CHART" — the words sat in the fade). The fade stays above the words.
+                background: `linear-gradient(180deg, rgba(7,8,10,0) 0%, ${FIELD} 28%)`,
                 pointerEvents: "none" as const,
                 ...EYEBROW,
                 color: HINT_INK,
