@@ -15752,6 +15752,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.closePath();
                   ctx.fillStyle = `rgba(${170 + li * 18},${166 + li * 18},${158 + li * 18},${((0.1 + li * 0.045) * massK).toFixed(3)})`;
                   fillMassShell();
+                  // ONE EDGE, NOT EIGHT HAIRLINES (Founder 2026-10-17, iPad + his phone: "vague, opaque lines scribbled
+                  // in"): the inner shells read as shading only; just the outer ridge keeps its contour.
+                  if (li !== 0) return;
                   ctx.strokeStyle = `rgba(230,226,216,${(0.18 + li * 0.1).toFixed(2)})`;
                   ctx.lineWidth = li === layers.length - 1 ? 1.1 : 0.7;
                   ctx.beginPath();
