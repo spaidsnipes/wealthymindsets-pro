@@ -92,12 +92,15 @@ export function vpColumnLayout(
 
   const multi = nCols > 1;
   // 84 → 104 (2026-10-16: stacked Composite read as a 35px sliver beside Living).
-  const width = Math.min(multi ? 104 : 116, usable * (multi ? 0.1 : 0.13));
+  // WHOLE PIXELS (2026-10-17, Founder: the profiles "still look a bit blurry"): 10% of the span is a
+  // fractional width, so every stacked lane after the first began on a half pixel and every row's edge
+  // was antialiased. Width floors, the right edge rounds.
+  const width = Math.floor(Math.min(multi ? 104 : 116, usable * (multi ? 0.1 : 0.13)));
   if (!(width > 0)) return none;
 
-  const right =
+  const right = Math.round(
     canvasWidth - priceScaleWidth - VP_AXIS_MARGIN_PX -
-    colIndex * (width + VP_COLUMN_GAP_PX);
+    colIndex * (width + VP_COLUMN_GAP_PX));
 
   // A column whose right edge has walked left of the canvas cannot be seen. Say
   // so; do not paint it at negative x and call the profile drawn.

@@ -122,7 +122,7 @@ describe("the component-level writers ask the same hold (source pins)", () => {
     expect(read("contexts/SymbolContext.tsx").match(/if \(!proofSceneHoldsWrites\(\)\) (window\.)?localStorage\.setItem\(LAST_SYMBOL_KEY/g)?.length).toBe(2);
     expect(read("components/chart/AlertsPanel.tsx")).toContain("if (!proofSceneHoldsWrites()) localStorage.setItem(ALERTS_KEY, JSON.stringify(alerts));");
     expect(read("components/chart/ChartsDashboard.tsx")).toContain('if (!proofSceneHoldsWrites()) localStorage.setItem("wm_price_alerts"');
-    expect(read("components/chart/MainChart.tsx")).toContain('if (!proofSceneHoldsWrites()) localStorage.setItem("wm_flow_opacity"');
+    expect(read("components/chart/MainChart.tsx")).toContain('if (!proofSceneHoldsWrites()) sessionStorage.setItem("wm_flow_opacity"');
     // wm_theme and wm_activeInds go through the dashboard's two held writers.
     const dash = read("components/chart/ChartsDashboard.tsx");
     expect(dash).toMatch(/function lsSet\(key: string, val: unknown\) \{\s*if \(typeof window === "undefined"\) return;\s*if \(proofSceneHoldsWrites\(\)\) return;/);

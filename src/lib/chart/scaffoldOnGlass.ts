@@ -105,14 +105,16 @@ export function paintScaffoldOnGlass(ctx: Ctx, g: ScaffoldGlassInput): ScaffoldG
       // Phone: before listing, try the verdict's head (its first clause, at most three words) — a short
       // word on the glass beats a long one in the list.
       if (compact) {
-        const head = title.split(/ — | · |, /)[0].split(" ").slice(0, 3).join(" ");
+        // Each retry is one word shorter (3 → 2 → 1): a phone keeps the step's first word on the glass.
+        const words = title.split(/ — | · |, /)[0].split(" ");
+        const head = words.slice(0, Math.max(1, Math.min(3, words.length - (title.includes(" — ") || title.includes(" · ") || title.includes(", ") ? 0 : 1)))).join(" ");
         if (head.length >= 3 && head !== title) return tag(n, ax, ay, head, "", ink, listOnFail);
       }
       if (!listOnFail) return false;
       listed.push({ text: `${title} — ${sub}`, x: ax, y: ay }); listedWhy.push(`${n ?? "-"}:${w}x${h}`);
       // Phone: the words are listed, but the step's numbered disc still stands on its evidence (18px, clear of candles).
       if (compact && n != null) {
-        const d = [[10, -26], [-28, -26], [10, 8], [-28, 8], [-9, -34], [-9, 16]].map(([dx, dy]) => ({ x: Math.round(ax + dx), y: Math.round(ay + dy), w: 18, h: 18 }))
+        const d = [[10, -26], [-28, -26], [10, 8], [-28, 8], [-9, -34], [-9, 16], [26, -9], [-44, -9], [26, 26], [-44, 26], [-9, -54], [-9, 36]].map(([dx, dy]) => ({ x: Math.round(ax + dx), y: Math.round(ay + dy), w: 18, h: 18 }))
           .find(c => inPlot(c) && !hits(c, taken));
         if (d) {
           ctx.save();

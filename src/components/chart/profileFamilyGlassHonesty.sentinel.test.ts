@@ -99,7 +99,8 @@ describe("profile family glass honesty", () => {
 
   it("Composite rows are laid down as sediment strata from the owner's per-session volume (Defect 2)", () => {
     expect(CHART).toMatch(/r\.bySession\.forEach\(\(v, k\) => \{/);
-    expect(CHART).toMatch(/const segW = w \* \(v \/ total\);/);
+    // 2026-10-17: each stratum's share of the row is still v / total, now on whole-pixel edges (crisp, not blurred).
+    expect(CHART).toMatch(/cum \+= w \* \(v \/ total\);/);
     expect(CHART).toMatch(/ds\.compositeProfileStrata = String\(strataDrawn\);/);
     // One flat steel bar per row is gone.
     expect(CHART).not.toMatch(/ctx\.fillRect\(right - w, y, w, Math\.max\(1, rowH - 1\)\);/);

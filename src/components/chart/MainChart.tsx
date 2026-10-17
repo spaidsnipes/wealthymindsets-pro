@@ -3290,10 +3290,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // separate canvas above (zIndex 10), so scaling ONLY this canvas's opacity
   // lets the trader fade the busy order-flow back while price + drawings stay
   // crisp — the TradingView-clean workflow when annotating a dense chart.
-  // Persisted so the preference survives refresh. Cycles 1 → 0.4 → 0.15 → 1.
+  // Cycles 1 → 0.4 → 0.15 → 1.
+  // THIS VISIT ONLY (Founder on iPad, 2026-10-17: the inventions "don't look like they have the opacity
+  // … that we're finally getting now"). This canvas carries EVERY invention, not just order flow, and the
+  // dim was saved per device: one stray tap left a tablet at 40 % or 15 % on every later load. A dim now
+  // lasts for the visit (sessionStorage); a dim saved by the old build is put down on first read.
   const [flowOpacity, setFlowOpacity] = useState<number>(() => {
     if (typeof window === "undefined") return 1;
-    const v = parseFloat(localStorage.getItem("wm_flow_opacity") || "1");
+    try { if (!proofSceneHoldsWrites()) localStorage.removeItem("wm_flow_opacity"); } catch { /* storage blocked */ }
+    let v = 1;
+    try { v = parseFloat(sessionStorage.getItem("wm_flow_opacity") || "1"); } catch { /* storage blocked */ }
     return Number.isFinite(v) && v > 0 && v <= 1 ? v : 1;
   });
   // Auto-scale: when OFF the user can freely drag the price axis up/down to see
@@ -7399,6 +7405,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       if (!hit) return;
       const px = e.clientX - rect.left, py = e.clientY - rect.top;
       if (!isWeatherLensBezel(px, py, hit)) {
+        // A FINGER INSIDE THE GLASS PANS THE CHART (Founder on iPad, 2026-10-17: "problems with scrolling
+        // on the charts, trying to zoom in and out" — the lens sits mid-pane and took every drag and pinch).
+        // On touch only the RING takes the lens; the interior is the chart's.
+        if (e.pointerType === "touch") return;
         if (isInsideWeatherLens(px, py, hit)) {
           // THE GLASS OWNS THE PRESS (serving BTC 5m, 2026-10-02 01:00 CDT: a
           // shared press also reached the price-drag handler and rescaled the
@@ -7487,7 +7497,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       if (!hit || !t) return;
       const rect = host.getBoundingClientRect();
       const x = t.clientX - rect.left, y = t.clientY - rect.top;
-      if (weatherGrabRef.current || pending || isInsideWeatherLens(x, y, hit) || isWeatherLensBezel(x, y, hit)) e.stopImmediatePropagation();
+      // Two fingers are a pinch — always the chart's. One finger: only a grab already taken, or a press
+      // that starts ON THE RING, belongs to the glass (iPad 2026-10-17).
+      if (e.touches.length > 1) return;
+      if (weatherGrabRef.current || (e.type === "touchstart" && isWeatherLensBezel(x, y, hit))) e.stopImmediatePropagation();
     };
     // Put the glass back on the live bars: double-click inside it, or Escape.
     const toLive = () => { weatherApertureRef.current = null; weatherSampleCacheRef.current = null; setWeatherDetached(false); };
@@ -7551,7 +7564,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       });
     };
 
+    // A SECOND FINGER IS A PINCH (iPad 2026-10-17): the first finger's vertical travel during a pinch
+    // was also shifting the price range, so zoom fought a pan. Two fingers down → this drag lets go.
+    const fingers = new Set<number>();
     const onDown = (e: PointerEvent) => {
+      if (e.pointerType === "touch") {
+        fingers.add(e.pointerId);
+        if (fingers.size > 1) { dragging = false; return; }
+      }
       if (!e.isPrimary || e.button !== 0) return;
       if ((e.target as Element)?.closest?.("[data-weather-lens-control]")) return;
       if (drawingToolRef.current !== "cursor") return; // let drawing tools own the mouse
@@ -7588,7 +7608,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // provider only runs there. The manual range simply overrides the fit.
       reapply();
     };
-    const onUp = () => { dragging = false; };
+    const onUp = (e: PointerEvent) => { fingers.delete(e.pointerId); dragging = false; };
     // Double-click the chart body resets to auto-fit (TradingView convention).
     const onDbl = () => {
       if (drawingToolRef.current !== "cursor") return;
@@ -7607,6 +7627,47 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
+    };
+  }, [ready]);
+
+  /* ── A FINGER'S TAP ON A CHART TOGGLE ALWAYS LANDS (iPad, 2026-10-17) ──
+     Founder, teaching a class on an iPad: the D (data window) "I couldn't even turn it off, turn it on".
+     iPad Safari makes a click from a tap only after a synthetic hover; when the room changes during
+     that hover (crosshair, hover cards) Safari drops the click. On touch a chart toggle (a button with
+     aria-pressed inside this chart) now fires on the finger's release, and the late native click for
+     the same button is swallowed so it never toggles twice. Mouse and pen are untouched. */
+  useEffect(() => {
+    if (!ready) return;
+    const root = wrapRef.current;
+    if (!root) return;
+    let pressed: { id: number; x: number; y: number; btn: HTMLButtonElement } | null = null;
+    let swallow: { btn: Element; until: number } | null = null;
+    const down = (e: PointerEvent) => {
+      if (e.pointerType !== "touch") return;
+      const b = (e.target as Element | null)?.closest?.("button[aria-pressed]");
+      pressed = b instanceof HTMLButtonElement && root.contains(b) ? { id: e.pointerId, x: e.clientX, y: e.clientY, btn: b } : null;
+    };
+    const up = (e: PointerEvent) => {
+      const p = pressed; pressed = null;
+      if (!p || e.pointerType !== "touch" || p.id !== e.pointerId || p.btn.disabled) return;
+      if (Math.hypot(e.clientX - p.x, e.clientY - p.y) > 10) return;
+      swallow = { btn: p.btn, until: performance.now() + 800 };
+      p.btn.click();
+    };
+    const click = (e: MouseEvent) => {
+      if (!swallow || !e.isTrusted) return;
+      if (performance.now() > swallow.until) { swallow = null; return; }
+      if ((e.target as Element | null)?.closest?.("button") !== swallow.btn) return;
+      swallow = null;
+      e.preventDefault(); e.stopImmediatePropagation();
+    };
+    root.addEventListener("pointerdown", down, true);
+    root.addEventListener("pointerup", up, true);
+    window.addEventListener("click", click, true);
+    return () => {
+      root.removeEventListener("pointerdown", down, true);
+      root.removeEventListener("pointerup", up, true);
+      window.removeEventListener("click", click, true);
     };
   }, [ready]);
 
@@ -23507,10 +23568,18 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 const hRow = Math.max(1, rowH);
                 const total = r.volume > 0 ? r.volume : 1;
                 const nS = r.bySession.length;
-                let xs = right;
+                // CRISP EDGES (Founder 2026-10-17, "beautiful … still looks a bit blurry"): each stratum's
+                // edges were fractional pixels — every row's silhouette and seam was antialiased into a smear.
+                // Edges are now whole pixels measured from one rounded right edge.
+                const rr = Math.round(right);
+                let cum = 0;
                 r.bySession.forEach((v, k) => {
                   if (!(v > 0)) return;
-                  const segW = w * (v / total);
+                  const xa = rr - Math.round(cum);
+                  cum += w * (v / total);
+                  const xs = xa;
+                  const segW = xa - (rr - Math.round(cum));
+                  if (segW <= 0) return;
                   const age = nS > 1 ? k / (nS - 1) : 1;
                   // Founder 2026-10-16: "the blue looks like it's disappearing … not popping" — strata keep a lighter step.
                   const band = k % 2 === 1 ? 0.85 : 1;
@@ -23523,11 +23592,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                       ? pk.rgba("VALUE", +((0.75 + 0.25 * age) * band).toFixed(2))
                       : pk.rgbaAs("TAIL", "VALUE", +((0.5 + 0.25 * age) * band).toFixed(2));
                   ctx.fillRect(xs - segW, y, segW, hRow);
-                  if (segW >= 3 && xs < right) {
+                  if (segW >= 3 && xs < rr) {
                     ctx.fillStyle = "rgba(11,10,8,0.55)";
-                    ctx.fillRect(Math.round(xs) - 0.5, y, 1, hRow);
+                    ctx.fillRect(xs - 1, y, 1, hRow);
                   }
-                  xs -= segW;
                 });
                 strataDrawn = Math.max(strataDrawn, r.bySession.filter(v => v > 0).length);
                 top = Math.min(top, y);
@@ -30644,7 +30712,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // are on other layers and stay fully opaque.
   useEffect(() => {
     if (canvasRef.current) canvasRef.current.style.opacity = String(flowOpacity);
-    try { if (!proofSceneHoldsWrites()) localStorage.setItem("wm_flow_opacity", String(flowOpacity)); } catch {}
+    try { if (!proofSceneHoldsWrites()) sessionStorage.setItem("wm_flow_opacity", String(flowOpacity)); } catch {}
   }, [flowOpacity]);
 
   /* ── Right-click context menu handler ──────────────────────── */
@@ -32660,10 +32728,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               chart, TradingView-style. Dimmed state is highlighted. */}
           <button
             type="button"
-            aria-label={`Order-flow overlay opacity ${Math.round(flowOpacity * 100)} percent`}
+            aria-label={`Inventions overlay opacity ${Math.round(flowOpacity * 100)} percent`}
             className="wm-tap-slop"
             onClick={() => setFlowOpacity(o => (o > 0.7 ? 0.4 : o > 0.25 ? 0.15 : 1))}
-            title={`Order-flow overlay opacity: ${Math.round(flowOpacity * 100)}% — click to dim footprint / bubbles / VP so drawings and price stand out (cycles 100 → 40 → 15%)`}
+            title={`Inventions overlay: ${Math.round(flowOpacity * 100)}% — dims every invention so drawings and price stand out (cycles 100 → 40 → 15%; back to 100% on your next visit)`}
             style={{
               height: 22, padding: "0 6px", borderRadius: 4, fontSize: 9, fontWeight: 800, cursor: "pointer",
               display: "flex", alignItems: "center", gap: 3, whiteSpace: "nowrap",

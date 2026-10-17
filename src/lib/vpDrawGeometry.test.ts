@@ -38,8 +38,11 @@ describe("vpColumnLayout — the histogram is a lane, never a wall", () => {
     expect(narrow - wide).toBe(70);
   });
 
-  it("caps a single column at 13% of the usable span", () => {
-    expect(vpColumnLayout(600, 90, 0, 1).width).toBeCloseTo((600 - 90) * 0.13, 6);
+  // 2026-10-17: lanes are whole pixels (a fractional width antialiased every row's edge — "blurry").
+  it("caps a single column at 13% of the usable span, in whole pixels", () => {
+    expect(vpColumnLayout(600, 90, 0, 1).width).toBe(Math.floor((600 - 90) * 0.13));
+    const l = vpColumnLayout(1437, 83, 1, 3);
+    expect(Number.isInteger(l.width) && Number.isInteger(l.right)).toBe(true);
   });
 
   it("caps a single column absolutely at 116px on a wide screen", () => {

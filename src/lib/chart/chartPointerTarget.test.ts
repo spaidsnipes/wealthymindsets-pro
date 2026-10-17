@@ -41,7 +41,7 @@ describe("the pane's small controls say what they are and whether they are on (Â
     expect(src).toMatch(/type="button"\s*onClick=\{\(\) => setDataWindowOpen\(v => !v\)\}[\s\S]{0,400}aria-label="Data window"\s*aria-pressed=\{dataWindowOpen\}/);
   });
   it("â—: the opacity cycle names itself with its value", () => {
-    expect(src).toContain("aria-label={`Order-flow overlay opacity ${Math.round(flowOpacity * 100)} percent`}");
+    expect(src).toContain("aria-label={`Inventions overlay opacity ${Math.round(flowOpacity * 100)} percent`}");
   });
 });
 

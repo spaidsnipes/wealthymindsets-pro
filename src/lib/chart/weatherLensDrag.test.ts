@@ -56,11 +56,15 @@ describe("the glass itself can be taken and moved anywhere along the candles (Fo
   });
 });
 
-describe("a finger inside the glass belongs to the glass on a tablet", () => {
-  it("touches inside the lens never reach the chart's pan", () => {
+// RESTATED 2026-10-17 (Founder on iPad): the interior used to belong to the glass, so the lens — mid-pane —
+// ate every pan and pinch. On touch the RING takes the lens; the inside and every pinch are the chart's.
+describe("on a tablet the ring takes the glass; the inside and a pinch are the chart's", () => {
+  it("only a grab or a press on the ring stops the chart's touch", () => {
     const c = rf("src/components/chart/MainChart.tsx", "utf8");
     expect(c).toContain('host.addEventListener("touchstart", touchGuard, { capture: true, passive: true });');
-    expect(c).toContain("if (weatherGrabRef.current || pending || isInsideWeatherLens(x, y, hit) || isWeatherLensBezel(x, y, hit)) e.stopImmediatePropagation();");
+    expect(c).toContain("if (e.touches.length > 1) return;");
+    expect(c).toContain('if (weatherGrabRef.current || (e.type === "touchstart" && isWeatherLensBezel(x, y, hit))) e.stopImmediatePropagation();');
+    expect(c).toContain('if (e.pointerType === "touch") return;');
   });
 });
 
