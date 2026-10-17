@@ -25,6 +25,7 @@
  * Escape closes the panel only (the drawer stays open) and focus returns to ⓘ.
  */
 
+import { toolSimpleFor } from "@/lib/academy/toolSimple";
 import React, { useEffect, useRef } from "react";
 import { educationFor, type EducationTruth } from "@/lib/chart/inventionEducation";
 
@@ -176,6 +177,13 @@ export function InventionPreview({ scope, id, label, what, familyWord, symbol, t
         ))}
       </div>
 
+      {/* The keep-it-simple version first (Founder 2026-10-16: "the professional and the kid"). */}
+      {toolSimpleFor(id) ? (
+        <div className="mt-2 rounded-md px-2 py-1.5" data-testid="edu-simple" style={{ background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.3)" }}>
+          <div className="text-[9px] font-bold uppercase tracking-[0.16em]" style={{ color: GOLD }}>In plain words</div>
+          <div className="mt-0.5 text-[13px] leading-snug" style={{ color: PEARL }}>{toolSimpleFor(id)!.simple}</div>
+        </div>
+      ) : null}
       {row("What it is", what.charAt(0).toUpperCase() + what.slice(1) + (/[.!?]$/.test(what) ? "" : "."), "edu-what")}
       {row("The question it answers", edu.question, "edu-question")}
       {row("What it needs", edu.evidence, "edu-evidence")}
@@ -205,7 +213,7 @@ export function InventionPreview({ scope, id, label, what, familyWord, symbol, t
         <a href={(edu as { academy: { href: string } }).academy.href} data-testid="edu-academy"
           className="mt-2 inline-block text-[11.5px] font-semibold underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold"
           style={{ color: GOLD }}>
-          Academy · {(edu as { academy: { title: string } }).academy.title} ›
+          Academy · learn {(edu as { academy: { title: string } }).academy.title} — full + simple ›
         </a>
       ) : null}
 

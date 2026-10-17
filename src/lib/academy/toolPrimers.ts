@@ -16,6 +16,7 @@
  * with a knowledge check on the evidence grades.
  */
 import { educationFor } from "@/lib/chart/inventionEducation";
+import { TOOL_SIMPLE, primerSlugFor, toolSimpleFor } from "./toolSimple";
 
 export interface ToolPrimerTool {
   /** ⓘ record id. */
@@ -34,6 +35,8 @@ export interface ToolPrimerSection {
   readonly partial: string;
   readonly degraded: string;
   readonly silence: string;
+  /** The keep-it-simple explanation (toolSimple.ts); null when none is written. */
+  readonly simple: string | null;
 }
 
 export interface ToolPrimer {
@@ -65,13 +68,20 @@ const DEFS: readonly { slug: string; title: string; duration: string; tools: rea
   ] },
 ];
 
+/** Every other tool with an ⓘ record gets a primer of its own (Founder 2026-10-16: an Academy door on every tool). */
+const MADE = new Set(DEFS.flatMap(d => d.tools.map(t => t.id)));
+const GENERATED: typeof DEFS = Object.entries(TOOL_SIMPLE)
+  .filter(([id]) => !MADE.has(id) && educationFor(id) != null)
+  .map(([id, s]) => ({ slug: primerSlugFor(id), title: s.label, duration: "3m", tools: [{ id, label: s.label }] }));
+const ALL_DEFS = [...DEFS, ...GENERATED];
+
 function sectionFor(t: ToolPrimerTool): ToolPrimerSection {
   const r = educationFor(t.id);
   if (!r) throw new Error(`toolPrimers: no ⓘ record for ${t.id}`);
-  return { tool: t.label, question: r.question, appears: r.appears, grammar: r.grammar, evidence: r.evidence, full: r.full, partial: r.partial, degraded: r.degraded, silence: r.silence ?? r.degraded };
+  return { tool: t.label, question: r.question, appears: r.appears, grammar: r.grammar, evidence: r.evidence, full: r.full, partial: r.partial, degraded: r.degraded, silence: r.silence ?? r.degraded, simple: toolSimpleFor(t.id)?.simple ?? null };
 }
 
-export const TOOL_PRIMERS: readonly ToolPrimer[] = DEFS.map((d, i) => ({
+export const TOOL_PRIMERS: readonly ToolPrimer[] = ALL_DEFS.map((d, i) => ({
   n: i + 1, id: `glass-${d.slug}`, title: d.title, duration: d.duration, tools: d.tools, sections: d.tools.map(sectionFor),
 }));
 
@@ -79,7 +89,7 @@ export const toolPrimerHref = (id: string): string => `/education?lesson=${id}`;
 
 /** Every sentence a primer shows, for the copy sweeps. */
 export function toolPrimerText(): string[] {
-  return TOOL_PRIMERS.flatMap(p => [p.title, ...p.sections.flatMap(s => [s.question, s.appears, s.grammar, s.evidence, s.full, s.partial, s.degraded, s.silence])])
+  return TOOL_PRIMERS.flatMap(p => [p.title, ...p.sections.flatMap(s => [s.question, s.appears, s.grammar, s.evidence, s.full, s.partial, s.degraded, s.silence, ...(s.simple ? [s.simple] : [])])])
     .concat(PRIMER_SILENCE, PRIMER_CANNOT_KNOW, PRIMER_GRADES_LEDE);
 }
 

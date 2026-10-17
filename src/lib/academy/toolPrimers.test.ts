@@ -9,10 +9,12 @@ import { offenders } from "@/lib/marketing/bannedClaims";
 const page = readFileSync("src/app/education/page.tsx", "utf8");
 
 describe("Supermax §9 — tool primers: one per tool, written from the tool's own ⓘ record", () => {
-  it("six primers, in the existing Academy catalogue, each published", () => {
-    expect(TOOL_PRIMERS.map(p => p.title)).toEqual([
+  it("the six hand-made primers first, then one per remaining tool (2026-10-16: an Academy door on every tool), each published", () => {
+    expect(TOOL_PRIMERS.slice(0, 6).map(p => p.title)).toEqual([
       "Living Profile", "Brick Walls and Derivatives Pressure", "Absorption", "Liquidity Weather", "Effort → Response", "Footprint",
     ]);
+    expect(TOOL_PRIMERS.length).toBeGreaterThan(40);
+    for (const p of TOOL_PRIMERS.slice(6)) expect(p.sections[0]?.simple, p.id).toBeTruthy();
     expect(TOOL_PRIMER_MODULE.id).not.toBe(FVG_ACADEMY_MODULE.id);
     expect(page.match(/TOOL_PRIMER_MODULE\.id/g)?.length).toBe(1);   // registered once, in the one catalogue
     for (const p of TOOL_PRIMERS) expect(academyLessonContentStatus(p.id), p.id).toBe("AVAILABLE");

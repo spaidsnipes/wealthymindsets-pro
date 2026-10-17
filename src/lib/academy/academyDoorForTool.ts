@@ -15,6 +15,8 @@
  * `academyDoorForTool.test.ts` pins every id and title to the primers.
  */
 
+import { primerSlugFor, toolSimpleFor } from "./toolSimple";
+
 export interface AcademyDoor {
   readonly lessonId: string;
   readonly href: string;
@@ -49,6 +51,13 @@ export const ACADEMY_DOOR_FOR_TOOL: Readonly<Record<string, AcademyDoor>> = {
   EFFORT_MARK: EFFORT,
 };
 
+/**
+ * EVERY TOOL HAS A DOOR (Founder 2026-10-16: "you can't just have go-to-academy for one thing and not another").
+ * A tool without a hand-made primer lands on its own generated primer (toolPrimers.ts, from TOOL_SIMPLE).
+ */
 export function academyDoorForTool(id: string): AcademyDoor | null {
-  return ACADEMY_DOOR_FOR_TOOL[id] ?? null;
+  const made = ACADEMY_DOOR_FOR_TOOL[id];
+  if (made) return made;
+  const s = toolSimpleFor(id);
+  return s ? primer(primerSlugFor(id), s.label) : null;
 }

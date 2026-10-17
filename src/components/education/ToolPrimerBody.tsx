@@ -7,7 +7,7 @@
 import React from "react";
 import Link from "next/link";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
-import { PRIMER_CANNOT_KNOW, PRIMER_GRADES_LEDE, PRIMER_SILENCE, type ToolPrimer } from "@/lib/academy/toolPrimers";
+import { PRIMER_CANNOT_KNOW, PRIMER_GRADES_LEDE, PRIMER_SILENCE, TOOL_PRIMERS, type ToolPrimer } from "@/lib/academy/toolPrimers";
 
 const Row = ({ k, v }: { k: string; v: string }) => (
   <div className="text-[12px] leading-relaxed"><span className="font-bold text-wm-text">{k}</span> <span className="text-wm-text-muted">{v}</span></div>
@@ -17,7 +17,7 @@ export function ToolPrimerBody({ primer, color }: { primer: ToolPrimer; color: s
   return (
     <div data-testid="tool-primer" data-tool-primer={primer.id} className="px-4 py-4 space-y-4">
       <div>
-        <div className="text-[11px] font-black uppercase tracking-wider" style={{ color }}>Primer {primer.n} of 6 · Reading the glass</div>
+        <div className="text-[11px] font-black uppercase tracking-wider" style={{ color }}>Primer {primer.n} of {TOOL_PRIMERS.length} · Reading the glass</div>
         <h2 className="mt-1 text-base font-bold text-wm-text" style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontWeight: 400 }}>{primer.title}</h2>
         <p className="mt-1 text-[12px] text-wm-text-muted leading-relaxed">These are the same words as the tool&apos;s ⓘ on the chart — one definition, written once.</p>
       </div>
@@ -25,6 +25,13 @@ export function ToolPrimerBody({ primer, color }: { primer: ToolPrimer; color: s
       {primer.sections.map(s => (
         <section key={s.tool} data-testid="tool-primer-section" className="p-3 rounded-xl border border-wm-border bg-wm-surface/20 space-y-2">
           <div className="text-[13px] font-bold text-wm-text">{s.tool}</div>
+          {s.simple ? (
+            <div data-testid="tool-primer-simple" className="rounded-lg px-3 py-2" style={{ background: `${color}14`, border: `1px solid ${color}55` }}>
+              <div className="text-[11px] font-black uppercase tracking-wider" style={{ color }}>Simple version</div>
+              <p className="mt-0.5 text-[14px] leading-relaxed text-wm-text">{s.simple}</p>
+            </div>
+          ) : null}
+          <div className="text-[11px] font-black uppercase tracking-wider" style={{ color }}>Full detail</div>
           <p className="text-[12px] text-wm-text leading-relaxed">{s.question}</p>
           <Row k="On the chart:" v={s.appears} />
           <Row k="How to read it:" v={s.grammar} />
