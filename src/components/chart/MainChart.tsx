@@ -19215,6 +19215,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // A dimmed fixture's NAME keeps the governor's legibility floor.
               const prevA = ctx.globalAlpha;
               ctx.globalAlpha = att.textAlpha(key);
+              // A DARK HALO, NOT A CARD (real iPad, 2026-10-17: "☆ MEAN 29,917.28" read struck through by its own dashed
+              // line): the glass's dark traced around the letters hides the line under them.
+              ctx.lineJoin = "round"; ctx.lineWidth = 4; ctx.strokeStyle = "rgba(11,10,8,0.95)";
+              ctx.strokeText(text, spot.rect.x + 2, y);
               ctx.fillText(text, spot.rect.x + 2, y);
               ctx.globalAlpha = prevA;
               wordsTaken.push(y);
@@ -19912,7 +19916,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // THE SHORT NAME STAYS WITH ITS FAN (serving ES1! / TSLA 15m, Oct 16: the full sentence slid ~400px
               // left and read as a stray line). When the long caption cannot sit by the fan, the short one tries
               // the fan's own rows; the full provenance stays in Inspect and the receipt.
-              if (spotCap.mode === "BLOCKED" || spotCap.rect.x < capX - 120) {
+              // …and when the sentence is wider than the glass left of the fan (real iPad 820, 2026-10-17: it began off the
+              // left edge and read "…logue envelope n=10").
+              if (spotCap.mode === "BLOCKED" || spotCap.rect.x < capX - 120 || spotCap.rect.x < keepOutMinX()) {
                 const shortT = `ENVELOPE · n=${nNow} analogues${fanPastView ? " ↕" : ""}`;
                 wordGate.declareTruth(shortT);
                 const sW = ctx.measureText(shortT).width + 12;
@@ -19922,6 +19928,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: sRows.slice(1) });
                 if (sSpot.mode !== "BLOCKED" && sSpot.rect.x >= sX - 120) { spotCap = sSpot; capShown = shortT; capW = sW; }
               }
+              // A caption that would still begin off the glass is not painted cut: it goes to the silence stack.
+              if (spotCap.mode !== "BLOCKED" && spotCap.rect.x < keepOutMinX()) spotCap = { ...spotCap, mode: "BLOCKED" };
               // No clear slot: a truth line never paints over another one's home
               // (serving 390 / 430 enforce, c9303a7: this caption sat on the
               // "N SENSES SILENT" row). It is said in the silence stack instead.
@@ -24906,6 +24914,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           }
           if (on && mem?.drawn) {
             ctx.save(); ctx.globalAlpha = att.alpha("profileMemory");
+            // THE HEADER BAND IS NOT MEMORY'S (real iPad Safari, 2026-10-17: the S-1 mass and a remembered level line ran
+            // through "NQ1! 5m 29391.25", the D toggle and EFFORT). Everything Memory paints stays between the header
+            // floor and the candle pane's foot.
+            ctx.beginPath(); ctx.rect(0, HEADER_FLOOR_Y, W, Math.max(0, pane0Bottom - HEADER_FLOOR_Y)); ctx.clip();
             const ts = chart.timeScale();
             const endX = ds.profileStackLeft ? Number(ds.profileStackLeft) - 8 : W - 80;
             let drawn = 0;
