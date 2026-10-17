@@ -70,13 +70,17 @@ export function paintScaffoldOnGlass(ctx: Ctx, g: ScaffoldGlassInput): ScaffoldG
 
   /* A step tag: number disc, title in the step's ink, one line of evidence. Placed around its anchor, clear of
      everything taken; a dotted leader ties it back. No clear place → listed. */
-  const tag = (n: number | null, ax: number, ay: number, title: string, sub: string, ink: string): boolean => {
-    ctx.font = `800 13px ${g.sans}`;
+  // A phone's plot (< 520px) takes the compact form: one line — number + the verdict — no evidence line.
+  const compact = plot.x1 - plot.x0 < 520;
+  const tag = (n: number | null, ax: number, ay: number, title0: string, sub0: string, ink: string): boolean => {
+    const title = compact ? title0.replace(/^[A-Z ]+ — /, "") : title0;
+    const sub = compact ? "" : sub0;
+    ctx.font = `800 ${compact ? 11.5 : 13}px ${g.sans}`;
     const tw = ctx.measureText(title).width;
     ctx.font = `500 12px ${g.sans}`;
-    const sw = ctx.measureText(sub).width;
-    const disc = n == null ? 0 : 26;
-    const w = Math.ceil(Math.max(tw, sw) + 24 + disc), h = 40;
+    const sw = sub ? ctx.measureText(sub).width : 0;
+    const disc = n == null ? 0 : compact ? 20 : 26;
+    const w = Math.ceil(Math.max(tw, sw) + (compact ? 14 : 24) + disc), h = compact ? 22 : 40;
     const cands: GlassBox[] = [
       [16, -h - 16], [16, 16], [-w - 16, -h - 16], [-w - 16, 16], [16, -h - 60], [-w - 16, -h - 60], [16, 60], [-w - 16, 60],
       [-w / 2, -h - 30], [-w / 2, 30], [16, -h - 110], [-w - 16, -h - 110],
@@ -101,20 +105,20 @@ export function paintScaffoldOnGlass(ctx: Ctx, g: ScaffoldGlassInput): ScaffoldG
     ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, 7); ctx.fill();
     ctx.strokeStyle = rgba(ink, 0.9); ctx.lineWidth = 1.3;
     ctx.beginPath(); ctx.roundRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1, 7); ctx.stroke();
-    let tx = r.x + 12;
+    let tx = r.x + (compact ? 7 : 12);
     if (n != null) {
-      ctx.beginPath(); ctx.arc(r.x + 19, r.y + h / 2, 10, 0, Math.PI * 2);
+      const cr = compact ? 7.5 : 10, cx = r.x + (compact ? 12 : 19);
+      ctx.beginPath(); ctx.arc(cx, r.y + h / 2, cr, 0, Math.PI * 2);
       ctx.fillStyle = "rgba(8,7,6,1)"; ctx.fill();
       ctx.strokeStyle = rgba(ink, 1); ctx.lineWidth = 2; ctx.stroke();
-      ctx.fillStyle = rgba(ink, 1); ctx.font = `800 12px ${g.sans}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText(String(n), r.x + 19, r.y + h / 2 + 0.5);
-      tx = r.x + 36;
+      ctx.fillStyle = rgba(ink, 1); ctx.font = `800 ${compact ? 10 : 12}px ${g.sans}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(String(n), cx, r.y + h / 2 + 0.5);
+      tx = r.x + (compact ? 24 : 36);
     }
     ctx.textAlign = "left"; ctx.textBaseline = "middle";
-    ctx.font = `800 13px ${g.sans}`; ctx.fillStyle = rgba(ink, 1);
-    ctx.fillText(title, tx, r.y + 13);
-    ctx.font = `500 12px ${g.sans}`; ctx.fillStyle = rgba(I.IVORY, 0.92);
-    ctx.fillText(sub, tx, r.y + 29);
+    ctx.font = `800 ${compact ? 11.5 : 13}px ${g.sans}`; ctx.fillStyle = rgba(ink, 1);
+    ctx.fillText(title, tx, compact ? r.y + h / 2 + 0.5 : r.y + 13);
+    if (sub) { ctx.font = `500 12px ${g.sans}`; ctx.fillStyle = rgba(I.IVORY, 0.92); ctx.fillText(sub, tx, r.y + 29); }
     ctx.restore();
     taken.push(r); rects.push(r);
     return true;
@@ -278,13 +282,13 @@ export function paintScaffoldOnGlass(ctx: Ctx, g: ScaffoldGlassInput): ScaffoldG
   if (px != null && py != null) {
     const ink = sc.caution ? I.AMBER : I.GOLD;
     const title = sc.caution ? `CAUTION · ${sc.cautionFlags.length} FLAG${sc.cautionFlags.length > 1 ? "S" : ""}` : "NO FLAG";
-    const line1 = sc.caution ? sc.cautionFlags.join(" · ") : "no flag fired in the window";
-    const line2 = sc.conclusion;
+    const line1 = compact ? "" : sc.caution ? sc.cautionFlags.join(" · ") : "no flag fired in the window";
+    const line2 = compact ? "" : sc.conclusion;
     ctx.save();
     ctx.font = `800 18px ${g.sans}`; const t0 = ctx.measureText(title).width + 40;
     ctx.font = `500 12px ${g.sans}`; const t1 = ctx.measureText(line1).width;
     ctx.font = `700 12px ${g.sans}`; const t2 = ctx.measureText(line2).width;
-    const w = Math.ceil(Math.max(t0, t1, t2) + 28), h = 72;
+    const w = Math.ceil(Math.max(t0, t1, t2) + 28), h = compact ? 34 : 72;
     const cands: GlassBox[] = [
       { x: px + g.barSpacing + 12, y: py - h / 2, w, h }, { x: plot.x1 - w - 4, y: py - h - 30, w, h }, { x: plot.x1 - w - 4, y: py + 30, w, h },
       { x: plot.x1 - w - 4, y: py - h - 90, w, h }, { x: plot.x1 - w - 4, y: py + 90, w, h },
