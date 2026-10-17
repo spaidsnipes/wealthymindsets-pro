@@ -22646,7 +22646,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // a dozen equal-weight chips at the right edge). With three or more
           // species in the stack, every non-primary species' chip steps back to
           // 65% — same place, same words; Living's names lead.
-          if (stackOrder.length >= 3 && !/^LIVING\b/.test(text)) { ctx.globalAlpha *= 0.65; levelChipsQuieted++; }
+          // …but never below the named-level floor (Founder ruling, faint-word pass: the governor decides whether a word
+          // speaks, not how grey it is). Founder's NQ 5m stack, 2026-10-17: "▲ CMP VAH / POC / VAL" read washed out.
+          if (stackOrder.length >= 3 && !/^LIVING\b/.test(text)) { ctx.globalAlpha = Math.max(Math.min(ctx.globalAlpha, 0.85), ctx.globalAlpha * 0.65); levelChipsQuieted++; }
           if (spotL.mode !== "CLEAR") levelChipsMoved++;
           if (spotL.onCandles) levelChipsYielded++;
           const chipAlpha = ctx.globalAlpha;
