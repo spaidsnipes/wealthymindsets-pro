@@ -12208,36 +12208,52 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             let volTopBR = 0.78;
             try { const t = chart.priceScale("vol").options().scaleMargins?.top; if (Number.isFinite(t)) volTopBR = t as number; } catch { /* default */ }
             const baseY = Math.round(pane0Bottom * volTopBR) - 1;
-            const line = new Path2D();
-            const fill = new Path2D();
-            const notches = new Path2D();
-            let started = false, firstX = 0, lastX = 0, n = 0;
-            const changeSet = new Set(rib.changes);
+            // CANON PLATE S-BR1 (2026-10-16, Founder: anything with no plate that reads penciled-in gets one): the
+            // ribbon is a lit band coloured by its state — coiled blue, normal ivory, stretched orange — as tall as the
+            // bar-size ratio (6px per ×, up to 24), outlined, with a notch and the new state's word where it changes.
+            const BR_INK: Record<string, string> = { COMPRESSED: "95,168,255", NORMAL: "237,230,211", EXPANDED: "249,115,22" };
+            const ptsBR: { x: number; y: number; state: string; time: number }[] = [];
             for (const p of rib.points) {
               const xr = tsBR.timeToCoordinate(p.time as never);
               if (xr == null || +xr < 0 || +xr > plotRight) continue;
-              const x = +xr, y = baseY - breathRibbonHeight(p.ratio);
-              if (!started) { line.moveTo(x, y); fill.moveTo(x, baseY); fill.lineTo(x, y); firstX = x; started = true; }
-              else { line.lineTo(x, y); fill.lineTo(x, y); }
-              lastX = x; n++;
-              if (changeSet.has(p.time)) { notches.moveTo(Math.round(x) + 0.5, baseY + 1); notches.lineTo(Math.round(x) + 0.5, baseY + 4); }
+              ptsBR.push({ x: +xr, y: baseY - breathRibbonHeight(p.ratio, 6, 24), state: p.state, time: p.time });
             }
+            const n = ptsBR.length;
             if (n >= 2) {
-              fill.lineTo(lastX, baseY); fill.lineTo(firstX, baseY); fill.closePath();
               ctx.save();
               ctx.globalAlpha = att.alpha("breathRibbon");
-              ctx.fillStyle = "rgba(237,230,211,0.10)";
-              ctx.fill(fill);
-              ctx.strokeStyle = "rgba(237,230,211,0.42)";
-              ctx.lineWidth = 1;
-              ctx.stroke(line);
-              ctx.strokeStyle = "rgba(237,230,211,0.55)";
-              ctx.stroke(notches);
+              const changeSet = new Set(rib.changes);
+              // One segment per bar step, filled and stroked in that bar's state ink.
+              for (let i = 1; i < n; i++) {
+                const p0 = ptsBR[i - 1], p1 = ptsBR[i];
+                const ink = BR_INK[p1.state] ?? BR_INK.NORMAL;
+                ctx.beginPath(); ctx.moveTo(p0.x, baseY); ctx.lineTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.lineTo(p1.x, baseY); ctx.closePath();
+                ctx.fillStyle = `rgba(${ink},0.32)`; ctx.fill();
+                ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y);
+                ctx.strokeStyle = `rgba(${ink},0.95)`; ctx.lineWidth = 2; ctx.stroke();
+              }
+              ctx.strokeStyle = "rgba(237,230,211,0.35)"; ctx.lineWidth = 1;
+              ctx.beginPath(); ctx.moveTo(ptsBR[0].x, baseY + 0.5); ctx.lineTo(ptsBR[n - 1].x, baseY + 0.5); ctx.stroke();
+              ctx.font = `700 10.5px ${MARKET_SANS}`; ctx.textAlign = "left"; ctx.textBaseline = "bottom";
+              let lastWordX = -Infinity;
+              for (const p of ptsBR) {
+                if (!changeSet.has(p.time)) continue;
+                const ink = BR_INK[p.state] ?? BR_INK.NORMAL;
+                ctx.strokeStyle = `rgba(${ink},1)`; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(Math.round(p.x) + 0.5, baseY - 26); ctx.lineTo(Math.round(p.x) + 0.5, baseY + 3); ctx.stroke();
+                const word = p.state === "COMPRESSED" ? "COILED" : p.state === "EXPANDED" ? "STRETCHED" : "NORMAL";
+                const tw = ctx.measureText(word).width;
+                const r = { x: p.x + 3, y: baseY - 40, w: tw + 4, h: 13 };
+                if (p.x - lastWordX > tw + 14 && !forceChips.some(o => r.x < o.x + o.w && r.x + r.w > o.x && r.y < o.y + o.h && r.y + r.h > o.y)) {
+                  ctx.fillStyle = `rgba(${ink},1)`; ctx.fillText(word, p.x + 4, baseY - 28);
+                  forceChips.push(r); lastWordX = p.x;
+                }
+              }
               ctx.restore();
             }
             const lastP = rib.points[rib.points.length - 1];
-            // PROPOSED: no Founder plate for Breathing yet — the receipt says so.
-            canvas.dataset.breathRibbon = `PROPOSED:DRAWN:${n}|NOW:${lastP.state}:${lastP.ratio.toFixed(2)}x|CHANGES:${rib.changes.length}`;
+            // Canon plate S-BR1 (Drive) since 2026-10-16.
+            canvas.dataset.breathRibbon = `S-BR1:DRAWN:${n}|NOW:${lastP.state}:${lastP.ratio.toFixed(2)}x|CHANGES:${rib.changes.length}`;
           }
           const ms = performance.now() - t0BR;
           canvas.dataset.breathRibbonCost = `${ms.toFixed(2)}ms`;
