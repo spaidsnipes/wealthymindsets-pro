@@ -33166,7 +33166,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           style={{
             display: "block",
             width: 22, height: 22, borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: "pointer",
-            background: dataWindowOpen ? "rgba(47,128,237,0.2)" : "rgba(20,24,36,0.85)",
+            // Solid in both states (real iPad, 2026-10-17: VWAP and the Bollinger band ran through a 20% blue face).
+            background: dataWindowOpen ? "linear-gradient(rgba(47,128,237,0.2), rgba(47,128,237,0.2)), #0d1220" : "#141824",
             border: `1px solid ${dataWindowOpen ? "rgba(47,128,237,0.5)" : "#263050"}`,
             color: dataWindowOpen ? "#2F80ED" : "#8896BE",
           }}
