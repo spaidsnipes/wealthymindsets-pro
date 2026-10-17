@@ -19664,7 +19664,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const cols: { k: number; x: number; y10: number; y25: number; y50: number; y75: number; y90: number }[] = [];
             // F03: the fan opens a short way before NOW, not at the session
             // open — the history left of it stays clean candles.
-            const tailFromE = envelopeTailFrom(fan.nowK);
+            // A FINISHED SESSION SHOWS ITS WHOLE FAN (Founder 2026-10-17, NQ 5m after the close: the envelope read as a
+            // flat gold slab over the last ~20 bars, cut at the header). With no step right of NOW there is nothing
+            // to project, so the fan runs from the open — the day's candles inside (or outside) their expected path,
+            // the plate's "plan of current session candles inside a dashed expected-path envelope".
+            const tailFromE = fan.steps.some(s => s.k > fan.nowK) ? envelopeTailFrom(fan.nowK) : 0;
             for (const s of fan.steps) {
               if (s.k < tailFromE) continue;
               const x = xAtK(s.k);
