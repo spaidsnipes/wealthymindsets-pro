@@ -226,7 +226,29 @@ async function getCandles(ex: Ex, coin: string, tf: ExchangeTimeframe, sec: numb
   if (ex === "coinbase") {
     const r = await j(`https://api.exchange.coinbase.com/products/${p}/candles?granularity=${sec}`);
     // [time, low, high, open, close, volume] newest-first
-    return coinbaseTuples(r).sort((a, b) => a.time - b.time).slice(-bars);
+    const first = coinbaseTuples(r).sort((a, b) => a.time - b.time);
+    // DEEPER THAN ONE PAGE (2026-10-16): Coinbase answers at most 300 candles a call — a 5m crypto chart held ~25h,
+    // fewer than the Expected Envelope's three completed sessions (BTC 5m read TOO_FEW_SESSIONS). Older pages are
+    // read back by explicit window, paced, one 429 retry each, until `bars` (≤ 1000) or the venue runs dry.
+    const out = [...first];
+    const iso = (t: number) => new Date(t * 1000).toISOString();
+    for (let page = 0; page < 3 && out.length < bars && out.length > 0; page++) {
+      const endSec = out[0].time - sec;
+      const startSec = endSec - 299 * sec;
+      const url = `https://api.exchange.coinbase.com/products/${p}/candles?granularity=${sec}&start=${encodeURIComponent(iso(startSec))}&end=${encodeURIComponent(iso(endSec))}`;
+      try {
+        await new Promise(res => setTimeout(res, 120));
+        let res = await fetch(url, { headers: UA, cache: "no-store" });
+        if (res.status === 429) { await new Promise(r2 => setTimeout(r2, 400)); res = await fetch(url, { headers: UA, cache: "no-store" }); }
+        if (!res.ok) break;
+        const rows = await res.json();
+        if (!Array.isArray(rows) || rows.length === 0) break;
+        const older = coinbaseTuples(rows).filter(t => t.time < out[0].time).sort((a, b) => a.time - b.time);
+        if (!older.length) break;
+        out.unshift(...older);
+      } catch { break; }
+    }
+    return out.slice(-bars);
   }
   if (ex === "kraken") {
     const min = Math.max(1, Math.round(sec / 60));
