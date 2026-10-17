@@ -12216,7 +12216,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             for (const p of rib.points) {
               const xr = tsBR.timeToCoordinate(p.time as never);
               if (xr == null || +xr < 0 || +xr > plotRight) continue;
-              ptsBR.push({ x: +xr, y: baseY - breathRibbonHeight(p.ratio, 6, 24), state: p.state, time: p.time });
+              ptsBR.push({ x: +xr, y: baseY - 6 - breathRibbonHeight(p.ratio, 10, 24), state: p.state, time: p.time });
             }
             const n = ptsBR.length;
             if (n >= 2) {
@@ -12240,12 +12240,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 if (!changeSet.has(p.time)) continue;
                 const ink = BR_INK[p.state] ?? BR_INK.NORMAL;
                 ctx.strokeStyle = `rgba(${ink},1)`; ctx.lineWidth = 2;
-                ctx.beginPath(); ctx.moveTo(Math.round(p.x) + 0.5, baseY - 26); ctx.lineTo(Math.round(p.x) + 0.5, baseY + 3); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(Math.round(p.x) + 0.5, baseY - 34); ctx.lineTo(Math.round(p.x) + 0.5, baseY + 3); ctx.stroke();
                 const word = p.state === "COMPRESSED" ? "COILED" : p.state === "EXPANDED" ? "STRETCHED" : "NORMAL";
                 const tw = ctx.measureText(word).width;
-                const r = { x: p.x + 3, y: baseY - 40, w: tw + 4, h: 13 };
+                const r = { x: p.x + 3, y: baseY - 48, w: tw + 4, h: 13 };
                 if (p.x - lastWordX > tw + 14 && !forceChips.some(o => r.x < o.x + o.w && r.x + r.w > o.x && r.y < o.y + o.h && r.y + r.h > o.y)) {
-                  ctx.fillStyle = `rgba(${ink},1)`; ctx.fillText(word, p.x + 4, baseY - 28);
+                  ctx.fillStyle = `rgba(${ink},1)`; ctx.fillText(word, p.x + 4, baseY - 36);
                   forceChips.push(r); lastWordX = p.x;
                 }
               }
