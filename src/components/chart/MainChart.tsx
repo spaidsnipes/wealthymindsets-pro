@@ -2155,6 +2155,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const versionGuardRef = useRef<DataVersionGuard>(new DataVersionGuard());
   const lwRef         = useRef<any>(null); // the imported lightweight-charts v5 module (for series defs)
   const candleRef     = useRef<any>(null);
+  // Rows of the price-axis column our own tags cover (phone level tags, live price, countdown). The axis's
+  // tick numbers on those rows print blank instead of peeking out half-covered (iPhone 17 Pro BTC 5m, 2026-10-17:
+  // "VAH 81,570.00" sat over "81560.00" and "POC 81,454.00" over "81440.00").
+  const axisTickMaskRef = useRef<{ y0: number; y1: number }[]>([]);
   const markersPluginRef = useRef<any>(null); // v5 createSeriesMarkers plugin (setMarkers moved off ISeriesApi)
   const pineMarkersPluginRef = useRef<any>(null); // v5 markers plugin dedicated to Pine plotshape/plotchar output
   const volRef        = useRef<any>(null);
@@ -4455,7 +4459,21 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
 
       const chart = chartRef.current ?? LW.createChart(el, {
         autoSize: true,
-        localization: { timeFormatter: fmtAxisTime },
+        localization: {
+          timeFormatter: fmtAxisTime,
+          tickmarksPriceFormatter: (prices: number[]) => {
+            const srsT = candleRef.current;
+            const fmt = srsT?.priceFormatter?.();
+            const mask = axisTickMaskRef.current;
+            return prices.map(p => {
+              const text = fmt ? fmt.format(p) : String(p);
+              if (!srsT || mask.length === 0) return text;
+              const y = srsT.priceToCoordinate(p);
+              // a tick's own text is ~12px tall: blank it when any of it would sit under a tag
+              return y != null && mask.some(m => y + 7 > m.y0 && y - 7 < m.y1) ? "" : text;
+            });
+          },
+        },
         layout: {
           background:       { color: chartSettings?.background ?? MARKET_FIELD_DEFAULT },
           textColor:        "#8896BE",
@@ -29264,8 +29282,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             placedTags++;
           }
           ctx.restore();
+          axisTickMaskRef.current = taken.slice();
           canvas.dataset.levelAxisTags = `${placedTags}/${axisLevelTags.length}${overlapTags ? `|OVERLAP:${overlapTags}` : ""}`;
-        } else delete canvas.dataset.levelAxisTags;
+        } else { delete canvas.dataset.levelAxisTags; axisTickMaskRef.current = []; }
       } catch (err) { layerFault("LEVEL_AXIS_TAGS", err); }
 
       // ── Tape CVD caption (H-701): the pane names its source and its start ──
