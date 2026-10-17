@@ -148,7 +148,7 @@ describe("the asked question keeps its words; a truth line never paints on anoth
   });
   it("on a phone the folded-silence line sits UNDER the compact question strip while a question is asked", () => {
     expect(CHART).toContain("lensNarrowBottom = by + 34;");
-    expect(CHART).toContain("const y = narrowGlass ? (lensNarrowBottom > 0 ? lensNarrowBottom + 10 : HEADER_FLOOR_Y + 10) : silenceRowY;");
+    expect(CHART).toContain("let y = narrowGlass ? (lensNarrowBottom > 0 ? lensNarrowBottom + 10 : HEADER_FLOOR_Y + 10) : silenceRowY;"); // 2026-10-16: then steps past a word already on its row
   });
   it("the envelope's provenance caption with no clear slot is said in the silence stack, never over another line", () => {
     const i = CHART.indexOf('if (spotCap.mode === "BLOCKED") {');

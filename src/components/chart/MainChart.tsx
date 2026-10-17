@@ -28342,12 +28342,20 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // PHONE ASK 8 (erasure, 2026-10-07): on narrow glass the summary line
         // sat across the volume bars (and the DOM R/A/%/L chips). It moves to
         // the top-left of the price pane, under the header band.
-        const y = narrowGlass ? (lensNarrowBottom > 0 ? lensNarrowBottom + 10 : HEADER_FLOOR_Y + 10) : silenceRowY;
+        let y = narrowGlass ? (lensNarrowBottom > 0 ? lensNarrowBottom + 10 : HEADER_FLOOR_Y + 10) : silenceRowY;
         const words = narrowGlass
           ? `${silenceFolded} SENSE${silenceFolded === 1 ? "" : "S"} SILENT — TOOLS › ACTIVE`
           : `+${silenceFolded} MORE SENSE${silenceFolded === 1 ? "" : "S"} SILENT HERE — TOOLS › ACTIVE SAYS WHY`;
         ctx.save();
         ctx.font = marketFont("OBJECT_NAME");
+        // On the phone its row is fixed under the lens; a word already there (phone 375, Oct 16: the regime's
+        // "UNRESOLVED") pushes it down a row — up to four, never under the pane.
+        if (narrowGlass) {
+          const wS = Math.ceil(ctx.measureText(words).width) + 8;
+          let taken: readonly { x: number; y: number; w: number; h: number }[] = [];
+          try { taken = wordGate.rects(); } catch { /* no registry */ }
+          for (let k = 0; k < 4 && taken.some(q => silenceX - 4 < q.x + q.w && silenceX - 4 + wS > q.x && y - 7 < q.y + q.h && y + 7 > q.y) && y + 16 < pane0Bottom - 8; k++) y += 16;
+        }
         ctx.fillStyle = "rgba(7,9,15,0.62)";
         ctx.fillRect(Math.max(0, silenceX - 4), y - 7, narrowGlass ? Math.ceil(ctx.measureText(words).width) + 8 : Math.min(W * 0.62, 760), 14);
         ctx.fillStyle = "rgba(200,192,174,0.85)";
