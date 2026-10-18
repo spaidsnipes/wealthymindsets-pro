@@ -23751,7 +23751,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               if (ya != null) {
                 const words = [lp.estimated ? "CANDLE-ESTIMATED" : null, lp.nodesWithheld ? "NODES WITHHELD" : null]
                   .filter(Boolean).join(" · ");
-                quietWords(words, { x: rightEdge - bodyW, y: +ya + 8 }, pk.rgba("TAIL", 0.85), [{ x: rightEdge - bodyW, y: +ya + 24 }]);
+                // Left of the body, never across it (iPad SOL 2026-10-18: the note printed over the Living body).
+                ctx.save(); ctx.font = marketFont("OBJECT_NAME"); const fwN = Math.ceil(ctx.measureText(words).width) + 12; ctx.restore();
+                const fxN = Math.max(LEFT_CHROME_RIGHT, rightEdge - bodyW - fwN - 6);
+                quietWords(words, { x: fxN, y: +ya + 8 }, pk.rgba("TAIL", 0.85), [{ x: fxN, y: +ya + 24 }, { x: fxN, y: +ya - 24 }]);
               }
             }
 
