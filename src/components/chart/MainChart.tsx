@@ -14402,6 +14402,78 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           }
         }
       } catch (err) { layerFault("FLOW_CURRENT", err); }
+      /* FLOW CURRENT · THE ESTIMATED CURRENT (Codex plate 03 #05, Founder 2026-10-18: "fully embodied — look at those
+         mock-ups"). Where a bar has NO sided prints (crypto history, closed sessions), the current is still drawn —
+         as an ESTIMATE, unmistakably styled as one: a translucent ribbon riding the close path, its width the
+         close-location-weighted volume ((C−L)−(H−C))/(H−L) × V smoothed over 3 bars, green beneath price where
+         closes held high, red above where they held low. Dashed edges and the words "ESTIMATED FROM CANDLES" say
+         what it is; it never mints prints, never feeds Delta/CVD/absorption, and tape-backed bars keep their streaks.
+         Candles stay on top (the family's candle cut-out). */
+      try {
+        if (flowCurrentOnRef.current && att.paints("flowCurrent") && srs) {
+          const tsFC = chart.timeScale();
+          const accE = tickAccRef.current, sidedE = candleSidedRef.current;
+          const barsE = (barsRef.current ?? []).slice(-400);
+          const ptsE: { x: number; y: number; v: number; sided: boolean }[] = [];
+          for (const b of barsE) {
+            const x = tsFC.timeToCoordinate(b.time as never);
+            if (x == null || +x < -bsp || +x > W) continue;
+            const yc = srs.priceToCoordinate(Number(b.close));
+            if (yc == null) continue;
+            const hi = Number(b.high), lo = Number(b.low), c = Number(b.close), vol = Number(b.volume) || 0;
+            const clv = hi > lo ? ((c - lo) - (hi - c)) / (hi - lo) : 0;
+            const sided = (accE.get(Number(b.time))?.size ?? 0) > 0 || sidedE.has(Number(b.time));
+            ptsE.push({ x: +x, y: +yc, v: clv * vol, sided });
+          }
+          const est = ptsE.filter(q => !q.sided);
+          if (est.length >= 6) {
+            const sm = ptsE.map((_, i) => { let a = 0, n = 0; for (let j = Math.max(0, i - 1); j <= Math.min(ptsE.length - 1, i + 1); j++) { a += ptsE[j].v; n++; } return a / n; });
+            const peakE = Math.max(1e-9, ...sm.map(Math.abs));
+            const thick = (v: number) => 3 + 22 * Math.sqrt(Math.abs(v) / peakE);
+            let paneBotE = H; try { const ps = (chart as any).paneSize?.(0); if (ps && ps.height > 0) paneBotE = ps.height; } catch { /* canvas */ }
+            const volTopE = Math.round(paneBotE * volumeTopMargin(W)) - 2;
+            const cutFC = new Path2D(); cutFC.rect(0, 0, W, H);
+            const vrFC = tsFC.getVisibleLogicalRange();
+            for (const cr of candleCutOutRects(barsRef.current ?? [], {
+              visible: vrFC ? { from: +vrFC.from, to: +vrFC.to } : null, barSpacing: bsp,
+              timeToX: t => { const xk = tsFC.timeToCoordinate(t as never); return xk == null ? null : +xk; },
+              priceToY: pp => { const yk = srs.priceToCoordinate(pp); return yk == null ? null : +yk; },
+            }, -bsp, W + bsp)) cutFC.rect(cr.x, cr.y, cr.w, cr.h);
+            ctx.save();
+            ctx.beginPath(); ctx.rect(0, HEADER_FLOOR_Y, W, Math.max(0, volTopE - HEADER_FLOOR_Y)); ctx.clip();
+            ctx.clip(cutFC, "evenodd");
+            ctx.globalAlpha = att.alpha("flowCurrent") === 0 ? 0 : Math.min(ctx.globalAlpha, Math.max(PRICE_ADJACENT_FLOOR, att.alpha("flowCurrent")));
+            const inks = flowColorsRef.current;
+            // Runs of one sign over estimated bars become one filled ribbon each.
+            let i = 0, runs = 0;
+            while (i < ptsE.length) {
+              if (ptsE[i].sided || Math.abs(sm[i]) < peakE * 0.05) { i++; continue; }
+              const up = sm[i] >= 0;
+              let j = i;
+              while (j + 1 < ptsE.length && !ptsE[j + 1].sided && (sm[j + 1] >= 0) === up && Math.abs(sm[j + 1]) >= peakE * 0.05) j++;
+              if (j > i) {
+                const rgb = up ? inks.btBuy : inks.btSell;
+                const off = (k: number) => (up ? 1 : -1) * thick(sm[k]);
+                ctx.beginPath();
+                for (let k = i; k <= j; k++) (k === i ? ctx.moveTo(ptsE[k].x, ptsE[k].y + (up ? 2 : -2)) : ctx.lineTo(ptsE[k].x, ptsE[k].y + (up ? 2 : -2)));
+                for (let k = j; k >= i; k--) ctx.lineTo(ptsE[k].x, ptsE[k].y + (up ? 2 : -2) + off(k));
+                ctx.closePath();
+                const g = ctx.createLinearGradient(0, ptsE[i].y, 0, ptsE[i].y + (up ? 26 : -26));
+                g.addColorStop(0, `rgba(${rgb},0.42)`); g.addColorStop(1, `rgba(${rgb},0.08)`);
+                ctx.fillStyle = g; ctx.fill();
+                ctx.setLineDash([4, 3]); ctx.lineWidth = 1.2; ctx.strokeStyle = `rgba(${rgb},0.75)`;
+                ctx.beginPath();
+                for (let k = i; k <= j; k++) (k === i ? ctx.moveTo(ptsE[k].x, ptsE[k].y + (up ? 2 : -2) + off(k)) : ctx.lineTo(ptsE[k].x, ptsE[k].y + (up ? 2 : -2) + off(k)));
+                ctx.stroke(); ctx.setLineDash([]);
+                runs++;
+              }
+              i = j + 1;
+            }
+            ctx.restore();
+            canvas.dataset.flowCurrentEstimate = `RUNS:${runs}|BARS:${est.length}|BASIS:CLV_X_VOLUME`;
+          } else delete canvas.dataset.flowCurrentEstimate;
+        } else delete canvas.dataset.flowCurrentEstimate;
+      } catch (err) { layerFault("FLOW_CURRENT_ESTIMATE", err); }
 
       paintLap(13420);
       /* ══ F05B · THE CANDLE'S ANATOMY ON PRICE (Garden 16 master order §18,
@@ -18838,6 +18910,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // H-501 · switched on AND permitted at this depth by the ONE table.
         const on = layerOnRef.current.weather && att.paints("weather");
         ds.liquidityWeather = on ? glass.reason : att.offWord(layerOnRef.current.weather);
+        // The estimated Flow Current names itself once (its ribbon painted earlier in the frame).
+        if (/^RUNS:[1-9]/.test(canvas.dataset.flowCurrentEstimate ?? "")) {
+          ctx.save();
+          ctx.font = marketFont("OBJECT_NAME");
+          ctx.fillStyle = "rgba(200,192,174,0.9)"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+          const rowFE = takeSilenceRow();
+          const shownFE = fitSilence("FLOW CURRENT · ESTIMATED FROM CANDLES");
+          ctx.fillText(shownFE, silenceX, rowFE);
+          floatingChips.push({ x: silenceX, y: rowFE - 7, w: ctx.measureText(shownFE).width, h: 14 });
+          ctx.restore();
+        }
         // NO SILENT NOTHING (master order §VIII): switched on, and this feed
         // cannot measure it (serving EURGBP 15m: UNMEASURED, and the glass said nothing).
         if (on && glass.reason === "UNMEASURED") {
