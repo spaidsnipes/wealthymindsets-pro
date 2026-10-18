@@ -26962,7 +26962,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const prefW = { x: Math.max(LEFT_CHROME_RIGHT, Math.min(weatherPlotRight - twW - 4, gx0)), y: gy0 - 22, w: twW, h: 18 };
             const leftW = Math.max(LEFT_CHROME_RIGHT, keepOutMinX());
             const altsW = [{ ...prefW, y: gy1 + 4 }, { ...prefW, y: gy0 - 44 }, { ...prefW, y: gy1 + 26 },
-              { ...prefW, x: leftW, y: gy0 - 22 }, { ...prefW, x: leftW, y: gy0 - 44 }, { ...prefW, x: leftW, y: gy1 + 4 }]
+              { ...prefW, x: leftW, y: gy0 - 22 }, { ...prefW, x: leftW, y: gy0 - 44 }, { ...prefW, x: leftW, y: gy1 + 4 },
+              // …and just inside the brackets' corners, where the window's own prints left room.
+              { ...prefW, x: gx0 + 4, y: gy0 + 4 }, { ...prefW, x: Math.max(gx0 + 4, gx1 - twW - 4), y: gy0 + 4 },
+              { ...prefW, x: gx0 + 4, y: gy1 - 22 }, { ...prefW, x: Math.max(gx0 + 4, gx1 - twW - 4), y: gy1 - 22 }]
               .filter(q => q.y >= HEADER_FLOOR_Y && q.y + q.h <= pane0Bottom - 2);
             const candW = [prefW, ...altsW];
             const spotW = placeClearOfKeepOut(prefW, [...keepOut(), ...newestColumnRects(), ...profileCandlesAt(Math.min(...candW.map(q => q.y)), Math.max(...candW.map(q => q.y + q.h)))], { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: altsW });
