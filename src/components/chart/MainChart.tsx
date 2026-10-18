@@ -1897,6 +1897,18 @@ function stackCellHeight(ys: readonly (unknown | null)[], bandH: number): number
   const v = ys.filter(y => y != null).map(Number).sort((a, b) => a - b);
   return v.length >= 2 ? Math.max(3, v[1] - v[0]) : Math.max(3, bandH);
 }
+/** Codex plate 03 #04 (2026-10-18): the stack's boxes stand just RIGHT of the bars that built them, sized by dominance,
+ *  in the side's ink — inside the span they printed on the candle bodies as ticks. */
+function paintStackBox(ctx: CanvasRenderingContext2D, a: { x0: number; x1: number }, y: number, h: number, weight: number, rgb: string, plotRight: number) {
+  const k = Number.isFinite(weight) ? Math.min(1, Math.max(0, weight)) : 0;
+  const x = Math.round(a.x1 + 3), w = Math.max(0, Math.min(plotRight - 2 - x, Math.round(16 + 40 * k)));
+  const hh = Math.max(11, h);
+  if (w <= 0) return;
+  ctx.fillStyle = `rgba(${rgb},${(0.42 + 0.45 * k).toFixed(3)})`;
+  ctx.fillRect(x, Math.round(y - hh / 2) + 0.5, w, hh - 1);
+  ctx.strokeStyle = `rgba(${rgb},0.95)`; ctx.lineWidth = 1;
+  ctx.strokeRect(x + 0.5, Math.round(y - hh / 2) + 0.5, Math.max(0, w - 1), hh - 1);
+}
 function paintStackCell(ctx: CanvasRenderingContext2D, a: { x0: number; x1: number }, y: number, h: number, weight: number) {
   // Canon F06A (Order Flow Lives on Price): stacked imbalance is a run of
   // SLABS grown out of the bars that built it, each slab's length its row's
@@ -14438,7 +14450,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           }
           const est = ptsE.filter(q => !q.sided);
           if (ptsE.length >= 6 && (FLOW_CURRENT_AS_RIBBON || est.length >= 6)) {
-            const sm = ptsE.map((_, i) => { let a = 0, n = 0; for (let j = Math.max(0, i - 1); j <= Math.min(ptsE.length - 1, i + 1); j++) { a += ptsE[j].v; n++; } return a / n; });
+            const sm = ptsE.map((_, i) => { let a = 0, n = 0; for (let j = Math.max(0, i - 2); j <= Math.min(ptsE.length - 1, i + 2); j++) { a += ptsE[j].v; n++; } return a / n; });
             const peakE = Math.max(1e-9, ...sm.map(Math.abs));
             const thick = (v: number) => 6 + 30 * Math.sqrt(Math.abs(v) / peakE);
             // The current rides OUTSIDE the bars (plate 03 #05): under the lows where buyers pushed, over the highs where
@@ -18353,7 +18365,23 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             for (const lvl of glass.levels) {
               const yr = srs.priceToCoordinate(lvl.price);
               if (yr == null) continue;
-              if (anchor) { paintStackCell(ctx, anchor, +yr, cellH, lvl.weight); continue; }
+              if (anchor) {
+                paintStackCell(ctx, anchor, +yr, cellH, lvl.weight);
+                {
+                  // Later candles stay on top of the boxes (the family's candle cut-out).
+                  const cutSB = new Path2D(); cutSB.rect(0, 0, W, H);
+                  const vrSB = chart.timeScale().getVisibleLogicalRange();
+                  for (const cr of candleCutOutRects(barsRef.current ?? [], {
+                    visible: vrSB ? { from: +vrSB.from, to: +vrSB.to } : null, barSpacing: bsp,
+                    timeToX: t => { const xk = chart.timeScale().timeToCoordinate(t as never); return xk == null ? null : +xk; },
+                    priceToY: pp => { const yk = srs.priceToCoordinate(pp); return yk == null ? null : +yk; },
+                  }, anchor.x1, anchor.x1 + 64)) cutSB.rect(cr.x, cr.y, cr.w, cr.h);
+                  ctx.save(); ctx.clip(cutSB, "evenodd");
+                  paintStackBox(ctx, anchor, +yr, cellH, lvl.weight, /SELL/i.test(glass.label) ? flowColorsRef.current.btSell : flowColorsRef.current.btBuy, plotRight);
+                  ctx.restore();
+                }
+                continue;
+              }
               const y = Math.round(+yr) + 0.5;
               ctx.beginPath();
               ctx.moveTo(0, y);
