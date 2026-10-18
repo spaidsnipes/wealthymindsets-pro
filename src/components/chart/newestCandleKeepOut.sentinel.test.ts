@@ -79,7 +79,7 @@ describe("the profile family's level chips yield to the candles", () => {
 
   it("ties a moved or slid chip back to its price with a dotted leader", () => {
     // 2026-09-29: a chip moved to the right-hand stack draws no leader across the chart.
-    expect(chip).toMatch(/if \(!movedToStack && levelChipNeedsLeader\(r, y, spotL\.mode === "SLID"\)\) \{[\s\S]*?setLineDash\(\[1, 2\]\)[\s\S]*?lineTo\(anchorX, y\)/);
+    expect(chip).toMatch(/if \(!movedToStack && !\/\^\[▲▼\] \/\.test\(text\) && levelChipNeedsLeader\(r, y, spotL\.mode === "SLID"\)\) \{[\s\S]*?setLineDash\(\[1, 2\]\)[\s\S]*?lineTo\(anchorX, y\)/);
   });
 });
 

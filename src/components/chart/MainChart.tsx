@@ -22649,7 +22649,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const rightX = opts.leftX != null ? opts.leftX + cw : opts.rightX ?? plotRight - LEVEL_CHIP_EDGE_GAP;
           // Where the level's own line ends — the point a leader ties back to.
           const anchorX = opts.leftX ?? rightX;
-          const slots = levelChipSlots({ y: yy, w: cw, rightX, floorY, footY: pane0Bottom - 2 });
+          // The foot is the volume band's top: a name never sits on the volume bars (iPad, 2026-10-17: "▼ CMP VAL" did).
+          const chipFootY = Math.round(pane0Bottom * volumeTopMargin(W)) - 2;
+          if (yy + LEVEL_CHIP_H / 2 > chipFootY) {
+            yy = chipFootY - LEVEL_CHIP_H / 2;
+            while (levelChipYs.slice(0, -1).some(t => Math.abs(t - yy) < LEVEL_CHIP_H + 1)) yy -= LEVEL_CHIP_H + 1;
+            levelChipYs[levelChipYs.length - 1] = yy;
+          }
+          const slots = levelChipSlots({ y: yy, w: cw, rightX, floorY, footY: chipFootY });
           // A left-anchored chip cannot slide left into the column it names;
           // its further slots step RIGHT along the same rows instead.
           const alternates = opts.leftX != null
@@ -22764,7 +22771,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // A NAMED LEVEL IS READ AT THE FLOOR (Founder ruling, faint-word pass; his NQ 5m stack 2026-10-17: the CMP chips
           // inherited the profile's governed 0.5 and read washed out). The governor decides IF the name speaks, not how grey.
           ctx.globalAlpha = Math.max(0.85, chipAlpha);
-          if (!movedToStack && levelChipNeedsLeader(r, y, spotL.mode === "SLID")) {
+          // An off-camera level's chip carries its ▲/▼ instead of a leader (iPad, 2026-10-17: "▲ CMP VAH 82,100" drew a dotted
+          // diagonal across the plot toward a row the camera does not show).
+          if (!movedToStack && !/^[▲▼] /.test(text) && levelChipNeedsLeader(r, y, spotL.mode === "SLID")) {
             ctx.save();
             ctx.globalAlpha *= 0.6;
             ctx.strokeStyle = ink; ctx.lineWidth = 1; ctx.setLineDash([1, 2]);
