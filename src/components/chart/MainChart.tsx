@@ -19115,7 +19115,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const dl = deltaLevelsRef.current;
           // PHONE GLASS (2026-10-11, true mobile read): the hollow SELL rungs printed as white boxes over the
           // newest ~8px phone candles. Withheld on narrow glass, said as SILENT:NARROW_GLASS and counted.
-          const dlNarrowSilent = narrowGlass && layerOnRef.current.deltaLevels && att.paints("deltaLevels");
+          // RESTORED 2026-10-18 (Founder: "every invention on the phone"): the bands are filled and the candle cut-out
+          // keeps every body on top, so the phone draws them too; the flag stays for the receipt's grammar.
+          const dlNarrowSilent = false as boolean;
           if (dlNarrowSilent) silenceFolded++;
           const on = layerOnRef.current.deltaLevels && att.paints("deltaLevels") && !dlNarrowSilent;
           ds.deltaLevels = on ? (dl ? dl.reason : "NO_READING") : dlNarrowSilent ? "SILENT:NARROW_GLASS" : att.offWord(layerOnRef.current.deltaLevels);
@@ -28936,7 +28938,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // Rows clear of words AND candles first, from the top; else the first word-free row, on a solid backing.
           const clearOf = (yy: number, rects: readonly { x: number; y: number; w: number; h: number }[]) => !rects.some(q => silenceX - 4 < q.x + q.w && silenceX - 4 + wS > q.x && yy - 8 < q.y + q.h && yy + 8 > q.y);
           for (let yy = y0S; yy + 16 < pane0Bottom * volumeTopMargin(W); yy += 16) {
-            if (clearOf(yy, taken) && clearOf(yy, profileCandlesAt(yy - 8, yy + 8))) { y = yy; break; }
+            if (clearOf(yy, taken) && clearOf(yy, profileCandlesAt(yy - 8, yy + 8)) && silenceRowLimit(yy) > silenceX + wS) { y = yy; break; }
           }
         }
         const silenceOnCandles = narrowGlass && profileCandlesAt(y - 8, y + 8).some(q => silenceX - 4 < q.x + q.w && silenceX + 200 > q.x);

@@ -83,7 +83,9 @@ describe("one price on the phone screen — the quote header owns it, big, with 
   it("narrow glass withholds the two per-bar inks that smeared phone candles, and counts them as silent", () => {
     const chart = readFileSync(path.join(process.cwd(), "src/components/chart/MainChart.tsx"), "utf8");
     expect(chart).toContain('ds.absorptionTerrain = "SILENT:NARROW_GLASS";');
-    expect(chart).toContain('const dlNarrowSilent = narrowGlass && layerOnRef.current.deltaLevels && att.paints("deltaLevels");');
+    // 2026-10-18 Founder ("every invention on the phone"): Delta Levels' bands are filled and candle-cut now, so the
+    // phone draws them; the withholding switch is retired (the receipt keeps the flag).
+    expect(chart).toContain("const dlNarrowSilent = false as boolean;");
     expect(chart).toContain("const vcNarrowSilent = narrowGlass && layerOnRef.current.valueCandle && att.paints(\"valueCandle\");");
   });
   it("tablet top band: LIVE TAPE leaves the standing strip's spot", () => {
