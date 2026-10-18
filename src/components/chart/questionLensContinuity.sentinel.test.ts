@@ -61,7 +61,7 @@ describe("question lens and restored selection", () => {
   it("TPO yields the left column only when the lens actually painted it this frame", () => {
     // Pin moved 64 → 84 (2026-09-25): the EFFORT reopen button's box ends at x 76.
     // 2026-09-29: the geometry has one owner (tpoColumnGeometry); the lens still decides the edge.
-    expect(CHART).toContain("const { leftEdge, colMax } = tpoColumnGeometry(W, lensColumnActive ? QUESTION_LENS_COLUMN_RIGHT : null, railOcclusionX);");
+    expect(CHART).toContain("const tpoGeo = tpoColumnGeometry(W, lensColumnActive ? QUESTION_LENS_COLUMN_RIGHT : null, railOcclusionX);"); // 2026-10-17: the phone may stand it at the right edge (tpoRight); the owner is unchanged
     expect(CHART).toContain("return { leftEdge: Math.max(lensRight ?? 84, doorRight > 0 ? doorRight + 12 : 0), colMax: Math.min(140, Math.round(W * 0.14)) };");
     expect(CHART).toMatch(/lensColumnActive = !compactLens && !lensInRailRef\.current;/);
     expect(CHART).toMatch(/if \(!lensFormPainted\) delete ds\.questionLensForm;/);

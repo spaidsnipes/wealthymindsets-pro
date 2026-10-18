@@ -24276,7 +24276,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // opaque box (left-3, 64px wide → x 12–76) still hid the first
             // letters of two rows — measured by its box, not its word
             // (serving, NQ1! 5m desktop, 2026-09-25). 76 + 8.
-            const { leftEdge, colMax } = tpoColumnGeometry(W, lensColumnActive ? QUESTION_LENS_COLUMN_RIGHT : null, railOcclusionX);
+            const tpoGeo = tpoColumnGeometry(W, lensColumnActive ? QUESTION_LENS_COLUMN_RIGHT : null, railOcclusionX);
+            const colMax = tpoGeo.colMax;
+            // PHONE: TPO STANDS AT THE RIGHT EDGE when no other profile holds it (iPhone 17 Pro BTC 5m, TPO alone,
+            // 2026-10-17: the left column ran through the session's older candles in broken stripes, and VAL had no
+            // name). Beside the price axis, like the Living body; its names stand left of the column.
+            const tpoRight = narrowGlass && !(layerOnRef.current.livingProfile || layerOnRef.current.compositeProfile || vrpOn);
+            const leftEdge = tpoRight ? Math.round(plotRight - colMax - 8) : tpoGeo.leftEdge;
+            ds.tpoColumn = tpoRight ? "PHONE_RIGHT" : "LEFT";
             // COLLISION GOVERNOR · TPO YIELDS TO RESERVED CHROME. The price
             // legend (a transparent DOM band, PRICE_LEGEND_OVERLAY_H) and any
             // floating chip already placed in the column (the BASIS caption)
@@ -24434,7 +24441,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const tpoChipsAll = tpoChips.length;
             for (let k = tpoChips.length - 1; k >= 0; k--) if (tpoChips[k].y < HEADER_FLOOR_Y || tpoChips[k].y > pane0Bottom) tpoChips.splice(k, 1);
             ds.tpoChipsOffCamera = String(tpoChipsAll - tpoChips.length);
-            for (const c of tpoChips) levelChip(c.y, c.text, c.ink, { leftX: leftEdge + colMax + 8, minX: leftEdge + colMax + 4 });
+            for (const c of tpoChips) levelChip(c.y, c.text, c.ink, tpoRight ? { rightX: leftEdge - 6 } : { leftX: leftEdge + colMax + 8, minX: leftEdge + colMax + 4 });
             // ⑩ BLOCKS — the organism glyph at the head of the column.
             if (Number.isFinite(tpoTop)) paintOrganismGlyph("TPO", leftEdge + 8, tpoTop - 18, pk.rgba("ANCHOR", 0.95), floatingChips);
             ctx.restore();
@@ -26239,6 +26246,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         /** The field's composite alpha as actually painted (0 = no field) — the readout's VEIL. */
         let weatherVeil = 0;
         let weatherLensWhy: string = on ? "UNMEASURED" : att.offWord(layerOnRef.current.weather);
+        /** Where the reading's prints landed, kept for the phone's compact form when the loupe yields. */
+        let weatherCompactRegion: { x0: number; x1: number; y0: number; y1: number } | null = null;
         let weatherPlotRight = W - 60;
         try { weatherPlotRight = W - chart.priceScale("right").width(); } catch { /* keep default */ }
         const lensBars = barsRef.current ?? [];
@@ -26292,6 +26301,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             });
             if (gate.kind !== "DRAW") {
               weatherLensWhy = gate.state;
+              if (gate.kind === "YIELDED_SMALL_PANE") weatherCompactRegion = region;
               if (gate.kind === "GATHERING" && region) weatherGathering = { region, words: gate.words };
             } else if (region) {
               weatherLens = fitWeatherLens(
@@ -26920,7 +26930,46 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           weatherLensHitRef.current = null;
           // A LOUPE THAT YIELDS SAYS SO (iPhone 17 Pro BTC 5m, Weather alone, 2026-10-17: switched on, the phone pane is
           // under the loupe's 520px floor, and the glass said nothing at all).
-          if (on && weatherLensWhy === "YIELDED_SMALL_PANE") {
+          const cR = weatherCompactRegion;
+          if (on && weatherLensWhy === "YIELDED_SMALL_PANE" && glass.drawn && cR) {
+            // THE PHONE'S WEATHER (Founder 2026-10-17: "nothing left open"): no loupe — four gold corner brackets
+            // where the prints landed, the stalled shelves at their prices, and the stage named once, placed
+            // clear of every candle and chip. The candles stay untouched inside the brackets.
+            const gx0 = Math.max(LEFT_CHROME_RIGHT, Math.min(cR.x0, cR.x1)), gx1 = Math.min(weatherPlotRight - 4, Math.max(cR.x0, cR.x1));
+            const gy0 = Math.max(HEADER_FLOOR_Y + 2, Math.min(cR.y0, cR.y1) - 4), gy1 = Math.min(pane0Bottom - 2, Math.max(cR.y0, cR.y1) + 4);
+            ctx.save();
+            ctx.globalAlpha = att.alpha("weather");
+            ctx.strokeStyle = "rgba(232,196,104,0.95)"; ctx.lineWidth = 2;
+            const arm = Math.max(6, Math.min(14, (gx1 - gx0) / 4, (gy1 - gy0) / 4));
+            ctx.beginPath();
+            ctx.moveTo(gx0, gy0 + arm); ctx.lineTo(gx0, gy0); ctx.lineTo(gx0 + arm, gy0);
+            ctx.moveTo(gx1 - arm, gy0); ctx.lineTo(gx1, gy0); ctx.lineTo(gx1, gy0 + arm);
+            ctx.moveTo(gx0, gy1 - arm); ctx.lineTo(gx0, gy1); ctx.lineTo(gx0 + arm, gy1);
+            ctx.moveTo(gx1 - arm, gy1); ctx.lineTo(gx1, gy1); ctx.lineTo(gx1, gy1 - arm);
+            ctx.stroke();
+            for (const sp of glass.stallSpans) {
+              const ys = srs.priceToCoordinate(sp.price);
+              if (ys == null) continue;
+              ctx.strokeStyle = "rgba(232,196,104,0.9)"; ctx.lineWidth = 2;
+              ctx.beginPath(); ctx.moveTo(gx0, Math.round(+ys) + 0.5); ctx.lineTo(gx1, Math.round(+ys) + 0.5); ctx.stroke();
+            }
+            ctx.font = marketFont("OBJECT_NAME");
+            const nameW = `WEATHER · ${glass.label}`;
+            const twW = Math.ceil(ctx.measureText(nameW).width) + 12;
+            const prefW = { x: Math.max(LEFT_CHROME_RIGHT, Math.min(weatherPlotRight - twW - 4, gx0)), y: gy0 - 22, w: twW, h: 18 };
+            const altsW = [{ ...prefW, y: gy1 + 4 }, { ...prefW, y: gy0 - 44 }, { ...prefW, y: gy1 + 26 }];
+            const spotW = placeClearOfKeepOut(prefW, [...keepOut(), ...newestColumnRects(), ...profileCandlesAt(gy0 - 46, gy1 + 46)], { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: altsW });
+            if (spotW.mode !== "BLOCKED") {
+              ctx.fillStyle = "rgba(10,10,12,0.9)";
+              ctx.beginPath(); ctx.roundRect(spotW.rect.x, spotW.rect.y, spotW.rect.w, spotW.rect.h, 4); ctx.fill();
+              ctx.strokeStyle = "rgba(232,196,104,0.9)"; ctx.lineWidth = 1; ctx.stroke();
+              ctx.fillStyle = "rgba(243,215,138,1)"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+              ctx.fillText(nameW, spotW.rect.x + 6, spotW.rect.y + spotW.rect.h / 2 + 0.5);
+              floatingChips.push({ ...spotW.rect });
+            } else displacedNotes.push({ layer: "WEATHER", text: nameW, x: (gx0 + gx1) / 2, y: gy0 });
+            ctx.restore();
+            ds.liquidityWeatherLensState = "PHONE_COMPACT";
+          } else if (on && weatherLensWhy === "YIELDED_SMALL_PANE") {
             const quietW = "LIQUIDITY WEATHER · reads on a wider screen (tablet or desktop)";
             ctx.save();
             ctx.font = marketFont("OBJECT_NAME");

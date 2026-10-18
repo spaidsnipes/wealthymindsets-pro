@@ -146,7 +146,7 @@ describe("2 · ONE level grammar: the chip, placed clear of every candle body an
     expect(COMPOSITE).toMatch(/levelChip\(\+yr, text, ink\);/);
     expect(VRP).toMatch(/levelChip\(\+yr, text, ink\);/);
     expect(FUSED).toMatch(/levelChip\(\+y, label, /);
-    expect(TPO).toContain("for (const c of tpoChips) levelChip(c.y, c.text, c.ink, { leftX: leftEdge + colMax + 8, minX: leftEdge + colMax + 4 });");
+    expect(TPO).toContain("for (const c of tpoChips) levelChip(c.y, c.text, c.ink, tpoRight ? { rightX: leftEdge - 6 } : { leftX: leftEdge + colMax + 8, minX: leftEdge + colMax + 4 });"); // 2026-10-17: phone right-edge column names stand left of it
     // The old per-species fillText beside a lane is gone.
     expect(COMPOSITE).not.toContain("ctx.fillText(text, right - width - 8, +yr);");
     expect(VRP).not.toContain("ctx.fillText(text, right - width - 8, +yr);");

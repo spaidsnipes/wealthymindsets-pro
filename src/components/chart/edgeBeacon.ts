@@ -128,9 +128,7 @@ export function paintEdgeBeacons(
     const words = beaconWords(choice.lead, choice.more);
     const w = Math.ceil(ctx.measureText(words).width) + PAD_X * 2;
     const hard = [...blockers, ...placed];
-    const hitsHard = (q: BeaconRect) => hard.some(b => q.x < b.x + b.w && q.x + q.w > b.x && q.y < b.y + b.h && q.y + q.h > b.y);
-    let r = placeBeacon(choice.lead.dir, w, frame, [...hard, ...soft]);
-    if (hitsHard(r)) r = placeBeacon(choice.lead.dir, w, frame, hard);
+    const r = placeBeaconLeastCovering(choice.lead.dir, w, frame, hard, soft);
     ctx.fillStyle = "rgba(12,10,8,0.94)";
     ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, 7); ctx.fill();
     ctx.strokeStyle = "rgba(212,175,55,0.95)";
@@ -148,4 +146,32 @@ export function paintEdgeBeacons(
 /** The overlay receipt: "ABOVE:CALL_WALL@30900+0:x,y|BELOW:…" (centre in glass px), or NONE. */
 export function beaconReceipt(placed: readonly PlacedBeacon[]): string {
   return placed.map(p => `${p.choice.lead.dir.toUpperCase()}:${p.choice.lead.what}@${p.choice.lead.price}+${p.choice.more}:${Math.round(p.x + p.w / 2)},${Math.round(p.y + p.h / 2)}`).join("|") || "NONE";
+}
+
+/**
+ * A beacon never covers a word, a button or a pill (hard) and avoids the candles (soft). When no slot clears both
+ * (a crowded phone frame, 2026-10-17: "▲ Call wall 90,000" landed on the newest candles), a finer sweep of the same
+ * four rows takes the slot that covers the LEAST candle area — still never a word.
+ */
+export function placeBeaconLeastCovering(
+  dir: BeaconDir, w: number,
+  frame: { readonly plotLeft: number; readonly plotRight: number; readonly top: number; readonly bottom: number },
+  hard: readonly BeaconRect[], soft: readonly BeaconRect[],
+): BeaconRect {
+  const strict = placeBeacon(dir, w, frame, [...hard, ...soft]);
+  const over = (r: BeaconRect, b: BeaconRect) => Math.max(0, Math.min(r.x + r.w, b.x + b.w) - Math.max(r.x, b.x)) * Math.max(0, Math.min(r.y + r.h, b.y + b.h) - Math.max(r.y, b.y));
+  const hitsHard = (r: BeaconRect) => hard.some(b => over(r, b) > 0);
+  const softArea = (r: BeaconRect) => soft.reduce((a, b) => a + over(r, b), 0);
+  if (!hitsHard(strict) && softArea(strict) === 0) return strict;
+  const y0 = dir === "above" ? frame.top + 6 : frame.bottom - 6 - BEACON_H;
+  const step = dir === "above" ? BEACON_H + 4 : -(BEACON_H + 4);
+  const span = Math.max(0, frame.plotRight - frame.plotLeft - w - 8);
+  let best: BeaconRect | null = null, bestArea = Infinity;
+  for (let k = 0; k < 4; k++) for (let f = 0; f <= 1.0001; f += 0.05) {
+    const r = { x: Math.round(frame.plotLeft + 4 + span * f), y: y0 + k * step, w, h: BEACON_H };
+    if (hitsHard(r)) continue;
+    const a = softArea(r);
+    if (a < bestArea) { best = r; bestArea = a; if (a === 0) return r; }
+  }
+  return best ?? strict;
 }
