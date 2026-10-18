@@ -23728,7 +23728,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.restore();
                 ds.profileDnaBody = `${ink.name}|ROWS:${rowsPainted}|W:${silW}`;
                 // The identity, once, at the body's head — held if refused.
-                const yTop = dnaAlone.hi != null ? srs.priceToCoordinate(dnaAlone.hi) : null;
+                // The body's head: the reading's high, else the silhouette's own top row (a name is never skipped).
+                const yTop = srs.priceToCoordinate(dnaAlone.hi ?? sorted[sorted.length - 1].price);
                 if (yTop != null) {
                   const label = `${ink.name} profile`;
                   ctx.save();
@@ -23764,6 +23765,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     // (iPhone 17 Pro, 2026-10-18: seated, then silently held by the budget — no name on the glass).
                     wordGate.declareTruth(label);
                     onTop(spotD.rect, "INSPECT");
+                    ctx.globalAlpha = 1; // a name reads at full strength, whatever the body's governed alpha
                     ctx.fillStyle = "rgba(10,10,12,0.88)";
                     ctx.beginPath(); ctx.roundRect(spotD.rect.x, spotD.rect.y, spotD.rect.w, spotD.rect.h, 4); ctx.fill();
                     ctx.strokeStyle = `rgba(${ink.rgb},0.9)`; ctx.lineWidth = 1; ctx.stroke();
