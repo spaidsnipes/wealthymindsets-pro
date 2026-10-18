@@ -23768,6 +23768,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     ctx.fillText(label, spotD.rect.x + 8, spotD.rect.y + 10.5);
                     floatingChips.push({ ...spotD.rect });
                     ds.profileDnaLabel = label;
+                  } else if (narrowGlass) {
+                    // A phone never loses the identity: the shape is named in the axis column at the body's head.
+                    axisLevelTags.push({ y: +yTop, text: label.replace(" profile", ""), ink: `rgb(${ink.rgb})` });
+                    ds.profileDnaLabel = `AXIS:${label}`;
                   } else {
                     displacedNotes.push({ layer: "PROFILE", text: label, x: prefD.x + tw / 2, y: prefD.y + 10 });
                     ds.profileDnaLabel = "HELD";
