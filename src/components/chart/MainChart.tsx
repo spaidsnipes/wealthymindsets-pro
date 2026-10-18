@@ -15705,7 +15705,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 return first;
               })(slotRects.length === 0 ? null : pickSlotClearOfKeepOut(
                 slotRects,
-                desktopShelfInstrument ? [] : [
+                // Desktop too (desk 1440, 2026-10-18: "ABSORPTION SHELF · Force is hitting…" printed across the candles —
+                // the desktop annotation skipped the keep-out entirely).
+                [
                   ...keepOut(),
                   ...rowBodiesAt(Math.min(...slotRects.map(s => s.y)), Math.max(...slotRects.map(s => s.y + s.h))),
                 ],
@@ -15721,6 +15723,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               absorbChipRects.push({ x: chipX, y: chipY, w: chipW, h: chipH });
               floatingChips.push({ x: chipX, y: chipY, w: chipW, h: chipH });
               shelfRects.push({ x: chipX, y: chipY, w: chipW, h: chipH });
+              if (desktopShelfInstrument && chipSpot.onCandles) {
+                // No clear row: the words keep a dark backing so no candle reads through them.
+                ctx.fillStyle = "rgba(11,10,8,0.86)";
+                ctx.fillRect(chipX - 4, chipY - 2, chipW + 4, chipH + 4);
+              }
               if (desktopShelfInstrument) {
                 // Direct annotation, not another gold card. A restrained
                 // shadow protects legibility while the shelf remains the
@@ -29056,7 +29063,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // withheld → no leader, no pin, no plate (the WAIT strip carries it).
               // BLOCKED IS HELD AT ANY WIDTH (iPad mini 744, 2026-10-17: with no clear seat the plate painted at its
               // refused spot over "Sellers held 4×, then broke"); the WAIT strip under the chart carries the word.
-              if (spotT.mode === "BLOCKED" || (narrowGlass && (spotT.onCandles || onNewestColumn(spotT.rect.x, spotT.rect.y, spotT.rect.w, spotT.rect.h))) || !chipBox(tagT.word, spotT.rect)) {
+              // …and on the desk too (1440, 2026-10-18: the plate sat on the newest candles; the WAIT rail says it there).
+              if (spotT.mode === "BLOCKED" || spotT.onCandles || onNewestColumn(spotT.rect.x, spotT.rect.y, spotT.rect.w, spotT.rect.h) || !chipBox(tagT.word, spotT.rect)) {
                 waitFolded = true;
                 sovereigntyHeld++;
                 ctx.restore();

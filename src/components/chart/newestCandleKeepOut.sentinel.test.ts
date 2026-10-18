@@ -170,7 +170,8 @@ describe("the narrow absorption chip's backing yields to the newest bodies", () 
     // hangs its chip over the older candles that made it, so every body under
     // the slots' span is a keep-out too, not only the newest three.
     expect(chip).toContain("const slotRects = slots.map(y => ({ x: chipX, y: Math.max(2, y), w: chipW, h: chipH }));");
-    expect(chip).toMatch(/pickSlotClearOfKeepOut\(\s*slotRects,\s*desktopShelfInstrument \? \[\] : \[\s*\.\.\.keepOut\(\),\s*\.\.\.rowBodiesAt\(Math\.min\(\.\.\.slotRects\.map\(s => s\.y\)\), Math\.max\(\.\.\.slotRects\.map\(s => s\.y \+ s\.h\)\)\),?\s*\],\s*s => hit\(s\.y\),?\s*\)/);
+    // Pin updated 2026-10-18: the desktop annotation takes the same keep-out (it printed across the candles).
+    expect(chip).toMatch(/pickSlotClearOfKeepOut\(\s*slotRects,\s*(?:\/\/[^\n]*\n\s*)*\[\s*\.\.\.keepOut\(\),\s*\.\.\.rowBodiesAt\(Math\.min\(\.\.\.slotRects\.map\(s => s\.y\)\), Math\.max\(\.\.\.slotRects\.map\(s => s\.y \+ s\.h\)\)\),?\s*\],\s*s => hit\(s\.y\),?\s*\)/);
     expect(chip).toMatch(/if \(chipSpot == null\) \{ absorbChipsHidden\+\+; continue; \}/);
     expect(chip).toMatch(/recordKeepOut\(keepOutLedger, chipSpot\);\s*const chipY = chipSpot\.rect\.y;/);
   });
