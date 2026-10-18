@@ -23603,7 +23603,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     alternates: [{ ...prefD, y: prefD.y - 28 }, { ...prefD, y: prefD.y + 28 }, { ...prefD, y: Math.round(+yTop) + 6, x: xR - tw - 4 },
                       // …and the plot's left side, on the body's rows (the name still says which body; phone, 2026-10-17).
                       ...[0, -28, 28, -56, 56].map(dy => ({ ...prefD, x: Math.max(LEFT_CHROME_RIGHT, keepOutMinX()), y: prefD.y + dy })),
-                      { ...prefD, x: Math.max(LEFT_CHROME_RIGHT, keepOutMinX()), y: Math.max(HEADER_FLOOR_Y + 4, Math.round(+yTop) - 26) }],
+                      { ...prefD, x: Math.max(LEFT_CHROME_RIGHT, keepOutMinX()), y: Math.max(HEADER_FLOOR_Y + 4, Math.round(+yTop) - 26) },
+                      // …and the top row, where the plot is clear above the market.
+                      { ...prefD, x: Math.max(LEFT_CHROME_RIGHT, keepOutMinX()), y: HEADER_FLOOR_Y + 4 },
+                      { ...prefD, x: Math.round((LEFT_CHROME_RIGHT + plotRight) / 2 - tw / 2), y: HEADER_FLOOR_Y + 4 },
+                      { ...prefD, x: Math.max(LEFT_CHROME_RIGHT, keepOutMinX()), y: HEADER_FLOOR_Y + 30 }],
                   });
                   if (spotD.mode !== "BLOCKED") {
                     ctx.fillStyle = "rgba(10,10,12,0.88)";
@@ -23817,6 +23821,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // The levels, named the family's one way: a price chip at the
               // plot's right edge on the level's own row (never on a candle).
               const lab = (price: number | null, text: string, ink: string) => {
+                // PHONE: a quiet species still names its levels — in the axis column, which is chrome, not glass
+                // (iPhone 17 Pro, 2026-10-17: Composite / Visible Range alone drew rows with no names at all).
+                if (price != null && narrowGlass && !att.speaks("compositeProfile")) { const yq = srs.priceToCoordinate(price); if (yq != null) axisLevelTags.push({ y: +yq, text, ink }); }
                 if (price == null || !att.speaks("compositeProfile")) return;
               if (parentChipsWithheld.has("COMPOSITE")) { parentChipsWithheldCount++; return; } // a fused parent: its chips wait in Inspect
                 const yr = srs.priceToCoordinate(price);
@@ -23997,7 +24004,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // The levels, named the family's one way: a price chip at the
             // plot's right edge on the level's own row (never on a candle).
             const lab = (price: number | null, text: string, ink: string) => {
-              if (price == null || !att.speaks("visibleRangeProfile")) return;
+              // PHONE: a quiet species still names its levels — in the axis column, which is chrome, not glass
+                // (iPhone 17 Pro, 2026-10-17: Composite / Visible Range alone drew rows with no names at all).
+                if (price != null && narrowGlass && !att.speaks("visibleRangeProfile")) { const yq = srs.priceToCoordinate(price); if (yq != null) axisLevelTags.push({ y: +yq, text, ink }); }
+                if (price == null || !att.speaks("visibleRangeProfile")) return;
               if (parentChipsWithheld.has("VISIBLE_RANGE")) { parentChipsWithheldCount++; return; } // a fused parent: its chips wait in Inspect
               const yr = srs.priceToCoordinate(price);
               if (yr == null) return;
@@ -25935,7 +25945,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const tw = ctx.measureText(m.label).width + 6, th = 12;
               const dir = m.kind === "HIGH" ? -1 : 1;
               const cy = m.y + dir * (3 + (m.isLast ? 6 : 4.5) * 1.3 + 8);
-              const pref = { x: m.x - tw / 2, y: cy - th / 2, w: tw, h: th };
+              // Never cut by the pane's left edge (phone, 2026-10-17: "HH" at x 8 lost half its first letter).
+              const pref = { x: Math.max(12, m.x - tw / 2), y: cy - th / 2, w: tw, h: th };
               if (pref.y < HEADER_FLOOR_Y || pref.y + th > paneBotS) continue;
               // The volume band is keep-out too; a letter whose row would fall in it starts BESIDE its chevron
               // instead (iPhone 17 Pro BTC 5m, 2026-10-17: the session low's "LL" printed down in the volume bars).
