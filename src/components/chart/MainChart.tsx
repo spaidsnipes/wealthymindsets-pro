@@ -8632,7 +8632,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // PHONE AXIS TAGS (Founder 2026-10-11, true mobile read): a truth level's name + price on narrow
       // glass is a tag in the price-axis column — the way a trading app tags a level — instead of a
       // chip slid over the candles. Queued here, painted once the plot clip is released.
-      const axisLevelTags: { y: number; text: string; ink: string }[] = [];
+      // `py` is the level's TRUE coordinate (may be off the pane): the price-order key, whatever row it was floored to.
+      const axisLevelTags: { y: number; text: string; ink: string; py?: number }[] = [];
       // PHONE: stacked translucent fields share ONE cap (fieldFogBudget.ts) so
       // their summed alpha over any candle never exceeds ~0.18. Desk: off.
       const fogGate = installFogGate(ctx);
@@ -22868,7 +22869,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           if (truthLevel) {
             // The name and its price stay on the glass (coordinator ruling 2026-10-10: a truth
             // level keeps its name on the phone), in the axis column — never over the candles.
-            axisLevelTags.push({ y: yy, text, ink });
+            axisLevelTags.push({ y: yy, text, ink, py: y });
             wordGate.declareTruth(text);
             levelChipsTruthKept++;
             ctx.restore();
@@ -22906,7 +22907,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           if (W < 640 && spotL.onCandles) {
             // A PHONE NAMES IT IN THE AXIS instead of holding it (iPhone 17 Pro, 2026-10-17: Composite alone drew its
             // rows with no POC/VAH/VAL names at all). The axis column steps tags off each other and the live price.
-            axisLevelTags.push({ y: yy, text, ink });
+            axisLevelTags.push({ y: yy, text, ink, py: y });
             ctx.restore();
             levelChipsNarrowHeld++;
             return;
@@ -28923,8 +28924,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // sat across the volume bars (and the DOM R/A/%/L chips). It moves to
         // the top-left of the price pane, under the header band.
         let y = narrowGlass ? (lensNarrowBottom > 0 ? lensNarrowBottom + 10 : HEADER_FLOOR_Y + 10) : silenceRowY;
+        // The phone's short form (2026-10-18): ~80px finds a row between the candles; Tools › Active says which.
         let words = narrowGlass
-          ? `${silenceFolded} SENSE${silenceFolded === 1 ? "" : "S"} SILENT — TOOLS › ACTIVE`
+          ? `${silenceFolded} SILENT ›`
           : `+${silenceFolded} MORE SENSE${silenceFolded === 1 ? "" : "S"} SILENT HERE — TOOLS › ACTIVE SAYS WHY`;
         ctx.save();
         ctx.font = marketFont("OBJECT_NAME");
@@ -29618,7 +29620,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           let overlapTags = 0;
           // PRICE ORDER SURVIVES THE STEPPING (iPhone 17 Pro Living, 2026-10-18: "▼ VAL" stepped up above "VAH" while
           // "▼ POC" took the foot). Rows are found first, then handed back top-down in price order before painting.
-          const sortedTags = [...axisLevelTags].sort((a, b) => a.y - b.y);
+          const sortedTags = [...axisLevelTags].sort((a, b) => (a.py ?? a.y) - (b.py ?? b.y) || a.y - b.y);
           const rowsFound: number[] = [];
           for (const t of sortedTags) {
             const t0 = Math.max(tagH / 2, Math.min(pane0Bottom - tagH / 2, t.y));
