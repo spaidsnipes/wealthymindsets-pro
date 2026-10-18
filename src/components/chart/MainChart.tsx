@@ -14419,7 +14419,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const tsFC = chart.timeScale();
           const accE = tickAccRef.current, sidedE = candleSidedRef.current;
           const barsE = (barsRef.current ?? []).slice(-400);
-          const ptsE: { x: number; y: number; v: number; sided: boolean }[] = [];
+          const ptsE: { x: number; y: number; yh: number; yl: number; v: number; sided: boolean }[] = [];
           for (const b of barsE) {
             const x = tsFC.timeToCoordinate(b.time as never);
             if (x == null || +x < -bsp || +x > W) continue;
@@ -14433,13 +14433,21 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             if (lvE) for (const q of lvE.values()) { buyE += q.ask; sellE += q.bid; }
             if (buyE + sellE <= 0) { const cs = sidedE.get(Number(b.time)); if (cs) { buyE = cs.buy; sellE = cs.sell; } }
             const sided = buyE + sellE > 0;
-            ptsE.push({ x: +x, y: +yc, v: sided ? buyE - sellE : clv * vol, sided });
+            const yhE = srs.priceToCoordinate(hi), ylE = srs.priceToCoordinate(lo);
+            ptsE.push({ x: +x, y: +yc, yh: yhE == null ? +yc : +yhE, yl: ylE == null ? +yc : +ylE, v: sided ? buyE - sellE : clv * vol, sided });
           }
           const est = ptsE.filter(q => !q.sided);
           if (ptsE.length >= 6 && (FLOW_CURRENT_AS_RIBBON || est.length >= 6)) {
             const sm = ptsE.map((_, i) => { let a = 0, n = 0; for (let j = Math.max(0, i - 1); j <= Math.min(ptsE.length - 1, i + 1); j++) { a += ptsE[j].v; n++; } return a / n; });
             const peakE = Math.max(1e-9, ...sm.map(Math.abs));
-            const thick = (v: number) => 3 + 22 * Math.sqrt(Math.abs(v) / peakE);
+            const thick = (v: number) => 6 + 30 * Math.sqrt(Math.abs(v) / peakE);
+            // The current rides OUTSIDE the bars (plate 03 #05): under the lows where buyers pushed, over the highs where
+            // sellers pressed — the deepest low / highest high of a bar's neighbours, so the bodies stay clear.
+            const baseAt = (k: number, up: boolean) => {
+              let b = up ? -Infinity : Infinity;
+              for (let q = Math.max(0, k - 1); q <= Math.min(ptsE.length - 1, k + 1); q++) b = up ? Math.max(b, ptsE[q].yl) : Math.min(b, ptsE[q].yh);
+              return b + (up ? 3 : -3);
+            };
             let paneBotE = H; try { const ps = (chart as any).paneSize?.(0); if (ps && ps.height > 0) paneBotE = ps.height; } catch { /* canvas */ }
             const volTopE = Math.round(paneBotE * volumeTopMargin(W)) - 2;
             const cutFC = new Path2D(); cutFC.rect(0, 0, W, H);
@@ -14465,10 +14473,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 const rgb = up ? inks.btBuy : inks.btSell;
                 const off = (k: number) => (up ? 1 : -1) * thick(sm[k]);
                 ctx.beginPath();
-                for (let k = i; k <= j; k++) (k === i ? ctx.moveTo(ptsE[k].x, ptsE[k].y + (up ? 2 : -2)) : ctx.lineTo(ptsE[k].x, ptsE[k].y + (up ? 2 : -2)));
-                for (let k = j; k >= i; k--) ctx.lineTo(ptsE[k].x, ptsE[k].y + (up ? 2 : -2) + off(k));
+                for (let k = i; k <= j; k++) (k === i ? ctx.moveTo(ptsE[k].x, baseAt(k, up)) : ctx.lineTo(ptsE[k].x, baseAt(k, up)));
+                for (let k = j; k >= i; k--) ctx.lineTo(ptsE[k].x, baseAt(k, up) + off(k));
                 ctx.closePath();
-                const g = ctx.createLinearGradient(0, ptsE[i].y, 0, ptsE[i].y + (up ? 26 : -26));
+                const g = ctx.createLinearGradient(0, baseAt(i, up), 0, baseAt(i, up) + (up ? 34 : -34));
                 g.addColorStop(0, `rgba(${rgb},0.58)`); g.addColorStop(1, `rgba(${rgb},0.14)`);
                 ctx.fillStyle = g; ctx.fill();
                 // The edge says the basis, segment by segment: solid where measured, dashed where estimated.
@@ -14476,8 +14484,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 for (let k = i; k < j; k++) {
                   ctx.setLineDash(ptsE[k].sided && ptsE[k + 1].sided ? [] : [4, 3]);
                   ctx.beginPath();
-                  ctx.moveTo(ptsE[k].x, ptsE[k].y + (up ? 2 : -2) + off(k));
-                  ctx.lineTo(ptsE[k + 1].x, ptsE[k + 1].y + (up ? 2 : -2) + off(k + 1));
+                  ctx.moveTo(ptsE[k].x, baseAt(k, up) + off(k));
+                  ctx.lineTo(ptsE[k + 1].x, baseAt(k + 1, up) + off(k + 1));
                   ctx.stroke();
                 }
                 ctx.setLineDash([]);
