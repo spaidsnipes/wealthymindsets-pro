@@ -755,7 +755,10 @@ export function provenSessionClosure(symbol: string, at: Date): false | null {
     return null;
   }
   if (cls === "futures" || cls === "forex") {
-    if (day === 0 && m < MIN(17)) return false;
+    // CME Globex reopens Sunday 18:00 ET; spot FX at 17:00 (the market clock's own rule — marketSessionClock.ts).
+    // Serving NQ1! Sunday 17:25 ET, 2026-10-18: this said 17:00 for futures too, so the masthead read
+    // "STALE PIPELINE · 582 BARS BEHIND" for an hour every Sunday while the market clock said CLOSED.
+    if (day === 0 && m < MIN(cls === "futures" ? 18 : 17)) return false;
     if (day === 5 && m >= MIN(17)) return false;
     if (cls === "futures" && day >= 1 && day <= 4 && m >= MIN(17) && m < MIN(18)) return false;
     return null;

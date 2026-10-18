@@ -13007,7 +13007,32 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ctx.save();
           ctx.lineWidth = 1;
           const n = pts.length;
-          for (const key of ["val", "vah", "poc"] as const) {
+          // THE VALUE BODY (Founder 2026-10-18, his Chrome: two faint dotted hairlines read as scribble). The developing
+          // value area is a soft gold band per bar, VAL → VAH, aged; candles are cut out so bodies stay crisp. The POC
+          // keeps its step line, firmer; a candle-estimated stretch stays DASHED (a degraded reading never wears solid).
+          {
+            const cutLD = new Path2D(); cutLD.rect(0, 0, W, H);
+            const vrLD = tsLD.getVisibleLogicalRange();
+            for (const cr of candleCutOutRects(barsRef.current ?? [], {
+              visible: vrLD ? { from: +vrLD.from, to: +vrLD.to } : null, barSpacing: bsp,
+              timeToX: t => { const xk = tsLD.timeToCoordinate(t as never); return xk == null ? null : +xk; },
+              priceToY: pp => { const yk = srs.priceToCoordinate(pp); return yk == null ? null : +yk; },
+            }, -bsp, plotRight + bsp)) cutLD.rect(cr.x, cr.y, cr.w, cr.h);
+            ctx.save(); ctx.clip(cutLD, "evenodd");
+            for (let k = 0; k < n; k++) {
+              const p = pts[k];
+              if (p.vah == null || p.val == null) continue;
+              const xr = tsLD.timeToCoordinate(p.time as never);
+              if (xr == null || +xr < -half || +xr > plotRight) continue;
+              const yH = srs.priceToCoordinate(p.vah), yL = srs.priceToCoordinate(p.val);
+              if (yH == null || yL == null) continue;
+              const age = n > 1 ? k / (n - 1) : 1;
+              ctx.fillStyle = `rgba(201,165,92,${((0.04 + 0.08 * age) * (p.basis === "ESTIMATED" ? 0.7 : 1)).toFixed(3)})`;
+              ctx.fillRect(+xr - half, Math.min(+yH, +yL), spacingLD, Math.abs(+yL - +yH));
+            }
+            ctx.restore();
+          }
+          for (const key of ["poc"] as const) {
             let prevY: number | null = null, prevX: number | null = null;
             for (let k = 0; k < n; k++) {
               const p = pts[k];
@@ -13017,9 +13042,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const yr = srs.priceToCoordinate(v);
               if (yr == null) { prevY = null; prevX = null; continue; }
               const age = n > 1 ? k / (n - 1) : 1;
-              const a = key === "poc" ? 0.14 + 0.36 * age : 0.08 + 0.22 * age;
-              ctx.strokeStyle = key === "poc" ? `rgba(201,165,92,${a.toFixed(3)})` : `rgba(237,230,211,${a.toFixed(3)})`;
-              ctx.setLineDash(p.basis === "ESTIMATED" ? [1, 3] : []);
+              const a = 0.3 + 0.5 * age;
+              ctx.strokeStyle = `rgba(214,178,98,${a.toFixed(3)})`;
+              ctx.lineWidth = 1.6;
+              ctx.setLineDash(p.basis === "ESTIMATED" ? [5, 3] : []);
               const y = Math.round(+yr) + 0.5, x0 = +xr - half, x1 = +xr + half;
               ctx.beginPath();
               if (prevY != null && prevX != null && Math.abs(prevX - x0) < spacingLD) { ctx.moveTo(x0, prevY); ctx.lineTo(x0, y); }
