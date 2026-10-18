@@ -301,7 +301,16 @@ export function requestTastyCandles(candleSymbol: string, keepAlive: string, fro
       ? pending.promise
       : pending.promise.then(() => requestTastyCandles(candleSymbol, keepAlive, fromTime, timeoutMs));
   }
-  const promise = openTastyCandleRequest(candleSymbol, keepAlive, fromTime, timeoutMs);
+  // ONE RETRY ON A COLD SOCKET (iPad NQ1! 2026-10-18: 3 of 8 loads read "NO BAR HISTORY · tastytrade was asked and
+  // refused" — quote-token + socket + auth + snapshot can outrun 8s on a busy device). Nothing answered and the stream is
+  // ours → ask once more with twice the budget. A guest / unconfigured stream (NOT_OWNER / NOT_CONNECTED) never retries.
+  const promise = openTastyCandleRequest(candleSymbol, keepAlive, fromTime, timeoutMs).then(rows => {
+    if (rows && rows.length) return rows;
+    if (snapshot.stream === "NOT_OWNER" || snapshot.stream === "NOT_CONNECTED") return rows;
+    const again = openTastyCandleRequest(candleSymbol, keepAlive, fromTime, timeoutMs * 2);
+    candleInflight.set(candleSymbol, { fromTime, promise: again });
+    return again;
+  });
   candleInflight.set(candleSymbol, { fromTime, promise });
   return promise;
 }
