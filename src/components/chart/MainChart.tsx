@@ -11440,7 +11440,20 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const tagD = `Δ${chipD ? ` · ${chipD}` : ""}${sidesShown ? ` · ${sidesShown === pickD.length ? "" : "older "}bars: provider bid / ask` : ""}${strideD > 1 ? ` · 1 IN ${strideD} BARS` : ""}${fpUsdCellsRef.current && effectiveFP === "bid-ask" ? " · cells: $ traded" : ""}`;
           ctx.font = marketFont("OBJECT_NAME");
           const tagW = ctx.measureText(tagD).width + 4, tagY = yD - 20;
-          const tagX = [6, plotRight - tagW - 6].find(x => !hitD(x, tagY, tagW, 12));
+          // …and never across a candle (Founder's Chrome, NQ1! 1m 2026-10-18: the tag printed over the 5:00 bar's body).
+          const onCandleD = (x: number, y: number, w: number, h: number) => {
+            const tsDD = chart.timeScale();
+            for (const b of barsRef.current.slice(-400)) {
+              const bxD = tsDD.timeToCoordinate(b.time as never);
+              if (bxD == null || +bxD + bsp / 2 < x || +bxD - bsp / 2 > x + w) continue;
+              const yh = srs.priceToCoordinate(b.high), yl = srs.priceToCoordinate(b.low);
+              if (yh == null || yl == null) continue;
+              if (Math.min(+yh, +yl) < y + h && Math.max(+yh, +yl) > y) return true;
+            }
+            return false;
+          };
+          const tagX = [6, plotRight - tagW - 6].find(x => !hitD(x, tagY, tagW, 12) && !onCandleD(x, tagY, tagW, 12))
+            ?? [6, plotRight - tagW - 6].find(x => !hitD(x, tagY, tagW, 12));
           // The row does not print without its tag: the tag is what says how
           // the sides were known and which bars were left out.
           if (tagX != null && pickD.length) {
@@ -28835,7 +28848,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.font = `600 13px ${MARKET_SANS}`; ctx.textBaseline = "middle"; ctx.textAlign = "left";
             const seamChip = (text: string, x: number, y: number) => {
               const w = Math.ceil(ctx.measureText(text).width) + 18, h = 24;
-              const r = { x: Math.max(4, Math.min(x, plotRight - w - 4)), y, w, h };
+              // Clear of the footprint cells and the candles (Founder's Chrome, NQ1! 1m 2026-10-18: the chip sat on the
+              // first sided bar's top cells). Left of the seam first — over the bar-totals side — then right, row by row.
+              const pref = { x: Math.max(4, bx - w - 8), y, w, h };
+              const altsSeam = [0, 28, 56, 84, 112, 140].flatMap(dy => [{ x: Math.max(4, bx - w - 8), y: y + dy, w, h }, { x: Math.max(4, Math.min(x, plotRight - w - 4)), y: y + dy, w, h }]);
+              const spotS = placeClearOfKeepOut(pref, [...keepOut(), ...profileCandlesAt(y - 2, y + 170)], { minX: 4, blockers: floatingChips, strict: true, alternates: altsSeam });
+              const r = spotS.mode === "BLOCKED" ? { x: Math.max(4, Math.min(x, plotRight - w - 4)), y, w, h } : spotS.rect;
               onTop(r, "OPAQUE_CARD");
               ctx.fillStyle = "rgba(14,12,9,0.92)"; ctx.beginPath(); ctx.roundRect(r.x, r.y, w, h, 6); ctx.fill();
               ctx.strokeStyle = "rgba(212,175,55,0.85)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(r.x + 0.5, r.y + 0.5, w - 1, h - 1, 6); ctx.stroke();
