@@ -15278,6 +15278,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // ── ABSORPTION ZONE: pinned at the price the auction happened at.
             const absorbChipRects: { x: number; y: number; w: number; h: number }[] = [];
             let absorbChipsHidden = 0;
+            // The explanation line is said ONCE per frame (Founder's Chrome, BTC 5m 2026-10-18: four shelves printed
+            // "Force is hitting. Price is holding." four times). Every shelf keeps its own name.
+            let shelfMeaningSaid = false;
             let absorbStateZones = 0, absorbStateGraded = 0;
             let shelfWordsBeside = 0;
             // H-501 · SEMANTIC ZOOM CHANGES THE REPRESENTATION, not just its
@@ -15630,7 +15633,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // hitting. Price is holding.") under the name. It was painted but
               // never counted: nothing stepped off it, and it ran through the
               // shelf's own courses and the next chip (live NQ open, 2026-10-04).
-              const meaningLine = desktopShelfInstrument && !shelfSelected && att.speaks("absorption");
+              const meaningLine = desktopShelfInstrument && !shelfSelected && att.speaks("absorption") && !shelfMeaningSaid;
               let meaningW = 0;
               if (meaningLine) {
                 ctx.font = marketFont("WHY_LABEL");
@@ -15789,6 +15792,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.textBaseline = "middle";
                 // §XLVI learning without lecture: one quiet line, the meaning.
                 if (meaningLine) {
+                  shelfMeaningSaid = true;
                   ctx.font = marketFont("WHY_LABEL");
                   // Its own dark backing and full ink (Founder's Chrome, NQ1! 5m 2026-10-18: at 0.72 on the grey effort cloud
                   // the line was barely legible).
