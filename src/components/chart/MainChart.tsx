@@ -22738,11 +22738,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             return;
           }
           if (W < 640 && spotL.onCandles) {
-            ctx.fillStyle = ink;
-            ctx.fillRect(Math.round(plotRight - 7), Math.round(y) - 1, 5, 2);
+            // A PHONE NAMES IT IN THE AXIS instead of holding it (iPhone 17 Pro, 2026-10-17: Composite alone drew its
+            // rows with no POC/VAH/VAL names at all). The axis column steps tags off each other and the live price.
+            axisLevelTags.push({ y: yy, text, ink });
             ctx.restore();
-            displacedNotes.push({ layer: "PROFILE", text, x: Math.max(8, rightX - cw / 2), y });
-            levelChipsYielded++;
             levelChipsNarrowHeld++;
             return;
           }
@@ -23598,10 +23597,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   const prefD = { x: Math.round(bodyLeft - tw - 8), y: Math.round(yRef) - 10, w: tw, h: 20 };
                   // The candles under its rows are keep-out too (iPhone 17 Pro BTC 5m, DNA alone, 2026-10-17:
                   // "P-shape profile" printed on the top of the session's big red candle).
-                  const dnaRowsTop = Math.min(prefD.y - 28, Math.round(+yTop) + 6), dnaRowsBot = Math.max(prefD.y + 48, Math.round(+yTop) + 26);
+                  const dnaRowsTop = Math.min(prefD.y - 56, Math.round(+yTop) - 26), dnaRowsBot = Math.max(prefD.y + 76, Math.round(+yTop) + 26);
                   const spotD = placeClearOfKeepOut(prefD, [...keepOut(), ...newestColumnRects(), ...profileCandlesAt(dnaRowsTop, dnaRowsBot)], {
                     minX: keepOutMinX(), blockers: floatingChips, strict: true,
-                    alternates: [{ ...prefD, y: prefD.y - 28 }, { ...prefD, y: prefD.y + 28 }, { ...prefD, y: Math.round(+yTop) + 6, x: xR - tw - 4 }],
+                    alternates: [{ ...prefD, y: prefD.y - 28 }, { ...prefD, y: prefD.y + 28 }, { ...prefD, y: Math.round(+yTop) + 6, x: xR - tw - 4 },
+                      // …and the plot's left side, on the body's rows (the name still says which body; phone, 2026-10-17).
+                      ...[0, -28, 28, -56, 56].map(dy => ({ ...prefD, x: Math.max(LEFT_CHROME_RIGHT, keepOutMinX()), y: prefD.y + dy })),
+                      { ...prefD, x: Math.max(LEFT_CHROME_RIGHT, keepOutMinX()), y: Math.max(HEADER_FLOOR_Y + 4, Math.round(+yTop) - 26) }],
                   });
                   if (spotD.mode !== "BLOCKED") {
                     ctx.fillStyle = "rgba(10,10,12,0.88)";
