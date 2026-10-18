@@ -25789,9 +25789,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.fillStyle = "rgba(201,165,92,0.18)";
                 ctx.fillRect(x0, top, zEnd - x0, h);
                 ctx.restore();
+                // The edge passes BEHIND words already on the glass (iPad desk layout, 2026-10-18: the zone's top edge
+                // struck through "ABSORPTION 2.74 MODERATE").
+                ctx.save();
+                for (const q of floatingChips) {
+                  if (q.h > 30) continue;
+                  ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.rect(q.x - 2, q.y - 2, q.w + 4, q.h + 4); ctx.clip("evenodd");
+                }
                 ctx.strokeStyle = "rgba(220,180,90,0.85)";
                 ctx.lineWidth = 1.5;
                 ctx.strokeRect(x0 + 0.75, Math.round(top) + 0.75, zEnd - x0 - 1, Math.round(h) - 1);
+                ctx.restore();
                 }
                 const colZM = sovereignColumn();
                 const zmX = Math.round(x0 + (zEnd - x0) / 2);
