@@ -24770,7 +24770,26 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // The chip asks for its box first; withheld → nothing of it is drawn.
               // A withheld title still names the structure, from the silence stack (phone, 2026-10-17: the box and
               // the leg drew with no "STRUCTURE · …" name at all).
-              if (!chipBox(text, { x: spotP.rect.x, y: spotP.rect.y, w, h: 14 })) { ctx.restore(); if (rowIfBlocked) toSilenceRow(); return; }
+              if (!chipBox(text, { x: spotP.rect.x, y: spotP.rect.y, w, h: 14 })) {
+                ctx.restore();
+                if (!rowIfBlocked) return;
+                // A drawn structure is not silent: on a phone its title first tries the clear top rows, declared on top
+                // (it names a body on the glass); only with none free does it take the silence stack.
+                const topRows = [0, 1, 2, 3].flatMap(k => [Math.max(LEFT_CHROME_RIGHT, keepOutMinX()), Math.round((LEFT_CHROME_RIGHT + plotRight) / 2 - w / 2)]
+                  .map(xx => ({ x: xx, y: HEADER_FLOOR_Y + 4 + k * 18, w, h: 14 })));
+                const tq = narrowGlass ? placeClearOfKeepOut(topRows[0], [...keepOut(), ...profileCandlesAt(HEADER_FLOOR_Y, HEADER_FLOOR_Y + 80)], { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: topRows.slice(1) }) : null;
+                if (tq && tq.mode !== "BLOCKED") {
+                  onTop(tq.rect, "INSPECT");
+                  ctx.save();
+                  ctx.font = marketFont("FIDELITY");
+                  ctx.fillStyle = "rgba(11,10,8,0.85)"; ctx.fillRect(tq.rect.x, tq.rect.y, w, 14);
+                  ctx.fillStyle = pk.rgba("ANCHOR", 0.95); ctx.textAlign = "left"; ctx.textBaseline = "bottom";
+                  ctx.fillText(text, tq.rect.x + 4, tq.rect.y + 12);
+                  ctx.restore();
+                  floatingChips.push({ ...tq.rect });
+                } else toSilenceRow();
+                return;
+              }
               ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotP, 0.82)})`;
               ctx.fillRect(spotP.rect.x, spotP.rect.y, w, 14);
               ctx.fillStyle = pk.rgba("ANCHOR", 0.95);
