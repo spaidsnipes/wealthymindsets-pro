@@ -15710,6 +15710,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 [
                   ...keepOut(),
                   ...rowBodiesAt(Math.min(...slotRects.map(s => s.y)), Math.max(...slotRects.map(s => s.y + s.h))),
+                  // …and every wick on those rows (iPad desk layout, 2026-10-18: a wick ran through "ABSORPTION 2.74").
+                  ...profileCandlesAt(Math.min(...slotRects.map(s => s.y)), Math.max(...slotRects.map(s => s.y + s.h))),
                 ],
                 s => hit(s.y),
               ));
