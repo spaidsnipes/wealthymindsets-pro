@@ -21027,7 +21027,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // floor; the governor's say over it is whether it speaks (dpSpeaks / placement), not how grey.
                 ctx.globalAlpha = Math.max(0.85, att.textAlpha("derivativesPressure"));
                 ctx.font = marketFont("OBJECT_NAME");
-                const chip = (word: string, pref: { x: number; y: number }, alts: { x: number; y: number }[]) => {
+                // Placed first, painted after — rows handed back top-down in the walls' price order (2026-10-18).
+                const wallSeats: { word: string; r: { x: number; y: number; w: number; h: number }; py: number }[] = [];
+                const chip = (word: string, pref: { x: number; y: number }, alts: { x: number; y: number }[], py?: number) => {
                   const ww = ctx.measureText(word).width + 10;
                   // 2px of air above and below every wall name (Founder's Chrome, NQ1! 2026-10-18: four names stacked
                   // edge to edge read as one block). The seat is 18 tall; the chip paints 14 inside it.
@@ -21035,7 +21037,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   if (spotW.mode === "BLOCKED") { displacedNotes.push({ layer: "DERIVATIVES", text: word, x: pref.x + ww / 2, y: pref.y + 7 }); return; }
                   recordKeepOut(keepOutLedger, spotW);
                   floatingChips.push({ ...spotW.rect });
-                  const r = { x: spotW.rect.x, y: spotW.rect.y + 2, w: spotW.rect.w, h: 14 };
+                  const r = { x: spotW.rect.x, y: spotW.rect.y + 2, w: ww, h: 14 };
+                  if (py != null) { wallSeats.push({ word, r, py }); return; }
                   ctx.fillStyle = "rgba(11,10,8,0.86)";
                   ctx.fillRect(r.x, r.y, ww, 14);
                   ctx.fillStyle = "rgba(236,214,160,0.95)";
@@ -21046,7 +21049,19 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 for (const ww of wallWords) {
                   const wW = ctx.measureText(ww.word).width + 10;
                   const inPane = (y: number) => Math.max(HEADER_FLOOR_Y + 2, Math.min(paneBotD - 16, y));
-                  chip(ww.word, { x: ww.x - wW - 6, y: inPane(ww.y - 7) }, [{ x: ww.x - wW - 6, y: inPane(ww.y + 12) }, { x: ww.x - wW - 6, y: inPane(ww.y - 26) }]);
+                  chip(ww.word, { x: ww.x - wW - 6, y: inPane(ww.y - 7) }, [{ x: ww.x - wW - 6, y: inPane(ww.y + 12) }, { x: ww.x - wW - 6, y: inPane(ww.y - 26) }], ww.y);
+                }
+                {
+                  const ysTop = wallSeats.map(q => q.r.y).sort((a, b) => a - b);
+                  [...wallSeats].sort((a, b) => a.py - b.py).forEach((q, i) => {
+                    const r = { ...q.r, y: ysTop[i] };
+                    ctx.fillStyle = "rgba(11,10,8,0.86)";
+                    ctx.fillRect(r.x, r.y, r.w, 14);
+                    ctx.fillStyle = "rgba(236,214,160,0.95)";
+                    ctx.textAlign = "left";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText(q.word, r.x + 5, r.y + 7.5);
+                  });
                 }
                 // ONE CHIP PER DIRECTION (serving BTC 5m, 2026-10-04): three
                 // off-camera walls stacked three chips deep and, pushed off the
