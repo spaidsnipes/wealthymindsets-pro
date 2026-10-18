@@ -25871,7 +25871,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                         // (serving GC1! 1180: "SUPPLY ZONE · DEFENDED · 2 TESTS" touched one):
                         // the one candle cut-out (bodies + wicks), 1px of air.
                         && !profileCandleCut().rects.some(b => x - 1 < b.x + b.w && x + tw + 1 > b.x && y - 12 < b.y + b.h && y + 1 > b.y)
-                        && !floatingChips.some(r => x < r.x + r.w && x + tw > r.x && y - 10 < r.y + r.h && y > r.y);
+                        // 6px of air from every word on the glass (iPad desk ES1! 2026-10-18: "DEMAND ZONE · DEFENDED · 1 TEST"
+                        // ran into "CANDLE-ESTIMATED · NODES WITHHELD" on the next row's edge).
+                        && !floatingChips.some(r => x - 6 < r.x + r.w && x + tw + 6 > r.x && y - 13 < r.y + r.h && y + 2 > r.y);
                       if (ok) { tx = x; ty = y; break; }
                     }
                     if (ty != null) break;
