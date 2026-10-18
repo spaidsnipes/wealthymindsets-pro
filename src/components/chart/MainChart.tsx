@@ -14722,9 +14722,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ctx.font = "bold 12px monospace";
           const boxH  = COUNTDOWN_BOX_H;
           const boxW  = inAxis ? Math.round(axisW - 2) : Math.round(tw + 30);
-          const x     = inAxis ? Math.round(W - axisW + 1) : 2;
+          // A NARROW AXIS (CL1! "98.37", Founder's Chrome 2026-10-18) cannot hold the pill: it hangs just LEFT of the axis
+          // under the price — never back at the far left over the oldest candles.
+          const axisWN = (() => { try { const w = chart?.priceScale("right").width(); return Number.isFinite(w) && (w as number) > 0 ? (w as number) : 0; } catch { return 0; } })();
+          const x     = inAxis ? Math.round(W - axisW + 1) : axisWN > 0 ? Math.round(W - axisWN - boxW - 4) : 2;
           const tagHalf = 10;
-          const y     = !inAxis ? yPrice
+          const y     = !inAxis && axisWN <= 0 ? yPrice
             : yPrice + tagHalf + 2 + boxH + 1 <= H ? yPrice + tagHalf + 2 + boxH / 2 : yPrice - tagHalf - 2 - boxH / 2;
           // Price above the camera pinned the countdown to the pane's top edge,
           // over "BTC-USD · 1D" and the D / EFFORT corner (serving BTC-USD 1D,
