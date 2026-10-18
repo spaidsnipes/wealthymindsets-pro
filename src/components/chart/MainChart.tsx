@@ -24772,6 +24772,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   floatingChips.push({ ...tq.rect });
                   return true;
                 }
+                // No clear top row: the swing IS a price — tag it in the axis column at its own row.
+                const anc = sp.anchor;
+                if (narrowGlass && anc && text.startsWith("STRUCTURE · ")) {
+                  const ya = srs.priceToCoordinate(anc.price);
+                  if (ya != null) { axisLevelTags.push({ y: +ya, text: `${kind} ${gPx(anc.price)}`, ink: pk.rgba("ANCHOR", 0.95) }); return true; }
+                }
                 return false;
               };
               if (rowIfBlocked && spotP.mode === "BLOCKED" && seatTitleTop()) return;
