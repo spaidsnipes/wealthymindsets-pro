@@ -29190,7 +29190,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // cluster's row; failing that, the quiet top row over the cluster.
             const clampY = (y: number) => Math.max(HEADER_FLOOR_Y, Math.min(pane0Bottom - h - 4, y));
             const alts = [-26, 26, -52, 52, -78, 78].map(dy => ({ ...pref, y: clampY(pref.y + dy) }));
-            const sp = placeClearOfKeepOut(pref, [...keepOut(), ...rowBodiesAt(Math.min(...alts.map(q => q.y)), Math.max(...alts.map(q => q.y)) + h)], { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: alts });
+            // Wicks too (iPhone 17 Pro, 2026-10-17: "50 calls at 75,000 sold" sat across the session high's wick).
+            const sp = placeClearOfKeepOut(pref, [...keepOut(), ...rowBodiesAt(Math.min(...alts.map(q => q.y)), Math.max(...alts.map(q => q.y)) + h), ...profileCandlesAt(Math.min(...alts.map(q => q.y)), Math.max(...alts.map(q => q.y)) + h)], { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: alts });
             const topRow = { ...pref, y: HEADER_FLOOR_Y + 4 };
             let r = sp.mode === "BLOCKED" ? topRow : sp.rect;
             // ANCHORS NEVER OVERPRINT EACH OTHER (serving all-on NQ1! 5m b290eef,

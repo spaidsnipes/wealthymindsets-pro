@@ -9,6 +9,7 @@ describe("edge beacons (plate 22b)", () => {
     expect(beaconWords(c("above", 30900), 0)).toBe("▲ Call wall 30,900 · Show me");
     expect(beaconWords(c("below", 29400, "PUT_WALL"), 2)).toBe("▼ Put wall 29,400 +2 · Show me");
     expect(beaconWords(c("above", 31000, "GAMMA_NEG"), 0)).toBe("▲ −Gamma level 31,000 · Show me");
+    expect(beaconWords(c("above", 30900), 0, true)).toBe("▲ Call wall 30,900");
   });
 
   it("names a walls/gamma mark by its kinds, walls first", () => {

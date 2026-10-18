@@ -53,8 +53,9 @@ export function beaconKindOf(kinds: readonly string[]): string {
 }
 
 /** "▲ Call wall 30,900 · Show me" — "+N" counts the other levels beyond the same edge. */
-export function beaconWords(c: BeaconCandidate, more: number): string {
-  return `${c.dir === "above" ? "▲" : "▼"} ${NAME[c.what] ?? NAME.WALL} ${c.priceText}${more > 0 ? ` +${more}` : ""} · Show me`;
+export function beaconWords(c: BeaconCandidate, more: number, compact = false): string {
+  // A phone's beacon drops "· Show me" (the pill is still the tap target) so it fits between the candles (2026-10-17).
+  return `${c.dir === "above" ? "▲" : "▼"} ${NAME[c.what] ?? NAME.WALL} ${c.priceText}${more > 0 ? ` +${more}` : ""}${compact ? "" : " · Show me"}`;
 }
 
 /**
@@ -125,7 +126,7 @@ export function paintEdgeBeacons(
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
   for (const choice of choices) {
-    const words = beaconWords(choice.lead, choice.more);
+    const words = beaconWords(choice.lead, choice.more, frame.plotRight - frame.plotLeft < 520);
     const w = Math.ceil(ctx.measureText(words).width) + PAD_X * 2;
     const hard = [...blockers, ...placed];
     const r = placeBeaconLeastCovering(choice.lead.dir, w, frame, hard, soft);
