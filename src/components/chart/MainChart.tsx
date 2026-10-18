@@ -15723,8 +15723,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               absorbChipRects.push({ x: chipX, y: chipY, w: chipW, h: chipH });
               floatingChips.push({ x: chipX, y: chipY, w: chipW, h: chipH });
               shelfRects.push({ x: chipX, y: chipY, w: chipW, h: chipH });
-              if (desktopShelfInstrument && chipSpot.onCandles) {
-                // No clear row: the words keep a dark backing so no candle reads through them.
+              if (desktopShelfInstrument) {
+                // A dark backing always: the shelf's own box edge struck through "ABSORPTION 2.74 MODERATE"
+                // (iPad landscape desk layout, 2026-10-18), and on candles nothing may read through the words.
                 ctx.fillStyle = "rgba(11,10,8,0.86)";
                 ctx.fillRect(chipX - 4, chipY - 2, chipW + 4, chipH + 4);
               }
