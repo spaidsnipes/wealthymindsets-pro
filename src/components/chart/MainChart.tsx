@@ -15777,7 +15777,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // §XLVI learning without lecture: one quiet line, the meaning.
                 if (meaningLine) {
                   ctx.font = marketFont("WHY_LABEL");
-                  ctx.fillStyle = "rgba(237,230,211,0.72)";
+                  // Its own dark backing and full ink (Founder's Chrome, NQ1! 5m 2026-10-18: at 0.72 on the grey effort cloud
+                  // the line was barely legible).
+                  const mw = ctx.measureText("Force is hitting. Price is holding.").width;
+                  ctx.shadowBlur = 0;
+                  ctx.fillStyle = "rgba(11,10,8,0.9)";
+                  ctx.fillRect(chipX - 4, chipY + nameH - 1, mw + 8, 14);
+                  ctx.fillStyle = "rgba(237,230,211,0.95)";
                   ctx.fillText("Force is hitting. Price is holding.", chipX, chipY + nameH + 6);
                 }
                 ctx.restore();
