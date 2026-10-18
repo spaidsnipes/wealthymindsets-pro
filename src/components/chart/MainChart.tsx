@@ -15764,6 +15764,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 s => hit(s.y),
               ));
               if (chipSpot == null) { absorbChipsHidden++; continue; }
+              // The desk annotation never sits ON candles (Founder's Chrome, SOL 5m 2026-10-18: "ABSORPTION SHELF" over the
+              // newest bodies). No clear row → the name waits in the event notes; the shelf itself still paints.
+              if (desktopShelfInstrument && chipSpot.onCandles && !shelfSelected) { absorbChipsHidden++; displacedNotes.push({ layer: "ABSORPTION", text: shelfWords, x: chipX + chipW / 2, y: chipSpot.rect.y + chipH / 2 }); continue; }
               // QUIET (the phone's word budget): the shelf paints, its words
               // wait — the same path as a shelf with no free slot. Selecting
               // the shelf brings them back (the selected item always speaks).
