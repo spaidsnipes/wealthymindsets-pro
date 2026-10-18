@@ -87,6 +87,13 @@ export function paintScaffoldOnGlass(ctx: Ctx, g: ScaffoldGlassInput): ScaffoldG
       [16, -h - 16], [16, 16], [-w - 16, -h - 16], [-w - 16, 16], [16, -h - 60], [-w - 16, -h - 60], [16, 60], [-w - 16, 60],
       [-w / 2, -h - 30], [-w / 2, 30], [16, -h - 110], [-w - 16, -h - 110],
     ].map(([dx, dy]) => ({ x: Math.round(ax + dx), y: Math.round(ay + dy), w, h }));
+    // PLATE S-12G: a step stands WHERE ITS EVIDENCE IS — in the clear air above or below it — before any rail
+    // (iPad 2026-10-18: every tag fell to the right rail and the six stacked as a column of cards). The search climbs
+    // and descends from the anchor in 24px steps, centred, then to either side.
+    for (let k = 1; k <= 12; k++) for (const dx of [-w / 2, 16, -w - 16, -w * 0.8, -w * 0.2]) {
+      cands.push({ x: Math.round(ax + dx), y: Math.round(ay - h - 16 - k * 24), w, h });
+      cands.push({ x: Math.round(ax + dx), y: Math.round(ay + 16 + k * 24), w, h });
+    }
     // Then the plate's rails: clear slots down the left and right of the plot, tied back by the leader
     // (a crowded newest edge must not cost a step its place on the glass).
     const rail: GlassBox[] = [];
