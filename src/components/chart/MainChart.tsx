@@ -28920,10 +28920,18 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           try { taken = wordGate.rects(); } catch { /* no registry */ }
           // …and the chip ledger (phone 375 all-on, 2026-10-17: "▲ LIVING VAH" stacked at the same top row).
           taken = [...taken, ...floatingChips];
+          const y0S = y;
           for (let k = 0; k < 4 && taken.some(q => silenceX - 4 < q.x + q.w && silenceX - 4 + wS > q.x && y - 7 < q.y + q.h && y + 7 > q.y) && y + 16 < pane0Bottom - 8; k++) y += 16;
+          // …and never across the candles (iPhone 17 Pro NQ 5m, 2026-10-18: "2 SENSES SILENT" read through the bodies).
+          // Rows clear of words AND candles first, from the top; else the first word-free row, on a solid backing.
+          const clearOf = (yy: number, rects: readonly { x: number; y: number; w: number; h: number }[]) => !rects.some(q => silenceX - 4 < q.x + q.w && silenceX - 4 + wS > q.x && yy - 8 < q.y + q.h && yy + 8 > q.y);
+          for (let yy = y0S; yy + 16 < pane0Bottom * volumeTopMargin(W); yy += 16) {
+            if (clearOf(yy, taken) && clearOf(yy, profileCandlesAt(yy - 8, yy + 8))) { y = yy; break; }
+          }
         }
+        const silenceOnCandles = narrowGlass && profileCandlesAt(y - 8, y + 8).some(q => silenceX - 4 < q.x + q.w && silenceX + 200 > q.x);
         silenceRowLimitX = silenceRowLimit(y);
-        ctx.fillStyle = "rgba(7,9,15,0.62)";
+        ctx.fillStyle = silenceOnCandles ? "rgba(7,9,15,0.94)" : "rgba(7,9,15,0.62)";
         ctx.fillRect(Math.max(0, silenceX - 4), y - 7, Math.max(0, Math.min(narrowGlass ? Math.ceil(ctx.measureText(words).width) + 8 : Math.min(W * 0.62, 760), silenceRowLimitX - 6 - Math.max(0, silenceX - 4))), 14);
         ctx.fillStyle = "rgba(200,192,174,0.85)";
         ctx.textAlign = "left"; ctx.textBaseline = "middle";
@@ -29075,7 +29083,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // BLOCKED IS HELD AT ANY WIDTH (iPad mini 744, 2026-10-17: with no clear seat the plate painted at its
               // refused spot over "Sellers held 4×, then broke"); the WAIT strip under the chart carries the word.
               // …and on the desk too (1440, 2026-10-18: the plate sat on the newest candles; the WAIT rail says it there).
-              if (spotT.mode === "BLOCKED" || spotT.onCandles || onNewestColumn(spotT.rect.x, spotT.rect.y, spotT.rect.w, spotT.rect.h) || !chipBox(tagT.word, spotT.rect)) {
+              // A phone folds it always: the WAIT strip under the chart says it, and the plate sat on the Living body
+              // (iPhone 17 Pro NQ 5m, 2026-10-18).
+              if (narrowGlass || spotT.mode === "BLOCKED" || spotT.onCandles || onNewestColumn(spotT.rect.x, spotT.rect.y, spotT.rect.w, spotT.rect.h) || !chipBox(tagT.word, spotT.rect)) {
                 waitFolded = true;
                 sovereigntyHeld++;
                 ctx.restore();

@@ -392,7 +392,7 @@ describe("price sovereignty on narrow glass — every painter consults the one k
   });
   it("the WAIT plate has a slot clear of the column and every body, or it folds to the WAIT strip with a receipt", () => {
     // 2026-10-18: stricter — the plate folds on candles at EVERY width, not only on narrow glass.
-    expect(CHART).toContain('if (spotT.mode === "BLOCKED" || spotT.onCandles || onNewestColumn(spotT.rect.x, spotT.rect.y, spotT.rect.w, spotT.rect.h) || !chipBox(tagT.word, spotT.rect)) {');
+    expect(CHART).toContain('if (narrowGlass || spotT.mode === "BLOCKED" || spotT.onCandles || onNewestColumn(spotT.rect.x, spotT.rect.y, spotT.rect.w, spotT.rect.h) || !chipBox(tagT.word, spotT.rect)) {');
     expect(CHART).toContain('if (waitFolded) canvas.dataset.debtTag = "FOLDED:WAIT_STRIP";');
   });
   it("translucent bands: the fog owner cuts the column out of any fill wider than it, this frame's column once measured", () => {
