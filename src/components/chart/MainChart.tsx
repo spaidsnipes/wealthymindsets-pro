@@ -14437,7 +14437,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const ptsE: { x: number; y: number; yh: number; yl: number; v: number; sided: boolean }[] = [];
           for (const b of barsE) {
             const x = tsFC.timeToCoordinate(b.time as never);
-            if (x == null || +x < -bsp || +x > W) continue;
+            // Only bars wholly in view: a half-hidden edge bar drew a thin diagonal off the plot (phone, 2026-10-18).
+            if (x == null || +x < bsp / 2 || +x > W) continue;
             const yc = srs.priceToCoordinate(Number(b.close));
             if (yc == null) continue;
             const hi = Number(b.high), lo = Number(b.low), c = Number(b.close), vol = Number(b.volume) || 0;
@@ -14484,7 +14485,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const up = sm[i] >= 0;
               let j = i;
               while (j + 1 < ptsE.length && (FLOW_CURRENT_AS_RIBBON || !ptsE[j + 1].sided) && (sm[j + 1] >= 0) === up && Math.abs(sm[j + 1]) >= peakE * 0.05) j++;
-              if (j > i) {
+              // A current is at least three bars long; a two-bar run floated as a lone cap over one high.
+              if (j >= i + 2) {
                 const rgb = up ? inks.btBuy : inks.btSell;
                 const off = (k: number) => (up ? 1 : -1) * thick(sm[k]);
                 ctx.beginPath();
@@ -29557,9 +29559,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const free = (y: number) => !taken.some(t => y - tagH / 2 < t.y1 && y + tagH / 2 > t.y0) && y - tagH / 2 >= 0 && y + tagH / 2 <= pane0Bottom;
           let placedTags = 0;
           let overlapTags = 0;
-          for (const t of [...axisLevelTags].sort((a, b) => a.y - b.y)) {
-            // An off-camera level searches from the pane's EDGE, not from its own far row (phone 375 BTC, 2026-10-17:
-            // "▼ LIVING POC" and "▼ LIVING VAL" both sat beyond the 12-step search and were forced onto one row).
+          // PRICE ORDER SURVIVES THE STEPPING (iPhone 17 Pro Living, 2026-10-18: "▼ VAL" stepped up above "VAH" while
+          // "▼ POC" took the foot). Rows are found first, then handed back top-down in price order before painting.
+          const sortedTags = [...axisLevelTags].sort((a, b) => a.y - b.y);
+          const rowsFound: number[] = [];
+          for (const t of sortedTags) {
             const t0 = Math.max(tagH / 2, Math.min(pane0Bottom - tagH / 2, t.y));
             let ty = t0;
             for (let k = 1; !free(ty) && k < 12; k++) {
@@ -29567,21 +29571,24 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               if (free(dn)) { ty = dn; break; }
               if (free(up)) { ty = up; break; }
             }
-            // No free row: the truth level's name still paints, on its own row (a truth name is never
-            // dropped — coordinator ruling 2026-10-10); the receipt counts the overlap.
             if (!free(ty)) { ty = Math.max(tagH / 2, Math.min(pane0Bottom - tagH / 2, t.y)); overlapTags++; }
+            taken.push({ y0: ty - tagH / 2, y1: ty + tagH / 2 });
+            rowsFound.push(ty);
+          }
+          const rowsTopDown = [...rowsFound].sort((a, b) => a - b);
+          sortedTags.forEach((t, i) => {
+            const ty = rowsTopDown[i];
+            const t0 = Math.max(tagH / 2, Math.min(pane0Bottom - tagH / 2, t.y));
             const tw = Math.ceil(ctx.measureText(t.text).width);
             const w = tw + 8;
             const x = W - w - 1;
             ctx.fillStyle = "#0b0a08"; ctx.fillRect(x, ty - tagH / 2, w, tagH);
             ctx.fillStyle = t.ink; ctx.fillRect(x, ty - tagH / 2, w, tagH);
-            // a hairline from the tag's edge to the level's own row when it had to step
             if (Math.abs(ty - t.y) > 1 && t0 === t.y) { ctx.strokeStyle = t.ink; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x - 1, ty); ctx.lineTo(x - 6, t.y); ctx.stroke(); }
             ctx.fillStyle = "rgba(11,10,8,0.95)";
             ctx.fillText(t.text, x + 4, ty + 0.5);
-            taken.push({ y0: ty - tagH / 2, y1: ty + tagH / 2 });
             placedTags++;
-          }
+          });
           ctx.restore();
           axisTickMaskRef.current = taken.slice();
           canvas.dataset.levelAxisTags = `${placedTags}/${axisLevelTags.length}${overlapTags ? `|OVERLAP:${overlapTags}` : ""}`;
