@@ -15997,6 +15997,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   const slotT = [...tops.map(t => ({ x: txIn, y: t })), ...[mid[0], ...tops].map(t => ({ x: txLeft, y: t }))].find(q => free(q.x, q.y));
                   const tx = slotT?.x ?? txIn, ty = slotT?.y;
                   if (ty != null) {
+                    // A dark backing (Founder's Chrome, CL1! 2026-10-18: the Living VAL rule ran straight through the caption).
+                    { const prevF = ctx.fillStyle; ctx.fillStyle = "rgba(11,10,8,0.86)"; ctx.fillRect(tx - 3, ty - 12, tw + 6, 15); ctx.fillStyle = prevF; }
                     ctx.fillText("EFFORT — the mass around price", tx, ty);
                     if (absorbingDrawn) { ctx.fillStyle = "rgba(232,184,92,1)"; ctx.fillText("━ ABSORBING", tx + ctx.measureText("EFFORT — the mass around price  ").width, ty); }
                     floatingChips.push({ x: tx, y: ty - 12, w: tw, h: 13 });

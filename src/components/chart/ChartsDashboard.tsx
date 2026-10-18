@@ -2244,6 +2244,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     window.addEventListener(SPOT_ROUTE_EVENT, read);
     return () => window.removeEventListener(SPOT_ROUTE_EVENT, read);
   }, [symbol]);
+  // The notice steps aside after 8s (Founder's Chrome, EURUSD 2026-10-18: it covered the price line until closed).
+  React.useEffect(() => {
+    if (!spotNotice) return;
+    const t = window.setTimeout(() => setSpotNotice(null), 8_000);
+    return () => window.clearTimeout(t);
+  }, [spotNotice]);
   // A clean proof scene holds the zones and their pins unless asked (proofSceneHoldsZones).
   // Read after mount: the address is a browser fact, and the server render must match.
   const [sceneHoldsZones, setSceneHoldsZones] = React.useState(false);
