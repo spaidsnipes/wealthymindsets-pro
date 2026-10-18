@@ -21864,7 +21864,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // out of the fills — context never paints over a verdict. One clip
           // per chip, so two overlapping chips never re-fill (as H-801).
           const clipChips = () => {
+            // Words only: a tall keep-out box (the newest prints' column, ~75px) is not a word, and its cut-out
+            // printed a dark hole through the 4H band beside the live candle (phone, 2026-10-17).
             for (const r of floatingChips) {
+              if (r.h > 30) continue;
               ctx.beginPath();
               ctx.rect(0, 0, W, H);
               ctx.rect(r.x - 2, r.y - 2, r.w + 4, r.h + 4);
@@ -22027,16 +22030,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.save();
                 ctx.clip(cutM, "evenodd");
                 clipChips();
-                ctx.fillStyle = "rgba(170,176,188,0.2)";
+                // A plain body, not a 45° hatch (the Founder's "scribbled lines", 2026-10-17); the edge names it.
+                ctx.fillStyle = "rgba(170,176,188,0.3)";
                 ctx.fillRect(x0, top, x1 - x0, h);
-                ctx.beginPath();
-                ctx.rect(x0, top, x1 - x0, h);
-                ctx.clip();
-                ctx.strokeStyle = "rgba(206,212,224,0.75)";
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                for (let hx = x0 - h; hx < x1; hx += 6) { ctx.moveTo(hx, top + h); ctx.lineTo(hx + h, top); }
-                ctx.stroke();
                 ctx.restore();
                 ctx.strokeStyle = "rgba(226,230,238,1)";
                 ctx.lineWidth = 1.5;
@@ -24749,6 +24745,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // through a dozen candle bodies on a yielded backing). With no
               // clear spot near its swing, it takes a row of the shared silence
               // stack instead; the rule on price still marks the swing.
+              const toSilenceRow = () => {
+                const rowSt = takeSilenceRow();
+                ctx.save();
+                ctx.font = marketFont("OBJECT_NAME");
+                ctx.fillStyle = "rgba(200,192,174,0.85)";
+                ctx.textAlign = "left"; ctx.textBaseline = "middle";
+                ctx.fillText(fitSilence(text), silenceX, rowSt);
+                floatingChips.push({ x: silenceX, y: rowSt - 7, w: ctx.measureText(text).width, h: 14 });
+                ctx.restore();
+              };
               if (rowIfBlocked && spotP.mode === "BLOCKED") {
                 const rowSt = takeSilenceRow();
                 ctx.save();
@@ -24762,7 +24768,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               }
               recordKeepOut(keepOutLedger, spotP);
               // The chip asks for its box first; withheld → nothing of it is drawn.
-              if (!chipBox(text, { x: spotP.rect.x, y: spotP.rect.y, w, h: 14 })) { ctx.restore(); return; }
+              // A withheld title still names the structure, from the silence stack (phone, 2026-10-17: the box and
+              // the leg drew with no "STRUCTURE · …" name at all).
+              if (!chipBox(text, { x: spotP.rect.x, y: spotP.rect.y, w, h: 14 })) { ctx.restore(); if (rowIfBlocked) toSilenceRow(); return; }
               ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotP, 0.82)})`;
               ctx.fillRect(spotP.rect.x, spotP.rect.y, w, 14);
               ctx.fillStyle = pk.rgba("ANCHOR", 0.95);
@@ -24785,7 +24793,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // A phone reads the short form whole (iPhone 17 Pro, 2026-10-17: "STRUCTURE · FROM SWING LO…").
                 narrowGlass ? `STRUCTURE · ${kind} ${gPx(sp.anchor.price)}` : `STRUCTURE · FROM ${kind} ${gPx(sp.anchor.price)} · ${sp.legBars} BARS${est}`,
                 // The chip's box is y−12…y+2: its top never rises into the header chrome.
-                x0 + 4, Math.max(HEADER_FLOOR_Y + 12, top - 4),
+                x0 + 4, Math.max(HEADER_FLOOR_Y + 12, top - 4), narrowGlass,
               );
               if (sp.poc != null) {
                 const yp = srs.priceToCoordinate(sp.poc);

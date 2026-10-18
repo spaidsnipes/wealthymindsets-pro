@@ -40,7 +40,7 @@ describe("T-210 ancestry is painted, not only switched", () => {
     expect(block).toContain('tag("1H"');
     expect(block).toContain('tag("D"');
     expect(block).toMatch(/rgba\(76,175,96,0\.26\)/);           // translucent green band (0.26 since 2026-10-16: "barely see it")
-    expect(block).toMatch(/hx \+= 6/);                           // hatch
+    expect(block).toContain("A plain body, not a 45° hatch"); // 2026-10-17 Founder: hatches read as scribbled lines — plain body
     expect(block).toMatch(/setLineDash\(\[7, 5\]\)/);           // dashed shelf
   });
 
