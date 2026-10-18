@@ -3032,6 +3032,13 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
   body[data-trade-docked="1"] .wm-chart-market-pane { margin-right: var(--wm-trade-dock-w, 760px); }
 }
 
+/* PHONE · THE DAY BIAS STRIP WRAPS, EVERY CHILD TOO (iPhone 17 Pro, 2026-10-18: "DAY BIAS SIDE · REGIME UNRESOLVE" ran
+   past the glass on one line — its inner spans were nowrap). It stays left of the price axis, on two lines if it must. */
+@media (max-width: 639px) {
+  .wm-chart-market-standing--phone { flex-wrap: wrap !important; max-width: calc(100% - 120px) !important; right: auto !important; }
+  .wm-chart-market-standing--phone, .wm-chart-market-standing--phone * { white-space: normal !important; overflow-wrap: anywhere; }
+}
+
 /* ── PLATE 21 · NOTHING UNDER 13px, ANYWHERE (Garden 19 finish line, Founder 2026-10-15) ─────────
    "Fonts are too small, blurry, dark white … you don't even want to look at it." MEASURED on
    serving 3d35aeb, /charts desk 807px: 93 of 101 visible text nodes rendered 9–12px. The order

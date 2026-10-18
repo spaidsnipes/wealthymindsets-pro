@@ -28919,7 +28919,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // sat across the volume bars (and the DOM R/A/%/L chips). It moves to
         // the top-left of the price pane, under the header band.
         let y = narrowGlass ? (lensNarrowBottom > 0 ? lensNarrowBottom + 10 : HEADER_FLOOR_Y + 10) : silenceRowY;
-        const words = narrowGlass
+        let words = narrowGlass
           ? `${silenceFolded} SENSE${silenceFolded === 1 ? "" : "S"} SILENT — TOOLS › ACTIVE`
           : `+${silenceFolded} MORE SENSE${silenceFolded === 1 ? "" : "S"} SILENT HERE — TOOLS › ACTIVE SAYS WHY`;
         ctx.save();
@@ -28943,6 +28943,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
         const silenceOnCandles = narrowGlass && profileCandlesAt(y - 8, y + 8).some(q => silenceX - 4 < q.x + q.w && silenceX + 200 > q.x);
         silenceRowLimitX = silenceRowLimit(y);
+        // A row cut short by an object keeps the count whole in its short form (phone, 2026-10-18: "1 SENSE SILE…").
+        if (narrowGlass && ctx.measureText(words).width > silenceRowLimitX - silenceX - 10) words = `${silenceFolded} SILENT ›`;
         ctx.fillStyle = silenceOnCandles ? "rgba(7,9,15,0.94)" : "rgba(7,9,15,0.62)";
         ctx.fillRect(Math.max(0, silenceX - 4), y - 7, Math.max(0, Math.min(narrowGlass ? Math.ceil(ctx.measureText(words).width) + 8 : Math.min(W * 0.62, 760), silenceRowLimitX - 6 - Math.max(0, silenceX - 4))), 14);
         ctx.fillStyle = "rgba(200,192,174,0.85)";
