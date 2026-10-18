@@ -445,3 +445,8 @@ export function useTastyQuotes(streamerSymbols: readonly string[]): Snapshot {
   }, [key]);
   return useSyncExternalStore(onStore, getSnapshot, getSnapshot);
 }
+
+/** The live feed's current reason in words, or null (a bar refusal quotes it instead of "without saying why"). */
+export function tastyStreamSnapshotReason(): string | null {
+  return snapshot.reason ?? null;
+}

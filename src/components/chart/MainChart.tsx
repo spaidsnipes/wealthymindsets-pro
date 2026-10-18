@@ -96,7 +96,7 @@ import clsx from "clsx";
 import { chartHeaderChangeFact, type HeaderChangeKind } from "@/lib/marketData/chartHeaderChangeFact";
 import { deriveBarOverBarChange, deriveLastBarClose } from "@/lib/marketData/deriveLastBarClose";
 import { chartHeaderPriceFact } from "@/lib/marketData/chartHeaderPriceFact";
-import { requestTastyCandles, tastyStreamState } from "@/lib/broker/tastyQuoteStream";
+import { requestTastyCandles, tastyStreamSnapshotReason, tastyStreamState } from "@/lib/broker/tastyQuoteStream";
 import { isQuoteSampleSeries, quoteSampleSentence } from "@/lib/marketData/quoteSampleSeries";
 import { IMBALANCE_ZONE_NAMES_MAX, imbalanceTestWords, imbalanceZoneFate, imbalanceZoneName, imbalanceZonesReceipt, type ImbalanceZone, type ImbalanceZoneState } from "@/lib/chart/imbalanceZones";
 import { paneTitle, paneValueWords } from "@/lib/chart/paneNames";
@@ -1109,7 +1109,9 @@ async function fetchTastyCandles(sym: string, tf: string, count: number, signal?
       const st = tastyStreamState();
       note(log, { vendor: "tastytrade", outcome: "REFUSED", edge: st === "NOT_OWNER"
         ? "live bars come from a connected tastytrade account, and this account has none — connect one in Brokers"
-        : st === "NOT_CONNECTED" ? "tastytrade is not connected on this deployment" : null });
+        : st === "NOT_CONNECTED" ? "tastytrade is not connected on this deployment"
+        // The live feed's own reason, in words (2026-10-18: the session-limit refusal read "without saying why").
+        : tastyStreamSnapshotReason() });
       return null;
     }
     note(log, { vendor: "tastytrade", outcome: candles.length ? "SERVED" : "EMPTY" });
