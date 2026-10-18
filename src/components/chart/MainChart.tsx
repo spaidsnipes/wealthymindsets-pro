@@ -24441,7 +24441,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const tpoChipsAll = tpoChips.length;
             for (let k = tpoChips.length - 1; k >= 0; k--) if (tpoChips[k].y < HEADER_FLOOR_Y || tpoChips[k].y > pane0Bottom) tpoChips.splice(k, 1);
             ds.tpoChipsOffCamera = String(tpoChipsAll - tpoChips.length);
-            for (const c of tpoChips) levelChip(c.y, c.text, c.ink, tpoRight ? { rightX: leftEdge - 6 } : { leftX: leftEdge + colMax + 8, minX: leftEdge + colMax + 4 });
+            // Standing at the right edge, the names go where the Living truth names go on a phone — the axis column
+            // (iPhone 17 Pro, 2026-10-17: only "TPO VAH" found a seat left of the column; POC and VAL were held).
+            if (tpoRight) for (const c of tpoChips) axisLevelTags.push({ y: c.y, text: c.text.replace(/^TPO /, ""), ink: c.ink });
+            else for (const c of tpoChips) levelChip(c.y, c.text, c.ink, tpoRight ? { rightX: leftEdge - 6 } : { leftX: leftEdge + colMax + 8, minX: leftEdge + colMax + 4 });
             // ⑩ BLOCKS — the organism glyph at the head of the column.
             if (Number.isFinite(tpoTop)) paintOrganismGlyph("TPO", leftEdge + 8, tpoTop - 18, pk.rgba("ANCHOR", 0.95), floatingChips);
             ctx.restore();
@@ -26954,11 +26957,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.beginPath(); ctx.moveTo(gx0, Math.round(+ys) + 0.5); ctx.lineTo(gx1, Math.round(+ys) + 0.5); ctx.stroke();
             }
             ctx.font = marketFont("OBJECT_NAME");
-            const nameW = `WEATHER · ${glass.label}`;
+            const nameW = `WEATHER · ${glass.stage}`;
             const twW = Math.ceil(ctx.measureText(nameW).width) + 12;
             const prefW = { x: Math.max(LEFT_CHROME_RIGHT, Math.min(weatherPlotRight - twW - 4, gx0)), y: gy0 - 22, w: twW, h: 18 };
-            const altsW = [{ ...prefW, y: gy1 + 4 }, { ...prefW, y: gy0 - 44 }, { ...prefW, y: gy1 + 26 }];
-            const spotW = placeClearOfKeepOut(prefW, [...keepOut(), ...newestColumnRects(), ...profileCandlesAt(gy0 - 46, gy1 + 46)], { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: altsW });
+            const leftW = Math.max(LEFT_CHROME_RIGHT, keepOutMinX());
+            const altsW = [{ ...prefW, y: gy1 + 4 }, { ...prefW, y: gy0 - 44 }, { ...prefW, y: gy1 + 26 },
+              { ...prefW, x: leftW, y: gy0 - 22 }, { ...prefW, x: leftW, y: gy0 - 44 }, { ...prefW, x: leftW, y: gy1 + 4 }]
+              .filter(q => q.y >= HEADER_FLOOR_Y && q.y + q.h <= pane0Bottom - 2);
+            const candW = [prefW, ...altsW];
+            const spotW = placeClearOfKeepOut(prefW, [...keepOut(), ...newestColumnRects(), ...profileCandlesAt(Math.min(...candW.map(q => q.y)), Math.max(...candW.map(q => q.y + q.h)))], { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: altsW });
+            ds.liquidityWeatherPhoneName = spotW.mode;
             if (spotW.mode !== "BLOCKED") {
               ctx.fillStyle = "rgba(10,10,12,0.9)";
               ctx.beginPath(); ctx.roundRect(spotW.rect.x, spotW.rect.y, spotW.rect.w, spotW.rect.h, 4); ctx.fill();
