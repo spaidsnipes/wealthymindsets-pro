@@ -95,12 +95,44 @@ function teardown() {
  */
 const wanted = () => refs.size > 0 || tapeRefs.size > 0;
 
+/*
+ * A BACKGROUND TAB GIVES ITS SEAT BACK (2026-10-18). tastytrade allows a fixed number of live-feed sessions per
+ * account, and every WM Pro tab held one forever — a trader with several tabs (or a teacher with devices) locked
+ * the feed out ("number of user sessions has exceeded the configured limit"). After a minute hidden the socket
+ * closes; it reopens the moment the tab is seen again. Closing the tab releases it at once.
+ */
+let hiddenTimer: ReturnType<typeof setTimeout> | null = null;
+let hiddenReleased = false;
+if (typeof document !== "undefined" && typeof window !== "undefined") {
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      if (hiddenTimer) clearTimeout(hiddenTimer);
+      hiddenTimer = setTimeout(() => {
+        hiddenTimer = null;
+        if (!document.hidden) return;
+        if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
+        teardown();
+        hiddenReleased = true;
+        emit({ stream: "IDLE", reason: "Paused while this tab is in the background — resumes when you return." });
+      }, 60_000);
+    } else {
+      if (hiddenTimer) { clearTimeout(hiddenTimer); hiddenTimer = null; }
+      hiddenReleased = false;
+      if (wanted() && !ws && !retryTimer) { retries = 0; void connect(); }
+    }
+  });
+  window.addEventListener("pagehide", () => { if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; } teardown(); });
+}
+
 /**
  * TRADER WORDS for a degraded stream (Sheriff P2, 2026-10-08: the glass printed
  * "tastytrade stream error: TIMEOUT The timeout for SETUP…"). The feed's own
  * code never reaches a trader; what happened and what WM Pro does next does.
  */
 export function tastyStreamReasonWords(kind: "ERROR" | "TOKEN" | "CLOSED", code?: string | null): string {
+  // tastytrade caps live-feed sessions per account (2026-10-18: "The number of user sessions has exceeded the configured
+  // limit" — every open WM Pro tab and device holds one). Said plainly, with the trader's next step.
+  if (/user sessions has exceeded|session.*limit/i.test(code ?? "")) return "Too many WM Pro tabs or devices have tastytrade's live feed open — close extra tabs (a background tab gives its seat back after a minute).";
   if (kind === "TOKEN") return "WM Pro could not open tastytrade's live feed just now — trying again shortly.";
   if (kind === "CLOSED") return "tastytrade's live feed closed — reconnecting.";
   return /TIMEOUT/i.test(code ?? "")
@@ -128,6 +160,7 @@ function scheduleRetry(reason: string) {
 let connecting = false;
 
 async function connect() {
+  if (hiddenReleased) return; // a background tab that gave its seat back reopens only when seen again
   if (ws || connecting || !wanted()) return;
   connecting = true;
   emit({ stream: "CONNECTING", reason: null });
@@ -205,7 +238,7 @@ async function connect() {
         return;
       }
       case "ERROR":
-        scheduleRetry(tastyStreamReasonWords("ERROR", m.error ?? null));
+        scheduleRetry(tastyStreamReasonWords("ERROR", `${m.error ?? ""} ${m.message ?? ""}`.trim() || null));
         return;
       default:
         return;
