@@ -21029,11 +21029,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.font = marketFont("OBJECT_NAME");
                 const chip = (word: string, pref: { x: number; y: number }, alts: { x: number; y: number }[]) => {
                   const ww = ctx.measureText(word).width + 10;
-                  const spotW = placeClearOfKeepOut({ ...pref, w: ww, h: 14 }, [...keepOut(), ...rowBodiesAt(pref.y, pref.y + 14)], { minX: keepOutMinX(), blockers: [...floatingChips, ...masonryRects], strict: true, alternates: alts.map(a => ({ ...a, w: ww, h: 14 })) });
+                  // 2px of air above and below every wall name (Founder's Chrome, NQ1! 2026-10-18: four names stacked
+                  // edge to edge read as one block). The seat is 18 tall; the chip paints 14 inside it.
+                  const spotW = placeClearOfKeepOut({ x: pref.x, y: pref.y - 2, w: ww, h: 18 }, [...keepOut(), ...rowBodiesAt(pref.y - 2, pref.y + 16)], { minX: keepOutMinX(), blockers: [...floatingChips, ...masonryRects], strict: true, alternates: [...alts, ...alts.map(a => ({ x: a.x, y: a.y + 20 })), ...alts.map(a => ({ x: a.x, y: a.y - 20 }))].map(a => ({ x: a.x, y: a.y - 2, w: ww, h: 18 })) });
                   if (spotW.mode === "BLOCKED") { displacedNotes.push({ layer: "DERIVATIVES", text: word, x: pref.x + ww / 2, y: pref.y + 7 }); return; }
                   recordKeepOut(keepOutLedger, spotW);
                   floatingChips.push({ ...spotW.rect });
-                  const r = spotW.rect;
+                  const r = { x: spotW.rect.x, y: spotW.rect.y + 2, w: spotW.rect.w, h: 14 };
                   ctx.fillStyle = "rgba(11,10,8,0.86)";
                   ctx.fillRect(r.x, r.y, ww, 14);
                   ctx.fillStyle = "rgba(236,214,160,0.95)";
