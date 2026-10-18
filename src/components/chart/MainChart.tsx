@@ -16970,7 +16970,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   const placeLensWord = (word: string, ax: number, ay: number, above: boolean, ink: string, level: boolean, muted: boolean) => {
                     ctx.font = marketFont("OBJECT_NAME");
                     const ww = Math.ceil(ctx.measureText(word).width) + 10, wh = 15;
-                    const clampY = (yy: number) => Math.min(Math.max(yy, HEADER_FLOOR_Y + 2), pane0Bottom - wh - 2);
+                    // Floor = the volume band's top (Founder's Chrome, NQ1! 2026-10-18: a word sat on a volume bar).
+                    const clampY = (yy: number) => Math.min(Math.max(yy, HEADER_FLOOR_Y + 2), Math.round(pane0Bottom * volumeTopMargin(W)) - wh - 2);
                     const clampX = (xx: number) => Math.min(Math.max(xx, keepOutMinX()), plotRL - ww);
                     const R = (xx: number, yy: number) => ({ x: clampX(xx), y: clampY(yy), w: ww, h: wh });
                     // A silence reads down the plot's right edge, row by row; a
