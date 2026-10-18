@@ -1901,7 +1901,10 @@ function stackCellHeight(ys: readonly (unknown | null)[], bandH: number): number
  *  in the side's ink — inside the span they printed on the candle bodies as ticks. */
 function paintStackBox(ctx: CanvasRenderingContext2D, a: { x0: number; x1: number }, y: number, h: number, weight: number, rgb: string, plotRight: number) {
   const k = Number.isFinite(weight) ? Math.min(1, Math.max(0, weight)) : 0;
-  const x = Math.round(a.x1 + 3), w = Math.max(0, Math.min(plotRight - 2 - x, Math.round(16 + 40 * k)));
+  // At the band's right end, beside the axis (the lane Delta Levels use): beside a historical stack the next candles
+  // cut the boxes into slivers (iPad BTC 5m, 2026-10-18). The band itself still runs from the formation to here.
+  const w = Math.round(16 + 40 * k);
+  const x = Math.max(Math.round(a.x1 + 3), Math.round(plotRight - 6 - w));
   const hh = Math.max(11, h);
   if (w <= 0) return;
   ctx.fillStyle = `rgba(${rgb},${(0.42 + 0.45 * k).toFixed(3)})`;
@@ -18375,7 +18378,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     visible: vrSB ? { from: +vrSB.from, to: +vrSB.to } : null, barSpacing: bsp,
                     timeToX: t => { const xk = chart.timeScale().timeToCoordinate(t as never); return xk == null ? null : +xk; },
                     priceToY: pp => { const yk = srs.priceToCoordinate(pp); return yk == null ? null : +yk; },
-                  }, anchor.x1, anchor.x1 + 64)) cutSB.rect(cr.x, cr.y, cr.w, cr.h);
+                  }, plotRight - 70, plotRight)) cutSB.rect(cr.x, cr.y, cr.w, cr.h);
                   ctx.save(); ctx.clip(cutSB, "evenodd");
                   paintStackBox(ctx, anchor, +yr, cellH, lvl.weight, /SELL/i.test(glass.label) ? flowColorsRef.current.btSell : flowColorsRef.current.btBuy, plotRight);
                   ctx.restore();
@@ -23742,6 +23745,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   const spotD = placeClearOfKeepOut(prefD, [...keepOut(), ...newestColumnRects(), ...profileCandlesAt(dnaRowsTop, dnaRowsBot)], {
                     minX: keepOutMinX(), blockers: floatingChips, strict: true,
                     alternates: [{ ...prefD, y: prefD.y - 28 }, { ...prefD, y: prefD.y + 28 }, { ...prefD, y: Math.round(+yTop) + 6, x: xR - tw - 4 },
+                      // …right above the body's head first, so the name stays WITH its body (iPad, 2026-10-18: "Normal
+                      // profile" took the far-left seat, nowhere near the body it names).
+                      { ...prefD, x: Math.round(xR - tw - 4), y: Math.max(HEADER_FLOOR_Y + 4, Math.round(+yTop) - 26) },
+                      { ...prefD, x: Math.round(bodyLeft - tw - 8), y: Math.max(HEADER_FLOOR_Y + 4, Math.round(+yTop) - 26) },
                       // …and the plot's left side, on the body's rows (the name still says which body; phone, 2026-10-17).
                       ...[0, -28, 28, -56, 56].map(dy => ({ ...prefD, x: Math.max(LEFT_CHROME_RIGHT, keepOutMinX()), y: prefD.y + dy })),
                       { ...prefD, x: Math.max(LEFT_CHROME_RIGHT, keepOutMinX()), y: Math.max(HEADER_FLOOR_Y + 4, Math.round(+yTop) - 26) },
