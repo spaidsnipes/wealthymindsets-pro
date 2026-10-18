@@ -8426,9 +8426,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         for (let k = 0; k < 6 && silenceBeacons.some(b => { const q = rowBand(silenceRowY); return q.x < b.x + b.w && q.x + q.w > b.x && q.y < b.y + b.h && q.y + q.h > b.y; }); k++) silenceRowY -= silenceStep;
         const y = silenceRowY; silenceRowY -= silenceStep;
         silenceRowLimitX = silenceRowLimit(y);
-        // A soft backing so the words never print bare over candle bodies.
+        // A SOLID backing (iPad 2026-10-18: at 0.62 the volume bars read through "GAMMA · PARTIAL · MODEL…").
         const prevFill = ctx.fillStyle;
-        ctx.fillStyle = "rgba(7,9,15,0.62)";
+        ctx.fillStyle = "rgba(7,9,15,0.92)";
         ctx.fillRect(Math.max(0, silenceX - 4), y - 7, Math.max(0, Math.min(W * 0.62, 760, silenceRowLimitX - 6 - Math.max(0, silenceX - 4))), 14);
         ctx.fillStyle = prevFill;
         return y;
@@ -21338,7 +21338,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // A count the glass does not draw says where it is drawn (serving NQ1! 15m, Oct 16: Derivatives
                 // Pressure alone read "4 WALLS" over a field with no wall on it — the walls are Brick Walls' to paint).
                 const wallsW = dp.walls.length === 0 ? "NO CURRENT WALL EVENT" : `${dp.walls.length} WALL${dp.walls.length === 1 ? "" : "S"}${wallsOn ? "" : " · DRAWN BY BRICK WALLS"}`;
-                const word = scopeW
+                const wordFull = scopeW
                   ? `${fieldOn ? "DERIVATIVES PRESSURE" : "BRICK WALLS"} · ${scopeW} · ${wallsW} · ${srcW.name} · INFERRED`
                   : fieldOn
                   ? `DERIVATIVES PRESSURE · ${dp.climate.replace("_", " ")} · ${srcW.name} · ${srcW.oi} · INFERRED${dp.walls.length === 0 ? " · NO CURRENT WALL EVENT" : ""}`
@@ -21346,6 +21346,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.save();
                 ctx.globalAlpha = att.textAlpha("derivativesPressure");
                 ctx.font = marketFont("OBJECT_NAME");
+                // FITS THE PLOT (iPad 2026-10-18: "… 4 WALLS · DRAWN BY BRICK WAL" ran under the price axis): the line
+                // is cut at a whole " · " part, never mid-word; the full words stay in Tools › Active.
+                let word = wordFull;
+                { const maxWW = Math.max(120, plotRight - 30);
+                  const partsW = wordFull.split(" · ");
+                  // "INFERRED" (the honesty word) and the name always stay; the middle parts give way, last first.
+                  const lastW = partsW[partsW.length - 1] === "INFERRED" ? partsW.pop()! : null;
+                  while (partsW.length > 2 && ctx.measureText([...partsW, ...(lastW ? [lastW] : [])].join(" · ")).width + 14 > maxWW) partsW.pop();
+                  if (lastW) partsW.push(lastW);
+                  word = partsW.join(" · "); }
                 const ww = ctx.measureText(word).width + 14;
                 const spot = placeClearOfKeepOut({ x: 10, y: HEADER_FLOOR_Y + 4, w: ww, h: 16 }, [...keepOut(), ...rowBodiesAt(HEADER_FLOOR_Y + 4, HEADER_FLOOR_Y + 20)], { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: [{ x: 10, y: HEADER_FLOOR_Y + 24, w: ww, h: 16 }] });
                 if (spot.mode !== "BLOCKED") {
