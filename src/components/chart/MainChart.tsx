@@ -23760,6 +23760,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                       { ...prefD, x: Math.max(LEFT_CHROME_RIGHT, keepOutMinX()), y: HEADER_FLOOR_Y + 30 }],
                   });
                   if (spotD.mode !== "BLOCKED") {
+                    // The profile's identity is truth, not decoration: the phone's word budget never withholds it
+                    // (iPhone 17 Pro, 2026-10-18: seated, then silently held by the budget — no name on the glass).
+                    wordGate.declareTruth(label);
+                    onTop(spotD.rect, "INSPECT");
                     ctx.fillStyle = "rgba(10,10,12,0.88)";
                     ctx.beginPath(); ctx.roundRect(spotD.rect.x, spotD.rect.y, spotD.rect.w, spotD.rect.h, 4); ctx.fill();
                     ctx.strokeStyle = `rgba(${ink.rgb},0.9)`; ctx.lineWidth = 1; ctx.stroke();
