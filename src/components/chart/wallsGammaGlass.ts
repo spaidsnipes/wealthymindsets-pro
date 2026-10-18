@@ -134,29 +134,24 @@ export function paintWallsGamma(env: WallsGammaGlassEnv): WallsGammaGlassResult 
       const profileMax = Math.min(260, plotRight * 0.26);
       const len = Math.max(14, profileMax * k);
       const aBar = Math.min(0.9, (0.38 + 0.5 * k) * env.gammaAlpha * degradedK);
-      if (b.net >= 0) {
-        if (preset.focus === "NEGATIVE") return;
-        ctx.fillStyle = `rgba(${preset.posRgb},${aBar.toFixed(3)})`;
-        ctx.fillRect(0, y0, len, h);
-        ctx.fillStyle = `rgba(${preset.posRgb},${Math.min(1, aBar * 1.6).toFixed(3)})`;
-        ctx.fillRect(0, y0, len, 1);
-        ctx.fillRect(len - 2, y0, 2, h);
-        pos++;
-      } else {
-        if (preset.focus === "POSITIVE") return;
-        ctx.fillStyle = `rgba(${preset.negRgb},${(aBar * 0.7).toFixed(3)})`;
-        ctx.fillRect(0, y0, len, h);
-        if (pattern) {
-          const prev = ctx.globalAlpha;
-          ctx.globalAlpha = prev * Math.min(1, aBar * 1.4);
-          ctx.fillStyle = pattern;
-          ctx.fillRect(0, y0, len, h);
-          ctx.globalAlpha = prev;
-        }
-        ctx.fillStyle = `rgba(${preset.negRgb},${Math.min(1, aBar * 1.6).toFixed(3)})`;
-        ctx.fillRect(len - 2, y0, 2, h);
-        neg++;
-      }
+      // PLATE 01 MASS (Founder's Chrome, NQ1! 2026-10-18: thin hatched slivers read as scribble). Each strike row is at
+      // least 6px tall around its true centre, a solid gradient body (bright at the anchor edge, fading out like the
+      // plate's glow) with a crisp end. The SIGN is told by form: positive ends square, negative ends in a notch.
+      const hv = Math.max(6, h), yv = y0 + h / 2 - hv / 2;
+      const rgb = b.net >= 0 ? preset.posRgb : preset.negRgb;
+      if (b.net >= 0 ? preset.focus === "NEGATIVE" : preset.focus === "POSITIVE") return;
+      const g = ctx.createLinearGradient(0, 0, len, 0);
+      g.addColorStop(0, `rgba(${rgb},${Math.min(0.95, aBar * 1.25).toFixed(3)})`);
+      g.addColorStop(1, `rgba(${rgb},${(aBar * 0.45).toFixed(3)})`);
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      if (b.net >= 0) ctx.rect(0, yv, len, hv);
+      else { const nd = Math.min(6, hv / 2); ctx.moveTo(0, yv); ctx.lineTo(len, yv); ctx.lineTo(len - nd, yv + hv / 2); ctx.lineTo(len, yv + hv); ctx.lineTo(0, yv + hv); ctx.closePath(); }
+      ctx.fill();
+      ctx.fillStyle = `rgba(${rgb},${Math.min(1, aBar * 1.7).toFixed(3)})`;
+      ctx.fillRect(0, yv, len, 1);
+      if (b.net >= 0) { ctx.fillRect(len - 2, yv, 2, hv); pos++; } else neg++;
+      void pattern;
       heatHits.push({ i, y0, y1: y0 + h });
     });
     ctx.restore();
