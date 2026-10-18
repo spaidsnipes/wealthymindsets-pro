@@ -25851,8 +25851,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   // Slots: inside top, inside bottom, just below, just above —
                   // each at the zone's left edge, then its right edge.
                   const ys = [
-                    ...(h >= 16 ? [Math.round(top) + 11, Math.round(top + h) - 3] : []),
-                    Math.round(top + h) + 12, Math.round(top) - 4,
+                    // Clear of the 1.5px edge by 2px each way (iPad 6E1! 2026-10-18: at top + 11 the zone's top edge struck
+                    // through "DEMAND ZONE · DEFENDED · 1 TEST").
+                    ...(h >= 20 ? [Math.round(top) + 15, Math.round(top + h) - 4] : []),
+                    Math.round(top + h) + 15, Math.round(top) - 4,
                     // A1 residual (2026-10-07): further rows before falling silent.
                     Math.round(top + h) + 26, Math.round(top) - 18,
                   ];
@@ -25880,7 +25882,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   if (ty == null) displacedNotes.push({ layer: "ZONE", text: words, x: x0 + (zEnd - x0) / 2, y: top + h / 2, time: z.birthTime });
                   if (ty != null) {
                     ctx.save();
-                    ctx.fillStyle = "rgba(233,196,106,0.92)";
+                    ctx.fillStyle = "rgba(11,10,8,0.78)";
+                    ctx.fillRect(tx - 3, ty - 12, tw + 6, 13);
+                    ctx.fillStyle = "rgba(233,196,106,0.95)";
                     ctx.shadowColor = "rgba(0,0,0,0.95)"; ctx.shadowBlur = 3;
                     ctx.textAlign = "left"; ctx.textBaseline = "bottom";
                     ctx.fillText(words, tx, ty);
