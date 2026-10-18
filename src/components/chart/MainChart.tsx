@@ -18382,7 +18382,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     priceToY: pp => { const yk = srs.priceToCoordinate(pp); return yk == null ? null : +yk; },
                   }, plotRight - 70, plotRight)) cutSB.rect(cr.x, cr.y, cr.w, cr.h);
                   ctx.save(); ctx.clip(cutSB, "evenodd");
-                  paintStackBox(ctx, anchor, +yr, cellH, lvl.weight, /SELL/i.test(glass.label) ? flowColorsRef.current.btSell : flowColorsRef.current.btBuy, plotRight);
+                  paintStackBox(ctx, anchor, +yr, cellH, lvl.weight, imbalanceStackRef.current?.direction === "SELL" ? flowColorsRef.current.btSell : flowColorsRef.current.btBuy, plotRight);
                   ctx.restore();
                 }
                 continue;
