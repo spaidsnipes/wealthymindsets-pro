@@ -1949,6 +1949,8 @@ function candleTopMargin(paneWidthPx: number): number {
 function phonePane(paneWidthPx: number): boolean { return paneWidthPx > 0 && paneWidthPx < 640; }
 function candleBottomMargin(paneWidthPx: number): number { return phonePane(paneWidthPx) ? 0.12 : 0.18; }
 function volumeTopMargin(paneWidthPx: number): number { return phonePane(paneWidthPx) ? 0.88 : 0.78; }
+/** Flow Current paints as one filled ribbon riding price (plate 03 #05), not per-bar streaks (2026-10-18). */
+const FLOW_CURRENT_AS_RIBBON = true;
 
 
 /** A price as a reader reads it: thousands grouped, the market's own decimals. One formatter per precision. */
@@ -14349,6 +14351,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               if (Math.abs(net) < leanFloor || onesided < oneFloor) continue;
               const oneRel = Math.min(1, onesided / oneMax);
               flowShown++;
+              // THE CURRENT IS A RIBBON NOW (Codex plate 03 #05, Founder 2026-10-18: thin streaks read as extra wicks —
+              // "vague lines"). The bar still counts as shown; the ribbon below paints it from this same sided net.
+              if (FLOW_CURRENT_AS_RIBBON) continue;
               // STREAKS STAY LINES (serving TSLA 15m, 2026-09-30): six haloed
               // streaks inside one 9px bar merged into a soft green / red blob
               // over the forming candle. The count is capped so each streak
@@ -14422,11 +14427,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             if (yc == null) continue;
             const hi = Number(b.high), lo = Number(b.low), c = Number(b.close), vol = Number(b.volume) || 0;
             const clv = hi > lo ? ((c - lo) - (hi - c)) / (hi - lo) : 0;
-            const sided = (accE.get(Number(b.time))?.size ?? 0) > 0 || sidedE.has(Number(b.time));
-            ptsE.push({ x: +x, y: +yc, v: clv * vol, sided });
+            // The bar's sided net where the tape or the provider's own sides measured it; the candle estimate otherwise.
+            let buyE = 0, sellE = 0;
+            const lvE = accE.get(Number(b.time));
+            if (lvE) for (const q of lvE.values()) { buyE += q.ask; sellE += q.bid; }
+            if (buyE + sellE <= 0) { const cs = sidedE.get(Number(b.time)); if (cs) { buyE = cs.buy; sellE = cs.sell; } }
+            const sided = buyE + sellE > 0;
+            ptsE.push({ x: +x, y: +yc, v: sided ? buyE - sellE : clv * vol, sided });
           }
           const est = ptsE.filter(q => !q.sided);
-          if (est.length >= 6) {
+          if (ptsE.length >= 6 && (FLOW_CURRENT_AS_RIBBON || est.length >= 6)) {
             const sm = ptsE.map((_, i) => { let a = 0, n = 0; for (let j = Math.max(0, i - 1); j <= Math.min(ptsE.length - 1, i + 1); j++) { a += ptsE[j].v; n++; } return a / n; });
             const peakE = Math.max(1e-9, ...sm.map(Math.abs));
             const thick = (v: number) => 3 + 22 * Math.sqrt(Math.abs(v) / peakE);
@@ -14447,10 +14457,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // Runs of one sign over estimated bars become one filled ribbon each.
             let i = 0, runs = 0;
             while (i < ptsE.length) {
-              if (ptsE[i].sided || Math.abs(sm[i]) < peakE * 0.05) { i++; continue; }
+              if ((!FLOW_CURRENT_AS_RIBBON && ptsE[i].sided) || Math.abs(sm[i]) < peakE * 0.05) { i++; continue; }
               const up = sm[i] >= 0;
               let j = i;
-              while (j + 1 < ptsE.length && !ptsE[j + 1].sided && (sm[j + 1] >= 0) === up && Math.abs(sm[j + 1]) >= peakE * 0.05) j++;
+              while (j + 1 < ptsE.length && (FLOW_CURRENT_AS_RIBBON || !ptsE[j + 1].sided) && (sm[j + 1] >= 0) === up && Math.abs(sm[j + 1]) >= peakE * 0.05) j++;
               if (j > i) {
                 const rgb = up ? inks.btBuy : inks.btSell;
                 const off = (k: number) => (up ? 1 : -1) * thick(sm[k]);
@@ -14459,18 +14469,25 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 for (let k = j; k >= i; k--) ctx.lineTo(ptsE[k].x, ptsE[k].y + (up ? 2 : -2) + off(k));
                 ctx.closePath();
                 const g = ctx.createLinearGradient(0, ptsE[i].y, 0, ptsE[i].y + (up ? 26 : -26));
-                g.addColorStop(0, `rgba(${rgb},0.42)`); g.addColorStop(1, `rgba(${rgb},0.08)`);
+                g.addColorStop(0, `rgba(${rgb},0.58)`); g.addColorStop(1, `rgba(${rgb},0.14)`);
                 ctx.fillStyle = g; ctx.fill();
-                ctx.setLineDash([4, 3]); ctx.lineWidth = 1.2; ctx.strokeStyle = `rgba(${rgb},0.75)`;
-                ctx.beginPath();
-                for (let k = i; k <= j; k++) (k === i ? ctx.moveTo(ptsE[k].x, ptsE[k].y + (up ? 2 : -2) + off(k)) : ctx.lineTo(ptsE[k].x, ptsE[k].y + (up ? 2 : -2) + off(k)));
-                ctx.stroke(); ctx.setLineDash([]);
+                // The edge says the basis, segment by segment: solid where measured, dashed where estimated.
+                ctx.lineWidth = 1.4; ctx.strokeStyle = `rgba(${rgb},0.9)`;
+                for (let k = i; k < j; k++) {
+                  ctx.setLineDash(ptsE[k].sided && ptsE[k + 1].sided ? [] : [4, 3]);
+                  ctx.beginPath();
+                  ctx.moveTo(ptsE[k].x, ptsE[k].y + (up ? 2 : -2) + off(k));
+                  ctx.lineTo(ptsE[k + 1].x, ptsE[k + 1].y + (up ? 2 : -2) + off(k + 1));
+                  ctx.stroke();
+                }
+                ctx.setLineDash([]);
                 runs++;
               }
               i = j + 1;
             }
             ctx.restore();
-            canvas.dataset.flowCurrentEstimate = `RUNS:${runs}|BARS:${est.length}|BASIS:CLV_X_VOLUME`;
+            canvas.dataset.flowCurrentEstimate = `RUNS:${est.length > 0 ? runs : 0}|BARS:${est.length}|BASIS:CLV_X_VOLUME`;
+            canvas.dataset.flowCurrentRibbon = `RUNS:${runs}|MEASURED:${ptsE.length - est.length}|ESTIMATED:${est.length}`;
           } else delete canvas.dataset.flowCurrentEstimate;
         } else delete canvas.dataset.flowCurrentEstimate;
       } catch (err) { layerFault("FLOW_CURRENT_ESTIMATE", err); }
