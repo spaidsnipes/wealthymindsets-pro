@@ -8413,6 +8413,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
         return lim;
       };
+      // Rows taken this frame, so words placed later (the bar-window count) step around them.
+      const silenceRowRects: { x: number; y: number; w: number; h: number }[] = [];
       const takeSilenceRow = (): number => {
         // THE PHONE FOLDS THEM ALL (2026-10-04, narrow-glass word budget):
         // "ORDER FLOW · ACTIVE · NO CURRENT EVENT…" and "FOUNDER ANATOMY ·
@@ -8425,9 +8427,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // ("▼ Put wall 2400 +2 · Show me", painted last, on top) sat on the gamma disclosure line. A row the
         // last frame's beacons hold is stepped over.
         const rowBand = (yy: number) => ({ x: Math.max(0, silenceX - 4), y: yy - 7, w: Math.min(W * 0.62, 760), h: 14 });
-        for (let k = 0; k < 6 && silenceBeacons.some(b => { const q = rowBand(silenceRowY); return q.x < b.x + b.w && q.x + q.w > b.x && q.y < b.y + b.h && q.y + q.h > b.y; }); k++) silenceRowY -= silenceStep;
+        // A chip at the row's LEFT end (ES 2026-10-18: "…NODES WITHHELD" ran into "30 BAR ANALYSIS" as one line) is
+        // stepped over too — silenceRowLimit only cuts at chips 60px in.
+        const leftHeld = (yy: number) => silenceObstacles().some(o => o.y < yy + 7 && o.y + o.h > yy - 7 && o.x <= silenceX + 60 && o.x + o.w > silenceX - 4);
+        for (let k = 0; k < 6 && (leftHeld(silenceRowY) || silenceBeacons.some(b => { const q = rowBand(silenceRowY); return q.x < b.x + b.w && q.x + q.w > b.x && q.y < b.y + b.h && q.y + q.h > b.y; })); k++) silenceRowY -= silenceStep;
         const y = silenceRowY; silenceRowY -= silenceStep;
         silenceRowLimitX = silenceRowLimit(y);
+        silenceRowRects.push({ x: Math.max(0, silenceX - 4), y: y - 7, w: Math.max(0, Math.min(W * 0.62, 760, silenceRowLimitX - 6 - Math.max(0, silenceX - 4))), h: 14 });
         // A SOLID backing (iPad 2026-10-18: at 0.62 the volume bars read through "GAMMA · PARTIAL · MODEL…").
         const prevFill = ctx.fillStyle;
         ctx.fillStyle = "rgba(7,9,15,0.92)";
@@ -15257,7 +15263,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // ITS ROW, OR ONE ABOVE, OR HELD (tablet 744–1180 with Aggressive/Passive on, 2026-10-17: the count printed
             // over the evidence legend "Passive: prices that held"). It is provenance; Tools keeps it when the glass cannot.
             const ledgerW = silenceObstacles();
-            const freeAt = (dy: number) => { const q = { x: firstX + 3, y: plotBottom - 18 - dy, w: winW + 10, h: 13 }; return !ledgerW.some(r => q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y); };
+            const freeAt = (dy: number) => { const q = { x: firstX + 3, y: plotBottom - 18 - dy, w: winW + 10, h: 13 }; return ![...ledgerW, ...silenceRowRects].some(r => q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y); };
             const winDy = freeAt(0) ? 0 : freeAt(16) ? 16 : null;
             if (!absorbPaints || winDy == null) {
               // Withheld with the field it counts.
@@ -15684,7 +15690,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 } catch {}
                 return 90;
               })();
-              const plotRight = Math.max(4, W - axisW);
+              // Profile columns are not a place for words either (Founder's Chrome, 6E1! 5m 2026-10-18: "Force is hitting…"
+              // ran into the volume profile's tails at POC) — the desk annotation stops at the column's left edge.
+              const pclS = profileColumnLeftRef.current;
+              const plotRight = Math.max(4, Math.min(W - axisW, desktopShelfInstrument ? Math.min(pclS.prev, pclS.cur) - 4 : Infinity));
               let chipX = Math.min(Math.max(2, x0), Math.max(2, plotRight - chipW - 2));
               // NO TWO CHIPS ON ONE ANOTHER. Neighbouring shelves printed
               // "ABSORPTION 4.18 MOD…ABSORPTION 2.83" as one smear. Try above
