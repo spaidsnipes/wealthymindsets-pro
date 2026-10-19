@@ -29795,8 +29795,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             rowsFound.push(ty);
           }
           const rowsTopDown = [...rowsFound].sort((a, b) => a - b);
+          // An off-camera ▲ tag hides the ticks above it, a ▼ tag those below (iPhone 6J1! 2026-10-18: "▲ VAH 0.0063680"
+          // read under the "0.0063660" tick) — price order down the axis stays true.
+          const offCameraMask: { y0: number; y1: number }[] = [];
           sortedTags.forEach((t, i) => {
             const ty = rowsTopDown[i];
+            if (t.text.startsWith("▲")) offCameraMask.push({ y0: -1e4, y1: ty + tagH / 2 });
+            else if (t.text.startsWith("▼")) offCameraMask.push({ y0: ty - tagH / 2, y1: 1e4 });
             const t0 = Math.max(tagH / 2, Math.min(pane0Bottom - tagH / 2, t.y));
             const tw = Math.ceil(ctx.measureText(t.text).width);
             const w = tw + 8;
@@ -29809,7 +29814,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             placedTags++;
           });
           ctx.restore();
-          setAxisTickMask(taken);
+          setAxisTickMask([...taken, ...offCameraMask]);
           canvas.dataset.levelAxisTags = `${placedTags}/${axisLevelTags.length}${overlapTags ? `|OVERLAP:${overlapTags}` : ""}`;
         } else {
           delete canvas.dataset.levelAxisTags;
