@@ -7457,13 +7457,6 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                     {chartBars.length === 0 && !barsSettled && !gridView && activeTab === "Chart" ? (
                       <ChartLoadingVeil symbol={symbol} timeframe={timeframe} />
                     ) : null}
-                    {!spotNotice && spotInverseOf ? (
-                      <div data-testid="spot-route-inverse-tag" title={`${symbol} is quoted the other way: when it rises, ${spotInverseOf} falls.`}
-                        className="pointer-events-none absolute left-1/2 top-2 z-[70] -translate-x-1/2 rounded border px-2 py-0.5"
-                        style={{ borderColor: "rgba(212,175,55,0.55)", background: "rgba(12,10,8,0.9)", color: "#d4af37", font: "700 13px/1.2 ui-sans-serif, system-ui, sans-serif", letterSpacing: "0.04em" }}>
-                        INVERSE OF {spotInverseOf}
-                      </div>
-                    ) : null}
                     {spotNotice ? (
                       <div data-testid="spot-route-notice" role="status"
                         className="absolute left-1/2 top-2 z-[80] flex max-w-[92%] -translate-x-1/2 items-center gap-2 rounded-md border px-3 py-1.5"
@@ -7742,6 +7735,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       paperTradesVisible={paperTradesOn}
                       onRequestFullscreen={handleRequestFullscreen}
                       showFidelityChrome={false}
+                      identityNote={spotInverseOf ? `INVERSE OF ${spotInverseOf}` : null}
                     />
                     </ErrorBoundary>
                     {/*

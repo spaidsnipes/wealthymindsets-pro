@@ -1630,6 +1630,8 @@ interface Props {
   // this chart-local copy when embedded there so one market state has one
   // visible writer; standalone charts keep the badge by default.
   showFidelityChrome?: boolean;
+  /** One quiet word after the symbol in the legend (an inverse spot route: "INVERSE OF USDCAD"). */
+  identityNote?: string | null;
   /**
    * The retained-evidence chip lists THIS BROWSER's saved summaries — the same
    * list on every chart. Desk screens leave it off (serving /desk 4-up,
@@ -2093,6 +2095,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   paperTradesVisible = true,
   onRequestFullscreen,
   showFidelityChrome = true,
+  identityNote = null,
   marketStanding = null,
   marketObjectTargets = [],
   activeDecisionId = null,
@@ -32178,6 +32181,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   </span>
                 </React.Fragment>
               ))}
+              {identityNote ? <span data-identity-note className="ml-1 rounded border border-wm-gold/50 px-1 text-[11px] font-bold text-wm-gold">{identityNote}</span> : null}
             </div>
           );
         })()}
