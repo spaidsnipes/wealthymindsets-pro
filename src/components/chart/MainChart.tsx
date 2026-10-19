@@ -10583,14 +10583,23 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         ];
         if (kindsAP.length > 0) {
           const glyphW = 14, sepW = 18;
-          const parts = kindsAP.map(k => ({ k, words: EVIDENCE_LEGEND[k], w: glyphW + 6 + Math.ceil(ctx.measureText(EVIDENCE_LEGEND[k]).width) }));
-          const wL = parts.reduce((s, p) => s + p.w, 0) + sepW * (parts.length - 1) + 20;
-          const rL = [0, 30, 60].map(up => ({ x: 8, y: botAP - 34 - up, w: Math.min(wL, plotRight - 16), h: 26 }))
+          // A legend wider than the glass says the short words, then stacks (iPhone NQ1! 1m, 2026-10-18:
+          // "Aggressive: market orders pushing ▬ Pa" was cut at the card's edge).
+          const LEGEND_SHORT = { wedge: "Aggressive", shelf: "Passive", estimated: "Estimated" } as const;
+          ctx.font = CARD_FONT_AP;
+          const partsOf = (short: boolean) => kindsAP.map(k => { const words = short ? LEGEND_SHORT[k] : EVIDENCE_LEGEND[k]; return { k, words, w: glyphW + 6 + Math.ceil(ctx.measureText(words).width) }; });
+          const rowW = (ps: { w: number }[]) => ps.reduce((s, p) => s + p.w, 0) + sepW * (ps.length - 1) + 20;
+          let parts = partsOf(false);
+          if (rowW(parts) > plotRight - 16) parts = partsOf(true);
+          const stacked = rowW(parts) > plotRight - 16;
+          const wL = stacked ? Math.max(...parts.map(p => p.w)) + 20 : rowW(parts);
+          const hL = stacked ? 22 * parts.length + 4 : 26;
+          const rL = [0, 30, 60].map(up => ({ x: 8, y: botAP - 8 - hL - up, w: Math.min(wL, plotRight - 16), h: hL }))
             .find(r => !hitsAP(r, cardsAP) && !hitsAP(r, reservedAP));
           if (rL) {
             cardAP(rL, "");
             let gx = rL.x + 10;
-            const gy = rL.y + rL.h / 2;
+            let gy = stacked ? rL.y + 13 : rL.y + rL.h / 2;
             for (const p of parts) {
               ctx.globalAlpha = att.alpha("bubbles");
               if (p.k === "wedge") {
@@ -10607,7 +10616,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.globalAlpha = att.textAlpha("bubbles");
               ctx.fillStyle = "#F3EBDD"; ctx.font = CARD_FONT_AP; ctx.textAlign = "left"; ctx.textBaseline = "middle";
               ctx.fillText(p.words, gx + glyphW + 6, gy + 0.5);
-              gx += p.w + sepW;
+              if (stacked) gy += 22; else gx += p.w + sepW;
             }
           }
         }
