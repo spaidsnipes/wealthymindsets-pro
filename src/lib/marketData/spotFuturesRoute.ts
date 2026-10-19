@@ -14,6 +14,8 @@
 export interface SpotRoute {
   readonly future: string;
   readonly name: string;
+  /** The future quotes the pair the OTHER way (USD per yen for USDJPY): up on the future is down on the pair. */
+  readonly inverse?: boolean;
 }
 
 const ROUTES: Readonly<Record<string, SpotRoute>> = {
@@ -23,11 +25,23 @@ const ROUTES: Readonly<Record<string, SpotRoute>> = {
   GBPUSD: { future: "6B1!", name: "CME British pound future" },
   AUDUSD: { future: "6A1!", name: "CME Australian dollar future" },
   NZDUSD: { future: "6N1!", name: "CME New Zealand dollar future" },
+  // 2026-10-18 (Founder: "we should be able to see every single forex pair"; measured live on tastytrade's DXLink: RP / RY /
+  // RF / 6J / 6C / 6S / 6M / 6L / 6Z all quote). Euro crosses quote the same way as spot.
+  EURGBP: { future: "RP1!", name: "CME euro / British pound cross future" },
+  EURJPY: { future: "RY1!", name: "CME euro / Japanese yen cross future" },
+  EURCHF: { future: "RF1!", name: "CME euro / Swiss franc cross future" },
+  // USD-base pairs: CME quotes them as USD per unit of the other currency — the INVERSE of the spot pair, said in the notice.
+  USDJPY: { future: "6J1!", name: "CME Japanese yen future", inverse: true },
+  USDCAD: { future: "6C1!", name: "CME Canadian dollar future", inverse: true },
+  USDCHF: { future: "6S1!", name: "CME Swiss franc future", inverse: true },
+  USDMXN: { future: "6M1!", name: "CME Mexican peso future", inverse: true },
+  USDBRL: { future: "6L1!", name: "CME Brazilian real future", inverse: true },
+  USDZAR: { future: "6Z1!", name: "CME South African rand future", inverse: true },
 };
 
 /** The legs a cross or inverse pair can be read through (never synthesised into a fake spot chart). */
 const LEG_FUTURE: Readonly<Record<string, string>> = {
-  EUR: "6E1!", GBP: "6B1!", JPY: "6J1!", AUD: "6A1!", NZD: "6N1!", CAD: "6C1!", CHF: "6S1!", XAU: "GC1!", XAG: "SI1!",
+  EUR: "6E1!", GBP: "6B1!", JPY: "6J1!", AUD: "6A1!", NZD: "6N1!", CAD: "6C1!", CHF: "6S1!", MXN: "6M1!", BRL: "6L1!", ZAR: "6Z1!", XAU: "GC1!", XAG: "SI1!",
 };
 
 const bare = (s: string) => (s ?? "").trim().toUpperCase().replace(/[^A-Z]/g, "");
@@ -48,7 +62,9 @@ export function spotLegsFor(symbol: string): readonly string[] | null {
 
 /** "XAUUSD has no live spot source here — showing GC1!, the COMEX gold future (its own price and session)." */
 export function spotRouteNotice(from: string, r: SpotRoute): string {
-  return `${bare(from)} has no live spot source here — showing ${r.future}, the ${r.name} (its own price and session).`;
+  const k = bare(from);
+  if (r.inverse) return `${k} has no live spot source here — showing ${r.future}, the ${r.name}, quoted the other way (USD per ${k.slice(3)}): when ${r.future} rises, ${k} falls.`;
+  return `${k} has no live spot source here — showing ${r.future}, the ${r.name} (its own price and session).`;
 }
 
 /* The last route taken, so the chart can say what happened (one line, dismissable). */

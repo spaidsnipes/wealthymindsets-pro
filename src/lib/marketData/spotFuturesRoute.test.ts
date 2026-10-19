@@ -7,15 +7,20 @@ describe("L14 · spot forex and metals open their CME future", () => {
     expect(spotRouteFor("eur/usd")?.future).toBe("6E1!");
     expect(spotRouteFor("XAGUSD")?.future).toBe("SI1!");
   });
-  it("never routes an inverse pair or a cross (it would chart upside down / has no single future)", () => {
-    expect(spotRouteFor("USDJPY")).toBeNull();
+  // 2026-10-18 (Founder: every forex pair must be seeable): an inverse pair now routes to its CME future AND says it is
+  // quoted the other way; a cross with no single CME future (GBPJPY) still never routes.
+  it("routes an inverse pair with its inversion said, never a cross with no single future", () => {
+    expect(spotRouteFor("USDJPY")).toEqual({ future: "6J1!", name: "CME Japanese yen future", inverse: true });
+    expect(spotRouteNotice("USDJPY", spotRouteFor("USDJPY")!)).toContain("quoted the other way (USD per JPY): when 6J1! rises, USDJPY falls.");
+    expect(spotRouteFor("EURGBP")?.future).toBe("RP1!");
     expect(spotRouteFor("GBPJPY")).toBeNull();
     expect(spotRouteFor("NQ1!")).toBeNull();
     expect(spotRouteFor("TSLA")).toBeNull();
   });
   it("names the legs of an unrouted pair", () => {
     expect(spotLegsFor("GBPJPY")).toEqual(["6B1!", "6J1!"]);
-    expect(spotLegsFor("USDJPY")).toEqual(["6J1!"]);
+    expect(spotLegsFor("USDJPY")).toBeNull(); // routed now
+    expect(spotLegsFor("GBPCHF")).toEqual(["6B1!", "6S1!"]);
     expect(spotLegsFor("EURUSD")).toBeNull();
   });
   it("says what happened in one line", () => {
