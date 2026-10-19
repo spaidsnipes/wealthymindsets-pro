@@ -8423,7 +8423,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       let silenceObstacles: () => readonly { x: number; y: number; w: number; h: number }[] = () => forceChips;
       let silenceRowLimitX = Infinity;
       const silenceRowLimit = (yy: number) => {
-        let lim = Infinity;
+        // …and at the profile column (iPad ES1! with Tools open, 2026-10-18: "FOUNDER ANATOMY · ACTIVE…" ran across the
+        // Living body once the drawer pushed the stack's start right).
+        const pclR = Math.min(profileColumnLeftRef.current.prev, profileColumnLeftRef.current.cur);
+        let lim = Number.isFinite(pclR) && pclR > silenceX + 60 ? pclR : Infinity;
         for (const o of silenceObstacles()) {
           if (o.y < yy + 7 && o.y + o.h > yy - 7 && o.x > silenceX + 60 && o.x < lim) lim = o.x;
         }
