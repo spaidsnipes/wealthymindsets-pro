@@ -909,11 +909,12 @@ export default function ScannerPage() {
           )}
         </div>
         {/* flex-1 + a floor: at iPad portrait (834) this scroller had shrunk to 0 px
-            wide, so every preset was invisible (measured 2026-10-03). */}
+            wide, so every preset was invisible (measured 2026-10-03). Each preset keeps its own width and the row
+            scrolls (iPad 820, 2026-10-19: Safari shrank the buttons and the labels printed over one another). */}
         <div className="wm-scanner-presets flex flex-1 min-w-[120px] items-center gap-1 ml-2 overflow-x-auto" style={{ scrollbarWidth:"none" }}>
           {PRESETS.map(p => (
             <button key={p.id} onClick={() => applyPreset(p.id)} aria-pressed={preset===p.id}
-              className={clsx("whitespace-nowrap px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all",
+              className={clsx("shrink-0 whitespace-nowrap px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all",
                 preset===p.id ? "bg-wm-gold/15 text-wm-gold border-wm-gold/40" : "text-wm-text-muted border-transparent hover:border-wm-border hover:text-wm-text"
               )}>{p.label}</button>
           ))}
