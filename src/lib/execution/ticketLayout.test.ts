@@ -106,7 +106,8 @@ describe("TradePanel is ONE ticket in both layouts", () => {
     const css = readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
     expect(css).toContain('[data-testid="trade-panel"][data-stage="ACT"][data-half="yes"] { max-height: 50svh !important; }');
     // The wide entry path: one column by default, two on a desk, where the panel widens to hold them.
-    expect(css).toContain(".wm-ticket-entry-path { display: grid; gap: 10px; min-width: 0; }");
+    // 2026-10-19 (iPad 820): the implicit column grew to the BUY / SELL row and cut SELL — one column that can shrink.
+    expect(css).toContain(".wm-ticket-entry-path { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; min-width: 0; }");
     expect(css).toContain('[data-testid="trade-panel"][data-layout="full"] { width: min(760px, calc(100vw - 48px)) !important; }');
     expect(css).toContain('[data-testid="trade-panel"][data-layout="full"] .wm-ticket-entry-path { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 16px; align-items: start; }');
     expect(T).toContain('<TicketSections compact={compact} bookActive={bookIsActive(book)} peek={stage === "PEEK"} step={step} review={review} inFlight={!stageInput.preSend}');
