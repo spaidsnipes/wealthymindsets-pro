@@ -12044,6 +12044,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // wherever the permission table lets gaps speak (rule above).
         // (Depth is the permission table's alone — no private depth rule here;
         // a NEAR camera holds so few bars the two-newest limit rarely binds.)
+        // Thin contracts (RP1!, 2026-10-18): 3–11-interval holes word only the 2 newest; ≥12 always.
+        const midWordAllowed = new Set<number>();
+        for (const g of dg.gaps.filter(g => g.emptyIntervals >= 3 && g.emptyIntervals < 12 && chart.timeScale().timeToCoordinate(g.fromTime as never) != null)
+          .sort((a, b) => b.fromTime - a.fromTime).slice(0, 2)) midWordAllowed.add(g.fromTime);
         const shortWordAllowed = new Set<number>();
         for (const g of dg.gaps.filter(g => g.emptyIntervals < 3 && chart.timeScale().timeToCoordinate(g.fromTime as never) != null)
           .sort((a, b) => b.fromTime - a.fromTime).slice(0, 2)) shortWordAllowed.add(g.fromTime);
@@ -12082,6 +12086,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // QUIET at FAR: the bridge, no words).
           if (!att.speaks("dataGaps") && g.emptyIntervals < 3) continue;
           if (g.emptyIntervals < 3 && !shortWordAllowed.has(g.fromTime)) { wordsWithheld++; continue; }
+          if (g.emptyIntervals >= 3 && g.emptyIntervals < 12 && !midWordAllowed.has(g.fromTime)) { wordsWithheld++; continue; }
           // WHERE THE WORDS GO. They ride above the bridge; a spot that would
           // sit in the price legend's headroom (serving NQ1! 5m, 2026-09-28:
           // "NO BAR · 1 interval" over "NQ1! · 5m"), on another gap's words,
