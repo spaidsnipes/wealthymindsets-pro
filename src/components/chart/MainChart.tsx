@@ -29723,6 +29723,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // Release the plot-area clip established right after the data guard.
       ctx.restore();
 
+      // The library caches tick text until its scale moves (iPhone BTC 5m 2026-10-18: "82500.00" sat half under
+      // VAH and the live tag) — a changed mask re-asks the formatter once.
+      const setAxisTickMask = (taken: { y0: number; y1: number }[]) => {
+        axisTickMaskRef.current = taken.slice();
+        const maskSig = taken.map(t => `${Math.round(t.y0 / 3)}:${Math.round(t.y1 / 3)}`).join(",");
+        if (maskSig !== axisTickMaskSigRef.current) {
+          axisTickMaskSigRef.current = maskSig;
+          requestAnimationFrame(() => { try { srs?.priceScale().applyOptions({}); } catch { /* chart gone */ } });
+        }
+      };
       // PHONE AXIS TAGS — painted outside the plot clip, right-aligned in the price-axis column. Each
       // steps off the live price tag, the countdown pill and the tags already placed.
       try {
@@ -29770,16 +29780,18 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             placedTags++;
           });
           ctx.restore();
-          axisTickMaskRef.current = taken.slice();
-          // The library caches tick text until its scale moves (iPhone BTC 5m 2026-10-18: "82500.00" sat half under
-          // VAH and the live tag) — a changed mask re-asks the formatter once.
-          const maskSig = taken.map(t => `${Math.round(t.y0 / 3)}:${Math.round(t.y1 / 3)}`).join(",");
-          if (maskSig !== axisTickMaskSigRef.current) {
-            axisTickMaskSigRef.current = maskSig;
-            requestAnimationFrame(() => { try { srs?.priceScale().applyOptions({}); } catch { /* chart gone */ } });
-          }
+          setAxisTickMask(taken);
           canvas.dataset.levelAxisTags = `${placedTags}/${axisLevelTags.length}${overlapTags ? `|OVERLAP:${overlapTags}` : ""}`;
-        } else { delete canvas.dataset.levelAxisTags; axisTickMaskRef.current = []; }
+        } else {
+          delete canvas.dataset.levelAxisTags;
+          // Every width: no tick half under the live tag or the countdown pill (iPad GC1! 5m 2026-10-18: "4192.00").
+          const lastLiveM = barsRef.current?.[barsRef.current.length - 1];
+          const liveYM = lastLiveM ? srs?.priceToCoordinate(lastLiveM.close) : null;
+          const takenM: { y0: number; y1: number }[] = [];
+          if (liveYM != null && Number.isFinite(liveYM)) takenM.push({ y0: (liveYM as number) - 10, y1: (liveYM as number) + 10 });
+          if (candleTimerRect) takenM.push({ y0: candleTimerRect.y, y1: candleTimerRect.y + candleTimerRect.h });
+          setAxisTickMask(takenM);
+        }
       } catch (err) { layerFault("LEVEL_AXIS_TAGS", err); }
 
       // ── Tape CVD caption (H-701): the pane names its source and its start ──
