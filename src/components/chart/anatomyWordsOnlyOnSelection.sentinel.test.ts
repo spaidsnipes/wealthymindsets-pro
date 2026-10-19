@@ -119,7 +119,8 @@ describe("anatomy cards: only the selected object's card", () => {
     expect(rest).toMatch(/delete ds\.anatomyCardsCandleHits;\s*delete ds\.anatomyCardsLayout;\s*delete ds\.anatomyCardsScale;/);
     // Restated 2026-10-16 (no silent nothing, serving NQ1! 15m): at rest it may NAME its silence — one line
     // through the shared silence stack (fitSilence / takeSilenceRow) — and still never paints a card.
-    const restNoSilence = rest.replace(/ctx\.fillText\(fitSilence\("ANATOMY CARDS · ON · [^"]*"\), silenceX, takeSilenceRow\(\)\);/, "");
+    // 2026-10-18: the row is taken first so its limit fits the words (the line ran across the profile otherwise).
+    const restNoSilence = rest.replace(/\{ const yS = takeSilenceRow\(\); ctx\.fillText\(fitSilence\("ANATOMY CARDS · ON · [^"]*"\), silenceX, yS\); \}/, "");
     expect(restNoSilence).not.toMatch(/fillText|fillRect|floatingChips/);
   });
 

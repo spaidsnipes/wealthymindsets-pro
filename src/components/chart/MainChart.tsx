@@ -12963,7 +12963,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ctx.save();
           ctx.font = marketFont("OBJECT_NAME");
           ctx.fillStyle = "rgba(200,192,174,0.85)"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
-          ctx.fillText(fitSilence(deltaKeelOn ? "CVD NOTCH · ON · WAITING FOR THE DELTA KEELS' SIGNED ROWS" : "CVD NOTCH · ON · READS THE DELTA KEELS — TURN DELTA KEEL ON"), silenceX, takeSilenceRow());
+          { const yS = takeSilenceRow(); ctx.fillText(fitSilence(deltaKeelOn ? "CVD NOTCH · ON · WAITING FOR THE DELTA KEELS' SIGNED ROWS" : "CVD NOTCH · ON · READS THE DELTA KEELS — TURN DELTA KEEL ON"), silenceX, yS); } // row first: its limit fits the words
           ctx.restore();
         }
         else {
@@ -16173,7 +16173,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.save();
                 ctx.font = marketFont("OBJECT_NAME");
                 ctx.fillStyle = "rgba(200,192,174,0.85)"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
-                ctx.fillText(fitSilence(`EXHAUSTION · ON · ${ex.reason === "MEASURED" ? "NO FAILED PUSH ON THIS CAMERA" : String(ex.reason).replace(/_/g, " ")}`), silenceX, takeSilenceRow());
+                { const yS = takeSilenceRow(); ctx.fillText(fitSilence(`EXHAUSTION · ON · ${ex.reason === "MEASURED" ? "NO FAILED PUSH ON THIS CAMERA" : String(ex.reason).replace(/_/g, " ")}`), silenceX, yS); } // row first: its limit fits the words
                 ctx.restore();
               }
               // What each mark actually put on the glass, for the receipt below.
@@ -16473,7 +16473,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.font = marketFont("OBJECT_NAME");
                   ctx.fillStyle = "rgba(200,192,174,0.85)";
                   ctx.textAlign = "left"; ctx.textBaseline = "middle";
-                  ctx.fillText(fitSilence("ANATOMY CARDS · ON · SELECT A SHELF OR MARK TO READ ITS CARD"), silenceX, takeSilenceRow());
+                  { const yS = takeSilenceRow(); ctx.fillText(fitSilence("ANATOMY CARDS · ON · SELECT A SHELF OR MARK TO READ ITS CARD"), silenceX, yS); } // row first: its limit fits the words
                   ctx.restore();
                 }
                 ds.anatomyCards = "AT_REST";
