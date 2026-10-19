@@ -168,6 +168,15 @@ export function buildCanonicalFidelityTooltip(
   return lines.join("\n");
 }
 
+/** A legend band under 420px (phone /desk, 2026-10-19: "QUOTE" and the frame's foot were clipped) says the verdict
+ *  before the dash; the whole label stays in the title and the spoken label. */
+function chromeWords(full: string): React.ReactNode {
+  const cut = full.indexOf(" — ");
+  return cut > 0
+    ? <><span className="wm-fidelity-words-full">{full}</span><span className="wm-fidelity-words-short" aria-hidden="true">{full.slice(0, cut)}</span></>
+    : full;
+}
+
 export function CanonicalFidelityBadge({
   badge,
   variant = "chrome",
@@ -227,7 +236,7 @@ export function CanonicalFidelityBadge({
           background: dotColor,
           boxShadow: isLive ? `0 0 4px ${dotColor}` : "none",
         }} />
-        {badge.plain?.label ?? badge.label}
+        {chromeWords(badge.plain?.label ?? badge.label)}
       </span>
     );
   }

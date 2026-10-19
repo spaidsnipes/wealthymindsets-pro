@@ -2435,7 +2435,10 @@ input[type=range]::-moz-range-track { height: 4px; background: #26262d; border-r
   [data-chart-identity] > span[aria-hidden] { display: none !important; }
   /* …and the band's 16px gaps close to 8px (the chip was still a letter short: "CERTIFIE"). */
   [data-chart-identity], [data-legend-group="price"] { margin-right: -8px; }
+  .wm-fidelity-badge--chrome .wm-fidelity-words-full { display: none; }
+  .wm-fidelity-badge--chrome .wm-fidelity-words-short { display: inline; }
 }
+.wm-fidelity-words-short { display: none; }
 .wm-legend-recency-narrow { display: none; }
 /* Serving f203fb2 at 1440×900 beside the decision rail (legend band 1115px): price + O/H/L/NOW +
    DAY BIAS filled the row, the bar clock's group was crushed to 4px, and "BAR OPENED 01:10 AM CDT ·
