@@ -15718,7 +15718,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // Profile columns are not a place for words either (Founder's Chrome, 6E1! 5m 2026-10-18: "Force is hitting…"
               // ran into the volume profile's tails at POC) — the desk annotation stops at the column's left edge.
               const pclS = profileColumnLeftRef.current;
-              const plotRight = Math.max(4, Math.min(W - axisW, desktopShelfInstrument ? Math.min(pclS.prev, pclS.cur) - 4 : Infinity));
+              // Every width (iPad SOL 820, 2026-10-18: "ABSORPTION 2.85 MODERATE" ran onto the profile at tablet width too).
+              const plotRight = Math.max(4, Math.min(W - axisW, Math.min(pclS.prev, pclS.cur) - 4));
               let chipX = Math.min(Math.max(2, x0), Math.max(2, plotRight - chipW - 2));
               // NO TWO CHIPS ON ONE ANOTHER. Neighbouring shelves printed
               // "ABSORPTION 4.18 MOD…ABSORPTION 2.83" as one smear. Try above
@@ -25987,9 +25988,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   const colZ = newestColumnKeepOut();
                   const xs = [Math.max(4, x0 + 4), Math.max(4, zEnd - tw - 4), ...(colZ ? [Math.max(4, colZ.x - tw - 6)] : [])];
                   let tx = xs[0]!, ty: number | undefined;
+                  // …and never into the profile column (iPad SOL 5m 2026-10-18: "SUPPLY ZONE · UNDER TEST · 1 TEST" ran onto its tails).
+                  const pclZ = profileColumnLeftRef.current, zoneRight = Math.min(plotRight - 2, Math.min(pclZ.prev, pclZ.cur) - 4);
                   for (const y of ys) {
                     for (const x of xs) {
-                      const ok = y - 10 >= HEADER_FLOOR_Y && y <= pane0Bottom - 2 && x + tw <= plotRight - 2
+                      const ok = y - 10 >= HEADER_FLOOR_Y && y <= pane0Bottom - 2 && x + tw <= zoneRight
                         && !onNewestColumn(x, y - 11, tw, 12)
                         // A1 residual: never across ANY candle body (serving 834) — or WICK
                         // (serving GC1! 1180: "SUPPLY ZONE · DEFENDED · 2 TESTS" touched one):
