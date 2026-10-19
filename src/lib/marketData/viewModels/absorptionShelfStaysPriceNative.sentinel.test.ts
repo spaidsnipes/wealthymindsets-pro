@@ -49,10 +49,11 @@ describe("the FL-06 absorption shelf stays attached to measured price geometry",
 
   it("keeps the measured-window count while making it quiet desktop chrome", () => {
     expect(chart).toContain("const desktopWindowChrome = W >= 960");
-    expect(chart).toContain("ctx.fillText(winTxt, firstX + 3, plotBottom - 11.5 - winDy)");
+    // 2026-10-19: winX = the window start, stepped right of a rail or a left-docked Inspect Ticket.
+    expect(chart).toContain("ctx.fillText(winTxt, winX + 3, plotBottom - 11.5 - winDy)");
     // 2026-10-17: its row, one row up, or held — never over a word already on the glass.
-    expect(chart).toContain("ctx.fillRect(firstX + 3, plotBottom - 18 - winDy, winW + 10, 13)");
-    expect(chart).toContain("ctx.fillText(winTxt, firstX + 8, plotBottom - 11.5 - winDy)");
+    expect(chart).toContain("ctx.fillRect(winX + 3, plotBottom - 18 - winDy, winW + 10, 13)");
+    expect(chart).toContain("ctx.fillText(winTxt, winX + 8, plotBottom - 11.5 - winDy)");
   });
 
   it("still has exactly one absorption placement compiler call", () => {
