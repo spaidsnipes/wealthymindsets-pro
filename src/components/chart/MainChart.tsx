@@ -3508,14 +3508,20 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       }
       if (tickType <= 1) return new Intl.DateTimeFormat("en-US", { timeZone: tz, year: "numeric", month: "short" }).format(d);
       if (tickType === 2) {
-        // The library's day starts at UTC midnight (8 PM ET): RY1! Sunday night read "Oct 18 … Oct 18". A date is said
-        // only where the LOCAL date changed since the bar before; otherwise the tick tells its time.
+        // The library's day starts at UTC midnight (8 PM ET): RY1! Sunday night read "Oct 18 … Oct 18" (the reopen after
+        // the weekend AND UTC midnight each marked a day). A date is said once per LOCAL day: when an earlier library day
+        // mark already fell on this local date, this tick tells its time (an hourly chart keeps every day's date).
         const dayOf = (x: number) => new Intl.DateTimeFormat("en-US", { timeZone: tz, month: "short", day: "numeric" }).format(new Date(x * 1000));
+        const utcDay = (x: number) => Math.floor(x / 86400);
         const bs = barsRef.current;
         let lo = 0, hi = bs.length - 1, prev = -1;
         while (lo <= hi) { const mid = (lo + hi) >> 1; if (+bs[mid].time < sec) { prev = mid; lo = mid + 1; } else hi = mid - 1; }
         const today = dayOf(sec);
-        if (prev < 0 || dayOf(+bs[prev].time) !== today) return today;
+        let earlierMark = false;
+        for (let i = prev; i >= 1 && prev - i < 3000 && dayOf(+bs[i].time) === today; i--) {
+          if (utcDay(+bs[i].time) !== utcDay(+bs[i - 1].time)) { earlierMark = true; break; }
+        }
+        if (!earlierMark) return today;
       }
       return new Intl.DateTimeFormat("en-US", {
         timeZone: tz, hour12: !clock24hRef.current,
