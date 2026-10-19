@@ -15898,6 +15898,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // Two rows when the meaning line rides along: chipH is then the
                 // whole box, so the name sits on the box's midline from above.
                 ctx.textBaseline = meaningLine ? "bottom" : "middle";
+                // The font it was MEASURED in (Founder's Chrome, ES1! 5m 2026-10-19: drawn in the frame's last font the
+                // name ran past its backing — "…SHELF" onto the newest candles and the absorption figure).
+                ctx.font = marketFont("FIDELITY");
                 ctx.fillText(shelfWords, chipX, chipY + chipH / 2 + 0.5);
                 ctx.textBaseline = "middle";
                 // §XLVI learning without lecture: one quiet line, the meaning.
