@@ -11443,6 +11443,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           for (const r of rowsD) {
             if (strideD > 1 && stepD > 0 && Math.round(r.t / stepD) % strideD !== 0) continue;
             const lx = r.x - r.w / 2 - 3, ly = yD - 6, lw = r.w + 6, lh = 12;
+            // A number half off the glass loses its sign (iPhone BTC 5m: "4.7" at the left edge) — whole or not at all.
+            if (lx < 1 || lx + lw > plotRight - 1) continue;
             if (lx < lastRightD || hitD(lx, ly, lw, lh)) continue;
             pickD.push({ r, lx, ly, lw, lh });
             lastRightD = lx + lw;
