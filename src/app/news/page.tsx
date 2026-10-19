@@ -621,13 +621,15 @@ function LiveNewsPlayer() {
           </div>
 
           {/* Channel picker sidebar */}
-          <div className="w-28 shrink-0 border-l border-wm-border flex flex-col bg-wm-dark">
+          {/* Each channel keeps its own height and the column scrolls (iPad 2026-10-19: five channels squeezed by
+              flex-1 printed each icon over the next channel's "offline"). */}
+          <div className="w-28 shrink-0 border-l border-wm-border flex flex-col bg-wm-dark overflow-y-auto">
             {LIVE_STREAMS.map((s, i) => {
               const live = !!videoIds[s.channelId];
               return (
                 <button key={s.label} onClick={() => setActiveIdx(i)}
                   className={clsx(
-                    "flex flex-col items-center justify-center gap-1 py-3 border-b border-wm-border/30 transition-all flex-1",
+                    "flex flex-col items-center justify-center gap-1 py-3 border-b border-wm-border/30 transition-all flex-1 shrink-0",
                     activeIdx === i ? "bg-wm-surface" : "hover:bg-wm-surface/50"
                   )}>
                   <span className="text-xl">{s.icon}</span>
