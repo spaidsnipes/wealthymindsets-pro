@@ -11794,7 +11794,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             if (yHc == null || yLc == null) continue;
             fpCells.push({ x: b.cx - halfW, y: Math.min(+yHc, +yLc), w: colW, h: Math.max(2, Math.abs(+yLc - +yHc)) });
           }
-          const placeNear = (candidates: NearRect[]) => {
+          const placeNear = (candidates: NearRect[], callout = false) => {
             // Only slots inside pane 0's body band (below the header and the
             // price legend, above the pane floor) are candidates at all.
             const inBand = candidates.filter(r => r.y >= nearFloorY && r.y + r.h <= pane0Bottom - 2);
@@ -11802,7 +11802,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const [pref, ...alternates] = inBand;
             // Chips on the glass (the footprint builder's included, when it
             // registers them) and the footprint's cell columns.
+            // A callout is never halo text on a candle and never runs under the price axis (iPad NQ1! 1m imbalance,
+            // 2026-10-18: "IMPORTANT PRINT" sat on a red body and "IMPORTANT P…" was cut at the axis): for it the bodies
+            // and the axis strip are blockers too — no room → none.
             const blockersN = [...forceChips, ...fpCells];
+            if (callout) blockersN.push(...nearBodies, { x: plotRight - 2, y: -1e4, w: 1e5, h: 2e4 });
             const spot = placeClearOfKeepOut(pref, nearBodies, { minX: nearMinX, blockers: blockersN, strict: true, alternates });
             // Text never prints over another chip's text or a footprint cell;
             // over a candle body it is halo text on the owner's BLOCKED slot,
@@ -11960,7 +11964,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             let second: (typeof drawnDotsN)[number] | null = null;
             for (const p of drawnDotsN) if (first && p.bar !== first.bar && (!second || p.d.size > second.d.size)) second = p;
             const picks = [first, second].filter((p): p is (typeof drawnDotsN)[number] => p != null);
-            const sz = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v >= 10 ? `${Math.round(v)}` : v >= 1 ? v.toFixed(2) : v.toPrecision(2));
+            const sz = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v >= 10 || Math.abs(v - Math.round(v)) < 1e-9 ? `${Math.round(v)}` : v >= 1 ? v.toFixed(2) : v.toPrecision(2));
             for (const p of picks) {
               const inferredSide = p.d.fidelity !== "OBSERVED";
               const lines = [
@@ -11977,7 +11981,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 { x: p.x + off, y: p.y - off - bh, w: tw, h: bh },
                 { x: p.x - off - tw, y: p.y + off, w: tw, h: bh },
                 { x: p.x + off, y: p.y + off, w: tw, h: bh },
-              ]);
+              ], true);
               if (!at) continue;
               // A callout belongs BESIDE its print. The placer slides along the
               // row until clear, which on serving BTC 1m drew a ~600 px leader
