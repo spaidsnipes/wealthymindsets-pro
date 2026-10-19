@@ -88,7 +88,8 @@ const ROUTES = routes.length ? routes : ["/login", "/login?mode=signup", "/reset
  */
 const SHORT_PAGES = {
   "/reset-password": { landmark: "Choose a new password", examined: 12, textLeaves: 4 },
-  "/legal": { landmark: "Not yet published", examined: 24, textLeaves: 12 },
+  // Terms + Privacy are in effect since billing went live (2026-10-17): the index reads "Published" first.
+  "/legal": { landmark: "Published", examined: 24, textLeaves: 12 },
 };
 /** How long a short page's landmark may take to paint before the route fails. */
 const LANDMARK_WAIT = Number(flag("landmark-wait", 20000));
