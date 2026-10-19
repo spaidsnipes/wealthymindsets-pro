@@ -567,10 +567,10 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
     SIDE: (<>
           {/* Side + open/close */}
           <div style={{ display: "flex", gap: 6 }}>
-            <button type="button" data-testid="trade-buy" aria-pressed={side === "BUY"} onClick={() => setSide("BUY")} style={{ ...btn(side === "BUY", GREEN), flex: 1, minHeight: 36, fontSize: 13 }}>BUY{q?.ask != null ? <span style={{ fontSize: 10.5, fontWeight: 500, marginLeft: 6, ...MONO }}>ask {q.ask.toFixed(dp)}</span> : null}</button>
+            <button type="button" data-testid="trade-buy" aria-pressed={side === "BUY"} onClick={() => setSide("BUY")} style={{ ...btn(side === "BUY", GREEN), flex: 1, minWidth: 0, minHeight: 36, fontSize: 13 }}>BUY{q?.ask != null ? <span style={{ fontSize: 10.5, fontWeight: 500, marginLeft: 6, ...MONO }}>ask {q.ask.toFixed(dp)}</span> : null}</button>
             {/* The spread between the two touches, as a broker ticket shows it (never a price of its own). */}
             {q?.bid != null && q?.ask != null ? <span data-testid="trade-spread" title="Spread between bid and ask" style={{ alignSelf: "center", color: MUTED, fontSize: 10, ...MONO }}>{(q.ask - q.bid).toFixed(dp)}</span> : null}
-            <button type="button" data-testid="trade-sell" aria-pressed={side === "SELL"} onClick={() => setSide("SELL")} style={{ ...btn(side === "SELL", RED), flex: 1, minHeight: 36, fontSize: 13 }}>SELL{q?.bid != null ? <span style={{ fontSize: 10.5, fontWeight: 500, marginLeft: 6, ...MONO }}>bid {q.bid.toFixed(dp)}</span> : null}</button>
+            <button type="button" data-testid="trade-sell" aria-pressed={side === "SELL"} onClick={() => setSide("SELL")} style={{ ...btn(side === "SELL", RED), flex: 1, minWidth: 0, minHeight: 36, fontSize: 13 }}>SELL{q?.bid != null ? <span style={{ fontSize: 10.5, fontWeight: 500, marginLeft: 6, ...MONO }}>bid {q.bid.toFixed(dp)}</span> : null}</button>
           </div>
     </>),
     CLOSING: (<>
@@ -621,8 +621,9 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
             <span style={{ color: MUTED, width: 64 }}>Limit</span>
             {pickBtn("ENTRY")}
             <button type="button" aria-label="One tick lower" onClick={() => nudge(-1)} style={btn(false)}>−</button>
+            {/* 92px keeps BID · MID · ASK on the row in a 400px ticket (iPad 2026-10-19: ASK wrapped alone). */}
             <input inputMode="decimal" value={limit} aria-label="Limit price" onChange={e => setLimit(e.target.value)}
-              style={{ width: 110, background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, padding: 4, borderRadius: 4, ...MONO }} />
+              style={{ width: 92, background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, padding: 4, borderRadius: 4, ...MONO }} />
             <button type="button" aria-label="One tick higher" onClick={() => nudge(1)} style={btn(false)}>+</button>
             <button type="button" onClick={() => setTo(q?.bid)} style={btn(false)}>BID</button>
             <button type="button" onClick={() => setTo(q?.bid != null && q?.ask != null ? (q.bid + q.ask) / 2 : null)} style={btn(false)}>MID</button>
@@ -634,7 +635,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
     </>),
     RISK_INPUTS: (<>
           {/* Risk on the ticket */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 6 }}>
             <label style={{ color: MUTED }}>Stop / invalidation {pickBtn("STOP")}
               <input inputMode="decimal" value={stop} aria-label="Stop price" onChange={e => setStop(e.target.value)}
                 style={{ width: "100%", background: "#0b0a08", border: `1px solid ${stopWrongSide ? RED : LINE}`, color: INK, padding: 4, borderRadius: 4, ...MONO }} />
@@ -646,7 +647,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
           </div>
     </>),
     ECONOMICS: (<>
-          <div data-testid="trade-economics" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, ...MONO }}>
+          <div data-testid="trade-economics" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 4, ...MONO }}>
             {kind === "FUTURE" ? <><span style={{ color: MUTED }}>Point value</span><span>{pointValue != null ? `$${pointValue}/pt · tick ${tick} = $${econ.status === "PRICED" ? econ.tickValue : "—"}` : "not on file"}</span></> : null}
             <span style={{ color: MUTED }}>{kind === "FUTURE" ? "Notional" : "Cost"}</span><span>{notional != null ? `$${notional.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "—"}</span>
             <span style={{ color: MUTED }}>Planned risk at stop</span><span style={{ color: riskUsd != null ? RED : MUTED }}>{stopWrongSide ? "stop is on the wrong side" : riskUsd != null ? `−$${riskUsd.toFixed(2)}` : referenceEntry == null ? "entry fill unknown" : "set a stop"}</span>
