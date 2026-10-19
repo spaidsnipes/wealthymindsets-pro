@@ -703,17 +703,20 @@ function EquitySparkline({ points }: { points: EquityPoint[] }) {
 
 /* ── Order ticket ────────────────────────────────────────── */
 function OrderTicket({
-  prices, quoteReadiness, onSubmit, initialSymbol, cash,
+  prices, quoteReadiness, onSubmit, initialSymbol, cash, onSymbolChange,
 }: {
   prices: Record<string,number>;
   quoteReadiness: Record<string, PaperQuoteReadiness>;
   onSubmit: (o: Order) => void;
   initialSymbol?: string;
+  /** The symbol the ticket is on — the room's feed standing reads it when the chart's symbol is not paper-tradeable. */
+  onSymbolChange?: (sym: string) => void;
   /** Paper cash for the pre-send funding check; null when the book is unreadable. */
   cash: number | null;
 }) {
   const { user: authUser } = useAuth();
   const [sym,    setSym]    = useState(initialSymbol ?? "NQ1!");
+  useEffect(() => { onSymbolChange?.(sym); }, [sym, onSymbolChange]);
   const [side,   setSide]   = useState<OrderSide>("buy");
   const [type,   setType]   = useState<OrderType>("market");
   const [qty,    setQty]    = useState(1);
@@ -1847,6 +1850,10 @@ const PAPER_GOVERNED_ELEMENTS: readonly SurfaceElement[] = [
 export default function PaperTradingPage() {
   const { activeSymbol } = useActiveSymbol();
   const paperSymbol = paperSymbolOf(activeSymbol, UNIVERSE);
+  // The ticket's own symbol (Founder's Chrome 2026-10-19: chart on 6C1!, ticket on BTC LIVE · coinbase, and the room
+  // said FEED UNKNOWN · SOURCE UNKNOWN because it read the chart's untradeable symbol).
+  const [ticketSymbol, setTicketSymbol] = useState<string | null>(null);
+  const standingSymbol = paperSymbol ?? ticketSymbol;
   const { earnWMS } = useWMS();
   const { prices, prevCloses, quoteReadiness, lastCloses } = useLivePrices();
   // Start from deterministic defaults so server and client render identically,
@@ -2590,7 +2597,7 @@ export default function PaperTradingPage() {
   usePublishOsStanding({
     surface: "Paper Trade",
     feed: selectPaperFeedObservation({
-      readiness: paperSymbol ? quoteReadiness[paperSymbol] : null,
+      readiness: standingSymbol ? quoteReadiness[standingSymbol] : null,
       sessionToken,
     }),
   });
@@ -3078,7 +3085,7 @@ export default function PaperTradingPage() {
 
         {/* Left: Order ticket */}
         <div className={clsx(styles.ticket, "w-64 border-r border-wm-border shrink-0 overflow-y-auto p-3")} style={{ scrollbarWidth:"thin" }}>
-          <OrderTicket key={resetKey} prices={prices} quoteReadiness={quoteReadiness} onSubmit={handleOrder} initialSymbol={paperSymbol ?? undefined} cash={bookRecoveryRequired ? null : cash}/>
+          <OrderTicket key={resetKey} prices={prices} quoteReadiness={quoteReadiness} onSubmit={handleOrder} initialSymbol={paperSymbol ?? undefined} cash={bookRecoveryRequired ? null : cash} onSymbolChange={setTicketSymbol}/>
 
           <SignalBot
             prices={prices}
