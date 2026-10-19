@@ -12054,8 +12054,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const midWordAllowed = new Set<number>();
         for (const g of dg.gaps.filter(g => g.emptyIntervals >= 3 && g.emptyIntervals < 12 && chart.timeScale().timeToCoordinate(g.fromTime as never) != null)
           .sort((a, b) => b.fromTime - a.fromTime).slice(0, 2)) midWordAllowed.add(g.fromTime);
+        // A named ≥3 hole in view says it; 1–2-interval words then hold (phone RP1! 2026-10-18: two NO BAR lines stacked).
+        const namedHoleInView = dg.gaps.some(g => g.emptyIntervals >= 3 && chart.timeScale().timeToCoordinate(g.fromTime as never) != null);
         const shortWordAllowed = new Set<number>();
-        for (const g of dg.gaps.filter(g => g.emptyIntervals < 3 && chart.timeScale().timeToCoordinate(g.fromTime as never) != null)
+        for (const g of dg.gaps.filter(g => !namedHoleInView && g.emptyIntervals < 3 && chart.timeScale().timeToCoordinate(g.fromTime as never) != null)
           .sort((a, b) => b.fromTime - a.fromTime).slice(0, 2)) shortWordAllowed.add(g.fromTime);
         const gapWordRects: { x: number; y: number; w: number; h: number }[] = [];
         // PROFILE COLUMNS ARE NOT A PLACE FOR WORDS (serving TSLA 15m,
@@ -29601,7 +29603,19 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             let pipForm = single;
             // …or ON CANDLE BODIES: the stepped-down fallback row never asked the candles (serving GC1! 15m,
             // Oct 16: "Sellers defended the supply zone (1st test)" sat across the zone's bodies).
-            const onBodies = (q: { x: number; y: number; w: number; h: number }) => rowBodiesAt(q.y, q.y + q.h).some(o => q.x < o.x + o.w && q.x + q.w > o.x && q.y < o.y + o.h && q.y + q.h > o.y);
+            // Wicks too (iPad 6E1! 5m 2026-10-18: the top-row fallback "Sellers defended the supply zone (1st test)"
+            // sat across the session high's wick) — first slide along the row off the candles, else the pip.
+            const onBodies = (q: { x: number; y: number; w: number; h: number }) => [...rowBodiesAt(q.y, q.y + q.h), ...profileCandlesAt(q.y, q.y + q.h)].some(o => q.x < o.x + o.w && q.x + q.w > o.x && q.y < o.y + o.h && q.y + q.h > o.y);
+            const onWordsOrAnchors = (q: { x: number; y: number; w: number; h: number }) => [...wordRectsNow, ...sovereignBoxes, ...anchorRects].some(o => q.x < o.x + o.w + 2 && q.x + q.w + 2 > o.x && q.y < o.y + o.h + 1 && q.y + q.h + 1 > o.y);
+            if (!single && sp.mode === "BLOCKED" && onBodies(r)) {
+              const lo = Math.max(4, keepOutMinX()), hi = Math.min(plotRight - w - 4, pipClearLeft - w - 4);
+              for (let k = 1; k <= 24; k++) {
+                const dx = (k % 2 ? -1 : 1) * Math.ceil(k / 2) * 16;
+                const q = { ...r, x: r.x + dx };
+                if (q.x < lo || q.x > hi) continue;
+                if (!onBodies(q) && !onWordsOrAnchors(q)) { r = q; break; }
+              }
+            }
             if (!single && ([...wordRectsNow, ...sovereignBoxes].some(o => r.x < o.x + o.w + 2 && r.x + r.w + 2 > o.x && r.y < o.y + o.h + 1 && r.y + r.h + 1 > o.y) || (sp.mode === "BLOCKED" && onBodies(r)))) {
               pipForm = true; crowdedToPip++;
               r = { x: Math.max(4, Math.min(plotRight - 16, a.x - 6)), y: clampY(a.y - 6), w: 12, h: 12 };
