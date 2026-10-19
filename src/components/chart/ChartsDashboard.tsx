@@ -2234,11 +2234,16 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   }, [chartBars, chartStructureZones]);
   // L14 (2026-10-16): when a spot pair was routed to its CME future, the chart says so in one line.
   const [spotNotice, setSpotNotice] = React.useState<string | null>(null);
+  // An INVERSE route keeps one quiet tag after the notice steps aside (2026-10-19): "INVERSE OF USDCAD" — the chart
+  // moves opposite to the pair the trader asked for, and that fact may not vanish with an 8-second notice.
+  const [spotInverseOf, setSpotInverseOf] = React.useState<string | null>(null);
   React.useEffect(() => {
     const read = () => {
       const r = lastSpotRoute();
       const route = r ? spotRouteFor(r.from) : null;
-      setSpotNotice(r && route && r.to === symbol && Date.now() - r.at < 10 * 60_000 ? spotRouteNotice(r.from, route) : null);
+      const routedHere = !!(r && route && r.to === symbol);
+      setSpotNotice(routedHere && Date.now() - r!.at < 10 * 60_000 ? spotRouteNotice(r!.from, route!) : null);
+      setSpotInverseOf(routedHere && route!.inverse ? r!.from : null);
     };
     read();
     window.addEventListener(SPOT_ROUTE_EVENT, read);
@@ -7451,6 +7456,13 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         (e.g. spot FX has no live source since 2026-10-12). The veil is for the wait only. */}
                     {chartBars.length === 0 && !barsSettled && !gridView && activeTab === "Chart" ? (
                       <ChartLoadingVeil symbol={symbol} timeframe={timeframe} />
+                    ) : null}
+                    {!spotNotice && spotInverseOf ? (
+                      <div data-testid="spot-route-inverse-tag" title={`${symbol} is quoted the other way: when it rises, ${spotInverseOf} falls.`}
+                        className="pointer-events-none absolute left-1/2 top-2 z-[70] -translate-x-1/2 rounded border px-2 py-0.5"
+                        style={{ borderColor: "rgba(212,175,55,0.55)", background: "rgba(12,10,8,0.9)", color: "#d4af37", font: "700 13px/1.2 ui-sans-serif, system-ui, sans-serif", letterSpacing: "0.04em" }}>
+                        INVERSE OF {spotInverseOf}
+                      </div>
                     ) : null}
                     {spotNotice ? (
                       <div data-testid="spot-route-notice" role="status"
