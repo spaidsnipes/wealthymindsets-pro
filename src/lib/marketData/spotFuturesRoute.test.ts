@@ -12,7 +12,8 @@ describe("L14 · spot forex and metals open their CME future", () => {
   it("routes an inverse pair with its inversion said, never a cross with no single future", () => {
     expect(spotRouteFor("USDJPY")).toEqual({ future: "6J1!", name: "CME Japanese yen future", inverse: true });
     expect(spotRouteNotice("USDJPY", spotRouteFor("USDJPY")!)).toContain("quoted the other way (USD per JPY): when 6J1! rises, USDJPY falls.");
-    expect(spotRouteFor("EURGBP")?.future).toBe("RP1!");
+    expect(spotRouteFor("EURGBP")).toBeNull(); // RP quotes, but tastytrade's chain lists no contract (2026-10-18)
+    expect(spotRouteFor("USDCAD")?.future).toBe("6C1!");
     expect(spotRouteFor("GBPJPY")).toBeNull();
     expect(spotRouteFor("NQ1!")).toBeNull();
     expect(spotRouteFor("TSLA")).toBeNull();
