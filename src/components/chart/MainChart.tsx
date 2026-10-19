@@ -14765,7 +14765,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const yRaw = lastBar ? srs?.priceToCoordinate(lastBar.close) : null;
         if (lastBar && yRaw != null && Number.isFinite(yRaw)) {
           const yPrice = yRaw as number;
-          const txt   = countdownRef.current;
+          const txtFull = countdownRef.current;
           const flash = closeFlashRef.current;
           const neon  = chartSettings?.neon;
           // The pill's type steps 12 → 10px before it leaves the axis (iPhone ETH 15m 2026-10-18: "14m 20s" was 2px too
@@ -14774,12 +14774,21 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           let pillFont = "bold 12px monospace";
           // …and on the narrowest axis (phone CL1! "98.40") the clock ring yields and the words alone hang there.
           let pillRing = true;
+          // Hourly and daily bars (iPhone ES1! 1h / 1D 2026-10-19: "0h 09m 03s" fitted no axis and fell into the plot)
+          // try a shorter reading that keeps its units — "9m 03s", "18h 49m" — before leaving the axis.
+          const hms = /^(\d+)h (\d+)m (\d+)s$/.exec(txtFull);
+          const txtForms = hms ? [txtFull, +hms[1] === 0 ? `${+hms[2]}m ${hms[3]}s` : `${+hms[1]}h ${hms[2]}m`] : [txtFull];
+          let txt = txtForms[txtForms.length - 1];
           ctx.save();
-          for (const [px, ring] of [[12, true], [11, true], [10, true], [10, false]] as const) {
-            ctx.font = `bold ${px}px monospace`; pillFont = ctx.font; pillRing = ring;
-            if (axisFit > 0 && ctx.measureText(txt).width + (ring ? 20 : 8) <= axisFit - 2) break;
+          let fitted = false;
+          for (const form of txtForms) {
+            for (const [px, ring] of [[12, true], [11, true], [10, true], [10, false]] as const) {
+              ctx.font = `bold ${px}px monospace`;
+              if (axisFit > 0 && ctx.measureText(form).width + (ring ? 20 : 8) <= axisFit - 2) { pillFont = ctx.font; pillRing = ring; txt = form; fitted = true; break; }
+            }
+            if (fitted) break;
           }
-          if (!(axisFit > 0 && ctx.measureText(txt).width + 8 <= axisFit - 2)) { ctx.font = "bold 12px monospace"; pillFont = ctx.font; pillRing = true; }
+          if (!fitted) { ctx.font = "bold 12px monospace"; pillFont = ctx.font; pillRing = true; }
           ctx.font = pillFont;
           const tw    = ctx.measureText(txt).width;
           ctx.restore();
@@ -14838,7 +14847,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.arc(ringX, cy, ringR, -Math.PI / 2, -Math.PI / 2 + progressRef.current * Math.PI * 2);
             ctx.strokeStyle = flash ? "#fff" : border; ctx.lineWidth = 1.8; ctx.stroke();
           }
-          // countdown text
+          // countdown text — the clock is truth: the word registry never holds it (an empty box read as broken).
+          wordGate.declareTruth(txt);
           ctx.fillStyle = "#fff"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
           ctx.fillText(txt, x + (!pillRing ? 4 : inAxis ? 16 : 19), cy + 0.5);
           // dashed connector toward the price line so the eye links pill↔price (in the axis the
