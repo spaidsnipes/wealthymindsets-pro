@@ -16093,8 +16093,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   // NOR ACROSS A CANDLE (serving NQ1! 15m, Oct 16 one-at-a-time pass: on a falling leg the caption's
                   // row "above the ridge" ran through the leg's own bodies). Each slot is tested against the bodies
                   // and wicks on its row too; the left of the ridge's start is tried before the caption is held.
-                  const txIn = Math.max(8, Math.min(plotRight - tw - 4, terr[0].x + 4));
-                  const txLeft = Math.max(8, terr[0].x - tw - 10);
+                  // Never under a rail or a left-docked Inspect Ticket (keepOutMinX; iPad NQ1! 1m 2026-10-19: "…RT — the mass…").
+                  const txIn = Math.max(8, keepOutMinX(), Math.min(plotRight - tw - 4, terr[0].x + 4));
+                  const txLeft = Math.max(8, keepOutMinX(), terr[0].x - tw - 10);
                   const tops = [mid[0] - outer[0] - 6, mid[0] + outer[0] + 18, mid[0] - outer[0] - 22];
                   const free = (tx: number, ty: number) => ty - 12 >= HEADER_FLOOR_Y && ty <= pane0Bottom - 2
                     && !floatingChips.some(r => tx < r.x + r.w + 2 && tx + tw + 2 > r.x && ty - 12 < r.y + r.h && ty > r.y)
