@@ -3507,7 +3507,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           : fmtSessionDate(sec, tz, { month: "short", day: "numeric" });
       }
       if (tickType <= 1) return new Intl.DateTimeFormat("en-US", { timeZone: tz, year: "numeric", month: "short" }).format(d);
-      if (tickType === 2) return new Intl.DateTimeFormat("en-US", { timeZone: tz, month: "short", day: "numeric" }).format(d);
+      if (tickType === 2) {
+        // The library's day starts at UTC midnight (8 PM ET): RY1! Sunday night read "Oct 18 … Oct 18". A date is said
+        // only where the LOCAL date changed since the bar before; otherwise the tick tells its time.
+        const dayOf = (x: number) => new Intl.DateTimeFormat("en-US", { timeZone: tz, month: "short", day: "numeric" }).format(new Date(x * 1000));
+        const bs = barsRef.current;
+        let lo = 0, hi = bs.length - 1, prev = -1;
+        while (lo <= hi) { const mid = (lo + hi) >> 1; if (+bs[mid].time < sec) { prev = mid; lo = mid + 1; } else hi = mid - 1; }
+        const today = dayOf(sec);
+        if (prev < 0 || dayOf(+bs[prev].time) !== today) return today;
+      }
       return new Intl.DateTimeFormat("en-US", {
         timeZone: tz, hour12: !clock24hRef.current,
         hour: "2-digit", minute: "2-digit", ...(tickType === 4 ? { second: "2-digit" } : {}),
@@ -14720,8 +14729,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const txt   = countdownRef.current;
           const flash = closeFlashRef.current;
           const neon  = chartSettings?.neon;
+          // The pill's type steps 12 → 10px before it leaves the axis (iPhone ETH 15m 2026-10-18: "14m 20s" was 2px too
+          // wide, fell into the plot over the newest candles and lost its words). Never under the 9px floor.
+          const axisFit = (() => { try { const w = chart?.priceScale("right").width(); return Number.isFinite(w) && (w as number) > 0 ? (w as number) : 0; } catch { return 0; } })();
+          let pillFont = "bold 12px monospace";
           ctx.save();
-          ctx.font = "bold 12px monospace";
+          for (const px of [12, 11, 10]) { ctx.font = `bold ${px}px monospace`; pillFont = ctx.font; if (axisFit > 0 && ctx.measureText(txt).width + 20 <= axisFit - 2) break; }
+          ctx.font = pillFont;
           const tw    = ctx.measureText(txt).width;
           ctx.restore();
           // PHONE: the countdown sits in the price axis right under the price tag, as a trading
@@ -14738,7 +14752,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // the same clip back right after (AXIS_PILL_RECLIP below), so no later layer is unclipped.
           if (inAxis) ctx.restore();
           ctx.save();
-          ctx.font = "bold 12px monospace";
+          ctx.font = pillFont;
           const boxH  = COUNTDOWN_BOX_H;
           const boxW  = inAxis ? Math.round(axisW - 2) : Math.round(tw + 30);
           // A NARROW AXIS (CL1! "98.37", Founder's Chrome 2026-10-18) cannot hold the pill: it hangs just LEFT of the axis
@@ -29060,6 +29074,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         silenceRowLimitX = silenceRowLimit(y);
         // A row cut short by an object keeps the count whole in its short form (phone, 2026-10-18: "1 SENSE SILE…").
         if (narrowGlass && ctx.measureText(words).width > silenceRowLimitX - silenceX - 10) words = `${silenceFolded} SILENT ›`;
+        // Wider glass too (iPad RY1! 2026-10-18: "…TOOLS › ACTI…" ran into "DEMAND ZONE · UNTESTED" as one line): a cut
+        // row says the short form, ending 18px before the word it meets.
+        if (!narrowGlass && Number.isFinite(silenceRowLimitX) && ctx.measureText(words).width > silenceRowLimitX - silenceX - 18) {
+          words = `+${silenceFolded} SILENT — TOOLS ›`;
+          if (ctx.measureText(words).width > silenceRowLimitX - silenceX - 18) words = `${silenceFolded} SILENT ›`;
+          silenceRowLimitX -= 12;
+        }
         ctx.fillStyle = silenceOnCandles ? "rgba(7,9,15,0.94)" : "rgba(7,9,15,0.62)";
         ctx.fillRect(Math.max(0, silenceX - 4), y - 7, Math.max(0, Math.min(narrowGlass ? Math.ceil(ctx.measureText(words).width) + 8 : Math.min(W * 0.62, 760), silenceRowLimitX - 6 - Math.max(0, silenceX - 4))), 14);
         ctx.fillStyle = "rgba(200,192,174,0.85)";
