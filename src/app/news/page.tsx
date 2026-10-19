@@ -629,7 +629,7 @@ function LiveNewsPlayer() {
               return (
                 <button key={s.label} onClick={() => setActiveIdx(i)}
                   className={clsx(
-                    "flex flex-col items-center justify-center gap-1 py-3 border-b border-wm-border/30 transition-all flex-1 shrink-0",
+                    "flex flex-col items-center justify-center gap-1 py-3 border-b border-wm-border/30 transition-all shrink-0 min-h-[84px]",
                     activeIdx === i ? "bg-wm-surface" : "hover:bg-wm-surface/50"
                   )}>
                   <span className="text-xl">{s.icon}</span>
