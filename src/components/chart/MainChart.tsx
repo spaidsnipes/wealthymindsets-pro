@@ -14733,8 +14733,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // wide, fell into the plot over the newest candles and lost its words). Never under the 9px floor.
           const axisFit = (() => { try { const w = chart?.priceScale("right").width(); return Number.isFinite(w) && (w as number) > 0 ? (w as number) : 0; } catch { return 0; } })();
           let pillFont = "bold 12px monospace";
+          // …and on the narrowest axis (phone CL1! "98.40") the clock ring yields and the words alone hang there.
+          let pillRing = true;
           ctx.save();
-          for (const px of [12, 11, 10]) { ctx.font = `bold ${px}px monospace`; pillFont = ctx.font; if (axisFit > 0 && ctx.measureText(txt).width + 20 <= axisFit - 2) break; }
+          for (const [px, ring] of [[12, true], [11, true], [10, true], [10, false]] as const) {
+            ctx.font = `bold ${px}px monospace`; pillFont = ctx.font; pillRing = ring;
+            if (axisFit > 0 && ctx.measureText(txt).width + (ring ? 20 : 8) <= axisFit - 2) break;
+          }
+          if (!(axisFit > 0 && ctx.measureText(txt).width + 8 <= axisFit - 2)) { ctx.font = "bold 12px monospace"; pillFont = ctx.font; pillRing = true; }
           ctx.font = pillFont;
           const tw    = ctx.measureText(txt).width;
           ctx.restore();
@@ -14747,7 +14753,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // the countdown hangs under the price tag wherever the axis column can hold it; the left box is the fallback.
             try { const w = chart?.priceScale("right").width(); return Number.isFinite(w) && (w as number) > 0 ? (w as number) : 0; } catch { return 0; }
           })();
-          const inAxis = axisW > 0 && tw + 20 <= axisW - 2;
+          const inAxis = axisW > 0 && tw + (pillRing ? 20 : 8) <= axisW - 2;
           // The axis column is outside the pane-0 clip: step out of it for the pill alone, and lay
           // the same clip back right after (AXIS_PILL_RECLIP below), so no later layer is unclipped.
           if (inAxis) ctx.restore();
@@ -14786,14 +14792,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           { const dsT = canvasRef.current?.dataset; if (dsT) dsT.candleTimerPlace = inAxis ? "AXIS_UNDER_PRICE" : W < 640 || narrowGlass ? "LEFT_EDGE" : "DESK"; }
           // elapsed-fraction ring (clock)
           const ringX = x + (inAxis ? 8 : 10), ringR = 5;
-          ctx.beginPath(); ctx.arc(ringX, cy, ringR, 0, Math.PI * 2);
-          ctx.strokeStyle = "rgba(255,255,255,0.25)"; ctx.lineWidth = 1.4; ctx.stroke();
-          ctx.beginPath();
-          ctx.arc(ringX, cy, ringR, -Math.PI / 2, -Math.PI / 2 + progressRef.current * Math.PI * 2);
-          ctx.strokeStyle = flash ? "#fff" : border; ctx.lineWidth = 1.8; ctx.stroke();
+          if (pillRing) {
+            ctx.beginPath(); ctx.arc(ringX, cy, ringR, 0, Math.PI * 2);
+            ctx.strokeStyle = "rgba(255,255,255,0.25)"; ctx.lineWidth = 1.4; ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(ringX, cy, ringR, -Math.PI / 2, -Math.PI / 2 + progressRef.current * Math.PI * 2);
+            ctx.strokeStyle = flash ? "#fff" : border; ctx.lineWidth = 1.8; ctx.stroke();
+          }
           // countdown text
           ctx.fillStyle = "#fff"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
-          ctx.fillText(txt, x + (inAxis ? 16 : 19), cy + 0.5);
+          ctx.fillText(txt, x + (!pillRing ? 4 : inAxis ? 16 : 19), cy + 0.5);
           // dashed connector toward the price line so the eye links pill↔price (in the axis the
           // pill already hangs from the price tag, so there is nothing to connect)
           ctx.setLineDash(inAxis ? [] : [3, 3]); ctx.lineWidth = inAxis ? 0 : 1;
