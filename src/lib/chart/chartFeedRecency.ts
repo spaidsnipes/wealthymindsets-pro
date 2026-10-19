@@ -145,7 +145,8 @@ function fmtClock(seconds: number, timeZone?: string): string | null {
 const UNKNOWN = (why: string): FeedRecency => ({
   kind: "UNKNOWN",
   glyph: "NEWEST BAR — TIME UNKNOWN",
-  short: "BAR TIME UNKNOWN",
+  // 12 characters: the phone clock row cut the 16-character form ("BAR TIME UNKNOV", iPhone GBPJPY 2026-10-19).
+  short: "NO BAR TIME",
   barsBehind: null,
   title:
     `WM cannot say how far behind this chart is: ${why} So it will not ` +
