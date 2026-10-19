@@ -14092,7 +14092,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
          legible truth artefact per directive Part XLIII.
       ══════════════════════════════════════════════════════ */
       const horizon = tapeHorizonRef.current;
-      try { if (horizon && horizon.sym === symbol && footprintEnabled && att.paints("tapeHorizon")) {
+      // ONE TAPE MARK (Founder 2026-10-18, phone NQ 1m: "TAPE 06:20 PM" and "Order flow from 6:31 PM" drew two dashed
+      // seams). The footprint's own seam says where the tape begins in every mode that draws it; the horizon chip
+      // speaks only in Delta / Aggressive-Passive, which carry no seam.
+      const fpModeH = (canvas.dataset.footprint ?? "").split(":")[0];
+      const seamOwnsTape = fpModeH !== "delta" && fpModeH !== "aggressive-passive";
+      try { if (horizon && horizon.sym === symbol && footprintEnabled && !seamOwnsTape && att.paints("tapeHorizon")) {
         try {
           const horizonBarSec = tapeHorizonBarStart(horizon.startedAtSec, getIntervalSec(timeframe));
           const xRaw = chart.timeScale().timeToCoordinate(horizonBarSec as any);
