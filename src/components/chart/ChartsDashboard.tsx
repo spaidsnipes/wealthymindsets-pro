@@ -6240,6 +6240,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         {/* Symbol + live price */}
         <div className="wm-chart-market-summary" style={{ display: "flex", alignItems: "center", gap: 8, marginRight: 16, flexShrink: 0 }}>
           <span style={{ color: "#E2E8F0", fontWeight: 700, fontSize: 14 }}>{symbol}</span>
+          {/* Phone only: the chart legend (which carries it on wider glass) is not shown here. */}
+          {spotInverseOf ? <span data-testid="spot-route-inverse-tag" className="sm:hidden rounded border border-wm-gold/50 px-1 text-[13px] font-bold text-wm-gold">INVERSE OF {spotInverseOf}</span> : null}
           {(() => {
             // Truth guard: header must never paint a change value without a real
             // reference close. Before this, the header would render whatever the
