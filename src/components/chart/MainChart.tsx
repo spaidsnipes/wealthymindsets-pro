@@ -2178,6 +2178,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // tick numbers on those rows print blank instead of peeking out half-covered (iPhone 17 Pro BTC 5m, 2026-10-17:
   // "VAH 81,570.00" sat over "81560.00" and "POC 81,454.00" over "81440.00").
   const axisTickMaskRef = useRef<{ y0: number; y1: number }[]>([]);
+  const axisTickMaskSigRef = useRef("");
   const markersPluginRef = useRef<any>(null); // v5 createSeriesMarkers plugin (setMarkers moved off ISeriesApi)
   const pineMarkersPluginRef = useRef<any>(null); // v5 markers plugin dedicated to Pine plotshape/plotchar output
   const volRef        = useRef<any>(null);
@@ -29770,6 +29771,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           });
           ctx.restore();
           axisTickMaskRef.current = taken.slice();
+          // The library caches tick text until its scale moves (iPhone BTC 5m 2026-10-18: "82500.00" sat half under
+          // VAH and the live tag) — a changed mask re-asks the formatter once.
+          const maskSig = taken.map(t => `${Math.round(t.y0 / 3)}:${Math.round(t.y1 / 3)}`).join(",");
+          if (maskSig !== axisTickMaskSigRef.current) {
+            axisTickMaskSigRef.current = maskSig;
+            requestAnimationFrame(() => { try { srs?.priceScale().applyOptions({}); } catch { /* chart gone */ } });
+          }
           canvas.dataset.levelAxisTags = `${placedTags}/${axisLevelTags.length}${overlapTags ? `|OVERLAP:${overlapTags}` : ""}`;
         } else { delete canvas.dataset.levelAxisTags; axisTickMaskRef.current = []; }
       } catch (err) { layerFault("LEVEL_AXIS_TAGS", err); }
