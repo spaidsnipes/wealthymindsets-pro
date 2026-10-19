@@ -29,7 +29,8 @@ interface BeforeInstallPromptEvent extends Event {
  * Prep, Profile…), where it covers no price; it is withheld in the trading
  * surfaces and on any viewport too short to give up a quarter of its height.
  */
-const PRICE_ROOMS = /^\/(charts|paper|desk|backtest|command-deck)(\/|$)/;
+// The Scanner and Heatmaps are price rooms too (Founder's Chrome 1568, 2026-10-19: the card sat on the Scanner's rows).
+const PRICE_ROOMS = /^\/(charts|paper|desk|backtest|command-deck|scanner|heatmaps)(\/|$)/;
 const MIN_HEIGHT_FOR_OFFER_PX = 560;
 
 /**
@@ -126,7 +127,7 @@ export function InstallPrompt() {
           animate={{ y: 0,  opacity: 1 }}
           exit={{   y: 24, opacity: 0 }}
           transition={{ duration: 0.22, ease: [0.22, 0.61, 0.36, 1] }}
-          className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] inset-x-4 mx-auto z-[200] max-w-sm"
+          className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] inset-x-4 mx-auto z-[200] max-w-sm lg:left-auto lg:right-6 lg:mx-0"
           role="region"
           aria-live="polite"
           aria-labelledby="wm-install-prompt-title"
