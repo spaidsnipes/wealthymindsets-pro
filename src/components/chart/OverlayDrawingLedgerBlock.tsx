@@ -58,7 +58,7 @@ function Row({ row }: { row: LedgerRow }) {
   return (
     <div className="pt-1.5" data-ofl-row={row.id} data-ofl-state={row.state}>
       <div className="flex items-baseline gap-2">
-        <span className="text-[10px] font-bold tracking-wide text-wm-muted">{row.label}</span>
+        <span className="text-[10px] font-bold tracking-wide text-wm-text-muted">{row.label}</span>
         <span
           className="ml-auto text-[10px] font-bold tracking-wide"
           style={{ color: stateColor(row.state) }}

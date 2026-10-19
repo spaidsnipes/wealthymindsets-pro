@@ -90,12 +90,12 @@ export function FvgInspectTicket({ o, fmt, clock, evidence, firstTouch, relation
         return (
           <section key={layer.id} data-inspect-fvg-layer={layer.id} className="mt-2 border-t border-wm-border pt-1.5">
             <div className="text-[9.5px] max-sm:text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: GOLD }}>{layer.title}</div>
-            <div className="text-[9.5px] max-sm:text-[11px] text-wm-muted leading-snug">{layer.means}</div>
+            <div className="text-[9.5px] max-sm:text-[11px] text-wm-text-muted leading-snug">{layer.means}</div>
             {own.length ? (
               <dl className="mt-1 text-[11px] break-words space-y-1.5" style={{ color: "#C8C0AE" }}>
                 {own.map(r => (
                   <div key={r.id} data-inspect-fvg-row={r.id}>
-                    <dt className="text-[9.5px] max-sm:text-[11px] font-bold uppercase tracking-[0.12em] text-wm-muted">{r.label}</dt>
+                    <dt className="text-[9.5px] max-sm:text-[11px] font-bold uppercase tracking-[0.12em] text-wm-text-muted">{r.label}</dt>
                     <dd className="text-white leading-snug">{r.value}</dd>
                   </div>
                 ))}
@@ -103,9 +103,9 @@ export function FvgInspectTicket({ o, fmt, clock, evidence, firstTouch, relation
             ) : null}
             {rel ? (
               <div className="mt-1 text-[11px] leading-snug" data-inspect-fvg-relationships data-inspect-fvg-relationship-count={rel.rows.length}>
-                <div className="text-[9.5px] max-sm:text-[11px] font-bold uppercase tracking-[0.12em] text-wm-muted">Relationships (by reference)</div>
+                <div className="text-[9.5px] max-sm:text-[11px] font-bold uppercase tracking-[0.12em] text-wm-text-muted">Relationships (by reference)</div>
                 {rel.rows.map((r, i) => <div key={`r${i}`} className="pt-0.5 text-white">{r}</div>)}
-                {rel.silences.map((r, i) => <div key={`s${i}`} className="pt-0.5 text-wm-muted">{r}</div>)}
+                {rel.silences.map((r, i) => <div key={`s${i}`} className="pt-0.5 text-wm-text-muted">{r}</div>)}
               </div>
             ) : null}
             {layer.id === "TRADER" ? (

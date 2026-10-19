@@ -8470,7 +8470,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // The room's one door-edge owner (openDoorEdge) — the same number
           // the price legend's ClearOfOpenDoor band steps past.
           const cr = canvas.getBoundingClientRect();
-          return doorInsetFor(openDoorEdge(), cr.left, cr.width);
+          let inset = doorInsetFor(openDoorEdge(), cr.left, cr.width);
+          // A LEFT-DOCKED INSPECT TICKET is a wall too (iPad NQ1! 1m, 2026-10-19: "…NODES WITHHELD" and
+          // "EXHAUSTION · ON …" ran underneath it). Only one standing at this canvas's left edge counts.
+          document.querySelectorAll<HTMLElement>('[data-testid="chart-inspect-ticket"]').forEach(el => {
+            const r = el.getBoundingClientRect();
+            if (r.width > 0 && r.left <= cr.left + 40 && r.right > cr.left && r.right < cr.left + cr.width * 0.6
+              && r.top < cr.bottom && r.bottom > cr.top + cr.height * 0.5) inset = Math.max(inset, r.right - cr.left);
+          });
+          return inset;
         } catch { return 0; }
       })();
       const silenceX = Math.max(12, railOcclusionX + 12);

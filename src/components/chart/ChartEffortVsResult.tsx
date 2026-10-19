@@ -90,7 +90,7 @@ function Row({ row, suppressAbsence }: { row: EffortResultRow; suppressAbsence?:
   return (
     <div className="pt-1" data-evr-row={row.id} data-evr-state={row.state}>
       <div className="flex items-baseline gap-2">
-        <span className="text-[10px] font-bold tracking-wide text-wm-muted">{row.label}</span>
+        <span className="text-[10px] font-bold tracking-wide text-wm-text-muted">{row.label}</span>
         <span
           className="ml-auto text-[11px] font-bold tracking-wide"
           style={{ color: read ? READ_COLOR : UNREAD_COLOR }}
@@ -104,7 +104,7 @@ function Row({ row, suppressAbsence }: { row: EffortResultRow; suppressAbsence?:
         be trusted. The compiler already wrote the sentence.
       */}
       {read && row.basis && (
-        <div className="pt-0.5 text-[10px] leading-snug text-wm-muted">{row.basis}</div>
+        <div className="pt-0.5 text-[10px] leading-snug text-wm-text-muted">{row.basis}</div>
       )}
       {!read && !suppressAbsence && row.absence && (
         <div className="pt-0.5 text-[10px] leading-snug" style={{ color: UNREAD_COLOR }}>
@@ -171,13 +171,13 @@ export function ChartEffortVsResult({
         <button
           onClick={() => onOpenChange(false)}
           aria-label="Close the effort versus result reading"
-          className="ml-auto text-wm-muted hover:text-white"
+          className="ml-auto text-wm-text-muted hover:text-white"
         >
           <X size={12} />
         </button>
       </div>
 
-      <div className="pt-1.5 text-[10px] font-bold tracking-wide text-wm-muted">
+      <div className="pt-1.5 text-[10px] font-bold tracking-wide text-wm-text-muted">
         {/* LIVE only when the feed is LIVE — the same rule as the Inspect ticket. */}
         {followingLiveBar ? (feedLive ? "LIVE BAR" : "FORMING BAR") : "SELECTED BAR"}
       </div>
@@ -187,7 +187,7 @@ export function ChartEffortVsResult({
         told the panel changed subject rather than discovering it.
       */}
       {followingLiveBar && (
-        <div className="pt-0.5 text-[10px] leading-snug text-wm-muted">
+        <div className="pt-0.5 text-[10px] leading-snug text-wm-text-muted">
           Nothing is pointed at, so this weighs the bar still forming. With a
           mouse, hover a candle to weigh that one instead.
         </div>
@@ -226,7 +226,7 @@ export function ChartEffortVsResult({
         WHAT IT WAS COMPARED AGAINST. Always. A comparison that will not name
         its cohort is a verdict wearing a measurement's clothes.
       */}
-      <div className="pt-1 text-[10px] leading-snug text-wm-muted">{vm.lookbackNote}</div>
+      <div className="pt-1 text-[10px] leading-snug text-wm-text-muted">{vm.lookbackNote}</div>
 
       {/*
         WHAT IT CANNOT TELL YOU. Printed in the warm colour even when the

@@ -144,7 +144,7 @@ export function ChartArrangementBar({
           aria-label="Chart arrangement"
           className="rounded-lg border border-wm-border bg-wm-surface/95 p-2"
         >
-          <div className="px-2 pt-1 pb-2 text-[10px] font-bold tracking-widest text-wm-muted">
+          <div className="px-2 pt-1 pb-2 text-[10px] font-bold tracking-widest text-wm-text-muted">
             {/* Garden 16 §14 camera grammar — the same words the Workspace
                 hand prints, from the same owner. */}
             VIEWS — {CAMERA_PROMISE.toUpperCase()}
@@ -192,10 +192,10 @@ export function ChartArrangementBar({
                   {arrangementCameraLabel(entry.id)}
                 </span>
                 {starterEdited(entry.id) && (
-                  <span data-testid={`arrangement-edited-${entry.id}`} className="text-[9px] font-bold uppercase tracking-widest text-wm-muted">edited</span>
+                  <span data-testid={`arrangement-edited-${entry.id}`} className="text-[9px] font-bold uppercase tracking-widest text-wm-text-muted">edited</span>
                 )}
                 {entry.active && <Check size={11} className="text-wm-gold" />}
-                <span className="ml-auto text-[10px] font-bold tabular-nums text-wm-muted">
+                <span className="ml-auto text-[10px] font-bold tabular-nums text-wm-text-muted">
                   {entry.deliverableCount}/{entry.armedCount} DRAWING
                 </span>
               </div>
@@ -204,7 +204,7 @@ export function ChartArrangementBar({
                 explains itself as "arms five toggles" has told the trader what
                 the code does instead of what the chart will say.
               */}
-              <div className="pl-4 pt-0.5 text-[11px] leading-snug text-wm-muted">
+              <div className="pl-4 pt-0.5 text-[11px] leading-snug text-wm-text-muted">
                 {entry.purpose}
               </div>
               {/*
@@ -225,7 +225,7 @@ export function ChartArrangementBar({
           ))}
 
           {!atADesk && (
-            <div className="mt-1 border-t border-wm-border px-2 pt-2 text-[10px] leading-snug text-wm-muted">
+            <div className="mt-1 border-t border-wm-border px-2 pt-2 text-[10px] leading-snug text-wm-text-muted">
               Your switches match none of these. That is a normal place to be —
               nothing here will change until you choose a desk.
             </div>

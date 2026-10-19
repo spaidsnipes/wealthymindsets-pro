@@ -198,7 +198,7 @@ const READ_COLOR = "#E8EAF2";
 function Receipt({ children, testId = "inspect-receipt" }: { children: React.ReactNode; testId?: string }) {
   return (
     <details className="mt-1" data-testid={testId}>
-      <summary className="cursor-pointer select-none text-wm-muted" style={{ listStyle: "revert" }}>Receipt</summary>
+      <summary className="cursor-pointer select-none text-wm-text-muted" style={{ listStyle: "revert" }}>Receipt</summary>
       <div className="mt-0.5">{children}</div>
     </details>
   );
@@ -237,7 +237,7 @@ function CandleReadingsBlock({ rows }: { rows: readonly CandleReadingRow[] }) {
           <span className="font-bold text-white">{r.label}</span>{" "}
           <span className="font-bold" style={{ color: EVIDENCE_COLOR[r.klass] }}>{r.klass}</span>
           <div className={r.klass === "SILENT" ? undefined : "tabular-nums text-white"} style={r.klass === "SILENT" ? { color: UNREAD_COLOR } : undefined}>{r.value}</div>
-          <div className="text-wm-muted">from {r.basis}</div>
+          <div className="text-wm-text-muted">from {r.basis}</div>
         </div>
       ))}
     </div>
@@ -249,7 +249,7 @@ function Row({ row, sameReasonAsAbove = false }: { row: TicketRow; sameReasonAsA
   return (
     <div className="pt-1" data-inspect-row={row.id} data-inspect-state={row.state}>
       <div className="flex items-baseline gap-2">
-        <span className="text-[10px] font-bold tracking-wide text-wm-muted">{row.label}</span>
+        <span className="text-[10px] font-bold tracking-wide text-wm-text-muted">{row.label}</span>
         <span
           className="ml-auto text-[11px] font-bold tabular-nums"
           style={{ color: read ? READ_COLOR : UNREAD_COLOR }}
@@ -408,7 +408,7 @@ function AnatomyTicket({ sel, onClose, timeZone, feed = null, sourceName = null 
 
       {absorption && r.state === "NOT_GRADED_IN_WINDOW" && r.bars.length > 0 && (
         <div className="mt-1.5 text-[10px] leading-snug" style={{ color: "#C8C0AE" }} data-inspect-anatomy-now>
-          <div className="font-bold tracking-wide text-wm-muted">ITS BARS, AS THIS WINDOW GRADES THEM</div>
+          <div className="font-bold tracking-wide text-wm-text-muted">ITS BARS, AS THIS WINDOW GRADES THEM</div>
           {r.bars.map(b => (
             <div key={b.time} className="tabular-nums">{hhmm(b.time)} · effort {pct(b.effortNorm)} · displacement {pct(b.displacementNorm)}</div>
           ))}
@@ -416,7 +416,7 @@ function AnatomyTicket({ sel, onClose, timeZone, feed = null, sourceName = null 
       )}
 
       {bodyIsLast && body && (
-        <div className="mt-1.5 border-t border-wm-border pt-1 text-[10px] font-bold tracking-wide text-wm-muted" data-inspect-anatomy-last>
+        <div className="mt-1.5 border-t border-wm-border pt-1 text-[10px] font-bold tracking-wide text-wm-text-muted" data-inspect-anatomy-last>
           LAST DRAWN READING · measured on {windowLine(body.window)}
         </div>
       )}
@@ -1242,7 +1242,7 @@ export function ChartInspectTicket({
             <div className="text-[10px] font-bold tracking-wide text-wm-gold">MEMBERS · oldest first · {c.members.length > 0 ? clock.zone(c.members[0].timeMs / 1000) : ""}</div>
             <table className="mt-1 w-full text-[10px] tabular-nums" style={{ color: "#C8C0AE" }}>
               <thead>
-                <tr className="text-left text-wm-muted"><th className="font-bold">TIME</th><th className="font-bold">PRICE</th><th className="font-bold text-right">SIZE</th><th className="font-bold text-right">SIDE</th></tr>
+                <tr className="text-left text-wm-text-muted"><th className="font-bold">TIME</th><th className="font-bold">PRICE</th><th className="font-bold text-right">SIZE</th><th className="font-bold text-right">SIDE</th></tr>
               </thead>
               <tbody>
                 {c.members.map(m => (
@@ -1331,7 +1331,7 @@ export function ChartInspectTicket({
             </div>
             <table className="mt-1 w-full text-[10px] tabular-nums" style={{ color: "#C8C0AE" }}>
               <thead>
-                <tr className="text-left text-wm-muted"><th className="font-bold">TIME</th><th className="font-bold">PRICE</th><th className="font-bold text-right">SIZE</th><th className="font-bold text-right">SIDE</th></tr>
+                <tr className="text-left text-wm-text-muted"><th className="font-bold">TIME</th><th className="font-bold">PRICE</th><th className="font-bold text-right">SIZE</th><th className="font-bold text-right">SIDE</th></tr>
               </thead>
               <tbody>
                 {p.rawTape.rows.map(r => (
@@ -1386,14 +1386,14 @@ export function ChartInspectTicket({
         <button
           onClick={() => onOpenChange(false)}
           aria-label="Close the inspect ticket"
-          className="ml-auto text-wm-muted hover:text-white"
+          className="ml-auto text-wm-text-muted hover:text-white"
         >
           <X size={12} />
         </button>
       </div>
       <InspectFirstTouchLine />
 
-      <div className="pt-1.5 text-[10px] font-bold tracking-wide text-wm-muted">
+      <div className="pt-1.5 text-[10px] font-bold tracking-wide text-wm-text-muted">
         {/* LIVE is a claim about the feed, not about the bar (serving EURUSD
             2026-10-09: "LIVE BAR" over "This chart has no live feed right now").
             Only a LIVE feed earns it; otherwise the bar is simply still forming. */}
@@ -1403,14 +1403,14 @@ export function ChartInspectTicket({
         {time ? `${time}` : "—"}
         {/* At the instrument's decimals, like every other price in this ticket:
             raw, ES 7854.00 read "7854" (sheriff sweep 2026-10-07). */}
-        {vm.price !== null && <span className="text-wm-muted"> · {priceDp != null ? vm.price.toFixed(priceDp) : String(+vm.price.toPrecision(8))}</span>}
+        {vm.price !== null && <span className="text-wm-text-muted"> · {priceDp != null ? vm.price.toFixed(priceDp) : String(+vm.price.toPrecision(8))}</span>}
       </div>
       {/*
         Stated, not implied. A trader who moved the cursor off the chart and got
         a different set of numbers deserves to be told the panel changed subject.
       */}
       {followingLiveBar && (
-        <div className="pt-0.5 text-[10px] leading-snug text-wm-muted">
+        <div className="pt-0.5 text-[10px] leading-snug text-wm-text-muted">
           {/* G19 §22: a touch screen has no cursor and no hover — the sentence
               must not tell a finger to hover. Tap-to-pick is the chart lane's. */}
           Nothing is pointed at, so this is the bar still forming. With a mouse,
@@ -1443,10 +1443,10 @@ export function ChartInspectTicket({
           style={{ color: "#C8C0AE" }}
         >
           <div className="font-bold tracking-wide text-wm-gold">CLARITY · CANDLE ANATOMY</div>
-          <dl className="grid grid-cols-[auto_1fr] gap-x-2">
+          <dl className="grid grid-cols-[minmax(0,88px)_1fr] gap-x-2">
             {clarity.lines.map(l => (
               <React.Fragment key={l.key}>
-                <dt className="text-wm-muted">{l.label}</dt>
+                <dt className="text-wm-text-muted">{l.label}</dt>
                 <dd className="text-white tabular-nums">{l.value}</dd>
               </React.Fragment>
             ))}
@@ -1467,7 +1467,7 @@ export function ChartInspectTicket({
       >
         <Receipt>
         <div className="flex items-baseline gap-2">
-          <span className="font-bold tracking-wide text-wm-muted">LINEAGE</span>
+          <span className="font-bold tracking-wide text-wm-text-muted">LINEAGE</span>
           {vm.lineage.state === "UNREAD" && (
             <span className="ml-auto font-bold" style={{ color: UNREAD_COLOR }}>UNREAD</span>
           )}
@@ -1485,7 +1485,7 @@ export function ChartInspectTicket({
             <span style={{ color: UNREAD_COLOR }}>CHAIN UNREAD{vm.lineage.state === "READ" ? ` · ${vm.chain.absence}` : ""}</span>
           )}
         </div>
-        <div className="text-wm-muted">method {vm.method}</div>
+        <div className="text-wm-text-muted">method {vm.method}</div>
         </Receipt>
       </div>
 
@@ -1703,7 +1703,7 @@ export function ChartInspectTicket({
         behind three rows. Printed once here so a trader can learn the shape of
         the limitation instead of re-reading it in every row it caused.
       */}
-      <div className="mt-1.5 border-t border-wm-border pt-1 text-[10px] leading-snug text-wm-muted">
+      <div className="mt-1.5 border-t border-wm-border pt-1 text-[10px] leading-snug text-wm-text-muted">
         {vm.reachNote}
       </div>
 
@@ -1724,7 +1724,7 @@ export function ChartInspectTicket({
           <div className="text-[10px] font-bold uppercase tracking-wider text-wm-gold">Local footprint · this bar · <span style={{ color: "#E9C46A" }}>POC lit</span></div>
           <table className="mt-0.5 w-full text-[10.5px] tabular-nums" style={{ fontFamily: TAPE_MONO }}>
             <thead>
-              <tr className="text-[10px] text-wm-muted">
+              <tr className="text-[10px] text-wm-text-muted">
                 <th className="text-left font-normal">Price</th>
                 <th className="text-right font-normal">Bid</th>
                 <th className="text-right font-normal">Ask</th>
@@ -1745,7 +1745,7 @@ export function ChartInspectTicket({
             </tbody>
           </table>
           {vm.localFootprint.bandWidth !== null ? (
-            <div className="text-[10px] text-wm-muted">
+            <div className="text-[10px] text-wm-text-muted">
               {vm.localFootprint.grouped} traded levels grouped into bands {tapePrice(vm.localFootprint.bandWidth)} wide · price = band low
             </div>
           ) : null}
@@ -1760,7 +1760,7 @@ export function ChartInspectTicket({
             <tbody>
               {vm.barTape.rows.map((t, i) => (
                 <tr key={`${t.timeMs}-${i}`}>
-                  <td className="text-left text-wm-muted">{tapeClock(t.timeMs)}</td>
+                  <td className="text-left text-wm-text-muted">{tapeClock(t.timeMs)}</td>
                   <td className="text-right" style={{ color: "#C8C0AE" }}>{tapePrice(t.price)}</td>
                   <td className="text-right" style={{ color: t.side === "ASK" ? "#6FCF97" : t.side === "BID" ? "#E07A7A" : "#C8C0AE" }}>
                     {tapeSize(t.size)}
