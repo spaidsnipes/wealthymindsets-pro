@@ -1006,7 +1006,11 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
             {/* Footer */}
             <div style={{ borderTop: "1px solid #1E2030", padding: "4px 10px", flexShrink: 0 }}>
               <span style={{ fontSize: 9, color: "#8b8fa8" }}>
-                {filtered.filter(i => i.price > 0).length}/{filtered.length} verified quotes
+                {/* Counted the way the rows read (iPhone 2026-10-18: "2/16" under four LIVE — CERTIFIED rows): a fresh live lane counts. */}
+                {filtered.filter(i => {
+                  const u = i.sym.toUpperCase(), tt = liveQuotes.get(u), cb = liveCrypto.get(u);
+                  return i.price > 0 || (!!tt && nowTick - tt.at < WATCH_LIVE_FRESH_MS) || (!!cb && nowTick - cb.at < WATCH_LIVE_FRESH_MS);
+                }).length}/{filtered.length} verified quotes
               </span>
             </div>
           </motion.div>
