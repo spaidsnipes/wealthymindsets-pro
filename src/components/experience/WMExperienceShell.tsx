@@ -166,7 +166,9 @@ function SanctuaryRoom({
         whiteSpace: "nowrap",
         overflow: "hidden",
         textOverflow: "ellipsis",
-        maxWidth: 260,
+        // The stage's one-line job reads whole where the masthead has room (iPad Lounge, 2026-10-18: "Watch the
+        // market without taking a pos…" at 260px on an 820px screen); the phone keeps its tighter cut.
+        maxWidth: "min(360px, 44vw)",
       }}
     >
       {emphasis.job}

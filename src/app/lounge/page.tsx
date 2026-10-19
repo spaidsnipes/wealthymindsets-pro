@@ -1,6 +1,6 @@
 "use client";
 
-import { WM } from "@/lib/design/wmTokens";
+import { WM, WM_PRIMARY_ACTION } from "@/lib/design/wmTokens";
 import { RoomStatePlaque } from "@/components/ui/RoomStatePlaque";
 import Link from "next/link";
 import React, { useState, useRef, useCallback, useEffect } from "react";
@@ -1095,7 +1095,7 @@ export default function LoungePage() {
                     Share a trade idea, drop a track, post for the culture…
                   </button>
                   <button onClick={() => setShowCreate(true)}
-                    className="px-4 py-2 rounded-xl text-[11px] font-black shrink-0" style={{ background: "linear-gradient(135deg,#E8B923,#059669)", color: "#0b0a06" }}>
+                    className="px-4 py-2 rounded-xl text-[11px] font-black shrink-0" style={WM_PRIMARY_ACTION}>
                     For the Culture
                   </button>
                 </div>
