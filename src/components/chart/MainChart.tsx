@@ -8580,7 +8580,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         return v >= 1_000_000 ? `${(v/1_000_000).toFixed(1)}M`
              : v >= 1000       ? `${(v/1000).toFixed(1)}k`
              : v >= 10         ? `${Math.round(v)}`
-             : v >= 1          ? v.toFixed(1)
+             // Whole contracts read whole (iPhone NQ1! 1m delta row: "-16 +28 -1.0 -4.0 +3.0" mixed two forms).
+             : v >= 1          ? (Math.abs(v - Math.round(v)) < 1e-9 ? `${Math.round(v)}` : v.toFixed(1))
              : v.toFixed(2);   // fractional crypto (0.30, 0.05) — never floor to "0"
       };
 
