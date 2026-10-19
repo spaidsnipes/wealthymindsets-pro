@@ -2619,7 +2619,8 @@ Trade the system, trust the process, winners every day 🚀`,
             <button
               type="button"
               onClick={() => { setNewMode(true); setSelected(null); }}
-              className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-wm-green text-xs font-bold text-wm-black"
+              className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg text-xs font-bold text-wm-black"
+              style={WM_PRIMARY_ACTION}
             >
               <Plus size={15} aria-hidden="true" /> New journal entry
             </button>
