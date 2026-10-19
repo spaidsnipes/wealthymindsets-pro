@@ -2427,6 +2427,13 @@ input[type=range]::-moz-range-track { height: 4px; background: #26262d; border-r
      In a narrow band the chip keeps every word and wraps once, inside its frame. */
   .wm-fidelity-badge--chrome { height: auto !important; white-space: normal; max-width: 15ch; line-height: 1.1; padding: 2px 6px !important; text-align: left; }
 }
+/* PHONE DESK (iPhone 17 Pro /desk 4-up, 2026-10-19: a ~300px band ran "LIVE — CERT…" off its right edge). Under
+   420px of band the identity keeps its symbol only — the screen's own header already names the timeframe — so
+   the fidelity chip fits whole. */
+@container wm-legend (max-width: 420px) {
+  [data-chart-identity] [data-identity-part]:not([data-identity-part="symbol"]),
+  [data-chart-identity] > span[aria-hidden] { display: none !important; }
+}
 .wm-legend-recency-narrow { display: none; }
 /* Serving f203fb2 at 1440×900 beside the decision rail (legend band 1115px): price + O/H/L/NOW +
    DAY BIAS filled the row, the bar clock's group was crushed to 4px, and "BAR OPENED 01:10 AM CDT ·
