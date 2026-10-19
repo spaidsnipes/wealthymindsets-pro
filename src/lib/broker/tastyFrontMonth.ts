@@ -96,7 +96,7 @@ export function tastyFrontMonthFor(chartSymbol: string): Promise<TastyFrontMonth
   if (!p) {
     p = fetch(`/api/broker/tastytrade/chain?futures=${encodeURIComponent(product)}`, { cache: "no-store" })
       .then(r => (r.ok ? r.json() : null))
-      .then(j => (j?.state === "OK" ? (exact ? resolveTastyContract(j.data, exact) : resolveTastyFrontMonth(j.data)) : null))
+      .then(j => (j?.state === "OK" ? (exact ? resolveTastyContract(j.data, exact) : resolveTastyFrontMonth(j.data)) ?? (exact ? null : feedOnlyFrontMonth(product, Date.now())) : null))
       .catch(() => null);
     cache.set(key, p);
     // A refusal or a failed read is not an answer to keep: the next ask
@@ -108,3 +108,29 @@ export function tastyFrontMonthFor(chartSymbol: string): Promise<TastyFrontMonth
 
 /** Sign-out: the next account resolves its own contracts. */
 export function forgetTastyFrontMonths(): void { cache.clear(); }
+
+/*
+ * FEED-ONLY CME CURRENCY FUTURES (Founder 2026-10-18: "every single forex pair"). Measured from his Chrome: tastytrade's
+ * DXLink quotes /RP /RY /RF /6L /6Z live, but its futures chain lists no contract for them, so the chart had nothing to
+ * open. For these roots ONLY, the active quarterly contract's streamer symbol is built directly (CME FX: Mar/Jun/Sep/Dec,
+ * last trade two business days before the third Wednesday). Chart-only — tastytrade lists no tradable contract.
+ */
+export const FEED_ONLY_FX_ROOTS: ReadonlySet<string> = new Set(["RP", "RY", "RF", "6L", "6Z"]);
+const QMONTHS: readonly [number, string][] = [[2, "H"], [5, "M"], [8, "U"], [11, "Z"]];
+export function feedOnlyFrontMonth(root: string, nowMs: number): TastyFrontMonth | null {
+  if (!FEED_ONLY_FX_ROOTS.has(root)) return null;
+  const now = new Date(nowMs);
+  for (let y = now.getUTCFullYear(); y <= now.getUTCFullYear() + 1; y++) {
+    for (const [m, code] of QMONTHS) {
+      // third Wednesday
+      const first = new Date(Date.UTC(y, m, 1)).getUTCDay();
+      const thirdWed = 1 + ((3 - first + 7) % 7) + 14;
+      const lastTrade = Date.UTC(y, m, thirdWed - 2, 14, 16); // ~09:16 CT, two days before
+      if (lastTrade > nowMs) {
+        const sym = `/${root}${code}${String(y).slice(2)}`;
+        return { symbol: sym, streamer: `${sym}:XCME` };
+      }
+    }
+  }
+  return null;
+}

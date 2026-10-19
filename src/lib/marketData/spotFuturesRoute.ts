@@ -29,6 +29,12 @@ const ROUTES: Readonly<Record<string, SpotRoute>> = {
   // RF / 6J / 6C / 6S / 6M / 6L / 6Z all quote). Routed ONLY where tastytrade's futures chain also lists the contract (the chart
   // resolves its front month there): RP / RY / RF / 6L / 6Z quote but return an empty chain, so they would open a blank chart.
   // USD-base pairs: CME quotes them as USD per unit of the other currency — the INVERSE of the spot pair, said in the notice.
+  // Feed-only CME crosses (tastyFrontMonth.feedOnlyFrontMonth builds their contract): chart-only on WM Pro.
+  EURGBP: { future: "RP1!", name: "CME euro / British pound cross future" },
+  EURJPY: { future: "RY1!", name: "CME euro / Japanese yen cross future" },
+  EURCHF: { future: "RF1!", name: "CME euro / Swiss franc cross future" },
+  USDBRL: { future: "6L1!", name: "CME Brazilian real future", inverse: true },
+  USDZAR: { future: "6Z1!", name: "CME South African rand future", inverse: true },
   USDJPY: { future: "6J1!", name: "CME Japanese yen future", inverse: true },
   USDCAD: { future: "6C1!", name: "CME Canadian dollar future", inverse: true },
   USDCHF: { future: "6S1!", name: "CME Swiss franc future", inverse: true },
@@ -37,7 +43,7 @@ const ROUTES: Readonly<Record<string, SpotRoute>> = {
 
 /** The legs a cross or inverse pair can be read through (never synthesised into a fake spot chart). */
 const LEG_FUTURE: Readonly<Record<string, string>> = {
-  EUR: "6E1!", GBP: "6B1!", JPY: "6J1!", AUD: "6A1!", NZD: "6N1!", CAD: "6C1!", CHF: "6S1!", MXN: "6M1!", XAU: "GC1!", XAG: "SI1!",
+  EUR: "6E1!", GBP: "6B1!", JPY: "6J1!", AUD: "6A1!", NZD: "6N1!", CAD: "6C1!", CHF: "6S1!", MXN: "6M1!", BRL: "6L1!", ZAR: "6Z1!", XAU: "GC1!", XAG: "SI1!",
 };
 
 const bare = (s: string) => (s ?? "").trim().toUpperCase().replace(/[^A-Z]/g, "");
