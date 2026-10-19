@@ -18,6 +18,7 @@ import { creatorProgramStats, type CreatorRosterRow } from "@/lib/creator/creato
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
 import { DialogBehaviour } from "@/components/ui/DialogFrame";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
+import { WM_PRIMARY_ACTION } from "@/lib/design/wmTokens";
 
 /* ── Tier definitions ─────────────────────────────────────── */
 interface Tier {
@@ -461,7 +462,7 @@ export default function CreatorPage() {
           </p>
           <div className="flex items-center justify-center gap-3">
             <button onClick={() => openWaitlist("basic")}
-              className="px-6 py-2.5 rounded-xl text-xs font-black bg-wm-green text-wm-black transition-all hover:opacity-90">
+              className="px-6 py-2.5 rounded-xl text-xs font-black text-wm-black transition-all hover:opacity-90" style={WM_PRIMARY_ACTION}>
               Save Basic Interest
             </button>
             <button onClick={() => openWaitlist("elite")}
@@ -505,7 +506,7 @@ export default function CreatorPage() {
                   <div className="text-sm font-black text-wm-text mb-1">Interest saved</div>
                   <div className="text-[11px] text-wm-text-muted">This preference is stored only in this browser. No application was submitted.</div>
                   <button onClick={() => setWaitlistOpen(false)}
-                    className="mt-4 px-6 py-2 rounded-xl text-xs font-black bg-wm-green text-wm-black">
+                    className="mt-4 px-6 py-2 rounded-xl text-xs font-black text-wm-black" style={WM_PRIMARY_ACTION}>
                     Done
                   </button>
                 </div>
@@ -536,7 +537,7 @@ export default function CreatorPage() {
                     </div>
                   </div>
                   <button onClick={submitWaitlist}
-                    className="w-full py-2.5 rounded-xl text-xs font-black bg-wm-green text-wm-black hover:opacity-90 transition-all">
+                    className="w-full py-2.5 rounded-xl text-xs font-black text-wm-black hover:opacity-90 transition-all" style={WM_PRIMARY_ACTION}>
                     <Bell size={11} className="inline mr-1.5"/>
                     Save Interest Locally
                   </button>
