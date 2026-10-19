@@ -29703,6 +29703,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // sat across the session high's wick) — first slide along the row off the candles, else the pip.
             const onBodies = (q: { x: number; y: number; w: number; h: number }) => [...rowBodiesAt(q.y, q.y + q.h), ...profileCandlesAt(q.y, q.y + q.h)].some(o => q.x < o.x + o.w && q.x + q.w > o.x && q.y < o.y + o.h && q.y + q.h > o.y);
             const onWordsOrAnchors = (q: { x: number; y: number; w: number; h: number }) => [...wordRectsNow, ...sovereignBoxes, ...anchorRects].some(o => q.x < o.x + o.w + 2 && q.x + q.w + 2 > o.x && q.y < o.y + o.h + 1 && q.y + q.h + 1 > o.y);
+            // Stepped past the pane floor (Founder's Chrome /desk SPY 2026-10-19: "Higher high — buyers in control" sat on
+            // the time axis after the bounded row steps) → the quiet pip, never below the glass.
+            if (!single && r.y + r.h > pane0Bottom - 2) { r = { ...r, y: clampY(r.y) }; if (onWordsOrAnchors(r)) r = { ...r, y: Number.NaN }; }
             if (!single && sp.mode === "BLOCKED" && onBodies(r)) {
               const lo = Math.max(4, keepOutMinX()), hi = Math.min(plotRight - w - 4, pipClearLeft - w - 4);
               for (let k = 1; k <= 24; k++) {
@@ -29712,7 +29715,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 if (!onBodies(q) && !onWordsOrAnchors(q)) { r = q; break; }
               }
             }
-            if (!single && ([...wordRectsNow, ...sovereignBoxes].some(o => r.x < o.x + o.w + 2 && r.x + r.w + 2 > o.x && r.y < o.y + o.h + 1 && r.y + r.h + 1 > o.y) || (sp.mode === "BLOCKED" && onBodies(r)))) {
+            if (!single && (!Number.isFinite(r.y) || [...wordRectsNow, ...sovereignBoxes].some(o => r.x < o.x + o.w + 2 && r.x + r.w + 2 > o.x && r.y < o.y + o.h + 1 && r.y + r.h + 1 > o.y) || (sp.mode === "BLOCKED" && onBodies(r)))) {
               pipForm = true; crowdedToPip++;
               r = { x: Math.max(4, Math.min(plotRight - 16, a.x - 6)), y: clampY(a.y - 6), w: 12, h: 12 };
             }
@@ -32572,12 +32575,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                           night: "LIVE — CERTIFIED QUOTE" clipped at the pane's right edge).
                           A legend band under 760px (the wm-legend container) reads the
                           short form; the full words stay in title and the DOM. */}
-                      {showFidelityChrome ? (
-                        <span title="LIVE — CERTIFIED QUOTE">
-                          <span className="wm-legend-words-full">LIVE — CERTIFIED QUOTE</span>
-                          <span className="wm-legend-words-short" aria-hidden="true">LIVE · CERTIFIED</span>
-                        </span>
-                      ) : recencyWords(feedRecency.glyph, feedRecency.short)}
+                      {/* The fidelity chip beside the price already says LIVE — this group tells the bar's clock, never
+                          the verdict a second time (Founder's Chrome /desk 4-up 1568, 2026-10-19: "LIVE — CERTIFIE…" wrapped
+                          over the depth word in every screen; the 760px container rule never reached this group). */}
+                      {recencyWords(feedRecency.glyph, feedRecency.short)}
                     </span>
                   </span>
                 ) : (
