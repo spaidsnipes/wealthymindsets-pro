@@ -1041,6 +1041,8 @@ function LegacyEducationPage() {
  * renders only with ?stay=1 or inside the education proof scene, which pins its own fixture.
  */
 export default function EducationPage() {
+  // The WOW handoff reads no market feed either (Founder's Chrome 2026-10-19: it said FEED UNKNOWN · SOURCE UNKNOWN).
+  usePublishOsStanding({ surface: "Academy", feed: FEEDLESS_SURFACE });
   const [view, setView] = useState<{ legacy: boolean; lesson: string | null; from: string | null } | null>(null);
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
