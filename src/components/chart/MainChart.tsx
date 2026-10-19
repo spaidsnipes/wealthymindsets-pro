@@ -11815,7 +11815,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // 2026-10-18: "IMPORTANT PRINT" sat on a red body and "IMPORTANT P…" was cut at the axis): for it the bodies
             // and the axis strip are blockers too — no room → none.
             const blockersN = [...forceChips, ...fpCells];
-            if (callout) blockersN.push(...nearBodies, { x: plotRight - 2, y: -1e4, w: 1e5, h: 2e4 });
+            // …or at the glass's left edge (iPad NQ1! 1m volume-profile: "…RTANT PRINT" was cut there).
+            if (callout) blockersN.push(...nearBodies, { x: plotRight - 2, y: -1e4, w: 1e5, h: 2e4 }, { x: -1e5, y: -1e4, w: 1e5 + nearMinX, h: 2e4 });
             const spot = placeClearOfKeepOut(pref, nearBodies, { minX: nearMinX, blockers: blockersN, strict: true, alternates });
             // Text never prints over another chip's text or a footprint cell;
             // over a candle body it is halo text on the owner's BLOCKED slot,
