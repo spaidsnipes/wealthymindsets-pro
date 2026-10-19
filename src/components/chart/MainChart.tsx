@@ -11462,7 +11462,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const sidesShown = pickD.filter(p => p.r.viaSides).length;
           const tagD = `Δ${chipD ? ` · ${chipD}` : ""}${sidesShown ? ` · ${sidesShown === pickD.length ? "" : "older "}bars: provider bid / ask` : ""}${strideD > 1 ? ` · 1 IN ${strideD} BARS` : ""}${fpUsdCellsRef.current && effectiveFP === "bid-ask" ? " · cells: $ traded" : ""}`;
           ctx.font = marketFont("OBJECT_NAME");
-          const tagW = ctx.measureText(tagD).width + 4, tagY = yD - 20;
+          let tagShown = tagD;
+          let tagW = ctx.measureText(tagD).width + 4; const tagY = yD - 20;
           // …and never across a candle (Founder's Chrome, NQ1! 1m 2026-10-18: the tag printed over the 5:00 bar's body).
           const onCandleD = (x: number, y: number, w: number, h: number) => {
             const tsDD = chart.timeScale();
@@ -11475,13 +11476,25 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             }
             return false;
           };
-          const tagX = [6, plotRight - tagW - 6].find(x => !hitD(x, tagY, tagW, 12) && !onCandleD(x, tagY, tagW, 12))
-            ?? [6, plotRight - tagW - 6].find(x => !hitD(x, tagY, tagW, 12));
+          // Along the row, then the short form, before ever printing on a candle (iPhone NQ1! 1m big trades,
+          // 2026-10-18: a wick ran through "bid /ask"); the last resort keeps a dark backing.
+          const rowXs = (w: number) => { const xs = [6, plotRight - w - 6]; for (let x = 18; x < plotRight - w - 6; x += 12) xs.push(x); return xs; };
+          const clearX = (w: number) => rowXs(w).find(x => !hitD(x, tagY, w, 12) && !onCandleD(x, tagY, w, 12));
+          let tagX = clearX(tagW);
+          let tagBacked = false;
+          if (tagX == null) {
+            const shortD = `Δ${chipD ? ` · ${chipD}` : ""}${strideD > 1 ? ` · 1 IN ${strideD} BARS` : ""}`;
+            const shortW = ctx.measureText(shortD).width + 4;
+            const xs = clearX(shortW);
+            if (xs != null) { tagShown = shortD; tagW = shortW; tagX = xs; }
+          }
+          if (tagX == null) { tagX = [6, plotRight - tagW - 6].find(x => !hitD(x, tagY, tagW, 12)); tagBacked = true; }
           // The row does not print without its tag: the tag is what says how
           // the sides were known and which bars were left out.
           if (tagX != null && pickD.length) {
+            if (tagBacked) { ctx.fillStyle = "rgba(11,10,8,0.9)"; ctx.fillRect(tagX, tagY, tagW, 12); }
             ctx.textAlign = "left"; ctx.fillStyle = "rgba(237,230,211,0.8)";
-            ctx.fillText(tagD, tagX + 2, tagY + 6);
+            ctx.fillText(tagShown, tagX + 2, tagY + 6);
             forceChips.push({ x: tagX, y: tagY, w: tagW, h: 12 });
             ctx.font = "600 9px 'JetBrains Mono', monospace"; ctx.textAlign = "center";
             for (const { r, lx, ly, lw, lh } of pickD) {
