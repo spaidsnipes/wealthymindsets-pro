@@ -5,6 +5,7 @@ import { liveJournalRecords } from "@/lib/journal/paperEntry";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { TodayManagementRules } from "@/components/journal/TodayManagementRules";
 import { PropEvaluationToday } from "@/components/morning-prep/PropEvaluationToday";
+import MorningCommandCenter from "@/components/morning-prep/MorningCommandCenter";
 import Link from "next/link";
 import { FOUNDER_LANDING_ROUTE } from "@/lib/routing/founderLanding";
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
@@ -645,6 +646,10 @@ export default function MorningPrepPage() {
         {/* Continuity — silent unless the trader has an active
             focus streak or a clean-day streak. Morning frame is
             CONTINUITY, not zero-state anxiety. */}
+        {/* Founder brief 2026-10-20: the daily launchpad — routine, passage, data check, top-down, plan, readiness,
+            the 10-second interruption and its log. Every signed-in member gets it; each saves their own. */}
+        {user?.id ? <MorningCommandCenter /> : null}
+
         <MorningPrepStreakBadge userId={user?.id ?? ""} />
 
         <MorningPrepOpeningBell userId={user?.id ?? ""} />
