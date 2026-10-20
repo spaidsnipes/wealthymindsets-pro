@@ -14947,6 +14947,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // Chips that float with price and were painted this frame; later chrome
       // steps around them instead of printing through them.
       const floatingChips: { x: number; y: number; w: number; h: number }[] = [...forceChips];
+      /** Where an absorption SHELF name was printed this frame — the Question Lens does not name the same band twice. */
+      const shelfNamesThisFrame: { x: number; y: number; w: number; h: number }[] = [];
       silenceObstacles = () => floatingChips;
       if (candleTimerRect) floatingChips.push(candleTimerRect);
       // THE GLASS'S SEAT, FROM LAST FRAME (all-on stress, 2026-10-17: "ABSORPTION SHELF · Force is hitting…" and the
@@ -15896,6 +15898,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               absorbChipRects.push({ x: chipX, y: chipY, w: chipW, h: chipH });
               floatingChips.push({ x: chipX, y: chipY, w: chipW, h: chipH });
               shelfRects.push({ x: chipX, y: chipY, w: chipW, h: chipH });
+              shelfNamesThisFrame.push({ x: chipX, y: chipY, w: chipW, h: chipH });
               if (desktopShelfInstrument) {
                 // A dark backing always: the shelf's own box edge struck through "ABSORPTION 2.74 MODERATE"
                 // (iPad landscape desk layout, 2026-10-18), and on candles nothing may read through the words.
@@ -16890,6 +16893,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     // spot the tag is HELD: the band still marks the price and
                     // Inspect / the rail carry the words.
                     const tagRect = (o: { x: number; y: number }) => ({ x: o.x, y: o.y, w: tw, h: 18 });
+                    // ONE NAME PER BAND (Founder 2026-10-20: "the absorption zone, the structure profile, the absorption shelf
+                    // … words in the middle I can't make out"): when the Absorption Shelf already named a band within
+                    // 40px of this one, the lens's tag is not printed — the band and its mark still draw, and the price
+                    // range stays in Inspect / the rail.
+                    const shelfSaidIt = lens.kind === "ABSORPTION" && shelfNamesThisFrame.some(r => r.y < top + h + 40 && r.y + r.h > top - 40);
                     const tagSpot = placeClearOfKeepOut(tagRect(tagSlots[0]), keepOut(), {
                       minX: keepOutMinX(),
                       blockers: [...floatingChips, { x: 0, y: 96, w: W, h: 64 }],
@@ -16898,7 +16906,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     });
                     recordKeepOut(keepOutLedger, tagSpot);
                     ds.questionLensTag = tagSpot.mode === "BLOCKED" ? "HELD" : tagSpot.mode;
-                    if (tagSpot.mode !== "BLOCKED") {
+                    if (shelfSaidIt) ds.questionLensTag = "SAID_BY_SHELF";
+                    if (!shelfSaidIt) { if (tagSpot.mode !== "BLOCKED") {
                       const tx = tagSpot.rect.x, ty = tagSpot.rect.y;
                       ctx.fillStyle = "rgba(40,8,10,0.92)";
                       ctx.fillRect(tx, ty, tw, 18);
@@ -16907,7 +16916,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                       ctx.textAlign = "left"; ctx.textBaseline = "middle";
                       ctx.fillText(tag, tx + 8, ty + 9.5);
                       floatingChips.push({ x: tx, y: ty, w: tw, h: 18 });
-                    }
+                    } }
                     const c = lens.control;
                     // UI-04's NO CONVINCING DISPLACEMENT is no longer a ring pinned
                     // to the band's right end: it is the leader word on the tested
