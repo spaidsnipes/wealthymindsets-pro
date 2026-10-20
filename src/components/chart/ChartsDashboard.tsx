@@ -4196,8 +4196,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                     setFootprintEnabled(true);
                     setFootprintType(t);
                     // Switching to a non-big-trades exclusive tool clears any leftover
-                    // overlay so the two states never fight.
-                    if (t !== "big-trades") setBigTradesOverlay(false);
+                    // overlay so the two states never fight — in EXCLUSIVE mode only. In Simultaneous
+                    // Mode (the default) Big Trades is its own sense and stays on (Founder's Chrome
+                    // 2026-10-20: turning Footprint on switched his Big Trades off).
+                    if (t !== "big-trades" && !bigTradesSimul) setBigTradesOverlay(false);
                   }
                 };
 
