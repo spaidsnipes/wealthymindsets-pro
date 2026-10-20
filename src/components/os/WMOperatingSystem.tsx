@@ -40,6 +40,7 @@
  * antique gold #c4a574 for BRAND AND RULES ONLY. Risk wears independent amber.
  */
 
+import { MorningAlignmentDoor } from "@/components/os/MorningAlignmentDoor";
 import { openWowWorld } from "@/lib/passport/openWowWorld";
 import { ToolsSlot } from "@/components/chart/orderFlowToolsSlot";
 import * as React from "react";
@@ -2024,6 +2025,7 @@ export function WMOperatingSystem({
                 </button>
               );
             })}
+            <MorningAlignmentDoor />
           </div>
         ) : (
         <button
