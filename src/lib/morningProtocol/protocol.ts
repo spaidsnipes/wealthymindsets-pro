@@ -24,6 +24,8 @@ export interface MorningProtocol {
   /** The most the trader will lose today, in dollars; null = not set (the checklist says so). */
   readonly dailyRiskUsd: number | null;
   readonly maxTrades: number | null;
+  /** The most a single trade may lose, in dollars (the founder's $50, 2026-10-20). null = not set. */
+  readonly riskPerTradeUsd: number | null;
 }
 
 /** The founder's protocol (2026-10-20). Scripture is the public-domain KJV text. */
@@ -48,11 +50,12 @@ export const DEFAULT_PROTOCOL: MorningProtocol = {
   watchlist: ["NQ1!", "ES1!"],
   dailyRiskUsd: null,
   maxTrades: null,
+  riskPerTradeUsd: 50,
 };
 
 /** The day's sequence, in order (brief §1). Ids are stable — saved days refer to them. */
 export const DAY_STEPS = [
-  { id: "wake", name: "Wake and reset", hint: "Hydration, prayer, bathing, preparation." },
+  { id: "wake", name: "Wake and reset", hint: "Hydration, prayer, bathing, tea or breakfast, preparation." },
   { id: "faith", name: "Scripture and mindset", hint: "Read the passage, the reflection and your anchor." },
   { id: "brief", name: "Market briefing", hint: "Economic releases, news, session, your watchlist." },
   { id: "health", name: "Market-data health check", hint: "Ticks, candles, timestamps and the instrument agree." },
@@ -73,6 +76,23 @@ export const READINESS_CHECKS = [
   { id: "fomo", q: "Am I afraid of missing a move?" },
 ] as const;
 
+/** How I am — yes is good. Missing one is information, not failure. */
+export const READY_STATES = [
+  { id: "calm", q: "Calm" }, { id: "focused", q: "Focused" }, { id: "patient", q: "Patient" },
+  { id: "alert", q: "Alert" }, { id: "standAside", q: "Willing to stand aside" },
+] as const;
+
+/** The clean-runway test for a continuation entry (the "missed the bus" insight) — evidence, not permission to chase. */
+export const RUNWAY_CHECKS = [
+  { id: "direction", q: "Direction is established by evidence" },
+  { id: "runway", q: "Clean runway to the next opposing structure" },
+  { id: "trigger", q: "A real trigger — a tested pause, pullback or retest, not just a fast candle" },
+  { id: "invalidation", q: "The structural invalidation is clear" },
+  { id: "size", q: "Size keeps the loss inside my per-trade limit" },
+  { id: "worth", q: "The remaining target still justifies the risk" },
+  { id: "fresh", q: "Not already extended, not invalidated" },
+] as const;
+
 export interface DayRecord {
   readonly date: string;
   readonly done: readonly DayStepId[];
@@ -87,6 +107,10 @@ export interface DayRecord {
   /** true = "yes, that pressure is here today". */
   readonly readiness: Readonly<Record<string, boolean>>;
   readonly respectRisk: boolean | null;
+  /** READY_STATES, true = "yes, I am". */
+  readonly states: Readonly<Record<string, boolean>>;
+  /** RUNWAY_CHECKS for today's continuation idea, true = holds. */
+  readonly runway: Readonly<Record<string, boolean>>;
   readonly lesson: string;
   readonly skill: string;
   /** Process, separately from money: did I follow my rules? */
@@ -97,7 +121,7 @@ export interface DayRecord {
 export const emptyDay = (date: string): DayRecord => ({
   date, done: [], tfDone: [], health: null,
   plan: { regime: "", direction: "", structure: "", location: "", orderFlow: "", confirmation: "", invalidation: "", availableR: "", decision: null },
-  readiness: {}, respectRisk: null, lesson: "", skill: "", followedRules: null, reviewNote: "",
+  readiness: {}, respectRisk: null, states: {}, runway: {}, lesson: "", skill: "", followedRules: null, reviewNote: "",
 });
 
 export interface TriggerEntry {
@@ -139,6 +163,7 @@ export function sanitizeProtocol(raw: unknown): MorningProtocol {
     watchlist: watch.length ? watch : DEFAULT_PROTOCOL.watchlist,
     dailyRiskUsd: numOrNull(r.dailyRiskUsd, 1, 10_000_000),
     maxTrades: numOrNull(r.maxTrades, 1, 500),
+    riskPerTradeUsd: r.riskPerTradeUsd === undefined ? DEFAULT_PROTOCOL.riskPerTradeUsd : numOrNull(r.riskPerTradeUsd, 1, 1_000_000),
   };
 }
 
@@ -151,6 +176,12 @@ export function sanitizeDay(raw: unknown, date: string): DayRecord {
   const rd = (r.readiness && typeof r.readiness === "object" ? r.readiness : {}) as Record<string, unknown>;
   const readiness: Record<string, boolean> = {};
   for (const c of READINESS_CHECKS) if (typeof rd[c.id] === "boolean") readiness[c.id] = rd[c.id] as boolean;
+  const pick = (src: unknown, ids: readonly { id: string }[]) => {
+    const o = (src && typeof src === "object" ? src : {}) as Record<string, unknown>;
+    const out: Record<string, boolean> = {};
+    for (const c of ids) if (typeof o[c.id] === "boolean") out[c.id] = o[c.id] as boolean;
+    return out;
+  };
   return {
     date,
     done: strs(r.done, 20, 16).filter(x => STEP_IDS.has(x)) as DayStepId[],
@@ -164,6 +195,8 @@ export function sanitizeDay(raw: unknown, date: string): DayRecord {
     },
     readiness,
     respectRisk: boolOrNull(r.respectRisk),
+    states: pick(r.states, READY_STATES),
+    runway: pick(r.runway, RUNWAY_CHECKS),
     lesson: str(r.lesson, 600),
     skill: str(r.skill, 300),
     followedRules: boolOrNull(r.followedRules),

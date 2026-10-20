@@ -67,3 +67,32 @@ describe("the data-check gate on the live order route", () => {
     expect(dataCheckRefusal("{not json", "Buy to Open")).toBeNull();
   });
 });
+
+describe("founder brief 2026-10-20 (morning): $50 per trade, readiness states, clean runway", () => {
+  it("the founder default risks $50 a trade; a member may clear it; bad values become null", async () => {
+    const { DEFAULT_PROTOCOL: D, sanitizeProtocol: S } = await import("./protocol");
+    expect(D.riskPerTradeUsd).toBe(50);
+    expect(S({}).riskPerTradeUsd).toBe(50);
+    expect(S({ riskPerTradeUsd: null }).riskPerTradeUsd).toBeNull();
+    expect(S({ riskPerTradeUsd: -1 }).riskPerTradeUsd).toBeNull();
+  });
+  it("a day keeps only known readiness states and runway checks", async () => {
+    const { sanitizeDay: S } = await import("./protocol");
+    const d = S({ states: { calm: true, angry: true }, runway: { direction: true, runway: "yes", trigger: false } }, "2026-10-20");
+    expect(d.states).toEqual({ calm: true });
+    expect(d.runway).toEqual({ direction: true, trigger: false });
+  });
+  it("$50 on MNQ with a 10-point stop is 2 contracts; on NQ it does not fit", async () => {
+    const { instrumentEconomics } = await import("@/lib/marketData/contractEconomics");
+    const { calculatePositionSize } = await import("@/lib/riskKernel");
+    const mnq = instrumentEconomics("MNQ1!", null), nq = instrumentEconomics("NQ1!", null);
+    expect(mnq.status).toBe("PRICED"); expect(nq.status).toBe("PRICED");
+    if (mnq.status !== "PRICED" || nq.status !== "PRICED") return;
+    expect(calculatePositionSize({ accountRiskBudget: 50, riskPerUnit: 10 * mnq.pointValue, quantityStep: 1 })).toMatchObject({ status: "AVAILABLE", quantity: 2 });
+    expect(calculatePositionSize({ accountRiskBudget: 50, riskPerUnit: 10 * nq.pointValue, quantityStep: 1 }).status).toBe("UNAVAILABLE");
+  });
+  it("a $476 best day under a 30% consistency rule needs $1,586.67 total profit", async () => {
+    const { requiredForLargestCents } = await import("@/lib/journal/propEvaluation");
+    expect(requiredForLargestCents(47_600, 0.3)).toBe(158_667);
+  });
+});

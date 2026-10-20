@@ -11,10 +11,12 @@
  * stands (dataCheckRefusal) — closing orders and cancels always go.
  */
 import Link from "next/link";
+import { instrumentEconomics } from "@/lib/marketData/contractEconomics";
+import { calculatePositionSize } from "@/lib/riskKernel";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
-  DAY_STEPS, DEFAULT_PROTOCOL, READINESS_CHECKS, TOP_DOWN_TFS, emptyDay, minutesToNyOpen, prepPace, protocolDate,
+  DAY_STEPS, DEFAULT_PROTOCOL, READINESS_CHECKS, READY_STATES, RUNWAY_CHECKS, TOP_DOWN_TFS, emptyDay, minutesToNyOpen, prepPace, protocolDate,
   triggerPattern, type DayRecord, type DayStepId, type MorningProtocol, type TriggerEntry,
 } from "@/lib/morningProtocol/protocol";
 
@@ -38,6 +40,7 @@ export default function MorningCommandCenter() {
   const [now, setNow] = useState(() => Date.now());
   const [tEntry, setTEntry] = useState({ trigger: "", intensity: 5, action: "", interrupted: false, followedRules: false });
   const [playOpen, setPlayOpen] = useState(false);
+  const [sizer, setSizer] = useState({ symbol: "", stopPts: "", feesPerContract: "" });
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { const id = setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(id); }, []);
@@ -202,6 +205,19 @@ export default function MorningCommandCenter() {
             </label>
           ))}
         </div>
+        <div data-testid="mcc-runway" style={{ marginTop: 12, display: "grid", gap: 4 }}>
+          <span style={{ fontSize: 13, color: GOLD, fontWeight: 700 }}>Continuation entry — the clean-runway test (evidence, not permission to chase)</span>
+          {RUNWAY_CHECKS.map(c => (
+            <label key={c.id} style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 40, fontSize: 14, cursor: "pointer" }}>
+              <input type="checkbox" checked={day.runway?.[c.id] === true} onChange={e => putDay({ ...day, runway: { ...(day.runway ?? {}), [c.id]: e.target.checked } })} style={{ width: 18, height: 18, accentColor: GOLD }} />
+              {c.q}
+            </label>
+          ))}
+          <span data-testid="mcc-runway-count" style={{ fontSize: 13, color: MUTED }}>
+            {RUNWAY_CHECKS.filter(c => day.runway?.[c.id] === true).length}/{RUNWAY_CHECKS.length} hold
+            {RUNWAY_CHECKS.every(c => day.runway?.[c.id] === true) ? " — the continuation qualifies on your own rules." : " — anything unchecked means wait."}
+          </span>
+        </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
           {(["TRADE", "WAIT", "NO_TRADE"] as const).map(v => (
             <button key={v} type="button" aria-pressed={day.plan.decision === v} disabled={v === "TRADE" && blocked}
@@ -213,9 +229,48 @@ export default function MorningCommandCenter() {
         </div>
       </div>
 
+      {/* the per-trade risk check */}
+      {(() => {
+        const sym = (sizer.symbol || firstSym).toUpperCase();
+        const eco = instrumentEconomics(sym, null);
+        const stop = Number(sizer.stopPts), fees = sizer.feesPerContract === "" ? 0 : Number(sizer.feesPerContract);
+        const limit = protocol.riskPerTradeUsd;
+        const perUnit = eco.status === "PRICED" && stop > 0 && fees >= 0 ? stop * eco.pointValue + fees : null;
+        const sized = limit != null && perUnit != null ? calculatePositionSize({ accountRiskBudget: limit, riskPerUnit: perUnit, quantityStep: 1 }) : null;
+        return (
+          <div style={card} data-testid="mcc-risk">
+            <h3 style={h3}>Per-trade risk check{limit != null ? ` · $${limit}` : ""}</h3>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+              <label style={{ display: "grid", gap: 4, fontSize: 13, color: MUTED }}>Symbol
+                <input value={sizer.symbol} placeholder={firstSym} onChange={e => setSizer({ ...sizer, symbol: e.target.value })} style={{ ...field, maxWidth: 120 }} data-testid="mcc-risk-symbol" />
+              </label>
+              <label style={{ display: "grid", gap: 4, fontSize: 13, color: MUTED }}>Stop distance (points)
+                <input inputMode="decimal" value={sizer.stopPts} onChange={e => setSizer({ ...sizer, stopPts: e.target.value })} style={{ ...field, maxWidth: 140 }} data-testid="mcc-risk-stop" />
+              </label>
+              <label style={{ display: "grid", gap: 4, fontSize: 13, color: MUTED }}>Fees per contract ($, round trip)
+                <input inputMode="decimal" value={sizer.feesPerContract} onChange={e => setSizer({ ...sizer, feesPerContract: e.target.value })} style={{ ...field, maxWidth: 140 }} />
+              </label>
+            </div>
+            <p data-testid="mcc-risk-result" style={{ margin: "10px 0 0", fontSize: 15, fontWeight: 700, color: sized?.status === "AVAILABLE" ? INK : RED }}>
+              {limit == null ? "Set your per-trade risk limit (Edit below)." :
+                eco.status !== "PRICED" ? `No point value on file for ${sym} — size it at your broker.` :
+                perUnit == null ? `${sym}: $${eco.pointValue} a point. Enter your structural stop distance.` :
+                sized?.status === "AVAILABLE" ? `${sized.quantity} contract${sized.quantity === 1 ? "" : "s"} · $${sized.plannedDollarRisk.toFixed(2)} at the stop (of $${limit}). ${[2, 3, 4, 5].map(r => `1:${r} = ${(stop * r).toFixed(2)} pts`).join(" · ")} — only if the runway is there.` :
+                `One ${sym} contract risks $${perUnit.toFixed(2)} — over your $${limit}. Use the micro or skip the setup; never widen the limit.`}
+            </p>
+          </div>
+        );
+      })()}
+
       {/* readiness */}
       <div style={card} data-testid="mcc-readiness">
         <h3 style={h3}>Mental readiness</h3>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }} data-testid="mcc-states">
+          {READY_STATES.map(c => (
+            <button key={c.id} type="button" aria-pressed={day.states?.[c.id] === true} onClick={() => putDay({ ...day, states: { ...(day.states ?? {}), [c.id]: !(day.states?.[c.id] === true) } })} style={btn(day.states?.[c.id] === true)}>{c.q}</button>
+          ))}
+        </div>
+        <p style={{ margin: "0 0 8px", fontSize: 13, color: MUTED }}>Missing an item is information, not failure. Name it, and let it decide your size or your session — not your worth.</p>
         <div style={{ display: "grid", gap: 6 }}>
           {READINESS_CHECKS.map(c => (
             <div key={c.id} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
@@ -243,9 +298,10 @@ export default function MorningCommandCenter() {
         <ol style={{ margin: "0 0 10px 18px", padding: 0, fontSize: 14, lineHeight: 1.6 }}>
           <li><b>Catch it</b> — name the thought.</li>
           <li><b>Name it</b> — &ldquo;This is pressure, not market information.&rdquo;</li>
-          <li><b>Pause</b> — hands off the order controls; one slow breath.</li>
-          <li><b>Check the evidence</b> — higher timeframes, structure, location, order flow, actual risk.</li>
-          <li><b>Choose</b> — trade only if the setup meets your written rules and the data is verified; otherwise wait or stop.</li>
+          <li><b>Pause</b> — hands off the order controls; one slow breath. Check the data health: badge, bar clock, candles moving with the price.</li>
+          <li><b>Check the evidence</b> — higher timeframes, structure, location, order flow, and the invalidation.</li>
+          <li><b>Confirm the risk</b> — the loss at your stop fits your limit, and the protective stop is a real working order at the broker, not a line on a chart.</li>
+          <li><b>Choose</b> — proceed if it is valid, wait for better evidence, or stop for the session.</li>
         </ol>
         <p style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 700, color: GOLD }}>{protocol.anchor}</p>
         <button type="button" onClick={() => setPlayOpen(o => !o)} style={btn(playOpen)} aria-expanded={playOpen} data-testid="mcc-log-open">{playOpen ? "Close the log" : "Log a trigger"}</button>
@@ -335,6 +391,9 @@ export default function MorningCommandCenter() {
               <label style={{ display: "grid", gap: 4, fontSize: 13, color: MUTED }}>Daily risk limit ($)
                 <input inputMode="decimal" value={draft.dailyRiskUsd ?? ""} onChange={e => setDraft({ ...draft, dailyRiskUsd: e.target.value === "" ? null : Number(e.target.value) })} style={{ ...field, maxWidth: 160 }} />
               </label>
+              <label style={{ display: "grid", gap: 4, fontSize: 13, color: MUTED }}>Risk per trade ($)
+                <input inputMode="decimal" value={draft.riskPerTradeUsd ?? ""} onChange={e => setDraft({ ...draft, riskPerTradeUsd: e.target.value === "" ? null : Number(e.target.value) })} style={{ ...field, maxWidth: 160 }} data-testid="mcc-risk-limit" />
+              </label>
               <label style={{ display: "grid", gap: 4, fontSize: 13, color: MUTED }}>Max trades today
                 <input inputMode="numeric" value={draft.maxTrades ?? ""} onChange={e => setDraft({ ...draft, maxTrades: e.target.value === "" ? null : Number(e.target.value) })} style={{ ...field, maxWidth: 160 }} />
               </label>
@@ -344,7 +403,7 @@ export default function MorningCommandCenter() {
           </div>
         ) : (
           <p style={{ margin: "8px 0 0", fontSize: 13, color: MUTED }}>
-            Wake {fmtLocal(protocol.wakeTime)} · watchlist {protocol.watchlist.join(", ")} · risk limit {protocol.dailyRiskUsd != null ? `$${protocol.dailyRiskUsd}` : "not set"} · max trades {protocol.maxTrades ?? "not set"} · {protocol.triggers.length} trigger phrases
+            Wake {fmtLocal(protocol.wakeTime)} · watchlist {protocol.watchlist.join(", ")} · per trade {protocol.riskPerTradeUsd != null ? `$${protocol.riskPerTradeUsd}` : "not set"} · daily limit {protocol.dailyRiskUsd != null ? `$${protocol.dailyRiskUsd}` : "not set"} · max trades {protocol.maxTrades ?? "not set"} · {protocol.triggers.length} trigger phrases
           </p>
         )}
       </div>
