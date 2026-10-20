@@ -3786,6 +3786,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     (session tape stats / horizon stay "heard live").
   */
   const foldPrintRef = useRef<(tick: Tick, heardLive: boolean) => boolean>(() => false);
+  /** Where a moving word sat LAST frame, by key — tried first so a still-clear seat is kept (no hopping). */
+  const seatMemoryRef = useRef<Map<string, { x: number; y: number; w: number; h: number }>>(new Map());
   const foldPrint = (tick: Tick, heardLive: boolean): boolean => {
     const intervalSec = getIntervalSec(timeframe);
     const minTick = base > 10_000 ? 0.25 : base > 1_000 ? 0.25 : base > 100 ? 0.01 : 0.0001;
@@ -28988,10 +28990,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const w = Math.ceil(ctx.measureText(text).width) + 18, h = 24;
               // Clear of the footprint cells and the candles (Founder's Chrome, NQ1! 1m 2026-10-18: the chip sat on the
               // first sided bar's top cells). Left of the seam first — over the bar-totals side — then right, row by row.
-              const pref = { x: Math.max(4, bx - w - 8), y, w, h };
+              // A SEAT IS KEPT WHILE IT STAYS CLEAR (Founder's 2-minute watch, NQ1! 1m 2026-10-20: the chip hopped between
+              // the seam's left and right every few seconds as other words came and went). Last frame's seat is tried first.
+              const heldSeam = seatMemoryRef.current.get("orderFlowSeam");
+              const pref = heldSeam && heldSeam.w === w ? { ...heldSeam } : { x: Math.max(4, bx - w - 8), y, w, h };
               const altsSeam = [0, 28, 56, 84, 112, 140].flatMap(dy => [{ x: Math.max(4, bx - w - 8), y: y + dy, w, h }, { x: Math.max(4, Math.min(x, plotRight - w - 4)), y: y + dy, w, h }]);
               const spotS = placeClearOfKeepOut(pref, [...keepOut(), ...profileCandlesAt(y - 2, y + 170)], { minX: 4, blockers: floatingChips, strict: true, alternates: altsSeam });
               const r = spotS.mode === "BLOCKED" ? { x: Math.max(4, Math.min(x, plotRight - w - 4)), y, w, h } : spotS.rect;
+              seatMemoryRef.current.set("orderFlowSeam", { x: r.x, y: r.y, w, h });
               onTop(r, "OPAQUE_CARD");
               ctx.fillStyle = "rgba(14,12,9,0.92)"; ctx.beginPath(); ctx.roundRect(r.x, r.y, w, h, 6); ctx.fill();
               ctx.strokeStyle = "rgba(212,175,55,0.85)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(r.x + 0.5, r.y + 0.5, w - 1, h - 1, 6); ctx.stroke();
@@ -29682,6 +29688,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // cluster's row; failing that, the quiet top row over the cluster.
             const clampY = (y: number) => Math.max(HEADER_FLOOR_Y, Math.min(pane0Bottom - h - 4, y));
             const alts = [-26, 26, -52, 52, -78, 78].map(dy => ({ ...pref, y: clampY(pref.y + dy) }));
+            // A SEAT IS KEPT WHILE IT STAYS CLEAR (Founder's 2-minute watch, NQ1! 1m 2026-10-20: "Buyers defended the demand
+            // zone (1st test)" jumped across the glass as other words came and went). Last frame's seat — held relative
+            // to the anchor, so it rides with the camera — is tried first; the usual order follows.
+            const noteSeatKey = `note:${a.notes[0].layer}:${a.notes[0].text}`;
+            const heldNote = seatMemoryRef.current.get(noteSeatKey);
+            if (heldNote && heldNote.w === w) alts.unshift({ ...pref }), pref.x = Math.max(4, Math.min(plotRight - w - 4, a.x + heldNote.x)), pref.y = clampY(a.y + heldNote.y);
             // Wicks too (iPhone 17 Pro, 2026-10-17: "50 calls at 75,000 sold" sat across the session high's wick).
             const sp = placeClearOfKeepOut(pref, [...keepOut(), ...rowBodiesAt(Math.min(...alts.map(q => q.y)), Math.max(...alts.map(q => q.y)) + h), ...profileCandlesAt(Math.min(...alts.map(q => q.y)), Math.max(...alts.map(q => q.y)) + h)], { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: alts });
             const topRow = { ...pref, y: HEADER_FLOOR_Y + 4 };
@@ -29738,6 +29750,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               if (pr) { r = pr; pipHits.push(pipHitRect(pr)); }
               else r = { ...r, x: Math.max(4, Math.min(r.x, pipClearLeft - 40)) };
             }
+            if (!pipForm) { if (seatMemoryRef.current.size > 300) seatMemoryRef.current.clear(); seatMemoryRef.current.set(noteSeatKey, { x: r.x - a.x, y: r.y - a.y, w, h }); }
             floatingChips.push({ ...r });
             anchorRects.push({ ...r });
             const seed = `${a.notes[0].layer}:${a.notes[0].text}`;
