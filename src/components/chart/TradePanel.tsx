@@ -76,6 +76,7 @@ import { FamilyContractPicker, FuturesMonthRow, TradeFamilySelector } from "@/co
 import { useFuturesMonths } from "@/lib/execution/useFuturesMonths";
 import { consumeCloseRequest, requestClose, useCloseRequestSeq } from "@/lib/execution/closeRequest";
 import { futuresRootOf } from "@/lib/marketData/symbolAssetClass";
+import { TicketPrepStrip } from "@/components/chart/TicketPrepStrip";
 
 /** guest audit 2026-10-04: quote-stream states in plain words (the enum stays in data-state). */
 const STREAM_WORDS: Readonly<Record<string, string>> = {
@@ -797,6 +798,8 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
         <button type="button" data-testid="trade-close" aria-label="Close trade panel" onClick={onClose} style={{ marginLeft: "auto", flexShrink: 0, minWidth: 32, minHeight: 32, color: MUTED, fontSize: 16, background: "none", border: "none", cursor: "pointer" }}>×</button>
       </header>
       {instrumentDoors}
+      {/* The morning play at the order controls (Founder brief 2026-10-20): today's data check and the anchor phrase. */}
+      {owner && !scene ? <TicketPrepStrip /> : null}
       {server.limits?.killSwitch ? (
         <p data-testid="trade-killed-why" style={{ margin: 0, padding: "8px 12px", font: "500 13px/1.4 ui-sans-serif, system-ui, sans-serif", color: "#F3EBDD", background: "rgba(122,42,34,.35)", borderBottom: "1px solid rgba(239,83,80,.5)" }}>
           KILLED means your kill switch is on: no new live order can be sent from WM (cancel still works). Release it in Settings › Execution.
