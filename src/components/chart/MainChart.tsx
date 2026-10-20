@@ -15153,7 +15153,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           };
         });
 
-        const anatomy = selectAbsorptionAnatomy(anatomyInput, { windowBars: WINDOW });
+        const anatomyLast = anatomyInput[anatomyInput.length - 1];
+        const anatomyForming = anatomyLast && selectChartCloseLabel(anatomyLast.time, timeframe, Date.now()).forming ? anatomyLast.time : null;
+        const anatomy = selectAbsorptionAnatomy(anatomyInput, { windowBars: WINDOW, formingTime: anatomyForming });
         anatomyFrame = { anatomy, windowCapped };
         {
           const read = absorptionRailRead(anatomy, barsRef.current?.[barsRef.current.length - 1]?.time as number | undefined, barInterval());
@@ -32589,7 +32591,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ) : (
                   // A proven-closed market is a calm fact, not a warning: pearl,
                   // never the amber a lagging feed earns.
-                  <span className="line-clamp-2 text-[10px] font-semibold" style={{ color: feedRecency.kind === "THIN_SESSION" ? "#8B92AC" : feedRecency.kind === "MARKET_CLOSED" ? "#8B92AC" : "#F0B429" }}>
+                  <span className="line-clamp-2 text-[10px] font-semibold" style={{ color: feedRecency.kind === "THIN_SESSION" || feedRecency.kind === "AWAITING_FIRST_PRINT" ? "#8B92AC" : feedRecency.kind === "MARKET_CLOSED" ? "#8B92AC" : "#F0B429" }}>
                     {showFidelityChrome
                       ? recencyWords(`${status.label} · ${feedRecency.glyph}`, `${status.label} · ${feedRecency.short}`)
                       : recencyWords(feedRecency.glyph, feedRecency.short)}

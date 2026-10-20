@@ -133,7 +133,8 @@ describe("the click path selects what was painted, from the drawn frame", () => 
     expect(up).not.toContain("anatomyInView(");
     expect(CHART.match(/selectAbsorptionAnatomy\(/g)).toHaveLength(1);
     // The frame applies the owner's default gates, so Inspect may print them from ABSORPTION_ANATOMY_DEFAULTS.
-    expect(CHART).toContain("selectAbsorptionAnatomy(anatomyInput, { windowBars: WINDOW })");
+    // 2026-10-20: the forming bar is named so it is not judged until it closes (it flickered the verdict).
+    expect(CHART).toContain("selectAbsorptionAnatomy(anatomyInput, { windowBars: WINDOW, formingTime: anatomyForming })");
   });
 
   it("a changed reading goes back to Inspect only when it changed — the loop cannot feed itself", () => {

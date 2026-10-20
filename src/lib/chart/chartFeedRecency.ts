@@ -60,6 +60,11 @@ import { fmtSessionDate } from "./sessionDateLabel";
  * opinion about the exact thing the badge beside it already decides.
  */
 
+/** How long into the next bar its first print may take before the chart counts a bar behind (half a bar, ≤ 8 s). */
+export function rolloverGraceSeconds(intervalSeconds: number): number {
+  return Math.min(8, intervalSeconds / 2);
+}
+
 /** How far ahead of this clock a bar may be stamped and still be "forming now". */
 export const CLOCK_SKEW_TOLERANCE_S = 10;
 
@@ -68,6 +73,12 @@ export type FeedRecencyKind =
   | "CURRENT_BAR"
   /** At least one whole bar should have opened since, and none did. */
   | "BARS_BEHIND"
+  /**
+   * The next bar's clock has just begun and its first print has not arrived yet (live NQ1! 15s, 2026-10-20: at
+   * 01:08:01 the chart read "1 BAR BEHIND" while the price ticked — a bar opens on a TRADE, and one second into a
+   * bar none had printed). Calm, not a lag: past ROLLOVER_GRACE the reading returns to BARS BEHIND.
+   */
+  | "AWAITING_FIRST_PRINT"
   /**
    * The market is PROVEN closed (`provenSessionClosure` === false), so no bar
    * should have opened since — the gap is the calendar, not the feed. GP12
@@ -125,11 +136,14 @@ function fin(v: unknown): number | null {
 }
 
 /** Bar timestamps are SECONDS. `timeZone` is threaded so tests are deterministic. */
-function fmtClock(seconds: number, timeZone?: string): string | null {
+function fmtClock(seconds: number, timeZone?: string, withSeconds = false): string | null {
   try {
     return new Intl.DateTimeFormat("en-US", {
       hour: "2-digit",
       minute: "2-digit",
+      // Sub-minute bars name their second (live NQ1! 15s: four bars in a row read "OPENED 1:07 AM" and the
+      // candle clock looked frozen for a minute).
+      ...(withSeconds ? { second: "2-digit" as const } : {}),
       hour12: true,
       timeZone,
       // The masthead speaks market time (ET); this clock speaks the viewer's
@@ -190,7 +204,7 @@ export function chartFeedRecency(
   // (serving, 2026-09-28). sessionDateLabel owns the zone.
   const clock = interval >= 86_400
     ? fmtSessionDate(opened, timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone, { month: "short", day: "numeric" })
-    : fmtClock(opened, timeZone);
+    : fmtClock(opened, timeZone, interval < 60);
   if (clock == null) return UNKNOWN("the bar timestamp could not be read as a time.");
 
   const rawAgeSeconds = now / 1000 - opened;
@@ -247,6 +261,20 @@ export function chartFeedRecency(
         `about the bar's position only — whether ticks are actually arriving ` +
         `is the feed badge's claim, not this reading's.`,
       spoken: `Newest bar opened ${clock} and is the bar currently forming.`,
+    };
+  }
+
+  if (barsBehind === 1 && ageSeconds - interval < rolloverGraceSeconds(interval)) {
+    return {
+      kind: "AWAITING_FIRST_PRINT",
+      glyph: `NEW BAR · AWAITING FIRST PRINT · LAST OPENED ${clock}`,
+      short: "NEW BAR · AWAITING PRINT",
+      barsBehind: 0,
+      title:
+        `The newest bar on this chart OPENED at ${clock}, and the next bar's clock has just begun. A bar opens on ` +
+        `its first TRADE, and none has printed in the new bar yet. This is not a delay: if no print arrives within ` +
+        `${rolloverGraceSeconds(interval)} seconds this reading counts the chart one bar behind.`,
+      spoken: `New bar, awaiting its first print. Last bar opened ${clock}.`,
     };
   }
 

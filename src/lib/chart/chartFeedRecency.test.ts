@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { chartFeedRecency, phoneClock, thinSessionRecency } from "./chartFeedRecency";
+import { rolloverGraceSeconds, chartFeedRecency, phoneClock, thinSessionRecency } from "./chartFeedRecency";
 
 const SRC = resolve(__dirname, "..", "..");
 
@@ -85,10 +85,23 @@ describe("chartFeedRecency — the same clock time means fresh or dead", () => {
       BAR_OPEN_S, HALF_HOUR, BAR_OPEN_S * 1000 + (HALF_HOUR * 1000 - 1), UTC);
     expect(justInside.kind).toBe("CURRENT_BAR");
 
+    // At the boundary the bar is no longer CURRENT; until the next bar's first print (grace ≤ 8 s) it is awaited,
+    // not counted behind (live NQ1! 15s 2026-10-20: "1 BAR BEHIND" one second into a bar while the price ticked).
     const exactlyOne = chartFeedRecency(
       BAR_OPEN_S, HALF_HOUR, BAR_OPEN_S * 1000 + HALF_HOUR * 1000, UTC);
-    expect(exactlyOne.kind).toBe("BARS_BEHIND");
-    expect(exactlyOne.barsBehind).toBe(1);
+    expect(exactlyOne.kind).toBe("AWAITING_FIRST_PRINT");
+    expect(exactlyOne.glyph).not.toMatch(/FORMING/);
+
+    const pastGrace = chartFeedRecency(
+      BAR_OPEN_S, HALF_HOUR, BAR_OPEN_S * 1000 + (HALF_HOUR + rolloverGraceSeconds(HALF_HOUR)) * 1000, UTC);
+    expect(pastGrace.kind).toBe("BARS_BEHIND");
+    expect(pastGrace.barsBehind).toBe(1);
+  });
+
+  it("sub-minute bars name their second, so consecutive 15 s bars are told apart", () => {
+    const a = chartFeedRecency(BAR_OPEN_S, 15, BAR_OPEN_S * 1000 + 2000, UTC);
+    const b = chartFeedRecency(BAR_OPEN_S + 15, 15, (BAR_OPEN_S + 15) * 1000 + 2000, UTC);
+    expect(a.glyph).not.toBe(b.glyph);
   });
 
   it("CURRENT_BAR claims arithmetic, never a live feed", () => {

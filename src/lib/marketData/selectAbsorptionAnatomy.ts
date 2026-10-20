@@ -227,6 +227,12 @@ export interface AbsorptionAnatomyOptions {
   readonly effortMedianMultiple?: number;
   /** Robust weak-displacement line: × the window's median body (see DEFAULTS). */
   readonly displacementMedianMultiple?: number;
+  /**
+   * The bar still FORMING (its open time), if any. Effort against result is a claim about a whole bar: the forming
+   * bar is not judged absorbing and does not move the window's scale until it closes (live NQ1! 1m 2026-10-20: every
+   * print flipped it, the effort caption's "ABSORBING" blinked and the evidence count went 7 → 6 → 7).
+   */
+  readonly formingTime?: number | null;
 }
 
 /**
@@ -348,11 +354,13 @@ export function selectAbsorptionAnatomy(
     return { bar, delta, effort, displacement: Math.abs(bar.close - bar.open) };
   });
 
-  const maxEffort = raw.reduce((m, r) => (r.effort > m ? r.effort : m), 0);
-  const maxDisplacement = raw.reduce((m, r) => (r.displacement > m ? r.displacement : m), 0);
+  const formingTime = options.formingTime ?? null;
+  const settled = raw.filter(r => r.bar.time !== formingTime);
+  const maxEffort = settled.reduce((m, r) => (r.effort > m ? r.effort : m), 0);
+  const maxDisplacement = settled.reduce((m, r) => (r.displacement > m ? r.displacement : m), 0);
   const median = (xs: number[]) => { const v = xs.filter(x => x > 0).sort((a, b) => a - b); return v.length ? v[Math.floor(v.length / 2)] : 0; };
-  const medianEffort = median(raw.map(r => r.effort));
-  const medianDisplacement = median(raw.map(r => r.displacement));
+  const medianEffort = median(settled.map(r => r.effort));
+  const medianDisplacement = median(settled.map(r => r.displacement));
   const highEffort = (effort: number, effortNorm: number) =>
     effortNorm >= effortThreshold || (medianEffort > 0 && effort >= effortMedianMultiple * medianEffort);
   const weakDisplacement = (displacement: number, displacementNorm: number) =>
@@ -380,7 +388,7 @@ export function selectAbsorptionAnatomy(
       delta: useDelta ? r.delta : null,
       displacement: r.displacement,
       displacementNorm,
-      absorbing: highEffort(r.effort, effortNorm) && weakDisplacement(r.displacement, displacementNorm),
+      absorbing: r.bar.time !== formingTime && highEffort(r.effort, effortNorm) && weakDisplacement(r.displacement, displacementNorm),
     };
   });
 
