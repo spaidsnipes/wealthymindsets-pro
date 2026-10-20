@@ -41,6 +41,30 @@ export default function MorningCommandCenter() {
   const [tEntry, setTEntry] = useState({ trigger: "", intensity: 5, action: "", interrupted: false, followedRules: false });
   const [playOpen, setPlayOpen] = useState(false);
   const [sizer, setSizer] = useState({ symbol: "", stopPts: "", feesPerContract: "" });
+  // The broker connection, read from the broker (never inferred from the chart): status + open positions.
+  const [broker, setBroker] = useState<{ words: string; ok: boolean; at: number } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const [st, ps] = await Promise.all([
+          fetch("/api/broker/tastytrade/status", { credentials: "include", cache: "no-store" }).then(r => (r.ok ? r.json() : null)),
+          fetch("/api/broker/tastytrade/positions", { credentials: "include", cache: "no-store" }).then(r => (r.ok ? r.json() : null)),
+        ]);
+        if (!alive) return;
+        if (!st) { setBroker({ words: "tastytrade · not readable from this account", ok: false, at: Date.now() }); return; }
+        const open = Array.isArray(ps?.accounts) ? ps.accounts.reduce((n: number, a: { positions?: unknown[] }) => n + (Array.isArray(a.positions) ? a.positions.length : 0), 0) : null;
+        setBroker({
+          ok: !!st.connected,
+          at: ps?.asOf ? Date.parse(ps.asOf) : Date.now(),
+          words: st.connected
+            ? `tastytrade · connected (${st.env}) · ${st.accounts} account${st.accounts === 1 ? "" : "s"} · ${open == null ? "positions not readable" : `${open} open position${open === 1 ? "" : "s"}`}`
+            : `tastytrade · ${st.configured ? "not connected" : "not set up"}`,
+        });
+      } catch { if (alive) setBroker({ words: "tastytrade · not readable (offline)", ok: false, at: Date.now() }); }
+    })();
+    return () => { alive = false; };
+  }, []);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { const id = setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(id); }, []);
@@ -170,6 +194,12 @@ export default function MorningCommandCenter() {
           Open <Link href={chartHref("1m")} style={{ color: GOLD }}>{firstSym} 1m</Link>. Pass only if the badge reads <b>LIVE — CERTIFIED QUOTE</b>, the bar
           clock reads <b>OPENED …</b> or <b>NEW BAR · AWAITING FIRST PRINT</b> (never <b>BARS BEHIND</b>), and the last candle&apos;s close moves with the price. A moving
           P&amp;L or quote alone is not proof.
+        </p>
+        <p data-testid="mcc-broker" style={{ margin: "0 0 4px", fontSize: 14, color: broker?.ok ? GREEN : MUTED }}>
+          <b>Broker (separate from the chart):</b> {broker ? `${broker.words} · read ${new Date(broker.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "reading…"}
+        </p>
+        <p style={{ margin: "0 0 8px", fontSize: 13, color: MUTED }}>
+          A prop-firm account (e.g. TradeDay) is not connected to WM — its balance, rules, open orders and protective stop are read on the firm&apos;s own dashboard.
         </p>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button type="button" data-testid="mcc-health-pass" aria-pressed={day.health === "PASS"} onClick={() => putDay({ ...day, health: "PASS", done: day.done.includes("health") ? day.done : [...day.done, "health"] })} style={btn(day.health === "PASS")}>Pass — the chart is current</button>
