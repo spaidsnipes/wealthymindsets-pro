@@ -148,6 +148,18 @@ export default function MorningCommandCenter() {
         <p data-testid="mcc-anchor" style={{ margin: 0, fontSize: 15, fontWeight: 700, color: GOLD }}>{protocol.anchor}</p>
       </div>
 
+      {/* market briefing — the rooms that hold it; WM has no economic-calendar feed and says so */}
+      <div style={card} data-testid="mcc-briefing">
+        <h3 style={h3}>Market briefing</h3>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          <Link href="/news" prefetch={false} style={{ ...btn(), display: "inline-flex", alignItems: "center", textDecoration: "none" }}>News · macro headlines →</Link>
+          {protocol.watchlist.map(sym => (
+            <Link key={sym} href={`/charts?symbol=${encodeURIComponent(sym)}&tf=15m`} prefetch={false} style={{ ...btn(), display: "inline-flex", alignItems: "center", textDecoration: "none" }}>{sym} →</Link>
+          ))}
+        </div>
+        <p style={{ margin: "8px 0 0", fontSize: 13, color: MUTED }}>WM has no economic-calendar feed yet — check today&apos;s scheduled releases at your broker or a calendar you trust before the open.</p>
+      </div>
+
       {/* market-data health */}
       <div style={card} data-testid="mcc-health">
         <h3 style={h3}>Market-data health check</h3>
