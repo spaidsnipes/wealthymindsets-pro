@@ -25,12 +25,28 @@ export interface MemberGrantKv {
   delete(key: string): Promise<void>;
 }
 
-/** Non-secret facts measured from the broker at connect time. */
+/** One capability, checked on its own against the broker. */
+export interface MemberCapabilityCheck {
+  readonly key: "quotes" | "history" | "balances" | "positions" | "orders";
+  readonly result: "PASS" | "NO_PERMISSION" | "FAILED" | "NOT_CHECKED";
+  /** The broker's HTTP status when it refused; never a body. */
+  readonly httpStatus: number | null;
+}
+
+/** Non-secret facts measured from the broker at connect time (and each re-test). */
 export interface MemberGrantMeta {
   readonly accounts: number;
   readonly quotes: boolean;
   readonly level: string | null;
+  /** The last check that SUCCEEDED (sign-in accepted). */
   readonly validatedAt: string;
+  /** Grants saved before 2026-10-20 carry only the four fields above. */
+  readonly environment?: "LIVE" | "SANDBOX";
+  /** e.g. "Individual · Margin" — account kinds, never account numbers. */
+  readonly accountKinds?: readonly string[];
+  readonly checks?: readonly MemberCapabilityCheck[];
+  readonly lastCheckAt?: string;
+  readonly lastState?: "CONNECTED" | "PARTIAL" | "AUTH_EXPIRED" | "ERROR";
 }
 
 export interface MemberGrantSecrets {

@@ -27,7 +27,7 @@ import type { ProviderReport } from "@/app/api/broker/status/route";
 import { DialogBehaviour } from "@/components/ui/DialogFrame";
 import { WEBULL_2FA_SWITCH_PATH, WEBULL_CODE_ENTRY_PATH, webullCapabilityCertificate, webullSessionGuidance, type WebullKeeperView } from "@/lib/broker/webullSessionGuidance";
 import { useBrokerAudience } from "@/lib/broker/useBrokerAudience";
-import { MemberTastytradeConnect, MemberWebullDoor } from "@/components/broker/MemberBrokerConnect";
+import { MemberBrokerOnboarding, MemberTastytradeConnect, MemberWebullDoor } from "@/components/broker/MemberBrokerConnect";
 
 type BrokerCategory = "broker" | "crypto" | "forex" | "prop";
 
@@ -1236,7 +1236,9 @@ function BrokerCard({ broker, selected, onToggle, onObservation }: {
               <div className="text-[10px] text-wm-text-dim leading-snug max-w-[220px]">{broker.desc}</div>
             </div>
           </div>
-          <button
+          {/* The setup queue is the operator's tool; for a member it would be a
+              button that looks live and connects nothing (brief 2026-10-20). */}
+          {ownerView && <button
             type="button"
             onClick={e => { e.stopPropagation(); onToggle(); }}
             aria-pressed={selected}
@@ -1250,7 +1252,7 @@ function BrokerCard({ broker, selected, onToggle, onObservation }: {
           >
             {selected && <Check size={10} />}
             {selected ? "Queued" : "Queue"}
-          </button>
+          </button>}
         </div>
 
         <div className="flex flex-wrap gap-1 mb-3">
@@ -1393,13 +1395,15 @@ export function BrokerConnectPanel({
     });
   };
 
+  // Members: tastytrade is the first supported connection, Webull next (brief 2026-10-20).
+  const memberFirst = (id: string) => (panelAudience === "OWNER" ? 0 : id === "tastytrade" ? -2 : id === "webull" ? -1 : 0);
   const shown = BROKERS.filter(b =>
     (selectedOnly ? selected.has(b.id) : b.category === tab) &&
     (b.name.toLowerCase().includes(search.toLowerCase()) ||
      b.desc.toLowerCase().includes(search.toLowerCase()))
-  );
+  ).sort((a, b) => memberFirst(a.id) - memberFirst(b.id));
 
-  const footer = (
+  const footer = panelAudience !== "OWNER" ? undefined : (
     <div className="space-y-2 text-center text-[10px] text-wm-text-dim">
       <div>
         {selected.size > 0
@@ -1449,6 +1453,7 @@ export function BrokerConnectPanel({
         )}
 
         <div className="px-4 py-3 border-b border-wm-border shrink-0">
+          {panelAudience === "GUEST" && <MemberBrokerOnboarding />}
           {panelAudience === "OWNER" && <ProviderWireStrip compact sourcedObservation={panelObservation} />}
           {panelAudience === "OWNER" && receiptOrigin && (
             <p className="mt-2 text-[9px] leading-snug text-wm-text-dim" data-provider-receipt-origin={receiptOrigin}>

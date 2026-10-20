@@ -1,8 +1,49 @@
 # MEMBER-OWNED BROKER CONNECTIONS — design + threat model
 
-Status: BUILT for tastytrade (market data, read scope only). Webull: designed, NOT built for members (see §6).
+Status: BUILT and ENABLED for tastytrade (read scope only; key set 2026-10-20). Webull: designed, NOT built for members (see §6).
 Date: 2026-10-06/07. Source directives: Founder (Oct 6 evening) "we can just have people use their own
 tastytrade and use my referral links for webull and tastytrade"; Garden 19 §25.
+
+## 0. 2026-10-20 — the friend on his phone (Founder brief)
+
+**Failing step, reproduced live at 375px:** Connect brokers → tastytrade card →
+`GET /api/broker/member/tastytrade` answered `MEMBER_CONNECTIONS_NOT_ENABLED` because
+`WM_BROKER_GRANT_KEY` had never been set on the Worker (§7). The card said "Connecting your own
+tastytrade isn't enabled on WM yet" — a dead end. A signed-out visitor's 401 was also painted as
+"not enabled". tastytrade sat 6th in the list, below brokers WM cannot connect, each with a live-looking
+"Queue" button.
+
+**Fixed:** key set (generated server-side, never displayed); tastytrade first, Webull second, Queue
+hidden for members; onboarding ("For now, connect Tastytrade for live data. Webull is coming.", tutorial
+slot, "New to Tastytrade?" → open.tastytrade.com, tastytrade's own data terms linked); labelled fields
+with on-phone validation (`tastyCredentialShape.ts`, same rules as the server); **Test connection**
+(POST = test, then save only if accepted; PUT = re-test the saved grant); seven named states — Not
+connected · Connecting · Connected · Partially available · Authentication expired · Error · Unsupported.
+
+**Per-capability checks** (each on its own; one failure never hides another): quotes
+(`/market-data/by-type` SPY snapshot) · chart history & live stream (`/api-quote-tokens`; candles ride
+DXLink on it) · balances · positions · orders (READ `/orders/live` only). Placing orders: always off
+for member grants (read scope; `ttRequest` refuses non-GET on a member lane). Shown with environment
+(LIVE vs SANDBOX — tastytrade has no paper mode on live accounts), account kinds (never numbers), last
+successful check and last test time.
+
+**tastytrade data terms (verified 2026-10-20):** Help Center — an unfunded new account gets 14 calendar
+days of live data, then delayed until funded with *any amount* (non-professional)
+(support.tastytrade.com article 43000475299). API docs — market-data endpoints are "available to funded
+account holders" (developer.tastytrade.com/docs/concepts/market-data). No dollar minimum is published
+there, so the UI claims none.
+
+**OAuth (Path B) blocker, unchanged:** tastytrade personal apps are "restricted to your account only";
+a WM app other customers can authorize needs tastytrade's trusted third-party verification — Founder
+emails api.support@tastytrade.com. Until then members use Path A (their own personal app, read scope).
+
+**Webull for members — "Waiting on Webull access":** Webull's Connect API (OAuth for third-party apps) is
+granted per business after Webull approves an application (webull.com/connect-api/info,
+connect.api@webull-us.com) and carries accounts, positions and orders — **not market data**. WM holds no
+Connect API approval, so the card shows that status and no button.
+
+Tests: `connectStates.route.test.ts` (invalid credentials, expired auth, missing permissions, partial,
+per-capability isolation, read-only orders), `MemberBrokerConnect.states.test.ts`.
 
 ## 1. The rule this implements (Garden 19 §25, verbatim intent)
 
