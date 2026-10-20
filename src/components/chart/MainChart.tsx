@@ -29505,7 +29505,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         if (el && pin) {
           let axisWP = 0;
           try { axisWP = Math.max(0, Number(chart.priceScale("right").width()) || 0); } catch { /* keep 0 */ }
-          const spotP = placeWaitPlaque(pin, { w: 208, h: el.offsetHeight || 60 }, { w: W - axisWP, h: H, top: HEADER_FLOOR_Y }, [...rowBodiesAt(-1e9, 1e9), ...newestColumnRects(), ...chartSheetRects()], floatingChips);
+          const spotP = placeWaitPlaque(pin, { w: 208, h: el.offsetHeight || 60 }, { w: W - axisWP, h: H, top: HEADER_FLOOR_Y }, [...rowBodiesAt(-1e9, 1e9), ...newestColumnRects(), ...chartSheetRects()], floatingChips, (waitPlaqueLiveRef.current?.mode.split(":")[0] ?? null) as Parameters<typeof placeWaitPlaque>[5]);
           const prev = waitPlaqueLiveRef.current;
           const modeP = spotP.overChips ? `${spotP.mode}:OVER_CHIP` : spotP.mode;
           if (!prev || prev.left !== spotP.left || prev.top !== spotP.top || prev.mode !== modeP) {

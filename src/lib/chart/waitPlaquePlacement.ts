@@ -40,6 +40,11 @@ export function placeWaitPlaque(
   candles: readonly PlaqueRect[],
   /** The labels and chips already on the glass this frame (the keep-out chip ledger). */
   chips: readonly PlaqueRect[] = [],
+  /**
+   * The side it held last frame. Tried first while it stays clear (Founder's 2-minute watch, NQ1! 1m 2026-10-20: the
+   * plate wandered right → left → right of its pin as other chips came and went).
+   */
+  held: WaitPlaquePlacement["mode"] | null = null,
 ): WaitPlaquePlacement {
   const obstacles = [...candles, ...chips];
   const clampX = (x: number) => Math.min(x, Math.max(12, container.w - size.w - 16));
@@ -56,6 +61,10 @@ export function placeWaitPlaque(
       { mode: "ABOVE" as const, x: centreX, y: clampY(pin.y - 18 - size.h - k * (size.h + 8)) },
     ]),
   ];
+  if (held && held !== "BLOCKED") {
+    const i = cands.findIndex(c => c.mode === held);
+    if (i > 0) cands.unshift(...cands.splice(i, 1));
+  }
   for (const c of cands) {
     const r = { x: c.x, y: c.y, w: size.w, h: size.h };
     if (!obstacles.some(b => hits(r, b))) return { left: c.x, top: c.y, mode: c.mode };

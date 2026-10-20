@@ -43,7 +43,7 @@ describe("MainChart places the H-101 plaque through placeWaitPlaque", () => {
     // Every frame, against candles AND the labels/chips this frame put on the glass.
     // 2026-10-08 Garden 19 §15 P1-A: every visible candle box is still fed, plus the newest column's keep-out.
     // Tightened 2026-10-09: the plaque's first usable row is the legend band's floor.
-    expect(mc).toContain("const spotP = placeWaitPlaque(pin, { w: 208, h: el.offsetHeight || 60 }, { w: W - axisWP, h: H, top: HEADER_FLOOR_Y }, [...rowBodiesAt(-1e9, 1e9), ...newestColumnRects(), ...chartSheetRects()], floatingChips);");
+    expect(mc).toContain("const spotP = placeWaitPlaque(pin, { w: 208, h: el.offsetHeight || 60 }, { w: W - axisWP, h: H, top: HEADER_FLOOR_Y }, [...rowBodiesAt(-1e9, 1e9), ...newestColumnRects(), ...chartSheetRects()], floatingChips, (waitPlaqueLiveRef.current?.mode.split(\":\")[0] ?? null) as Parameters<typeof placeWaitPlaque>[5]);");
     // The inspect / passport sheet is a keep-out in both placements (Sheriff, 2026-10-09).
     expect(mc).toContain("[...candles, ...chartSheetRects()],");
   });
@@ -87,5 +87,15 @@ describe("the plaque never sits in the price legend band (serving 390, 6e150db, 
     // ABOVE candidates are clamped to it too.
     const blockedBelow = [{ x: 0, y: 150, w: 330, h: 318 }];
     expect(placeWaitPlaque({ x: 160, y: 200 }, size, box, blockedBelow).top).toBeGreaterThanOrEqual(90);
+  });
+});
+
+describe("the plaque keeps the side it held (2026-10-20 live watch: it wandered as chips came and went)", () => {
+  it("held LEFT stays LEFT while LEFT is clear, even when RIGHT is clear too", () => {
+    const spot = placeWaitPlaque({ x: 600, y: 300 }, { w: 208, h: 60 }, { w: 1200, h: 700 }, [], [], "LEFT");
+    expect(spot.mode).toBe("LEFT");
+  });
+  it("no held side → the usual order (RIGHT first)", () => {
+    expect(placeWaitPlaque({ x: 600, y: 300 }, { w: 208, h: 60 }, { w: 1200, h: 700 }, [], []).mode).toBe("RIGHT");
   });
 });
