@@ -21479,7 +21479,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 for (const t of [...tickWords].sort((p, q) => p.y - q.y)) {
                   if (!speakingTicks.has(t)) { displacedNotes.push({ layer: "DERIVATIVES", text: t.text, x: plotRightD - 40, y: t.y }); oiWordsListed++; continue; }
                   const tw = ctx.measureText(t.text).width;
-                  const x = plotRightD - tw - 6;
+                  // Beside a profile column, never on it (Founder's watch, NQ1! 1m Composite Profile 2026-10-20: "CALL OI 29,725 · 73"
+                  // and "PUT OI 29,700 · 727" lay under the composite's bars, which grow left from the same axis).
+                  const pclOi = Math.min(profileColumnLeftRef.current.prev, profileColumnLeftRef.current.cur);
+                  const oiRight = Number.isFinite(pclOi) && pclOi > plotRightD * 0.5 && pclOi < plotRightD - 8 ? pclOi - 4 : plotRightD;
+                  const x = oiRight - tw - 6;
                   const at = (k: number) => ({ x: x - 3, y: t.y - 2 + k * ROW - 12, w: tw + 6, h: 13 });
                   const near = [0, -1, 1, -2, 2, -3, 3];
                   // Clear of everything if possible; failing that (crowded live
@@ -21514,7 +21518,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     stepped++;
                     ctx.strokeStyle = `rgba(${t.rgb},${(0.5 * t.a).toFixed(3)})`;
                     ctx.lineWidth = 1;
-                    ctx.beginPath(); ctx.moveTo(plotRightD - 4, t.y); ctx.lineTo(plotRightD - 4, by - 6); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(oiRight - 4, t.y); ctx.lineTo(oiRight - 4, by - 6); ctx.stroke();
                   }
                   // Plate law "no faint text" (serving f1f1a46, his default stack: the mapped-index wall words read at
                   // the governor's 25%). The tick stays governed; its WORDS keep a legibility floor on a solid backing.
