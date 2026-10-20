@@ -236,3 +236,17 @@ export const dayKey = (uid: string, date: string) => `prep:day:v1:${uid}:${date}
 export const triggersKey = (uid: string) => `prep:triggers:v1:${uid}`;
 export const SAFE_UID = /^[A-Za-z0-9_-]{3,96}$/;
 export const TRIGGER_LOG_CAP = 300;
+
+/**
+ * THE DATA-CHECK GATE (brief: "If the data check fails, the trading workflow remains blocked"). Read by the live order
+ * route on every send. Only a NEW position is refused — a closing order or a cancel always goes, so a failed check can
+ * never trap a position. Unreadable record → no refusal from this gate (the other server limits still hold).
+ */
+export function dataCheckRefusal(dayJson: string | null, action: string): string | null {
+  if (!/to Open$/.test(action)) return null;
+  let health: unknown = null;
+  try { health = dayJson ? (JSON.parse(dayJson) as { health?: unknown }).health : null; } catch { return null; }
+  return health === "FAIL"
+    ? "Today's market-data check is marked FAILED in your Morning Command Center. No new position is sent until the chart's feed is resolved and the check is passed. Closing orders and cancels are not blocked."
+    : null;
+}

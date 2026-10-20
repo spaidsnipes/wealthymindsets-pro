@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  DEFAULT_PROTOCOL, minutesToNyOpen, prepPace, protocolDate, sanitizeDay, sanitizeProtocol, sanitizeTrigger, triggerPattern,
+  DEFAULT_PROTOCOL, dataCheckRefusal, minutesToNyOpen, prepPace, protocolDate, sanitizeDay, sanitizeProtocol, sanitizeTrigger, triggerPattern,
 } from "./protocol";
 
 describe("morning protocol (Founder brief 2026-10-20)", () => {
@@ -50,5 +50,20 @@ describe("morning protocol (Founder brief 2026-10-20)", () => {
     const t = Date.UTC(2026, 9, 20, 12, 0); // 08:00 ET
     expect(protocolDate(t)).toBe("2026-10-20");
     expect(minutesToNyOpen(t)).toBe(90);
+  });
+});
+
+describe("the data-check gate on the live order route", () => {
+  it("a FAILED check refuses a new position only", () => {
+    const failed = JSON.stringify({ health: "FAIL" });
+    expect(dataCheckRefusal(failed, "Buy to Open")).toMatch(/FAILED/);
+    expect(dataCheckRefusal(failed, "Sell to Open")).toMatch(/FAILED/);
+    expect(dataCheckRefusal(failed, "Sell to Close")).toBeNull();
+    expect(dataCheckRefusal(failed, "Buy to Close")).toBeNull();
+  });
+  it("passed, unset or unreadable → no refusal from this gate", () => {
+    expect(dataCheckRefusal(JSON.stringify({ health: "PASS" }), "Buy to Open")).toBeNull();
+    expect(dataCheckRefusal(null, "Buy to Open")).toBeNull();
+    expect(dataCheckRefusal("{not json", "Buy to Open")).toBeNull();
   });
 });

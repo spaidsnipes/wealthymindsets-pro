@@ -9,6 +9,7 @@ import { orderDecisionKv, putOrderDecision } from "@/lib/broker/orderDecisionLed
 import { preflightLiveOrder, type ServerOrderLimits } from "@/lib/execution/liveOrderPreflight";
 import { loadServerOrderLimits } from "@/lib/execution/serverOrderLimitsStore";
 import { requireAuth } from "@/lib/requireAuth";
+import { SAFE_UID, dataCheckRefusal, dayKey, protocolDate } from "@/lib/morningProtocol/protocol";
 import { webullWorkerEnv } from "@/lib/marketData/webullSessionStore";
 import {
   dryRunTastytradeOrder,
@@ -107,6 +108,13 @@ export async function POST(req: NextRequest) {
     const state = first.code === "KILL_SWITCH" ? "KILL_SWITCH" : first.code === "LIMITS_UNSET" ? "LIMITS_UNSET" : "REFUSED_PREFLIGHT";
     return NextResponse.json({ state, reason: preflight.refusals.map(r => r.reason).join(" "), refusals: preflight.refusals }, { status: 422, headers: NO_STORE });
   }
+
+  // THE MORNING DATA CHECK (Founder brief 2026-10-20): a FAILED check blocks a NEW position, server-side, like the kill switch.
+  try {
+    const prepKv = orderDecisionKv(await webullWorkerEnv());
+    const why = prepKv && SAFE_UID.test(auth.user.sub) ? dataCheckRefusal(await prepKv.get(dayKey(auth.user.sub, protocolDate(Date.now()))), action) : null;
+    if (why) return NextResponse.json({ state: "DATA_CHECK_FAILED", reason: why }, { status: 422, headers: NO_STORE });
+  } catch { /* unreadable record: this gate does not refuse; the server limits above still held */ }
 
   // ORDER RATE (2026-10-10): per owner, per broker, per minute and per ET day — read BEFORE any broker call.
   let rateKv: Awaited<ReturnType<typeof orderDecisionKv>> = null;

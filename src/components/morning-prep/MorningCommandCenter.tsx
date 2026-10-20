@@ -7,7 +7,8 @@
  * protocol and today's record are the trader's own, saved to their account (/api/morning-prep/protocol).
  *
  * It decides nothing about the market. The data check is the trader's own pass/fail against the chart's badge — and
- * a FAIL is said at the top of this room in plain words: no new trade through WM until it is resolved.
+ * a FAIL is said at the top of this room in plain words, and the live order route refuses every NEW position while it
+ * stands (dataCheckRefusal) — closing orders and cancels always go.
  */
 import Link from "next/link";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -108,7 +109,8 @@ export default function MorningCommandCenter() {
         </div>
         {blocked ? (
           <p role="alert" data-testid="mcc-blocked" style={{ margin: 0, padding: "8px 10px", borderRadius: 8, background: "rgba(122,42,34,.35)", color: "#F3EBDD", fontSize: 14, fontWeight: 600 }}>
-            DATA CHECK FAILED — no new trade through WM until the chart&apos;s feed is resolved. A moving price or P&amp;L does not prove the candles are current.
+            DATA CHECK FAILED — WM refuses every new position (tastytrade) until the chart&apos;s feed is resolved and the check is passed. Closing orders and
+            cancels still go. A moving price or P&amp;L does not prove the candles are current.
           </p>
         ) : null}
         <p data-testid="mcc-status" style={{ margin: 0, fontSize: 13, color: status.kind === "error" ? RED : MUTED }}>{status.words}</p>
