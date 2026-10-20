@@ -126,8 +126,11 @@ export default function MorningCommandCenter() {
               <li key={s.id}>
                 <label style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 44, cursor: "pointer" }}>
                   <input type="checkbox" checked={done} onChange={() => toggleStep(s.id)} data-testid={`mcc-step-${s.id}`} style={{ width: 20, height: 20, accentColor: GOLD }} />
-                  <span style={{ fontSize: 15, fontWeight: 700, color: done ? MUTED : INK, textDecoration: done ? "line-through" : "none" }}>{i + 1}. {s.name}</span>
-                  <span style={{ fontSize: 13, color: MUTED }}>{s.hint}</span>
+                  {/* Name over hint (iPhone 2026-10-20: side by side, "1. Wake and reset" was squeezed into a narrow column). */}
+                  <span style={{ display: "grid", gap: 2, minWidth: 0 }}>
+                    <span style={{ fontSize: 15, fontWeight: 700, color: done ? MUTED : INK, textDecoration: done ? "line-through" : "none" }}>{i + 1}. {s.name}</span>
+                    <span style={{ fontSize: 13, color: MUTED }}>{s.hint}</span>
+                  </span>
                 </label>
               </li>
             );
@@ -204,13 +207,13 @@ export default function MorningCommandCenter() {
         <div style={{ display: "grid", gap: 6 }}>
           {READINESS_CHECKS.map(c => (
             <div key={c.id} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 14, minWidth: 260 }}>{c.q}</span>
+              <span style={{ fontSize: 14, flex: "1 1 220px" }}>{c.q}</span>
               <button type="button" aria-pressed={day.readiness[c.id] === true} onClick={() => putDay({ ...day, readiness: { ...day.readiness, [c.id]: true } })} style={btn(day.readiness[c.id] === true)}>Yes</button>
               <button type="button" aria-pressed={day.readiness[c.id] === false} onClick={() => putDay({ ...day, readiness: { ...day.readiness, [c.id]: false } })} style={btn(day.readiness[c.id] === false)}>No</button>
             </div>
           ))}
           <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 14, minWidth: 260 }}>Will I respect my risk limit{protocol.dailyRiskUsd != null ? ` ($${protocol.dailyRiskUsd})` : " (not set — Edit to set it)"}?</span>
+            <span style={{ fontSize: 14, flex: "1 1 220px" }}>Will I respect my risk limit{protocol.dailyRiskUsd != null ? ` ($${protocol.dailyRiskUsd})` : " (not set — Edit to set it)"}?</span>
             <button type="button" aria-pressed={day.respectRisk === true} onClick={() => putDay({ ...day, respectRisk: true })} style={btn(day.respectRisk === true)}>Yes</button>
             <button type="button" aria-pressed={day.respectRisk === false} onClick={() => putDay({ ...day, respectRisk: false })} style={btn(day.respectRisk === false)}>No</button>
           </div>
