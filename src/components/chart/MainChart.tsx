@@ -3788,6 +3788,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const foldPrintRef = useRef<(tick: Tick, heardLive: boolean) => boolean>(() => false);
   /** Where a moving word sat LAST frame, by key — tried first so a still-clear seat is kept (no hopping). */
   const seatMemoryRef = useRef<Map<string, { x: number; y: number; w: number; h: number }>>(new Map());
+  /** The order-flow seam's start and since when it has held — its chip speaks once the backfill stops moving it. */
+  const seamStartRef = useRef<{ t: number; since: number }>({ t: NaN, since: 0 });
   const foldPrint = (tick: Tick, heardLive: boolean): boolean => {
     const intervalSec = getIntervalSec(timeframe);
     const minTick = base > 10_000 ? 0.25 : base > 1_000 ? 0.25 : base > 100 ? 0.01 : 0.0001;
@@ -29011,7 +29013,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               floatingChips.push(r);
             };
             // One plain chip, no "real tape" (Founder 2026-10-16): the hatch already says the earlier bars hold totals.
-            seamChip(`Order flow from ${new Date(firstSided.t * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`, bx + 8, top + 8);
+            // WHILE THE TAPE BACKFILLS the seam walks back in time (Founder's 2-minute watch, BTC 5m 2026-10-20: 12:35 AM →
+            // 10:35 PM → 8:50 PM → 7:25 PM in 40 s, shoving the event notes along). The line and hatch follow the data at
+            // once; the chip's words wait until the start has held 15 s.
+            const seamNow = Date.now();
+            if (seamStartRef.current.t !== firstSided.t) seamStartRef.current = { t: firstSided.t, since: seamNow };
+            if (seamNow - seamStartRef.current.since >= 15_000) {
+              seamChip(`Order flow from ${new Date(firstSided.t * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`, bx + 8, top + 8);
+            } else canvas.dataset.tapeCoverageSettling = "1";
+            if (seamNow - seamStartRef.current.since >= 15_000) delete canvas.dataset.tapeCoverageSettling;
             ctx.restore();
             canvas.dataset.tapeCoverageWords = "SEAM";
           } else if (startsInView && firstSided) {
