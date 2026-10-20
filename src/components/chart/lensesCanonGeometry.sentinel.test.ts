@@ -175,7 +175,7 @@ const PINS: Pin[] = [
   { name: "H-1001 the silence is named when nothing is bracketed", holds: b =>
       b.risk.includes('"RISK ON PRICE · no position drawn — Draw › Long / Short Position to bracket its risk"') &&
       b.risk.includes("floatingChips.push({ x: silenceX, y: rowY - 7, w: ctx.measureText(silentR).width, h: 14 });") &&
-      b.risk.includes("const rowY = takeSilenceRow();") &&
+      /const rowY = takeSilenceRow\([^)]*\);/.test(b.risk) &&
       b.risk.includes("ds.riskOnPriceSilence = rv.reason;") },
   { name: "H-1001 callouts placed by the keep-out owner, no card border, no ad-hoc slide", holds: b =>
       b.risk.includes("const spotR = placeClearOfKeepOut(prefR, [...keepOut(), ...rowBodiesAt(prefR.y, prefR.y + h)], {") &&

@@ -98,7 +98,7 @@ describe("truth lines have one home; level chips and the WAIT plate ask first; s
     expect(CHART).toContain("if (wordGate.isTruth(n.text)) { if (!truthForSilence.includes(n.text)) truthForSilence.push(n.text); }");
     const i = CHART.indexOf("for (const words of truthForSilence) {");
     expect(i).toBeGreaterThan(0);
-    expect(CHART.slice(i, i + 500)).toContain("const yT = takeSilenceRow();");
+    expect(CHART.slice(i, i + 500)).toMatch(/const yT = takeSilenceRow\((?:words)?\);/);
     // …and it is painted BEFORE the folded-silence summary counts its rows.
     expect(i).toBeLessThan(CHART.indexOf("// The folded silences, as one line (see takeSilenceRow)."));
   });
@@ -128,7 +128,7 @@ describe("truth is declared by the silence stack's one function (enforce audit, 
     expect(REG).toContain("const isTruth = (text: string): boolean => declared.has(text) || isTruthLine(text);");
   });
   it("every line that takes a silence row is said through fitSilence (so it is declared)", () => {
-    const takes = [...CHART.matchAll(/= takeSilenceRow\(\);/g)].length;
+    const takes = [...CHART.matchAll(/= takeSilenceRow\([^)]*\);/g)].length;
     const said = [...CHART.matchAll(/fitSilence\(/g)].length;
     expect(takes).toBeGreaterThan(5);
     expect(said).toBeGreaterThanOrEqual(takes);

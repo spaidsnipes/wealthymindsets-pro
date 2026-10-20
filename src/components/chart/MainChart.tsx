@@ -8437,7 +8437,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       };
       // Rows taken this frame, so words placed later (the bar-window count) step around them.
       const silenceRowRects: { x: number; y: number; w: number; h: number }[] = [];
-      const takeSilenceRow = (): number => {
+      // A PURE SILENCE — a tool that is on with nothing to show ("EXHAUSTION · ON · NO FAILED PUSH…", "FOUNDER ANATOMY ·
+      // ACTIVE · NO CURRENT…") — folds into the one summary chip at EVERY width (Founder's 2-minute watch, desk 1568,
+      // 2026-10-20: four such lines lay across the candles; the phone already folds them). A line that describes what
+      // IS drawn keeps its row. Each sense still names its state in Tools › Active.
+      const PURE_SILENCE = /·\s*(?:ON|ACTIVE)\s*·\s*(?:NO|NOTHING)\b|NOTHING ON THIS CAMERA|·\s*SILENT\b|\bNO [A-Z ]+ IN VIEW\b/;
+      const takeSilenceRow = (words?: string): number => {
+        if (words && PURE_SILENCE.test(words.toUpperCase())) { silenceFolded++; return -1000; }
         // THE PHONE FOLDS THEM ALL (2026-10-04, narrow-glass word budget):
         // "ORDER FLOW · ACTIVE · NO CURRENT EVENT…" and "FOUNDER ANATOMY ·
         // ACTIVE…" stacked over the candles of a 330px plot. Every sense still
@@ -12976,7 +12982,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ctx.save();
           ctx.font = marketFont("OBJECT_NAME");
           ctx.fillStyle = "rgba(200,192,174,0.85)"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
-          { const yS = takeSilenceRow(); ctx.fillText(fitSilence(deltaKeelOn ? "CVD NOTCH · ON · WAITING FOR THE DELTA KEELS' SIGNED ROWS" : "CVD NOTCH · ON · READS THE DELTA KEELS — TURN DELTA KEEL ON"), silenceX, yS); } // row first: its limit fits the words
+          { const yS = takeSilenceRow(deltaKeelOn ? "CVD NOTCH · ON · WAITING FOR THE DELTA KEELS' SIGNED ROWS" : "CVD NOTCH · ON · READS THE DELTA KEELS — TURN DELTA KEEL ON"); ctx.fillText(fitSilence(deltaKeelOn ? "CVD NOTCH · ON · WAITING FOR THE DELTA KEELS' SIGNED ROWS" : "CVD NOTCH · ON · READS THE DELTA KEELS — TURN DELTA KEEL ON"), silenceX, yS); } // row first: its limit fits the words
           ctx.restore();
         }
         else {
@@ -16205,7 +16211,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.save();
                 ctx.font = marketFont("OBJECT_NAME");
                 ctx.fillStyle = "rgba(200,192,174,0.85)"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
-                { const yS = takeSilenceRow(); ctx.fillText(fitSilence(`EXHAUSTION · ON · ${ex.reason === "MEASURED" ? "NO FAILED PUSH ON THIS CAMERA" : String(ex.reason).replace(/_/g, " ")}`), silenceX, yS); } // row first: its limit fits the words
+                { const yS = takeSilenceRow(`EXHAUSTION · ON · ${ex.reason === "MEASURED" ? "NO FAILED PUSH ON THIS CAMERA" : String(ex.reason).replace(/_/g, " ")}`); ctx.fillText(fitSilence(`EXHAUSTION · ON · ${ex.reason === "MEASURED" ? "NO FAILED PUSH ON THIS CAMERA" : String(ex.reason).replace(/_/g, " ")}`), silenceX, yS); } // row first: its limit fits the words
                 ctx.restore();
               }
               // What each mark actually put on the glass, for the receipt below.
@@ -16505,7 +16511,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.font = marketFont("OBJECT_NAME");
                   ctx.fillStyle = "rgba(200,192,174,0.85)";
                   ctx.textAlign = "left"; ctx.textBaseline = "middle";
-                  { const yS = takeSilenceRow(); ctx.fillText(fitSilence("ANATOMY CARDS · ON · SELECT A SHELF OR MARK TO READ ITS CARD"), silenceX, yS); } // row first: its limit fits the words
+                  { const yS = takeSilenceRow("ANATOMY CARDS · ON · SELECT A SHELF OR MARK TO READ ITS CARD"); ctx.fillText(fitSilence("ANATOMY CARDS · ON · SELECT A SHELF OR MARK TO READ ITS CARD"), silenceX, yS); } // row first: its limit fits the words
                   ctx.restore();
                 }
                 ds.anatomyCards = "AT_REST";
@@ -18042,7 +18048,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ctx.font = marketFont("OBJECT_NAME");
           ctx.fillStyle = "rgba(200,192,174,0.85)";
           ctx.textAlign = "left"; ctx.textBaseline = "middle";
-          const rowY = takeSilenceRow();
+          const rowY = takeSilenceRow(quiet);
           ctx.fillText(fitSilence(quiet), silenceX, rowY);
           floatingChips.push({ x: silenceX, y: rowY - 7, w: ctx.measureText(quiet).width, h: 14 });
           ctx.restore();
@@ -19158,7 +19164,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ctx.save();
           ctx.font = marketFont("OBJECT_NAME");
           ctx.fillStyle = "rgba(200,192,174,0.9)"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
-          const rowFE = takeSilenceRow();
+          const rowFE = takeSilenceRow("FLOW CURRENT · ESTIMATED FROM CANDLES");
           const shownFE = fitSilence("FLOW CURRENT · ESTIMATED FROM CANDLES");
           ctx.fillText(shownFE, silenceX, rowFE);
           floatingChips.push({ x: silenceX, y: rowFE - 7, w: ctx.measureText(shownFE).width, h: 14 });
@@ -19172,7 +19178,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ctx.font = marketFont("OBJECT_NAME");
           ctx.fillStyle = "rgba(200,192,174,0.85)";
           ctx.textAlign = "left"; ctx.textBaseline = "middle";
-          const rowY = takeSilenceRow();
+          const rowY = takeSilenceRow(quiet);
           ctx.fillText(fitSilence(quiet), silenceX, rowY);
           floatingChips.push({ x: silenceX, y: rowY - 7, w: ctx.measureText(quiet).width, h: 14 });
           ctx.restore();
@@ -20299,7 +20305,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               if (spotCap.mode === "BLOCKED") {
                 ctx.font = marketFont("OBJECT_NAME");
                 ctx.fillStyle = "rgba(200,192,174,0.85)"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
-                const yC = takeSilenceRow();
+                const yC = takeSilenceRow(capShown);
                 ctx.fillText(fitSilence(capShown), silenceX, yC);
                 if (yC > 0) floatingChips.push({ x: silenceX, y: yC - 7, w: ctx.measureText(capShown).width, h: 14 });
                 ds.expectedEnvelopeCaption = "SILENCE_STACK";
@@ -20390,7 +20396,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.textBaseline = "middle";
             // THE SILENCE STACK, not a fixed seat (phone 375 BTC, 2026-10-17: printed at H − 86 it ran over the gamma
             // disclosure and off the glass). It folds on a phone, steps with the others, stops at the next chip.
-            const rowE = takeSilenceRow();
+            const rowE = takeSilenceRow(refusal);
             const shownE = fitSilence(refusal);
             ctx.fillText(shownE, silenceX, rowE);
             // A chip, so TPO letters painted later yield to these words.
@@ -21594,7 +21600,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.fillStyle = "rgba(200,192,174,0.85)";
               ctx.textAlign = "left";
               ctx.textBaseline = "middle";
-              const rowY = takeSilenceRow();
+              const rowY = takeSilenceRow(words);
               ctx.fillText(fitSilence(words), silenceX, rowY);
               floatingChips.push({ x: silenceX, y: rowY - 7, w: ctx.measureText(words).width, h: 14 });
               ctx.restore();
@@ -21757,7 +21763,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // whenever it is not today.
                 const fromWords = traderClock(flow.fromMs, { seconds: false, nowMs: Date.now() });
                 const cap = `OPTIONS FLOW · ${flow.events.length} largest by premium of ${flow.heard.toLocaleString()} prints · heard from ${fromWords} · ≥${flow.minSize} contracts`;
-                const rowY = takeSilenceRow();
+                const rowY = takeSilenceRow(cap);
                 if (rowY > 0) {
                   ctx.textAlign = "left";
                   ctx.fillStyle = "rgba(200,192,174,0.85)";
@@ -21812,7 +21818,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.font = marketFont("OBJECT_NAME");
                 ctx.fillStyle = "rgba(200,192,174,0.85)";
                 ctx.textAlign = "left"; ctx.textBaseline = "middle";
-                const yW = takeSilenceRow();
+                const yW = takeSilenceRow(withheldW);
                 ctx.fillText(fitSilence(withheldW), silenceX, yW);
                 if (yW > 0) floatingChips.push({ x: silenceX, y: yW - 7, w: ctx.measureText(withheldW).width, h: 14 });
                 ctx.restore();
@@ -22048,7 +22054,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.font = marketFont("OBJECT_NAME");
                 ctx.fillStyle = "rgba(200,192,174,0.9)";
                 ctx.textAlign = "left"; ctx.textBaseline = "middle";
-                const yS = takeSilenceRow();
+                const yS = takeSilenceRow(words);
                 ctx.fillText(fitSilence(words), silenceX, yS);
                 if (yS > 0) floatingChips.push({ x: silenceX, y: yS - 7, w: ctx.measureText(words).width, h: 14 });
                 ctx.restore();
@@ -22487,7 +22493,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // One row of the shared silence stack (serving EURUSD 15m,
             // 2026-09-30: MTF and CONTRADICTION were both hard-coded at H - 100
             // and printed over each other).
-            const mtfRowY = takeSilenceRow();
+            const mtfRowY = takeSilenceRow(words);
             ctx.fillText(fitSilence(words), silenceX, mtfRowY);
             floatingChips.push({ x: silenceX, y: mtfRowY - 7, w: ctx.measureText(words).width, h: 14 });
             ctx.restore();
@@ -22733,7 +22739,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 : `CONTRADICTION · not enough families lean (${cv.silent.map(x => x.family.toLowerCase()).join(", ")} silent)`;
               // One row of the shared silence stack (it shared H - 100 with MTF).
               ctx.textBaseline = "middle";
-              const cvRowY = takeSilenceRow();
+              const cvRowY = takeSilenceRow(t);
               ctx.fillText(fitSilence(t), silenceX, cvRowY);
               // A chip, so TPO letters painted later yield to these words.
               floatingChips.push({ x: silenceX, y: cvRowY - 7, w: ctx.measureText(t).width, h: 14 });
@@ -23190,7 +23196,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // candles on a yielded backing). The words still say themselves, bottom-left with the other silences.
           if (spotQ.mode === "BLOCKED") {
             ctx.font = marketFont("OBJECT_NAME");
-            const yS = takeSilenceRow();
+            const yS = takeSilenceRow(text);
             ctx.fillStyle = "rgba(200,192,174,0.85)";
             ctx.textAlign = "left";
             ctx.textBaseline = "middle";
@@ -24034,7 +24040,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.font = marketFont("OBJECT_NAME");
               ctx.fillStyle = "rgba(200,192,174,0.85)";
               ctx.textAlign = "left"; ctx.textBaseline = "middle";
-              const rowL = takeSilenceRow();
+              const rowL = takeSilenceRow(quietL);
               ctx.fillText(fitSilence(quietL), silenceX, rowL);
               floatingChips.push({ x: silenceX, y: rowL - 7, w: ctx.measureText(quietL).width, h: 14 });
               ctx.restore();
@@ -24047,7 +24053,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.font = marketFont("OBJECT_NAME");
               ctx.fillStyle = "rgba(200,192,174,0.85)";
               ctx.textAlign = "left"; ctx.textBaseline = "middle";
-              const rowY = takeSilenceRow();
+              const rowY = takeSilenceRow(quiet);
               ctx.fillText(fitSilence(quiet), silenceX, rowY);
               floatingChips.push({ x: silenceX, y: rowY - 7, w: ctx.measureText(quiet).width, h: 14 });
               ctx.restore();
@@ -24254,7 +24260,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.font = marketFont("OBJECT_NAME");
               ctx.fillStyle = "rgba(200,192,174,0.85)";
               ctx.textAlign = "left"; ctx.textBaseline = "middle";
-              const rowY = takeSilenceRow();
+              const rowY = takeSilenceRow(quiet);
               ctx.fillText(fitSilence(quiet), silenceX, rowY);
               floatingChips.push({ x: silenceX, y: rowY - 7, w: ctx.measureText(quiet).width, h: 14 });
               ctx.restore();
@@ -24610,7 +24616,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               if (narrowGlass) {
                 ctx.font = marketFont("OBJECT_NAME");
                 ctx.fillStyle = "rgba(200,192,174,0.85)"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
-                const yR = takeSilenceRow();
+                const yR = takeSilenceRow(fusionRefusalCaption(pair, fr.reason));
                 ctx.fillText(fitSilence(fusionRefusalCaption(pair, fr.reason)), silenceX, yR);
                 ctx.restore();
                 ds.profileFusionRefusal = `${fr.reason}:SILENCE_STACK`;
@@ -25127,7 +25133,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // clear spot near its swing, it takes a row of the shared silence
               // stack instead; the rule on price still marks the swing.
               const toSilenceRow = () => {
-                const rowSt = takeSilenceRow();
+                const rowSt = takeSilenceRow(text);
                 ctx.save();
                 ctx.font = marketFont("OBJECT_NAME");
                 ctx.fillStyle = "rgba(200,192,174,0.85)";
@@ -25163,7 +25169,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               };
               if (rowIfBlocked && spotP.mode === "BLOCKED" && seatTitleTop()) return;
               if (rowIfBlocked && spotP.mode === "BLOCKED") {
-                const rowSt = takeSilenceRow();
+                const rowSt = takeSilenceRow(text);
                 ctx.save();
                 ctx.font = marketFont("OBJECT_NAME");
                 ctx.fillStyle = "rgba(200,192,174,0.85)";
@@ -25393,7 +25399,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.font = marketFont("OBJECT_NAME");
             ctx.fillStyle = "rgba(200,192,174,0.85)";
             ctx.textAlign = "left"; ctx.textBaseline = "middle";
-            const rowY = takeSilenceRow();
+            const rowY = takeSilenceRow(quiet);
             ctx.fillText(fitSilence(quiet), silenceX, rowY);
             floatingChips.push({ x: silenceX, y: rowY - 7, w: ctx.measureText(quiet).width, h: 14 });
             ctx.restore();
@@ -27435,7 +27441,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.font = marketFont("OBJECT_NAME");
             ctx.fillStyle = "rgba(200,192,174,0.85)";
             ctx.textAlign = "left"; ctx.textBaseline = "middle";
-            const rowW = takeSilenceRow();
+            const rowW = takeSilenceRow(quietW);
             const shownW = fitSilence(quietW);
             ctx.fillText(shownW, silenceX, rowW);
             floatingChips.push({ x: silenceX, y: rowW - 7, w: ctx.measureText(shownW).width, h: 14 });
@@ -28547,7 +28553,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.font = marketFont("OBJECT_NAME");
               ctx.fillStyle = "rgba(237,230,211,0.8)";
               ctx.textAlign = "left"; ctx.textBaseline = "middle";
-              const rowQ = takeSilenceRow();
+              const rowQ = takeSilenceRow(quietL);
               ctx.fillText(fitSilence(quietL), silenceX, rowQ);
               floatingChips.push({ x: silenceX, y: rowQ - 7, w: ctx.measureText(quietL).width, h: 14 });
               ctx.restore();
@@ -28761,7 +28767,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.font = fontR(700, 9);
             ctx.fillStyle = "rgba(200,192,174,0.85)";
             ctx.textAlign = "left"; ctx.textBaseline = "middle";
-            const rowY = takeSilenceRow();
+            const rowY = takeSilenceRow(silentR);
             ctx.fillText(fitSilence(silentR), silenceX, rowY);
             // A chip, so later words step around it.
             floatingChips.push({ x: silenceX, y: rowY - 7, w: ctx.measureText(silentR).width, h: 14 });
@@ -28911,7 +28917,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ctx.font = marketFont("OBJECT_NAME");
           ctx.fillStyle = "rgba(200,192,174,0.85)";
           ctx.textAlign = "left"; ctx.textBaseline = "middle";
-          const rowY = takeSilenceRow();
+          const rowY = takeSilenceRow(quiet);
           ctx.fillText(fitSilence(quiet), silenceX, rowY);
           floatingChips.push({ x: silenceX, y: rowY - 7, w: ctx.measureText(quiet).width, h: 14 });
           ctx.restore();
@@ -29031,7 +29037,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const tapeBusy = [...floatingChips, ...wordGate.rects()];
             const tapeRow = [0, 1, 2, 3].map(k => H - 50 - k * 16).find(y0 => !tapeBusy.some(q => tx - 3 < q.x + q.w && tx + tw + 3 > q.x && y0 < q.y + q.h && y0 + 14 > q.y));
             if (tapeRow === undefined) {
-              const yS = takeSilenceRow();
+              const yS = takeSilenceRow(words);
               ctx.fillStyle = "rgba(200,192,174,0.85)"; ctx.textBaseline = "middle";
               ctx.fillText(fitSilence(words), silenceX, yS);
               if (yS > 0) floatingChips.push({ x: silenceX, y: yS - 7, w: tw, h: 14 });
@@ -29067,7 +29073,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ctx.font = marketFont("OBJECT_NAME");
           ctx.fillStyle = "rgba(200,192,174,0.85)";
           ctx.textAlign = "left"; ctx.textBaseline = "middle";
-          const yP = takeSilenceRow();
+          const yP = takeSilenceRow(words);
           ctx.fillText(fitSilence(words), silenceX, yP);
           if (yP > 0) floatingChips.push({ x: silenceX, y: yP - 7, w: ctx.measureText(words).width, h: 14 });
           ctx.restore();
@@ -29083,7 +29089,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ctx.save();
           ctx.font = marketFont("OBJECT_NAME");
           ctx.fillStyle = "rgba(200,192,174,0.85)"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
-          const yV = takeSilenceRow();
+          const yV = takeSilenceRow(vg.silence.words);
           ctx.fillText(fitSilence(vg.silence.words), silenceX, yV);
           if (yV > 0) floatingChips.push({ x: silenceX, y: yV - 7, w: ctx.measureText(vg.silence.words).width, h: 14 });
           ctx.restore();
@@ -29097,7 +29103,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ctx.font = marketFont("OBJECT_NAME");
           ctx.fillStyle = "rgba(200,192,174,0.85)";
           ctx.textAlign = "left"; ctx.textBaseline = "middle";
-          const yT = takeSilenceRow();
+          const yT = takeSilenceRow(words);
           ctx.fillText(fitSilence(words), silenceX, yT);
           if (yT > 0) floatingChips.push({ x: silenceX, y: yT - 7, w: ctx.measureText(words).width, h: 14 });
           ctx.restore();
@@ -29112,7 +29118,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ctx.save();
           ctx.font = marketFont("OBJECT_NAME");
           ctx.fillStyle = "rgba(200,192,174,0.85)"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
-          const yN = takeSilenceRow();
+          const yN = takeSilenceRow(dvpNote);
           const shownN = fitSilence(dvpNote);
           ctx.fillText(shownN, silenceX, yN);
           if (yN > 0) floatingChips.push({ x: silenceX, y: yN - 7, w: ctx.measureText(shownN).width, h: 14 });
@@ -29130,7 +29136,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // The phone's short form (2026-10-18): ~80px finds a row between the candles; Tools › Active says which.
         let words = narrowGlass
           ? `${silenceFolded} SILENT ›`
-          : `+${silenceFolded} MORE SENSE${silenceFolded === 1 ? "" : "S"} SILENT HERE — TOOLS › ACTIVE SAYS WHY`;
+          : `${silenceFolded} SILENT — TOOLS ›`;
         ctx.save();
         ctx.font = marketFont("OBJECT_NAME");
         // On the phone its row is fixed under the lens; a word already there (phone 375, Oct 16: the regime's

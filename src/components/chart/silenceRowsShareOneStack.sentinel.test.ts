@@ -12,13 +12,13 @@ const MC = readFileSync("src/components/chart/MainChart.tsx", "utf8");
 
 describe("lower-left silence lines never share a row", () => {
   it("one allocator, declared before any layer paints", () => {
-    const decl = MC.indexOf("const takeSilenceRow = (): number =>");
+    const decl = MC.indexOf("const takeSilenceRow = (words?: string): number =>");
     expect(decl).toBeGreaterThan(-1);
     expect(decl).toBeLessThan(MC.indexOf("GARDEN 15 §2–§7 · DERIVATIVES PRESSURE"));
   });
   it("no silence line is hard-coded to the shared row", () => {
     expect(MC).not.toMatch(/fillText\([^)]*,\s*12,\s*H - 114\)/);
-    expect(MC.match(/const rowY = takeSilenceRow\(\);/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    expect(MC.match(/const rowY = takeSilenceRow\([^)]*\);/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
   });
 });
 
