@@ -29776,7 +29776,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // Wicks too (iPad 6E1! 5m 2026-10-18: the top-row fallback "Sellers defended the supply zone (1st test)"
             // sat across the session high's wick) — first slide along the row off the candles, else the pip.
             const onBodies = (q: { x: number; y: number; w: number; h: number }) => [...rowBodiesAt(q.y, q.y + q.h), ...profileCandlesAt(q.y, q.y + q.h)].some(o => q.x < o.x + o.w && q.x + q.w > o.x && q.y < o.y + o.h && q.y + q.h > o.y);
-            const onWordsOrAnchors = (q: { x: number; y: number; w: number; h: number }) => [...wordRectsNow, ...sovereignBoxes, ...anchorRects].some(o => q.x < o.x + o.w + 2 && q.x + q.w + 2 > o.x && q.y < o.y + o.h + 1 && q.y + q.h + 1 > o.y);
+            // …and the opaque cards and DOM chips (forceChips: the big-trade card, "Evidence saved", INSPECT — Founder's
+            // Chrome, NQ1! 1m 2026-10-20: "Lower low — sellers pressing" sat on the "17 prints · 72 contracts" card).
+            const onWordsOrAnchors = (q: { x: number; y: number; w: number; h: number }) => [...wordRectsNow, ...sovereignBoxes, ...anchorRects, ...forceChips].some(o => q.x < o.x + o.w + 2 && q.x + q.w + 2 > o.x && q.y < o.y + o.h + 1 && q.y + q.h + 1 > o.y);
             // Stepped past the pane floor (Founder's Chrome /desk SPY 2026-10-19: "Higher high — buyers in control" sat on
             // the time axis after the bounded row steps) → the quiet pip, never below the glass.
             if (!single && r.y + r.h > pane0Bottom - 2) { r = { ...r, y: clampY(r.y) }; if (onWordsOrAnchors(r)) r = { ...r, y: Number.NaN }; }
@@ -29789,7 +29791,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 if (!onBodies(q) && !onWordsOrAnchors(q)) { r = q; break; }
               }
             }
-            if (!single && (!Number.isFinite(r.y) || [...wordRectsNow, ...sovereignBoxes].some(o => r.x < o.x + o.w + 2 && r.x + r.w + 2 > o.x && r.y < o.y + o.h + 1 && r.y + r.h + 1 > o.y) || (sp.mode === "BLOCKED" && onBodies(r)))) {
+            if (!single && (!Number.isFinite(r.y) || [...wordRectsNow, ...sovereignBoxes, ...forceChips].some(o => r.x < o.x + o.w + 2 && r.x + r.w + 2 > o.x && r.y < o.y + o.h + 1 && r.y + r.h + 1 > o.y) || (sp.mode === "BLOCKED" && onBodies(r)))) {
               pipForm = true; crowdedToPip++;
               r = { x: Math.max(4, Math.min(plotRight - 16, a.x - 6)), y: clampY(a.y - 6), w: 12, h: 12 };
             }
