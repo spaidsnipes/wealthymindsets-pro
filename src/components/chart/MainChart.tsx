@@ -28993,11 +28993,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // A SEAT IS KEPT WHILE IT STAYS CLEAR (Founder's 2-minute watch, NQ1! 1m 2026-10-20: the chip hopped between
               // the seam's left and right every few seconds as other words came and went). Last frame's seat is tried first.
               const heldSeam = seatMemoryRef.current.get("orderFlowSeam");
-              const pref = heldSeam && heldSeam.w === w ? { ...heldSeam } : { x: Math.max(4, bx - w - 8), y, w, h };
+              // Held RELATIVE TO THE SEAM: the seam itself moves as older tape ages out (1:22 → 1:31, live 2026-10-20 —
+              // an absolute seat left the chip on the newest candles, away from its line).
+              const pref = heldSeam && heldSeam.w === w ? { x: Math.max(4, Math.min(plotRight - w - 4, bx + heldSeam.x)), y: heldSeam.y, w, h } : { x: Math.max(4, bx - w - 8), y, w, h };
               const altsSeam = [0, 28, 56, 84, 112, 140].flatMap(dy => [{ x: Math.max(4, bx - w - 8), y: y + dy, w, h }, { x: Math.max(4, Math.min(x, plotRight - w - 4)), y: y + dy, w, h }]);
               const spotS = placeClearOfKeepOut(pref, [...keepOut(), ...profileCandlesAt(y - 2, y + 170)], { minX: 4, blockers: floatingChips, strict: true, alternates: altsSeam });
               const r = spotS.mode === "BLOCKED" ? { x: Math.max(4, Math.min(x, plotRight - w - 4)), y, w, h } : spotS.rect;
-              seatMemoryRef.current.set("orderFlowSeam", { x: r.x, y: r.y, w, h });
+              if (spotS.mode !== "BLOCKED") seatMemoryRef.current.set("orderFlowSeam", { x: r.x - bx, y: r.y, w, h });
               onTop(r, "OPAQUE_CARD");
               ctx.fillStyle = "rgba(14,12,9,0.92)"; ctx.beginPath(); ctx.roundRect(r.x, r.y, w, h, 6); ctx.fill();
               ctx.strokeStyle = "rgba(212,175,55,0.85)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(r.x + 0.5, r.y + 0.5, w - 1, h - 1, 6); ctx.stroke();
