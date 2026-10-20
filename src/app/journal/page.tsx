@@ -32,6 +32,7 @@ import { planReviewInputForJournalEntry } from "@/lib/journal/planReview";
 import { PlanAdherenceBySetup } from "@/components/journal/PlanAdherenceBySetup";
 import { INSUFFICIENT, insufficientLine, isMeasured, STAT_SAMPLE_MIN } from "@/lib/journal/statGuard";
 import { TodayRulesLine } from "@/components/journal/TodayManagementRules";
+import { TriggerJournalPanel } from "@/components/journal/TriggerJournalPanel";
 import { HeldJournalClaim } from "@/components/journal/HeldJournalClaim";
 import { proofFixtureScene } from "@/lib/chart/proofScene";
 import { JournalProofScene } from "@/components/journal/JournalProofScene";
@@ -2578,6 +2579,7 @@ Trade the system, trust the process, winners every day 🚀`,
       {mainTab === "journal" && <TodayIntentStrip userId={authCtx?.user?.id ?? null} />}
       {/* Garden 19 §55: today's management rules, read only — Morning Prep is the one editor. */}
       {mainTab === "journal" && authCtx?.user?.id ? <TodayRulesLine /> : null}
+      {mainTab === "journal" && authCtx?.user?.id ? <TriggerJournalPanel /> : null}
 
       {/* Process-outcome quadrant strip — the founder-canon separation of
           'GOOD PROCESS + LOSING OUTCOME' from 'BAD PROCESS + WINNING
