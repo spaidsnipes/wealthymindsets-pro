@@ -2377,6 +2377,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
      lanes, `prev` the last frame's — a word reads both, so a lane painted early
      (big-trades mode's runWMVP) or late (the stack) is seen either way. */
   const profileColumnLeftRef = useRef<{ cur: number; prev: number }>({ cur: Infinity, prev: Infinity });
+  /** The histogram boxes a profile painted (structure leg profiles), this frame and last — words painted earlier ask them. */
+  const profileBoxesRef = useRef<{ cur: { x: number; y: number; w: number; h: number }[]; prev: { x: number; y: number; w: number; h: number }[] }>({ cur: [], prev: [] });
   useEffect(() => { livingProfileRef.current = livingProfileGlass ?? null; }, [livingProfileGlass]);
 
   const marketStructureRef = useRef<MarketStructureGlass | null>(null);
@@ -8344,6 +8346,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
 
       // Chips painted before the floating-chip owner exists (print tickets,
       // the force→response tag, NEAR anatomy); it is seeded from this list.
+      profileBoxesRef.current.prev = profileBoxesRef.current.cur; profileBoxesRef.current.cur = [];
       const forceChips: { x: number; y: number; w: number; h: number }[] = [];
       // DOM CHIPS ARE KEEP-OUTS (Walls & Gamma demo, 2026-10-10: "Γ 85000 …"
       // printed under the DOM INSPECT chip). The reading-anchor chips (EFFORT /
@@ -21740,7 +21743,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   // then the mirror side; on a body either way → listed, not painted.
                   const onBodiesQ = (q: { x: number; y: number; w: number; h: number }) => rowBodiesAt(q.y, q.y + q.h).some(o => q.x < o.x + o.w && q.x + q.w > o.x && q.y < o.y + o.h && q.y + q.h > o.y);
                   const sides = s.e.type === "call" ? [cy - r - 9, cy + r + 9] : [cy + r + 9, cy - r - 9];
-                  const ly = sides.find(yy => { const q = { x: lx - tw / 2 - 3, y: yy - 7, w: tw + 6, h: 13 }; return !onBodiesQ(q) && !(narrowGlass && onNewestColumn(q.x, q.y, q.w, q.h)); });
+                  // …nor across a profile's bars (Founder's Chrome, NQ1! 1m 2026-10-20: "C29850 ×75 SELL · ~$63k" lay on the
+                  // structure profile's histogram).
+                  const pBoxes = [...profileBoxesRef.current.prev, ...profileBoxesRef.current.cur];
+                  const onProfile = (q: { x: number; y: number; w: number; h: number }) => pBoxes.some(o => q.x < o.x + o.w && q.x + q.w > o.x && q.y < o.y + o.h && q.y + q.h > o.y);
+                  const ly = sides.find(yy => { const q = { x: lx - tw / 2 - 3, y: yy - 7, w: tw + 6, h: 13 }; return !onBodiesQ(q) && !onProfile(q) && !(narrowGlass && onNewestColumn(q.x, q.y, q.w, q.h)); });
                   if (ly === undefined) {
                     displacedNotes.push({ layer: "DERIVATIVES", text: words, x: lx, y: sides[0] });
                     sovereigntyHeld++;
@@ -25051,6 +25058,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.strokeStyle = pk.rgba("ANCHOR", 0.7);
               ctx.lineWidth = 1;
               if (drawnRows > 0) { ctx.beginPath(); ctx.moveTo(histX - 0.5, top); ctx.lineTo(histX - 0.5, bot); ctx.stroke(); }
+              if (drawnRows > 0) profileBoxesRef.current.cur.push({ x: histX, y: top, w: colMax, h: bot - top });
               if (ya != null) {
                 const yA = Math.round(+ya);
                 const low = sp.anchor.kind === "LOW";
