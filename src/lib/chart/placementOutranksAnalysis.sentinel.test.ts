@@ -146,7 +146,7 @@ describe("D. the armed pick takes the whole pane", () => {
     // 20:05: the same query also carries the D toggle and the market-standing strip (PANE_DOM_CHIP_SELECTOR).
     expect(MAIN).toContain('document.querySelectorAll(`.wm-chart-reading-anchor, ${ORDER_LINE_HANDLE_SELECTOR.split(", ").map(q => `${q} > span`).join(", ")}, ${PANE_DOM_CHIP_SELECTOR}`)');
     // Restated 2026-10-16: + the floating Ask chooser.
-    expect(MAIN).toContain(`const PANE_DOM_CHIP_SELECTOR = 'button[aria-label="Data window"], .wm-chart-market-standing, [data-testid="question-lens-chooser"][data-placement="floating"]';`);
+    expect(MAIN).toContain(`const PANE_DOM_CHIP_SELECTOR = 'button[aria-label="Data window"], .wm-chart-market-standing, [data-testid="question-lens-chooser"][data-placement="floating"], .wm-nectar-vault-chip__summary';`);
   });
   it("the Data Window, which trails the cursor, is hidden while a price is placed", () => {
     expect(MAIN).toContain('data-yields-to-placement="data-window"');

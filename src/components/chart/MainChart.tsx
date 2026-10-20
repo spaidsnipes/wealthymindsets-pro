@@ -364,7 +364,8 @@ const READING_ANCHOR_ROW_BOTTOM = 64 + 24;
 const ORDER_LINE_HANDLE_SELECTOR = '[data-testid="draft-line-handle"], [data-testid="broker-line-tag"]';
 /** DOM chips that sit on the pane and must be a keep-out for canvas words. */
 // + the floating Ask chooser (tablet, Oct 16: "Aggressive: market orders pushing" ran under "Ask · Trap? ▾").
-const PANE_DOM_CHIP_SELECTOR = 'button[aria-label="Data window"], .wm-chart-market-standing, [data-testid="question-lens-chooser"][data-placement="floating"]';
+// …and the "Evidence saved" chip (Founder's Chrome, NQ1! 1m 2026-10-20: "CALL OI 29,850 · 185" sat under it).
+const PANE_DOM_CHIP_SELECTOR = 'button[aria-label="Data window"], .wm-chart-market-standing, [data-testid="question-lens-chooser"][data-placement="floating"], .wm-nectar-vault-chip__summary';
 /**
  * Derivatives Pressure field, at rest: the Founder plate's region fill
  * (Drive 02-market-sense-hedging-profile.svg — long-gamma 0.11, short-gamma 0.10).
@@ -21683,9 +21684,23 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // over too, within the same two steps; a ring that still lands on words keeps its bar's spot.
                 const onWords = (y: number) => floatingChips.some(c => s.x + r > c.x && s.x - r < c.x + c.w && y + r > c.y && y - r < c.y + c.h);
                 for (let k = 0; k < 2 && (clashAt(cy) || onWords(cy)); k++) cy += dirF * (r + 2);
+                // STILL ON WORDS (Founder's Chrome, NQ1! 1m 2026-10-20: a "+" ring printed through "19 prints · 82
+                // contracts at 29,847.25"): try the other side of the close once; failing that, the mark is the small
+                // ring — still on its bar, still tappable, never a filled disc and glyph across someone's words.
+                let quiet = false;
+                if (onWords(cy)) {
+                  const other = s.y - dirF * (r + 8);
+                  if (!onWords(other) && !clashAt(other)) cy = other; else quiet = true;
+                }
                 const into = clashAt(cy);
                 if (into) { into.n++; return; }
                 placedFlow.push({ x: s.x, y: cy, r, n: 1, rgb });
+                if (quiet && pinnedFlowRef.current !== s.e.id) {
+                  ctx.strokeStyle = `rgba(${rgb},${s.e.sideStamped ? 0.9 : 0.55})`; ctx.lineWidth = 1.5;
+                  ctx.beginPath(); ctx.arc(s.x, cy, 3.5, 0, Math.PI * 2); ctx.stroke();
+                  flowHitRef.current.push({ id: s.e.id, x: s.x, y: cy, r: 9.5 });
+                  return;
+                }
                 // PRICE SOVEREIGNTY: a mark that would sit on the newest candles'
                 // column (narrow glass) is a small ring at the column's left edge
                 // with a hairline to its bar — still tappable, its ticket intact.
