@@ -21884,11 +21884,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.font = marketFont("OBJECT_NAME");
                   const tw = Math.ceil(ctx.measureText(wx).width);
                   const pref = { x: plotRightD - 100 - tw, y: yx - 7, w: tw, h: 14 };
-                  const sp = placeClearOfKeepOut(pref, [...keepOut(), ...rowBodiesAt(pref.y, pref.y + 14)], { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: [{ ...pref, y: pref.y - 16 }, { ...pref, y: pref.y + 16 }] });
+                  const sp = placeClearOfKeepOut(pref, [...keepOut(), ...rowBodiesAt(pref.y, pref.y + 14)], { minX: keepOutMinX(), blockers: floatingChips.map(q => ({ x: q.x - 8, y: q.y, w: q.w + 16, h: q.h })), strict: true, alternates: [{ ...pref, y: pref.y - 16 }, { ...pref, y: pref.y + 16 }] });
                   if (sp.mode !== "BLOCKED") {
                     ctx.fillStyle = "rgba(200,192,174,0.9)"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
                     ctx.fillText(wx, sp.rect.x, sp.rect.y + 7);
-                    floatingChips.push({ ...sp.rect });
+                    // With air either side (Founder's Chrome, NQ1! 1D 2026-10-20: two exits on one row read as one sentence —
+                    // "…WAS BROKEN WALL 29,800 · …").
+                    floatingChips.push({ x: sp.rect.x - 8, y: sp.rect.y, w: sp.rect.w + 16, h: sp.rect.h });
                   } else displacedNotes.push({ layer: "DERIVATIVES", text: wx, x: pref.x + tw / 2, y: yx });
                 }
                 ctx.restore();
