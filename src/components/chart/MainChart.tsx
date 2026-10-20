@@ -11291,7 +11291,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const spot = pickSlotClearOfKeepOut(
                 bigTradeCalloutSlots(b, { w: cw, h: chh }),
                 bodies,
-                s => s.x < 4 || s.x + s.w > plotRight - 4 || s.y < HEADER_FLOOR_Y || s.y + s.h > pane0Bottom - 4 || rectHits(s, forceChips) > 0,
+                // …nor across a profile's bars (Founder's Chrome, ES1! 5m 2026-10-20: "12 prints · 99 contracts" on the
+                // structure histogram). Last frame's boxes — the profiles paint later in the frame.
+                s => s.x < 4 || s.x + s.w > plotRight - 4 || s.y < HEADER_FLOOR_Y || s.y + s.h > pane0Bottom - 4 || rectHits(s, forceChips) > 0
+                  || rectHits(s, [...profileBoxesRef.current.prev, ...profileBoxesRef.current.cur]) > 0,
               );
               if (!spot) {
                 calloutReceipt = "NONE:NO_ROOM";

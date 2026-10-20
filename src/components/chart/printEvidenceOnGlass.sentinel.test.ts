@@ -92,7 +92,9 @@ describe("the one G04 callout stays on the plot, clear of the candles, in its ow
     const b = callout();
     expect(b).toMatch(/const bodies = spanCandleKeepOut\(barsRef\.current \?\? \[\], \{/);
     expect(b).toMatch(/const spot = pickSlotClearOfKeepOut\(\s*bigTradeCalloutSlots\(b, \{ w: cw, h: chh \}\),\s*bodies,/);
-    expect(b).toContain("s => s.x < 4 || s.x + s.w > plotRight - 4 || s.y < HEADER_FLOOR_Y || s.y + s.h > pane0Bottom - 4 || rectHits(s, forceChips) > 0,");
+    expect(b).toContain("s => s.x < 4 || s.x + s.w > plotRight - 4 || s.y < HEADER_FLOOR_Y || s.y + s.h > pane0Bottom - 4 || rectHits(s, forceChips) > 0");
+    // 2026-10-20: …and clear of the profiles' bars (last frame's boxes).
+    expect(b).toContain("|| rectHits(s, [...profileBoxesRef.current.prev, ...profileBoxesRef.current.cur]) > 0,");
     // Nowhere clear is said, never forced.
     expect(b).toContain('calloutReceipt = "NONE:NO_ROOM";');
     // A backing that still sits on a protected body yields.
