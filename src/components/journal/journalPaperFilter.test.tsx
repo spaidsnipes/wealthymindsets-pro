@@ -51,3 +51,15 @@ describe("Alpaca SAMPLE orders in a proof scene", () => {
 it("1100–1279: the three-column panel narrows to min(960px, 100vw − 220px)", () => {
   expect(src("app/globals.css")).toContain('@media (min-width: 1100px) and (max-width: 1279px) {\n  [data-testid="trade-panel"][data-layout="full"]:has(.wm-ticket-entry-path[data-book="active"]) { width: min(960px, calc(100vw - 220px)) !important; }');
 });
+
+describe("the Learning Genome's two windows read the same book", () => {
+  it("this week and the prior week (the trend's baseline) both come from liveEntries — a paper capture never sets the baseline", () => {
+    const page = src("app/journal/page.tsx");
+    expect(page).toMatch(/const weekEntries = liveEntries\.filter\(/);
+    expect(page).toMatch(/const priorWeekEntries = liveEntries\.filter\(/);
+    const block = page.slice(page.indexOf("const liveEntries = liveJournalRecords(entries);"), page.indexOf("const weekTrend = genomeTrend("));
+    expect(block.length).toBeGreaterThan(1000);
+    // The only raw read of the whole book in the stats block is the paper count itself.
+    expect(block.match(/\bentries\.(filter|map|reduce|slice|forEach)\(/g) ?? []).toEqual([]);
+  });
+});
