@@ -19,6 +19,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import MirrorPanel from "@/components/mirror/MirrorPanel";
 import { BrokerTruthToday, PLAN_ABSENT_JOURNAL, StoryReviewRow } from "@/components/journal/BrokerTruthToday";
 import { CapturedFacts } from "@/components/journal/CapturedFacts";
+import { DiagnosticClinic } from "@/components/journal/DiagnosticClinic";
 import { EntryProvenanceLine, TradeVenueField } from "@/components/journal/TradeVenue";
 import { captureToJournalForm } from "@/lib/journal/journalCaptureFromFill";
 import { isPaperEntry, liveJournalRecords } from "@/lib/journal/paperEntry";
@@ -27,7 +28,7 @@ import { takeJournalCapture } from "@/lib/journal/journalCaptureHandoff";
 import { JournalFvgReferenceField } from "@/components/journal/JournalFvgReferenceField";
 import { fvgReferenceSentence, parseFvgObjectId } from "@/lib/journal/fvgDecisionReference";
 import { fvgContextNote } from "@/lib/journal/fvgDecisionContext";
-import { journalReviewKey, reviewEvidenceFromCapture } from "@/lib/journal/captureReviewEvidence";
+import { journalClinicKey, journalReviewKey, reviewEvidenceFromCapture } from "@/lib/journal/captureReviewEvidence";
 import { readPlanForDecision } from "@/lib/journal/managementPlanStore";
 import { planReviewInputForJournalEntry } from "@/lib/journal/planReview";
 import { PlanAdherenceBySetup } from "@/components/journal/PlanAdherenceBySetup";
@@ -2898,6 +2899,8 @@ Trade the system, trust the process, winners every day 🚀`,
                   planDecisionId={selected.capture?.decisionId.value ?? null} planSymbol={selected.capture?.contract.value ?? null}
                   fvgRef={selected.fvgRef ?? null} planAbsent={selected.capture?.decisionId.value ? null : PLAN_ABSENT_JOURNAL} />
               </section>
+              {/* Megazord §5: the Clinic's trigger → replacement chain on every entry, self-reported ones included. */}
+              <DiagnosticClinic key={journalReviewKey(selected)} episodeId={journalClinicKey(selected)} />
 
               {/* Garden 16 §17: a futures entry saved before futures were
                   priced carries 1x dollars. It says so beside its numbers —

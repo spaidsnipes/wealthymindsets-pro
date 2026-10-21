@@ -1,13 +1,17 @@
 "use client";
 
 /**
- * TRADER DIAGNOSTIC CLINIC on one broker episode — Body of Market, Body of
+ * TRADER DIAGNOSTIC CLINIC on one episode — Body of Market, Body of
  * Student, Pattern Pathology chain (Garden 18 v2 §43–§46). The trader's words
  * only; nothing inferred; private to this device. Collapsed until opened.
+ * Mounted on Webull ledger episodes and on every Journal entry, broker-confirmed
+ * or self-reported (Megazord §5: a trade taken elsewhere is still learned from).
+ * Never writes in a proof scene.
  */
 
 import React, { useEffect, useState } from "react";
 
+import { proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { CLINIC_KEY, clinicProgress, MARKET_FIELDS, parseClinic, PATHOLOGY_CHAIN, STUDENT_FIELDS, type ClinicNotes } from "@/lib/journal/clinic";
 
 const GOLD = "#C9A55C";
@@ -22,6 +26,7 @@ export function DiagnosticClinic({ episodeId }: { readonly episodeId: string }) 
   const write = (id: string, text: string) => {
     const next = { ...notes, [id]: text.slice(0, 500) } as ClinicNotes;
     setNotes(next);
+    if (proofSceneHoldsWrites()) return;
     try {
       const all = parseClinic(localStorage.getItem(CLINIC_KEY));
       all[episodeId] = next;

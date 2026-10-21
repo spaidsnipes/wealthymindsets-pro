@@ -59,3 +59,6 @@ export function journalReviewKey(entry: { readonly id: string; readonly capture?
   if (c && d && tail) return `${c.broker.value ?? "tastytrade"}|${tail}|${d}`;
   return `journal|${entry.id}`;
 }
+
+/** The Diagnostic Clinic's key for a Journal entry — namespaced so it never meets a Webull ledger episode id. */
+export const journalClinicKey = (entry: Parameters<typeof journalReviewKey>[0]): string => `journal-entry:${journalReviewKey(entry)}`;
