@@ -6,6 +6,7 @@
  */
 import React from "react";
 
+import { entryCompleteness } from "@/lib/journal/entryCompleteness";
 import { entryProvenance, TRADE_VENUE_ASK, TRADE_VENUE_NOT_SAID, TRADE_VENUES, readTradeVenue, type TradeVenue } from "@/lib/journal/tradeVenue";
 
 /** The new-trade form's optional question. Shown only when no broker facts are attached. */
@@ -31,5 +32,20 @@ export function EntryProvenanceLine({ venue, hasBrokerCapture }: { readonly venu
       <span className="font-bold uppercase tracking-wider text-[9px] mr-1">{p.label}</span>
       {p.detail}
     </p>
+  );
+}
+
+/** What the entry still lacks for the Journal's reads (entryCompleteness.ts), each with the read that needs it. A complete entry says so too. */
+export function EntryCompletenessLine({ entry }: { readonly entry: Parameters<typeof entryCompleteness>[0] }): React.ReactElement {
+  const c = entryCompleteness(entry);
+  return (
+    <div data-testid="journal-entry-completeness" data-complete={c.complete ? "yes" : "no"} className="mb-3 text-[11px] text-wm-text-muted">
+      <p>{c.line}</p>
+      {c.gaps.length ? (
+        <ul className="mt-1 list-disc pl-4 text-[10px] text-wm-text-dim">
+          {c.gaps.map(g => <li key={g.id}><b className="text-wm-text-muted">{g.field}</b> — needed for {g.neededFor}.</li>)}
+        </ul>
+      ) : null}
+    </div>
   );
 }

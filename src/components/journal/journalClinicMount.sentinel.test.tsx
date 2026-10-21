@@ -48,3 +48,29 @@ describe("the Clinic on a Journal entry", () => {
     expect(guard).toBeLessThan(write.indexOf("localStorage.setItem"));
   });
 });
+
+describe("the completeness line on a Journal entry", () => {
+  it("sits under the provenance line, for every entry", () => {
+    const prov = page.indexOf("<EntryProvenanceLine venue={selected.venue}");
+    const line = page.indexOf("<EntryCompletenessLine entry={selected} />");
+    expect(prov).toBeGreaterThan(0);
+    expect(line).toBeGreaterThan(prov);
+    expect(line - prov).toBeLessThan(400);
+  });
+  it("renders the gaps for a bare entry and a plain line for a full one", async () => {
+    const { EntryCompletenessLine } = await import("./TradeVenue");
+    const bare = renderToStaticMarkup(<EntryCompletenessLine entry={{ processQuality: "UNRESOLVED", setup: "", lessons: "" }} />);
+    expect(bare).toContain('data-complete="no"');
+    expect(bare).toContain("Planned R (1R = $)");
+    const done = renderToStaticMarkup(<EntryCompletenessLine entry={{ processQuality: "FOLLOWED_PLAN", realizedR: 1, mfeR: 1, setup: "x", lessons: "y" }} />);
+    expect(done).toContain('data-complete="yes"');
+    expect(done).not.toContain("<li");
+  });
+});
+
+describe("the Clinic fits a phone", () => {
+  it("its fields can shrink inside the grid (an input's intrinsic width pushed the chain to 461px at 390)", () => {
+    expect(clinic).toMatch(/<label key=\{f\.id\} style=\{\{[^}]*minWidth: 0/);
+    expect(clinic).toMatch(/<input[\s\S]{0,300}?width: "100%", minWidth: 0, boxSizing: "border-box"/);
+  });
+});

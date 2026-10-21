@@ -35,10 +35,10 @@ export function DiagnosticClinic({ episodeId }: { readonly episodeId: string }) 
   };
   const p = clinicProgress(notes);
   const field = (f: { id: string; label: string; prompt?: string }) => (
-    <label key={f.id} style={{ display: "grid", gap: 2, fontSize: 11, color: MUTED }}>
+    <label key={f.id} style={{ display: "grid", gap: 2, fontSize: 11, color: MUTED, minWidth: 0 }}>
       <span><b style={{ color: INK }}>{f.label}</b>{f.prompt ? ` — ${f.prompt}` : ""}</span>
       <input value={(notes as Record<string, string>)[f.id] ?? ""} onChange={ev => write(f.id, ev.target.value)}
-        style={{ background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, fontSize: 12, padding: "2px 6px", borderRadius: 4 }} />
+        style={{ background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, fontSize: 12, padding: "2px 6px", borderRadius: 4, width: "100%", minWidth: 0, boxSizing: "border-box" }} />
     </label>
   );
   return (

@@ -20,7 +20,7 @@ import MirrorPanel from "@/components/mirror/MirrorPanel";
 import { BrokerTruthToday, PLAN_ABSENT_JOURNAL, StoryReviewRow } from "@/components/journal/BrokerTruthToday";
 import { CapturedFacts } from "@/components/journal/CapturedFacts";
 import { DiagnosticClinic } from "@/components/journal/DiagnosticClinic";
-import { EntryProvenanceLine, TradeVenueField } from "@/components/journal/TradeVenue";
+import { EntryCompletenessLine, EntryProvenanceLine, TradeVenueField } from "@/components/journal/TradeVenue";
 import { captureToJournalForm } from "@/lib/journal/journalCaptureFromFill";
 import { isPaperEntry, liveJournalRecords } from "@/lib/journal/paperEntry";
 import { JournalPaperFilter, PaperMark, paperHeldOutNote, type PaperFilter } from "@/components/journal/JournalPaperFilter";
@@ -2880,6 +2880,8 @@ Trade the system, trust the process, winners every day 🚀`,
                   questions, keyed to the same story as Broker Truth. */}
               {/* Megazord §5: how the Journal knows this trade — broker-confirmed, or self-reported and where. */}
               <EntryProvenanceLine venue={selected.venue} hasBrokerCapture={!!selected.capture} />
+              {/* Megazord §5 step 5: what this entry still lacks for the learning reads, stated, never guessed. */}
+              <EntryCompletenessLine entry={selected} />
               {selected.capture ? (
                 <div className="mb-4"><CapturedFacts capture={selected.capture} /></div>
               ) : null}
