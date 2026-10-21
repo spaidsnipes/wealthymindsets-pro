@@ -8,7 +8,9 @@
  * back, so the gap is visible instead of the trade silently dropping out of the reads.
  *
  * Read only from the entry; nothing is inferred and nothing is filled in. Where a trade was taken is
- * OPTIONAL and never counts as missing. Plain words, no grading of the trader.
+ * OPTIONAL and never counts as missing. A saved entry has no edit (only star and delete), so the line
+ * points at the NEXT trade rather than inviting a rewrite of this one.
+ * Plain words, no grading of the trader.
  */
 
 import type { JournalEntry } from "./hydrateJournalEntries";
@@ -46,6 +48,6 @@ export function entryCompleteness(e: Readable): EntryCompleteness {
     gaps.push({ id: "LESSON", field: "Lessons Learned", neededFor: "carrying a lesson into the next session" });
   const line = gaps.length === 0
     ? "Complete: this trade counts in every read the Journal makes."
-    : `Not recorded yet: ${gaps.map(g => g.field).join(", ")}. Edit the entry to add ${gaps.length === 1 ? "it" : "them"}; nothing is guessed in the meantime.`;
+    : `Not recorded when this trade was saved: ${gaps.map(g => g.field).join(", ")}. A saved entry is never rewritten, so record ${gaps.length === 1 ? "it" : "them"} on the next trade; nothing is guessed for this one.`;
   return { gaps, complete: gaps.length === 0, line };
 }

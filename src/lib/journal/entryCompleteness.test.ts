@@ -18,17 +18,19 @@ describe("entryCompleteness", () => {
   it("a bare self-reported trade names every gap, in form order, with the read that needs each", () => {
     const c = entryCompleteness({ processQuality: "UNRESOLVED", setup: "", lessons: "  " });
     expect(c.gaps.map(g => g.id)).toEqual(["PROCESS", "PLANNED_RISK", "MFE", "SETUP", "LESSON"]);
-    expect(c.line).toBe("Not recorded yet: Process quality, Planned R (1R = $), MFE (R), Setup, Lessons Learned. Edit the entry to add them; nothing is guessed in the meantime.");
+    expect(c.line).toBe("Not recorded when this trade was saved: Process quality, Planned R (1R = $), MFE (R), Setup, Lessons Learned. A saved entry is never rewritten, so record them on the next trade; nothing is guessed for this one.");
     expect(c.gaps.find(g => g.id === "PROCESS")!.neededFor).toMatch(/Learning Genome/);
   });
   it("one gap reads in the singular; a non-finite R is not a recorded R", () => {
     const c = entryCompleteness({ ...full, realizedR: Number.NaN });
     expect(c.gaps.map(g => g.id)).toEqual(["PLANNED_RISK"]);
-    expect(c.line).toMatch(/add it;/);
+    expect(c.line).toMatch(/record it on the next trade;/);
   });
   it("never grades the trader", () => {
     const c = entryCompleteness({ processQuality: "UNRESOLVED", setup: "", lessons: "" });
     const words = [c.line, ...c.gaps.map(g => g.neededFor)].join(" ");
     expect(words).not.toMatch(/fail|bad|lazy|should have|poor|wrong/i);
+    // A saved entry has no edit (only star and delete) — the line must not send the trader to one.
+    expect(c.line).not.toMatch(/\bedit/i);
   });
 });
