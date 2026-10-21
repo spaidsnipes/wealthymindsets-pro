@@ -20,36 +20,18 @@
 import React, { useEffect, useMemo, useState } from "react";
 
 import { PropFillsImportPanel } from "@/components/journal/PropFillsImportPanel";
+import { PropSessionPlanPanel } from "@/components/journal/PropSessionPlanPanel";
+import { AMBER, BTN, FIELD, Fact, Fold, GOLD, GREEN, GRID, INK, LABEL, LINE, MUTED, MoneyField, RED, say } from "@/components/journal/propDeskParts";
 import { PROP_PLAN_NO_TARGET_LINE, propWeekendPlan } from "@/lib/journal/propWeekendPlan";
 import { askSpaidbot, readSpaidbotAsk } from "@/lib/ai/spaidbotAsk";
 import { proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import {
   DRAWDOWN_METHODS, DRAWDOWN_METHOD_LABEL, EMPTY_PROP_INPUTS, PROP_DEVICE_LINE, PROP_SCENARIO_LABEL, PROP_STORAGE_KIND, PROP_UNVERIFIED, PROP_VERIFY_ACTION,
-  editInputs, formatCents, parseMoneyToCents, pct, planDaysVerdict, propSampleInputs, readPropEvaluation, readPropScenario, readPropStored, stampVerified,
-  type Cents, type DrawdownMethod, type Known, type PropInputs, type PropStored,
+  editInputs, formatCents, pct, planDaysVerdict, propSampleInputs, readPropEvaluation, readPropScenario, readPropStored, stampVerified,
+  type Cents, type DrawdownMethod, type PropInputs, type PropStored,
 } from "@/lib/journal/propEvaluation";
 
-const GOLD = "#c9a55c", MUTED = "#9a927f", INK = "#ede6d3", LINE = "rgba(139,106,41,0.35)", AMBER = "#d9a441", RED = "#d97a6c", GREEN = "#7fbf8f";
-const FIELD: React.CSSProperties = { background: "rgba(255,255,255,0.04)", border: `1px solid ${LINE}`, borderRadius: 6, color: INK, fontSize: 13, padding: "6px 8px", minHeight: 44, width: "100%", boxSizing: "border-box", fontVariantNumeric: "tabular-nums" };
-const LABEL: React.CSSProperties = { display: "grid", gap: 3, fontSize: 11, color: MUTED, minWidth: 0 };
-const GRID: React.CSSProperties = { display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))" };
-const BTN: React.CSSProperties = { minHeight: 44, padding: "6px 12px", borderRadius: 6, border: `1px solid ${LINE}`, background: "none", color: GOLD, fontSize: 12, fontWeight: 700, cursor: "pointer" };
-
 export const PROP_ASK_PROMPT = "Explain where my evaluation stands under these rules — the arithmetic only, step by step.";
-
-/** One collapsible part of the desk; its summary says what it holds before it is opened. */
-function Fold({ id, title, summary, startOpen, tone, children }: { readonly id: string; readonly title: string; readonly summary: string; readonly startOpen: boolean; readonly tone?: string; readonly children: React.ReactNode }) {
-  const [open, setOpen] = useState(startOpen);
-  return (
-    <details data-testid="prop-fold" data-fold={id} open={open} onToggle={e => setOpen((e.currentTarget as HTMLDetailsElement).open)}
-      style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: "4px 10px" }}>
-      <summary style={{ cursor: "pointer", minHeight: 44, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", fontSize: 12, color: tone ?? GOLD, fontWeight: 700 }}>
-        {title} <span data-testid="prop-fold-summary" style={{ fontWeight: 400, color: MUTED, fontSize: 11, overflowWrap: "anywhere" }}>· {summary}</span>
-      </summary>
-      <div style={{ display: "grid", gap: 8, padding: "6px 0 8px" }}>{children}</div>
-    </details>
-  );
-}
 
 export const PROP_SAMPLE_BANNER = "SAMPLE ACCOUNT — synthetic numbers, no one's evaluation. Nothing here is saved.";
 export const PROP_SAMPLE_ROWS: readonly Cents[] = [100_000, -30_000, 100_000, 63_334];
@@ -70,42 +52,6 @@ export const PROP_SAMPLE_FILE = {
 function loadStored(key: string | null): PropStored | null {
   if (!key || typeof window === "undefined") return null;
   try { return readPropStored(JSON.parse(window.localStorage.getItem(key) ?? "null")); } catch { return null; }
-}
-
-/** A money box: the trader's text, parsed to cents; anything that is not a plain amount is said, never guessed. */
-function MoneyField({ label, valueCents, onCommit, allowNegative = false, testId }: {
-  readonly label: string; readonly valueCents: Cents | null; readonly onCommit: (c: Cents | null) => void; readonly allowNegative?: boolean; readonly testId?: string;
-}) {
-  const [text, setText] = useState(valueCents === null ? "" : (valueCents / 100).toFixed(2));
-  const [bad, setBad] = useState(false);
-  useEffect(() => { setText(t => (parseMoneyToCents(t) === valueCents || (t.trim() === "" && valueCents === null) ? t : valueCents === null ? "" : (valueCents / 100).toFixed(2))); }, [valueCents]);
-  return (
-    <label style={LABEL}>
-      <span>{label}</span>
-      <input inputMode="decimal" data-testid={testId} value={text} aria-invalid={bad} placeholder="—"
-        onChange={e => {
-          const t = e.target.value; setText(t);
-          if (t.trim() === "") { setBad(false); onCommit(null); return; }
-          const c = parseMoneyToCents(t);
-          const ok = c !== null && (allowNegative || c >= 0);
-          setBad(!ok);
-          if (ok) onCommit(c);
-        }}
-        style={{ ...FIELD, borderColor: bad ? RED : LINE }} />
-      {bad ? <span role="alert" style={{ color: RED, fontSize: 11 }}>{allowNegative ? "Not a money amount." : "Not a money amount (no minus sign here)."}</span> : null}
-    </label>
-  );
-}
-
-const say = <T,>(k: Known<T>, fmt: (v: T) => string): string => (k.known ? fmt(k.value) : k.why);
-
-function Fact({ label, value, tone, testId }: { readonly label: string; readonly value: string; readonly tone?: string; readonly testId?: string }) {
-  return (
-    <div data-testid={testId} style={{ display: "grid", gap: 2, minWidth: 0 }}>
-      <span style={{ fontSize: 11, color: MUTED }}>{label}</span>
-      <span style={{ fontSize: 13, color: tone ?? INK, overflowWrap: "anywhere", fontVariantNumeric: "tabular-nums" }}>{value}</span>
-    </div>
-  );
 }
 
 export function PropEvaluationDesk({ storageKey, sample = false }: {
@@ -139,6 +85,7 @@ export function PropEvaluationDesk({ storageKey, sample = false }: {
   const r = useMemo(() => readPropEvaluation(inputs), [inputs]);
   const weekend = useMemo(() => propWeekendPlan(inputs, r), [inputs, r]);
   const sc = useMemo(() => readPropScenario(inputs, rows), [inputs, rows]);
+  const sessionAccount = useMemo(() => ({ drawdownHeadroomCents: r.drawdownHeadroomCents, contractLimit: inputs.contractLimit, verified: r.verified }), [r, inputs.contractLimit]);
   const plan = planDays.trim() === "" ? null : planDaysVerdict(inputs, Number(planDays));
   const asOf = inputs.verifiedAtMs === null ? null : new Date(inputs.verifiedAtMs).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
   const canStamp = r.netBasis !== "NONE" || inputs.profitTargetCents !== null;
@@ -270,6 +217,9 @@ export function PropEvaluationDesk({ storageKey, sample = false }: {
           </div>
         ) : null}
       </div>
+
+      {/* ── TODAY'S RISK PLAN — the session, sized against the account above ── */}
+      <PropSessionPlanPanel storageKey={storageKey} sample={sample} account={sessionAccount} />
 
       {/* ── SCENARIO LAB — visibly apart ──────────────────────────────────── */}
       <div data-testid="prop-scenario" data-verdict={sc.verdict}

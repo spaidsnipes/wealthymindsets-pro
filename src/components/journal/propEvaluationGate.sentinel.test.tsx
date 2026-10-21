@@ -99,10 +99,11 @@ describe("the desk at 390 — collapsed parts with honest summaries; Ask SpaidBo
     const html = renderToStaticMarkup(<PropEvaluationDesk storageKey="k" />);
     const folds = html.match(/data-testid="prop-fold" data-fold="(\w+)"/g)?.map(x => x.replace(/.*data-fold="/, "").replace('"', "")) ?? [];
     // 2026-10-10 20:25: "plan" (Sunday study · Monday plan, Founder G19 §19) sits before the what-if rows.
-    expect(folds).toEqual(["identity", "balances", "drawdown", "limits", "days", "plan", "scenario"]);
+    // 2026-10-21: "session" (Today's risk plan, Megazord §6) sits between the account and the scenario lab.
+    expect(folds).toEqual(["identity", "balances", "drawdown", "limits", "days", "session", "plan", "scenario"]);
     expect(html).not.toMatch(/data-testid="prop-fold"[^>]*\sopen=""/);
     const summaries = [...html.matchAll(/data-testid="prop-fold-summary"[^>]*>· ([^<]*)</g)].map(m => m[1]);
-    expect(summaries).toEqual(["not entered", "not entered · limit 30%", "Not known yet", "not entered", "no days entered", "5 Sunday steps open", "no what-if rows"]);
+    expect(summaries).toEqual(["not entered", "not entered · limit 30%", "Not known yet", "not entered", "no days entered", "not entered", "5 Sunday steps open", "no what-if rows"]);
     // The verdict and the UNVERIFIED chip are never folded away.
     expect(html).toContain('data-testid="prop-unverified"');
     expect(html).toContain('data-testid="prop-verdict"');
