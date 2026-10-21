@@ -293,3 +293,46 @@ export function readStoredSessionPlan(raw: unknown): SessionPlanInputs | null {
 export function sessionSamplePlan(): SessionPlanInputs {
   return { symbol: "MNQ1!", stopTicks: 40, riskPerTradeCents: 15_000, feesPerContractCents: 104, dailyLossLimitCents: 50_000, netTodayCents: 0, attempts: 1, maxTradesPerDay: 2 };
 }
+
+// ── AFTER THE SESSION: the plan as locked, beside the day as journaled ─────────────────────────────────
+// Read-only. The locked plan is the yardstick (or the draft, said so when nothing was locked). The day is
+// the trader's own journal entries for the market day — self-reported unless an entry carries broker
+// facts. A difference is described as a difference, never as a verdict on the trader.
+
+export interface JournaledTrade { readonly date: string; readonly pnl: number; readonly dayModel?: string; readonly brokerConfirmed?: boolean }
+export type DayDifference = "MORE_TRADES" | "LOSS_ABOVE_PLANNED_RISK" | "DAY_PAST_DAILY_LIMIT";
+export interface SessionVsDay {
+  readonly basis: "LOCKED" | "DRAFT";
+  readonly day: string;
+  readonly tradesPlanned: number;
+  readonly tradesJournaled: number;
+  readonly brokerConfirmed: number;
+  readonly dayNetCents: Cents;
+  readonly largestLossCents: Cents;
+  /** The planned risk per trade, when the compared plan sizes. */
+  readonly plannedTradeRiskCents: Cents | null;
+  readonly differences: readonly { readonly id: DayDifference; readonly words: string }[];
+  readonly line: string;
+}
+
+export function readSessionAgainstDay(r: SessionPlanRecord, trades: readonly JournaledTrade[], day: string, account: SessionAccountContext): SessionVsDay {
+  const basis = r.lockedPlan ? "LOCKED" : "DRAFT";
+  const yard = r.lockedPlan ?? r.plan;
+  const sized = readSessionPlan(yard, account);
+  const today = trades.filter(t => t.date === day && t.dayModel !== "M0" && Number.isFinite(t.pnl));
+  const cents = today.map(t => Math.round(t.pnl * 100));
+  const dayNetCents = cents.reduce((a, c) => a + c, 0);
+  const largestLossCents = Math.max(0, ...cents.map(c => -c));
+  const plannedTradeRiskCents = sized.status === "SIZED" ? sized.tradeRiskCents : null;
+  const differences: { id: DayDifference; words: string }[] = [];
+  if (today.length > yard.attempts) differences.push({ id: "MORE_TRADES", words: `${today.length} trades journaled against ${plural(yard.attempts, "planned attempt")}.` });
+  if (plannedTradeRiskCents !== null && largestLossCents > plannedTradeRiskCents) differences.push({ id: "LOSS_ABOVE_PLANNED_RISK", words: `The largest loss, ${formatCents(largestLossCents)}, was more than the ${formatCents(plannedTradeRiskCents)} planned for one trade.` });
+  if (isCents(yard.dailyLossLimitCents) && yard.dailyLossLimitCents > 0 && -dayNetCents > yard.dailyLossLimitCents) differences.push({ id: "DAY_PAST_DAILY_LIMIT", words: `The day's result, ${formatCents(dayNetCents)}, went past the ${formatCents(yard.dailyLossLimitCents)} daily loss limit.` });
+  const line = !today.length
+    ? `No trades journaled for ${day} yet.`
+    : differences.length
+    ? `The day differed from the ${basis === "LOCKED" ? "locked" : "draft"} plan in ${plural(differences.length, "way")} — worth a look in Review.`
+    : `The day stayed inside the ${basis === "LOCKED" ? "locked" : "draft"} plan.`;
+  return { basis, day, tradesPlanned: yard.attempts, tradesJournaled: today.length, brokerConfirmed: today.filter(t => t.brokerConfirmed).length,
+    dayNetCents, largestLossCents, plannedTradeRiskCents, differences, line };
+}

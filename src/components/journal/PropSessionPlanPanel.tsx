@@ -14,11 +14,15 @@ import React, { useEffect, useMemo, useState } from "react";
 
 import { AMBER, BTN, FIELD, Fact, Fold, GOLD, GREEN, GRID, INK, LABEL, LINE, MUTED, MoneyField, RED, say } from "@/components/journal/propDeskParts";
 import { proofSceneHoldsWrites } from "@/lib/chart/proofScene";
+import { hydrateJournalEntries } from "@/lib/journal/hydrateJournalEntries";
+import { marketDayKey } from "@/lib/journal/localDayKey";
+import { liveJournalRecords } from "@/lib/journal/paperEntry";
+import { JOURNAL_UPDATED_EVENT, readJournalStorage } from "@/lib/traderMemory/adapters/journalStorage";
 import { formatCents } from "@/lib/journal/propEvaluation";
 import {
   EMPTY_SESSION_RECORD, SESSION_ATTEMPTS, SESSION_ATTEMPTS_LABEL, SESSION_ATTEMPTS_LINE, SESSION_FIELD_LABEL, SESSION_ILLUSTRATION_LABEL,
-  editSessionPlan, lockSessionPlan, readSessionPlan, readStoredSessionRecord, sessionPlanKeyFor, sessionSamplePlan, startNewSessionPlan, storedSessionRecord,
-  type SessionAccountContext, type SessionPlanInputs, type SessionPlanRecord,
+  editSessionPlan, lockSessionPlan, readSessionAgainstDay, readSessionPlan, readStoredSessionRecord, sessionPlanKeyFor, sessionSamplePlan, startNewSessionPlan, storedSessionRecord,
+  type JournaledTrade, type SessionAccountContext, type SessionPlanInputs, type SessionPlanRecord,
 } from "@/lib/journal/propSessionPlan";
 
 const wholeOrNull = (v: string, prev: number | null): number | null => {
@@ -48,6 +52,22 @@ export function PropSessionPlanPanel({ storageKey, sample = false, account }: {
     try { window.localStorage.setItem(key, JSON.stringify(storedSessionRecord(rec))); } catch { /* blocked: the plan still works for this visit */ }
   }, [rec, loaded, key, sample]);
 
+  // After the session: today's journal entries, read through the Journal's own reader (never in a sample).
+  const [trades, setTrades] = useState<readonly JournaledTrade[]>([]);
+  useEffect(() => {
+    if (sample) return;
+    const read = () => {
+      try {
+        const r = readJournalStorage(window.localStorage);
+        // Paper is never mixed into live results (paperEntry.ts): only live records count against the day.
+        setTrades(hydrateJournalEntries(liveJournalRecords(r.records)).entries.map(e => ({ date: e.date, pnl: e.pnl, dayModel: e.dayModel, brokerConfirmed: !!e.capture })));
+      } catch { setTrades([]); }
+    };
+    read();
+    window.addEventListener(JOURNAL_UPDATED_EVENT, read);
+    window.addEventListener("storage", read);
+    return () => { window.removeEventListener(JOURNAL_UPDATED_EVENT, read); window.removeEventListener("storage", read); };
+  }, [sample]);
   const edit = (patch: Partial<SessionPlanInputs>) => setRec(prev => editSessionPlan(prev, patch, Date.now()));
   const lockedAt = rec.lockedAtMs === null ? null : new Date(rec.lockedAtMs).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
   const plan = useMemo(() => readSessionPlan(p, account), [p, account]);
@@ -133,6 +153,22 @@ export function PropSessionPlanPanel({ storageKey, sample = false, account }: {
           <button type="button" data-testid="prop-session-new-day" onClick={() => setRec(prev => startNewSessionPlan(prev))} style={{ ...BTN, justifySelf: "start" }}>Start a new day&apos;s plan</button>
         </div>
       ) : null}
+      {!sample && plan.status === "SIZED" ? (() => {
+        const v = readSessionAgainstDay(rec, trades, marketDayKey(), account);
+        return (
+          <div data-testid="prop-session-after" data-differences={v.differences.length} style={{ borderTop: `1px dashed ${LINE}`, paddingTop: 8, display: "grid", gap: 6 }}>
+            <span style={{ fontSize: 11, letterSpacing: 1, color: GOLD, fontWeight: 800 }}>AFTER THE SESSION · the day as journaled, beside the {v.basis === "LOCKED" ? "locked" : "draft (not locked)"} plan</span>
+            <div style={GRID}>
+              <Fact label="Trades journaled · attempts planned" value={`${v.tradesJournaled} · ${v.tradesPlanned}`} />
+              <Fact label="Largest loss · planned for one trade" value={`${formatCents(v.largestLossCents)} · ${v.plannedTradeRiskCents === null ? "—" : formatCents(v.plannedTradeRiskCents)}`} />
+              <Fact label="The day so far" value={formatCents(v.dayNetCents)} />
+            </div>
+            {v.differences.map(d => <span key={d.id} data-testid="prop-session-difference" data-difference={d.id} style={{ fontSize: 12, color: AMBER, overflowWrap: "anywhere" }}>{d.words}</span>)}
+            <span style={{ fontSize: 12, color: INK }}>{v.line}</span>
+            <span style={{ fontSize: 11, color: MUTED, overflowWrap: "anywhere" }}>From your journal entries for {v.day} (New York market day){v.tradesJournaled ? ` — ${v.brokerConfirmed} broker-confirmed, the rest as you typed them` : ""}. The plan above is not changed by this.</span>
+          </div>
+        );
+      })() : null}
       <p role="status" data-testid="prop-session-verdict" style={{ margin: 0, fontSize: 13, fontWeight: 700, color: tone, overflowWrap: "anywhere" }}>
         {plan.status === "SIZED" ? plan.verdictLine : "No plan sized yet."}
       </p>

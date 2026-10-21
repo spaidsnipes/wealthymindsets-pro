@@ -51,3 +51,18 @@ describe("today's risk plan", () => {
     for (const src of [panel, lib]) expect(src).not.toMatch(/you will pass|guarantee|you need to make|make \$?[\d,]+ today|should make|must make|daily goal|daily target/i);
   });
 });
+
+describe("after the session", () => {
+  it("reads today's journal through the Journal's own reader and hydrator, never in a sample, and writes nothing to it", () => {
+    const code = read("components/journal/PropSessionPlanPanel.tsx").replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(code).toContain("readJournalStorage(window.localStorage)");
+    expect(code).toContain("hydrateJournalEntries(liveJournalRecords(r.records))");
+    expect(code).toContain("readSessionAgainstDay(rec, trades, marketDayKey(), account)");
+    expect(code).toMatch(/useEffect\(\(\) => \{\n\s*if \(sample\) return;\n\s*const read = \(\) => \{/);
+    expect(code).not.toMatch(/writeJournalStorage|wm_journal_entries/);
+  });
+  it("the sample desk shows no after-session reading (it has no journal)", () => {
+    const html = renderToStaticMarkup(<PropEvaluationDesk storageKey={null} sample />);
+    expect(html).not.toContain('data-testid="prop-session-after"');
+  });
+});

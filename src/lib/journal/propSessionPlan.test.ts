@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { instrumentEconomics } from "@/lib/marketData/contractEconomics";
 import {
   EMPTY_SESSION_PLAN, EMPTY_SESSION_RECORD, SESSION_PLAN_STORAGE_KIND, editSessionPlan, lockSessionPlan, readSessionPlan, readStoredSessionPlan,
-  readStoredSessionRecord, startNewSessionPlan, storedSessionRecord,
+  readSessionAgainstDay, readStoredSessionRecord, startNewSessionPlan, storedSessionRecord,
   type SessionAccountContext, type SessionPlanInputs,
 } from "./propSessionPlan";
 
@@ -186,5 +186,44 @@ describe("lock the plan before the session", () => {
     expect(readStoredSessionRecord({ kind: SESSION_PLAN_STORAGE_KIND, version: 1, plan: draft.plan })).toEqual(draft);
     const torn = { ...storedSessionRecord(r), lockedPlan: null };
     expect(readStoredSessionRecord(torn)).toMatchObject({ lockedAtMs: null, amendments: [] });
+  });
+});
+
+describe("after the session: the plan as locked beside the day as journaled", () => {
+  const T0 = Date.UTC(2026, 9, 21, 13, 0);
+  const locked = lockSessionPlan({ ...EMPTY_SESSION_RECORD, plan: plan({ attempts: 2, dailyLossLimitCents: 30_000 }) }, T0);
+  const day = "2026-10-21";
+
+  it("compares with the LOCKED plan even after it was changed", () => {
+    const changed = editSessionPlan(locked, { attempts: 3 }, T0 + 60_000);
+    const v = readSessionAgainstDay(changed, [{ date: day, pnl: -50 }, { date: day, pnl: 80 }, { date: day, pnl: -40 }], day, acct());
+    expect(v.basis).toBe("LOCKED");
+    expect(v.tradesPlanned).toBe(2);
+    expect(v.differences.map(d => d.id)).toEqual(["MORE_TRADES"]);
+    expect(v.differences[0].words).toBe("3 trades journaled against 2 planned attempts.");
+  });
+
+  it("a loss larger than the planned trade risk and a day past the daily limit are both named", () => {
+    const v = readSessionAgainstDay(locked, [{ date: day, pnl: -200 }, { date: day, pnl: -150 }], day, acct());
+    expect(v.plannedTradeRiskCents).toBe(14_728);
+    expect(v.largestLossCents).toBe(20_000);
+    expect(v.dayNetCents).toBe(-35_000);
+    expect(v.differences.map(d => d.id)).toEqual(["LOSS_ABOVE_PLANNED_RISK", "DAY_PAST_DAILY_LIMIT"]);
+    expect(v.line).toBe("The day differed from the locked plan in 2 ways — worth a look in Review.");
+  });
+
+  it("other days, no-trade days and an empty journal are not counted; a draft is named as a draft", () => {
+    const v = readSessionAgainstDay(locked, [{ date: "2026-10-20", pnl: -999 }, { date: day, pnl: 0, dayModel: "M0" }], day, acct());
+    expect(v.tradesJournaled).toBe(0);
+    expect(v.line).toBe("No trades journaled for 2026-10-21 yet.");
+    const d = readSessionAgainstDay({ ...EMPTY_SESSION_RECORD, plan: plan({}) }, [{ date: day, pnl: 30 }], day, acct());
+    expect(d.basis).toBe("DRAFT");
+    expect(d.line).toBe("The day stayed inside the draft plan.");
+  });
+
+  it("the words describe a difference, never grade the trader", () => {
+    const v = readSessionAgainstDay(locked, [{ date: day, pnl: -500 }, { date: day, pnl: -500 }, { date: day, pnl: -500 }], day, acct());
+    const all = [v.line, ...v.differences.map(d => d.words)].join(" ");
+    expect(all).not.toMatch(/fail|broke|undisciplined|mistake|bad|should have|must stop/i);
   });
 });
