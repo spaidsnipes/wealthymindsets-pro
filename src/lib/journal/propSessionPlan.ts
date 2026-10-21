@@ -329,7 +329,7 @@ export function sessionSamplePlan(): SessionPlanInputs {
 // the trader's own journal entries for the market day — self-reported unless an entry carries broker
 // facts. A difference is described as a difference, never as a verdict on the trader.
 
-export interface JournaledTrade { readonly date: string; readonly pnl: number; readonly dayModel?: string; readonly brokerConfirmed?: boolean }
+export interface JournaledTrade { readonly date: string; readonly pnl: number; readonly dayModel?: string; readonly brokerConfirmed?: boolean; readonly setup?: string }
 export type DayDifference = "MORE_TRADES" | "LOSS_ABOVE_PLANNED_RISK" | "DAY_PAST_DAILY_LIMIT";
 export interface SessionVsDay {
   readonly basis: "LOCKED" | "DRAFT";
@@ -343,6 +343,20 @@ export interface SessionVsDay {
   readonly plannedTradeRiskCents: Cents | null;
   readonly differences: readonly { readonly id: DayDifference; readonly words: string }[];
   readonly line: string;
+  /** The setup as the compared plan says it ("" when none was written). */
+  readonly setupPlanned: string;
+  /** The setups written on today's entries, as written: distinct (ignoring case), first spelling kept, at most 5. Never matched against the plan. */
+  readonly setupsJournaled: readonly string[];
+}
+
+function distinctSetups(trades: readonly JournaledTrade[]): string[] {
+  const seen = new Set<string>(), out: string[] = [];
+  for (const t of trades) {
+    const s = (t.setup ?? "").trim();
+    if (!s || seen.has(s.toLowerCase())) continue;
+    seen.add(s.toLowerCase()); out.push(s);
+  }
+  return out.slice(0, 5);
 }
 
 export function readSessionAgainstDay(r: SessionPlanRecord, trades: readonly JournaledTrade[], day: string, account: SessionAccountContext): SessionVsDay {
@@ -364,5 +378,5 @@ export function readSessionAgainstDay(r: SessionPlanRecord, trades: readonly Jou
     ? `The day differed from the ${basis === "LOCKED" ? "locked" : "draft"} plan in ${plural(differences.length, "way")} — worth a look in Review.`
     : `The day stayed inside the ${basis === "LOCKED" ? "locked" : "draft"} plan.`;
   return { basis, day, tradesPlanned: yard.attempts, tradesJournaled: today.length, brokerConfirmed: today.filter(t => t.brokerConfirmed).length,
-    dayNetCents, largestLossCents, plannedTradeRiskCents, differences, line };
+    dayNetCents, largestLossCents, plannedTradeRiskCents, differences, line, setupPlanned: yard.setup.trim(), setupsJournaled: distinctSetups(today) };
 }

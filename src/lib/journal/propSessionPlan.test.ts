@@ -282,3 +282,26 @@ describe("the way back matches what broke", () => {
     expect(money.verdictLine).toMatch(/Smaller size, a closer stop on structure, or fewer attempts would change that\.$/);
   });
 });
+
+describe("after the session: the planned setup beside the setups written today — listed, never matched", () => {
+  const day = "2026-10-21";
+  const locked = lockSessionPlan({ ...EMPTY_SESSION_RECORD, plan: plan({ setup: "  Opening-range retest " }) }, Date.UTC(2026, 9, 21, 13, 0));
+  it("the locked setup, and today's distinct setups in the trader's first spelling", () => {
+    const trades = [
+      { date: day, pnl: 40, setup: "ORB retest" }, { date: day, pnl: -20, setup: "orb RETEST" }, { date: day, pnl: -10, setup: "VWAP fade" },
+      { date: day, pnl: 5, setup: "  " }, { date: "2026-10-20", pnl: 5, setup: "Yesterday's" },
+    ];
+    const v = readSessionAgainstDay(locked, trades, day, acct());
+    expect(v.setupPlanned).toBe("Opening-range retest");
+    expect(v.setupsJournaled).toEqual(["ORB retest", "VWAP fade"]);
+    // Listing only: no difference is raised from setup words, however different they read.
+    const bare = readSessionAgainstDay(locked, trades.map(({ setup: _s, ...t }) => t), day, acct());
+    expect(v.differences).toEqual(bare.differences);
+    expect(v.line).toBe(bare.line);
+  });
+  it("nothing written on either side reads as empty", () => {
+    const v = readSessionAgainstDay({ ...EMPTY_SESSION_RECORD, plan: plan({}) }, [{ date: day, pnl: 1 }], day, acct());
+    expect(v.setupPlanned).toBe("");
+    expect(v.setupsJournaled).toEqual([]);
+  });
+});

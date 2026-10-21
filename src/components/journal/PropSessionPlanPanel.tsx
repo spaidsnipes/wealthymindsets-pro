@@ -60,7 +60,7 @@ export function PropSessionPlanPanel({ storageKey, sample = false, account }: {
       try {
         const r = readJournalStorage(window.localStorage);
         // Paper is never mixed into live results (paperEntry.ts): only live records count against the day.
-        setTrades(hydrateJournalEntries(liveJournalRecords(r.records)).entries.map(e => ({ date: e.date, pnl: e.pnl, dayModel: e.dayModel, brokerConfirmed: !!e.capture })));
+        setTrades(hydrateJournalEntries(liveJournalRecords(r.records)).entries.map(e => ({ date: e.date, pnl: e.pnl, dayModel: e.dayModel, brokerConfirmed: !!e.capture, setup: e.setup })));
       } catch { setTrades([]); }
     };
     read();
@@ -176,6 +176,11 @@ export function PropSessionPlanPanel({ storageKey, sample = false, account }: {
             </div>
             {v.differences.map(d => <span key={d.id} data-testid="prop-session-difference" data-difference={d.id} style={{ fontSize: 12, color: AMBER, overflowWrap: "anywhere" }}>{d.words}</span>)}
             <span style={{ fontSize: 12, color: INK }}>{v.line}</span>
+            {v.setupPlanned || v.setupsJournaled.length ? (
+              <span data-testid="prop-session-setups" style={{ fontSize: 12, color: INK, overflowWrap: "anywhere" }}>
+                <span style={{ color: MUTED }}>Setup planned:</span> {v.setupPlanned || "not written"} · <span style={{ color: MUTED }}>written on today&apos;s entries:</span> {v.setupsJournaled.length ? v.setupsJournaled.join("; ") : "none yet"}
+              </span>
+            ) : null}
             <span style={{ fontSize: 11, color: MUTED, overflowWrap: "anywhere" }}>From your journal entries for {v.day} (New York market day){v.tradesJournaled ? ` — ${v.brokerConfirmed} broker-confirmed, the rest as you typed them` : ""}. The plan above is not changed by this.</span>
           </div>
         );
