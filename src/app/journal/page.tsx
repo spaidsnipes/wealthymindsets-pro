@@ -1331,7 +1331,8 @@ function JournalPageInner() {
   // and surface most_improved / most_degraded. Silent when no
   // dimension moved past the noise threshold.
   const priorWeekStartMs = weekStartMs - 7 * 24 * 60 * 60 * 1000;
-  const priorWeekEntries = entries.filter(e => {
+  // Live trades only, like this week's genome — a paper capture never sets the baseline the week is judged against.
+  const priorWeekEntries = liveEntries.filter(e => {
     const t = Date.parse(e.date);
     return Number.isFinite(t) && t >= priorWeekStartMs && t < weekStartMs;
   });
