@@ -70,7 +70,11 @@ export function PropSessionPlanPanel({ storageKey, sample = false, account }: {
   }, [sample]);
   const edit = (patch: Partial<SessionPlanInputs>) => setRec(prev => editSessionPlan(prev, patch, Date.now()));
   const lockedAt = rec.lockedAtMs === null ? null : new Date(rec.lockedAtMs).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-  const plan = useMemo(() => readSessionPlan(p, account), [p, account]);
+  // Today's loss is the larger of what is typed and what the journal holds for the market day — the
+  // daily room never ignores a loss the trader has already journaled.
+  const journaledNet = useMemo(() => (sample ? null : readSessionAgainstDay(rec, trades, marketDayKey(), account).dayNetCents), [sample, rec, trades, account]);
+  const usesJournal = journaledNet !== null && journaledNet < (p.netTodayCents ?? 0);
+  const plan = useMemo(() => readSessionPlan(usesJournal ? { ...p, netTodayCents: journaledNet } : p, account), [p, account, usesJournal, journaledNet]);
   const entered = p.symbol.trim() !== "" || p.stopTicks !== null || p.riskPerTradeCents !== null || p.dailyLossLimitCents !== null;
   const summary = plan.status === "SIZED"
     ? `${plan.contracts} ${plan.root} · ${formatCents(plan.tradeRiskCents)} a trade · ${SESSION_ATTEMPTS_LABEL[plan.attempts].toLowerCase()}`
@@ -90,7 +94,10 @@ export function PropSessionPlanPanel({ storageKey, sample = false, account }: {
           <MoneyField label="Most you choose to risk on one trade (fees included)" valueCents={p.riskPerTradeCents} onCommit={c => edit({ riskPerTradeCents: c })} testId="prop-session-risk" />
           <MoneyField label="Round-trip fees per contract" valueCents={p.feesPerContractCents} onCommit={c => edit({ feesPerContractCents: c })} />
           <MoneyField label="Daily loss limit (the firm's, or yours if tighter)" valueCents={p.dailyLossLimitCents} onCommit={c => edit({ dailyLossLimitCents: c })} testId="prop-session-daily" />
-          <MoneyField label="Today's result so far (a loss with a minus sign)" allowNegative valueCents={p.netTodayCents} onCommit={c => edit({ netTodayCents: c })} />
+          <div style={{ display: "grid", gap: 3 }}>
+            <MoneyField label="Today's result so far (a loss with a minus sign)" allowNegative valueCents={p.netTodayCents} onCommit={c => edit({ netTodayCents: c })} />
+            {usesJournal ? <span data-testid="prop-session-uses-journal" style={{ fontSize: 11, color: AMBER }}>Your journal holds {formatCents(journaledNet!)} for today, a larger loss than typed — the daily room uses it.</span> : null}
+          </div>
           <label style={LABEL}><span>Your maximum trades today (optional)</span>
             <input inputMode="numeric" value={p.maxTradesPerDay ?? ""} onChange={e => edit({ maxTradesPerDay: wholeOrNull(e.target.value, p.maxTradesPerDay) })} style={FIELD} /></label>
         </div>

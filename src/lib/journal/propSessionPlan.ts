@@ -177,8 +177,13 @@ export function readSessionPlan(x: SessionPlanInputs, account: SessionAccountCon
   const breaks = checks.filter(c => c.state === "BREAKS");
   const verdict: SessionVerdict = breaks.length ? "BREAKS_A_LIMIT"
     : checks.some(c => c.state === "CANNOT_SAY") || !account.verified ? "CANNOT_SAY" : "WITHIN_LIMITS";
+  // The way back depends on what broke: a reached daily limit ends the session; a trade count needs fewer
+  // attempts; a money limit needs less risk per trade or fewer attempts.
+  const remedy = breaks.some(b => b.id === "daily-open") ? "Your own rule says the session is over."
+    : breaks.every(b => b.id === "trades-max") ? "Fewer attempts would change that."
+    : "Smaller size, a closer stop on structure, or fewer attempts would change that.";
   const verdictLine = verdict === "BREAKS_A_LIMIT"
-    ? `This plan breaks ${plural(breaks.length, "limit")} as typed: ${breaks.map(b => b.label.toLowerCase()).join("; ")}. Smaller size, a closer stop on structure, or fewer attempts would change that.`
+    ? `This plan breaks ${plural(breaks.length, "limit")} as typed: ${breaks.map(b => b.label.toLowerCase()).join("; ")}. ${remedy}`
     : verdict === "CANNOT_SAY"
     ? account.verified ? "Cannot say yet — a limit above is not entered." : "Cannot say yet — the account figures are UNVERIFIED. Read them back from the firm's dashboard first."
     : `Within the limits entered: ${plural(contracts, "contract")}, ${formatCents(tradeRiskCents)} a trade, ${formatCents(dayExposureCents)} for the day at most.`;

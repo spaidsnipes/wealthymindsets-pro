@@ -37,7 +37,7 @@ describe("today's risk plan", () => {
     const desk = read("components/journal/PropEvaluationDesk.tsx");
     expect(desk).toContain("drawdownHeadroomCents: r.drawdownHeadroomCents, contractLimit: inputs.contractLimit, verified: r.verified");
     const panel = read("components/journal/PropSessionPlanPanel.tsx").replace(/\/\*[\s\S]*?\*\//g, "");
-    expect(panel).toContain("readSessionPlan(p, account)");
+    expect(panel).toContain("readSessionPlan(usesJournal ? { ...p, netTodayCents: journaledNet } : p, account)");
     expect(panel).not.toMatch(/pointValue|tickValue\s*\*|Math\.floor/);
   });
 
@@ -64,5 +64,14 @@ describe("after the session", () => {
   it("the sample desk shows no after-session reading (it has no journal)", () => {
     const html = renderToStaticMarkup(<PropEvaluationDesk storageKey={null} sample />);
     expect(html).not.toContain('data-testid="prop-session-after"');
+  });
+});
+
+describe("today's loss is never ignored", () => {
+  it("the daily room uses the larger of the typed and the journaled loss, and says so", () => {
+    const code = read("components/journal/PropSessionPlanPanel.tsx").replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(code).toContain("const usesJournal = journaledNet !== null && journaledNet < (p.netTodayCents ?? 0);");
+    expect(code).toContain("readSessionPlan(usesJournal ? { ...p, netTodayCents: journaledNet } : p, account)");
+    expect(code).toContain("a larger loss than typed — the daily room uses it.");
   });
 });

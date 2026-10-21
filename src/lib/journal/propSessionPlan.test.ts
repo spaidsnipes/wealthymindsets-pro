@@ -227,3 +227,14 @@ describe("after the session: the plan as locked beside the day as journaled", ()
     expect(all).not.toMatch(/fail|broke|undisciplined|mistake|bad|should have|must stop/i);
   });
 });
+
+describe("the way back matches what broke", () => {
+  it("only the trade count broke → fewer attempts; a reached daily limit → the session is over; money → size, stop or attempts", () => {
+    const count = sized(readSessionPlan(plan({ attempts: 3, maxTradesPerDay: 2, dailyLossLimitCents: 50_000 }), acct()));
+    expect(count.verdictLine).toMatch(/Fewer attempts would change that\.$/);
+    const over = sized(readSessionPlan(plan({ dailyLossLimitCents: 50_000, netTodayCents: -50_000 }), acct()));
+    expect(over.verdictLine).toMatch(/Your own rule says the session is over\.$/);
+    const money = sized(readSessionPlan(plan({ attempts: 3, dailyLossLimitCents: 20_000 }), acct()));
+    expect(money.verdictLine).toMatch(/Smaller size, a closer stop on structure, or fewer attempts would change that\.$/);
+  });
+});
