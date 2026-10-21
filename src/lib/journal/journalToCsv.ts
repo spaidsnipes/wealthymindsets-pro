@@ -24,6 +24,7 @@
  */
 
 import { describeRecordOutcome as recordOutcome } from "./tradeRecords";
+import { venueWords, type TradeVenue } from "./tradeVenue";
 
 export interface JournalCsvEntry {
   date: string;
@@ -51,6 +52,8 @@ export interface JournalCsvEntry {
   // Canon §7 Management Studio — optional MFE / MAE in R units.
   mfeR?: number;
   maeR?: number;
+  // Megazord §5: where a self-reported trade was taken (tradeVenue.ts). Last column, so older parsers keep their indices.
+  venue?: TradeVenue;
 }
 
 export const JOURNAL_CSV_COLUMNS = [
@@ -76,6 +79,7 @@ export const JOURNAL_CSV_COLUMNS = [
   "Notes",
   "Mistakes",
   "Lessons",
+  "Venue",
 ] as const;
 
 /** RFC 4180 CSV cell escape. */
@@ -122,6 +126,7 @@ export function journalRowToCsv(e: JournalCsvEntry): string {
     csvEscape(e.notes),
     csvEscape(e.mistakes ?? ""),
     csvEscape(e.lessons ?? ""),
+    csvEscape(e.venue ? venueWords(e.venue) : ""),
   ];
   return cells.join(",");
 }

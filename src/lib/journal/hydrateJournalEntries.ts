@@ -52,6 +52,7 @@ import {
   type JournalRecordCoverage,
   type StoredTradeResult,
 } from "./journalRecordShape";
+import { readTradeVenue, type TradeVenue } from "./tradeVenue";
 
 export type Mood = "confident" | "anxious" | "neutral" | "fomo" | "disciplined";
 export type TradeResult = StoredTradeResult;
@@ -113,6 +114,11 @@ export interface JournalEntry {
   fvgRef?: JournalFvgReference;
   /** §40: the market context the gap decision was taken in, read as of the decision (fvgDecisionContext). */
   fvgContext?: JournalFvgContext;
+  /**
+   * Megazord §5 (2026-10-21): where a SELF-REPORTED trade was taken (TradingView, another broker, a prop
+   * platform, a simulator), as the trader said. Optional; absent means "not said". tradeVenue.ts.
+   */
+  venue?: TradeVenue;
 }
 
 const MOODS: readonly Mood[] = ["confident", "anxious", "neutral", "fomo", "disciplined"];
@@ -216,6 +222,7 @@ export function hydrateJournalEntry(value: unknown): JournalEntry | null {
     contractType: oneOf(["stock", "option"] as const, value.contractType),
     mfeR: readStoredNumber(value.mfeR),
     maeR: readStoredNumber(value.maeR),
+    venue: readTradeVenue(value.venue),
     // Read field by field; an unknown provenance degrades to UNREPORTED, never to a value.
     ...(readJournalCapture(value.capture) ? { capture: readJournalCapture(value.capture) as JournalCaptureDraft } : {}),
     ...(readJournalFvgReference(value.fvgRef) ? { fvgRef: readJournalFvgReference(value.fvgRef) as JournalFvgReference } : {}),

@@ -67,15 +67,20 @@ describe("journalRowToCsv — Proof Lane fields present", () => {
 });
 
 describe("journalToCsv — header + row shape", () => {
-  it("header lists all 22 columns in declared order (J-Bkt 7 added MfeR + MaeR)", () => {
+  it("header lists all 23 columns in declared order (J-Bkt 7 added MfeR + MaeR; Venue appended 2026-10-21)", () => {
     const csv = journalToCsv([]);
     expect(csv).toBe(JOURNAL_CSV_COLUMNS.join(","));
     expect(JOURNAL_CSV_COLUMNS).toEqual([
       "Date", "Symbol", "Side", "ContractType", "Entry", "Exit", "Size",
       "PnL", "PctChange", "Result", "DayModel", "PlannedRDollars",
       "RealizedR", "MfeR", "MaeR", "ProcessQuality", "ProcessOutcome", "Setup", "Tags",
-      "Notes", "Mistakes", "Lessons",
+      "Notes", "Mistakes", "Lessons", "Venue",
     ]);
+  });
+  it("writes where a self-reported trade was taken, in words, as the last cell", () => {
+    const row = journalToCsv([mk({ venue: "TRADINGVIEW" })]).split("\n")[1].split(",");
+    expect(row[JOURNAL_CSV_COLUMNS.indexOf("Venue")]).toBe("TradingView");
+    expect(journalToCsv([mk({})]).split("\n")[1].endsWith(",")).toBe(true);
   });
   it("includes MfeR / MaeR when set", () => {
     const row = journalToCsv([mk({ mfeR: 2.0, maeR: -0.4 })]);

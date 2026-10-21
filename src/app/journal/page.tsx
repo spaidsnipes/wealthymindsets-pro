@@ -19,6 +19,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import MirrorPanel from "@/components/mirror/MirrorPanel";
 import { BrokerTruthToday, PLAN_ABSENT_JOURNAL, StoryReviewRow } from "@/components/journal/BrokerTruthToday";
 import { CapturedFacts } from "@/components/journal/CapturedFacts";
+import { EntryProvenanceLine, TradeVenueField } from "@/components/journal/TradeVenue";
 import { captureToJournalForm } from "@/lib/journal/journalCaptureFromFill";
 import { isPaperEntry, liveJournalRecords } from "@/lib/journal/paperEntry";
 import { JournalPaperFilter, PaperMark, paperHeldOutNote, type PaperFilter } from "@/components/journal/JournalPaperFilter";
@@ -1447,6 +1448,8 @@ function JournalPageInner() {
     e.processOutcome = classifyProcessOutcome(e.processQuality, e.pnl);
     e.voiceSec = voiceRec.memo?.sec ?? (voiceRec.state === "done" ? voiceRec.sec : 0);
     e.realizedR = money.realizedR;
+    // A broker-confirmed fill says where it was traded; a typed venue never sits beside it.
+    if (e.capture) delete e.venue;
 
     // Nectar snapshot — REMEMBER→REFLECT bridge (Founder OVERRIDE §10
     // loop closure). Capture what WM actually observed about this
@@ -2874,6 +2877,8 @@ Trade the system, trust the process, winners every day 🚀`,
               {/* §J 2026-10-07: the broker's machine facts for a captured fill,
                   each with its provenance — then the review, ten separate
                   questions, keyed to the same story as Broker Truth. */}
+              {/* Megazord §5: how the Journal knows this trade — broker-confirmed, or self-reported and where. */}
+              <EntryProvenanceLine venue={selected.venue} hasBrokerCapture={!!selected.capture} />
               {selected.capture ? (
                 <div className="mb-4"><CapturedFacts capture={selected.capture} /></div>
               ) : null}
@@ -3295,7 +3300,7 @@ Trade the system, trust the process, winners every day 🚀`,
                   </p>
                   <CapturedFacts capture={form.capture} title="Broker facts for this entry" />
                 </div>
-              ) : null}
+              ) : <TradeVenueField value={form.venue} onChange={v => setForm(f => ({ ...f, venue: v }))} />}
 
               {/* Garden 19 §40: one canonical FVG, referenced with its state AT DECISION TIME. */}
               <JournalFvgReferenceField key={fvgPrefillId ?? "none"} value={form.fvgRef}
