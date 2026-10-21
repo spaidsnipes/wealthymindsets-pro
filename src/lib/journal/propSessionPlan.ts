@@ -51,12 +51,18 @@ export interface SessionPlanInputs {
   readonly attempts: SessionAttempts;
   /** The trader's own maximum trades for the day, if they keep one. */
   readonly maxTradesPerDay: number | null;
+  /** The setup the trader is waiting for, in their own words (Megazord §6 premarket: setup → invalidation → size). */
+  readonly setup: string;
+  /** Where that idea is wrong — the invalidation, in their own words. */
+  readonly invalidation: string;
 }
 
 export const EMPTY_SESSION_PLAN: SessionPlanInputs = {
   symbol: "", stopTicks: null, riskPerTradeCents: null, feesPerContractCents: null,
-  dailyLossLimitCents: null, netTodayCents: null, attempts: 1, maxTradesPerDay: null,
+  dailyLossLimitCents: null, netTodayCents: null, attempts: 1, maxTradesPerDay: null, setup: "", invalidation: "",
 };
+/** The longest setup or invalidation kept, in characters. */
+export const SESSION_TEXT_MAX = 140;
 
 /** What the desk already knows about the account. */
 export interface SessionAccountContext {
@@ -232,6 +238,7 @@ export const EMPTY_SESSION_RECORD: SessionPlanRecord = { plan: EMPTY_SESSION_PLA
 export const SESSION_FIELD_LABEL: Readonly<Record<keyof SessionPlanInputs, string>> = {
   symbol: "Instrument", stopTicks: "Stop (ticks)", riskPerTradeCents: "Risk per trade", feesPerContractCents: "Fees per contract",
   dailyLossLimitCents: "Daily loss limit", netTodayCents: "Today's result", attempts: "Attempts", maxTradesPerDay: "Maximum trades",
+  setup: "Setup", invalidation: "Where it's wrong",
 };
 const fieldWords = (field: keyof SessionPlanInputs, v: unknown): string => {
   if (v === null || v === undefined || v === "") return "—";
@@ -244,13 +251,28 @@ export function lockSessionPlan(r: SessionPlanRecord, nowMs: number): SessionPla
   return r.lockedAtMs !== null ? r : { ...r, lockedAtMs: nowMs, lockedPlan: r.plan, amendments: [] };
 }
 
-/** Edit the plan. Before the lock it is a draft; after the lock every changed field is appended as an amendment. */
+/** Edits to the same field this close together are one change (typing "MNQ" is one amendment, not three). */
+export const AMEND_COALESCE_MS = 60_000;
+
+/**
+ * Edit the plan. Before the lock it is a draft; after the lock every changed field is appended as an amendment.
+ * A burst of edits to one field folds into its latest amendment — the first "from", the final "to" — and a
+ * burst that ends where it started leaves no amendment. Earlier amendments are never touched.
+ */
 export function editSessionPlan(r: SessionPlanRecord, patch: Partial<SessionPlanInputs>, nowMs: number): SessionPlanRecord {
   const plan = { ...r.plan, ...patch };
   if (r.lockedAtMs === null) return { ...r, plan };
   // Today's running result is a fact of the day, not a change of plan: it is updated without an amendment.
   const changed = (Object.keys(patch) as (keyof SessionPlanInputs)[]).filter(k => k !== "netTodayCents" && patch[k] !== r.plan[k]);
-  const amendments = [...r.amendments, ...changed.map(field => ({ at: nowMs, field, from: fieldWords(field, r.plan[field]), to: fieldWords(field, plan[field]) }))];
+  const amendments = [...r.amendments];
+  for (const field of changed) {
+    const last = amendments[amendments.length - 1];
+    const to = fieldWords(field, plan[field]);
+    if (last && last.field === field && nowMs - last.at <= AMEND_COALESCE_MS) {
+      amendments.pop();
+      if (last.from !== to) amendments.push({ at: nowMs, field, from: last.from, to });
+    } else amendments.push({ at: nowMs, field, from: fieldWords(field, r.plan[field]), to });
+  }
   return { ...r, plan, amendments };
 }
 
@@ -267,11 +289,13 @@ function readPlanFields(raw: unknown): SessionPlanInputs | null {
   if (!raw || typeof raw !== "object") return null;
   const p = raw as Record<string, unknown>;
   const int = (v: unknown) => (typeof v === "number" && Number.isInteger(v) ? v : null);
+  const text = (v: unknown) => (typeof v === "string" ? v.slice(0, SESSION_TEXT_MAX) : "");
   const attempts = SESSION_ATTEMPTS.find(a => a === p.attempts) ?? 1;
   return {
     symbol: typeof p.symbol === "string" ? p.symbol.slice(0, 16) : "",
     stopTicks: int(p.stopTicks), riskPerTradeCents: int(p.riskPerTradeCents), feesPerContractCents: int(p.feesPerContractCents),
     dailyLossLimitCents: int(p.dailyLossLimitCents), netTodayCents: int(p.netTodayCents), attempts, maxTradesPerDay: int(p.maxTradesPerDay),
+    setup: text(p.setup), invalidation: text(p.invalidation),
   };
 }
 export function readStoredSessionRecord(raw: unknown): SessionPlanRecord | null {
@@ -296,7 +320,8 @@ export function readStoredSessionPlan(raw: unknown): SessionPlanInputs | null {
 
 /** The sample desk's plan — SYNTHETIC, no one's account; shown only under the SAMPLE ACCOUNT banner. */
 export function sessionSamplePlan(): SessionPlanInputs {
-  return { symbol: "MNQ1!", stopTicks: 40, riskPerTradeCents: 15_000, feesPerContractCents: 104, dailyLossLimitCents: 50_000, netTodayCents: 0, attempts: 1, maxTradesPerDay: 2 };
+  return { symbol: "MNQ1!", stopTicks: 40, riskPerTradeCents: 15_000, feesPerContractCents: 104, dailyLossLimitCents: 50_000, netTodayCents: 0, attempts: 1, maxTradesPerDay: 2,
+    setup: "Opening-range retest after the first 15 minutes", invalidation: "A 5-minute close back inside the range" };
 }
 
 // ── AFTER THE SESSION: the plan as locked, beside the day as journaled ─────────────────────────────────

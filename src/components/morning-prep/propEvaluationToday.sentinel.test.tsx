@@ -116,6 +116,9 @@ describe("the Journal's risk plan on the card (2026-10-21)", () => {
     expect(t).toContain(`One trade carries · the day at most ${formatCents(p.tradeRiskCents)} · ${formatCents(p.dayExposureCents)}`);
     expect(t).toContain("Plan against the limits Cannot say yet");
     expect(t).toContain("Plan locked Not locked yet — lock it on the desk before the session");
+    expect(t).toContain("Waiting for: Opening-range retest after the first 15 minutes · wrong if: A 5-minute close back inside the range");
+    const noSetup = text(renderToStaticMarkup(<PropEvaluationTodayView stored={stored(x)} sessionPlan={{ plan: { ...sessionSamplePlan(), setup: "" }, lockedAtMs: null, lockedPlan: null, amendments: [] }} />));
+    expect(noSetup).not.toContain("Waiting for:");
     expect(t).not.toMatch(/\b(make|earn|aim for|go for|need)\b[^.]{0,40}\$\d/i);
     expect(t).not.toMatch(/\$[\d,.]+ today/i);
   });

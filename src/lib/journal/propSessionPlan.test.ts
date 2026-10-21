@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import { instrumentEconomics } from "@/lib/marketData/contractEconomics";
 import {
-  EMPTY_SESSION_PLAN, EMPTY_SESSION_RECORD, SESSION_PLAN_STORAGE_KIND, editSessionPlan, lockSessionPlan, readSessionPlan, readStoredSessionPlan,
+  AMEND_COALESCE_MS, EMPTY_SESSION_PLAN, EMPTY_SESSION_RECORD, SESSION_PLAN_STORAGE_KIND, SESSION_TEXT_MAX, editSessionPlan, lockSessionPlan, readSessionPlan, readStoredSessionPlan,
   readSessionAgainstDay, readStoredSessionRecord, startNewSessionPlan, storedSessionRecord,
   type SessionAccountContext, type SessionPlanInputs,
 } from "./propSessionPlan";
@@ -186,6 +186,50 @@ describe("lock the plan before the session", () => {
     expect(readStoredSessionRecord({ kind: SESSION_PLAN_STORAGE_KIND, version: 1, plan: draft.plan })).toEqual(draft);
     const torn = { ...storedSessionRecord(r), lockedPlan: null };
     expect(readStoredSessionRecord(torn)).toMatchObject({ lockedAtMs: null, amendments: [] });
+  });
+});
+
+describe("setup and invalidation are part of the plan the lock keeps (Megazord §6: setup → invalidation → size)", () => {
+  const T0 = Date.UTC(2026, 9, 21, 13, 30);
+  const draft = { ...EMPTY_SESSION_RECORD, plan: plan({ setup: "Opening-range retest", invalidation: "Close back inside the range" }) };
+
+  it("locked with the plan; changing either after the lock is an amendment in the trader's words", () => {
+    const locked = lockSessionPlan(draft, T0);
+    const r = editSessionPlan(locked, { invalidation: "Below the overnight low" }, T0 + 30 * 60_000);
+    expect(r.lockedPlan?.invalidation).toBe("Close back inside the range");
+    expect(r.amendments).toEqual([{ at: T0 + 30 * 60_000, field: "invalidation", from: "Close back inside the range", to: "Below the overnight low" }]);
+  });
+
+  it("stored and read back, cut to the limit; a record saved before these fields reads them as empty", () => {
+    const long = { ...draft, plan: { ...draft.plan, setup: "x".repeat(400) } };
+    expect(readStoredSessionRecord(JSON.parse(JSON.stringify(storedSessionRecord(long))))!.plan.setup).toHaveLength(SESSION_TEXT_MAX);
+    const { setup: _s, invalidation: _i, ...older } = draft.plan;
+    expect(readStoredSessionRecord({ kind: SESSION_PLAN_STORAGE_KIND, version: 2, plan: older, lockedAtMs: null, lockedPlan: null, amendments: [] })!.plan)
+      .toMatchObject({ setup: "", invalidation: "" });
+  });
+});
+
+describe("a burst of typing after the lock is one amendment", () => {
+  const T0 = Date.UTC(2026, 9, 21, 13, 30);
+  const locked = lockSessionPlan({ ...EMPTY_SESSION_RECORD, plan: plan({ symbol: "" }) }, T0);
+  const type = (r: typeof locked, field: "symbol" | "stopTicks", values: readonly (string | number)[], start: number) =>
+    values.reduce((acc, v, i) => editSessionPlan(acc, { [field]: v } as Partial<SessionPlanInputs>, start + i * 1_000), r);
+
+  it("typing M, MN, MNQ is one change: the first 'from', the final 'to'", () => {
+    const r = type(locked, "symbol", ["M", "MN", "MNQ"], T0 + 60_000);
+    expect(r.amendments).toEqual([{ at: T0 + 62_000, field: "symbol", from: "—", to: "MNQ" }]);
+  });
+  it("typed and then put back is no change at all", () => {
+    const r = type(type(locked, "stopTicks", [4, 45], T0 + 60_000), "stopTicks", [4, 40], T0 + 63_000);
+    expect(r.amendments).toEqual([]);
+  });
+  it("a later edit, or an edit to another field in between, is its own amendment; earlier ones are never touched", () => {
+    const a = type(locked, "stopTicks", [30], T0 + 60_000);
+    const b = type(a, "stopTicks", [35], T0 + 60_000 + AMEND_COALESCE_MS + 1);
+    expect(b.amendments.map(x => [x.from, x.to])).toEqual([["40", "30"], ["30", "35"]]);
+    const c = type(type(a, "symbol", ["MES"], T0 + 61_000), "stopTicks", [20], T0 + 62_000);
+    expect(c.amendments.map(x => x.field)).toEqual(["stopTicks", "symbol", "stopTicks"]);
+    expect(c.amendments[0]).toEqual(a.amendments[0]);
   });
 });
 

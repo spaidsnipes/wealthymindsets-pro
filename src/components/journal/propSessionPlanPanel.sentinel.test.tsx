@@ -75,3 +75,15 @@ describe("today's loss is never ignored", () => {
     expect(code).toContain("a larger loss than typed — the daily room uses it.");
   });
 });
+
+describe("setup and invalidation come first, in the trader's words", () => {
+  it("the sample desk shows both fields, filled from the sample plan, before the instrument", () => {
+    const html = renderToStaticMarkup(<PropEvaluationDesk storageKey={null} sample />);
+    const setup = html.indexOf('data-testid="prop-session-setup"'), wrong = html.indexOf('data-testid="prop-session-invalidation"'), sym = html.indexOf('data-testid="prop-session-symbol"');
+    expect(setup).toBeGreaterThan(0);
+    expect(wrong).toBeGreaterThan(setup);
+    expect(sym).toBeGreaterThan(wrong);
+    expect(html).toContain('value="Opening-range retest after the first 15 minutes"');
+    expect(html).toContain('maxLength="140"');
+  });
+});

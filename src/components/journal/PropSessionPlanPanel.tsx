@@ -20,7 +20,7 @@ import { liveJournalRecords } from "@/lib/journal/paperEntry";
 import { JOURNAL_UPDATED_EVENT, readJournalStorage } from "@/lib/traderMemory/adapters/journalStorage";
 import { formatCents } from "@/lib/journal/propEvaluation";
 import {
-  EMPTY_SESSION_RECORD, SESSION_ATTEMPTS, SESSION_ATTEMPTS_LABEL, SESSION_ATTEMPTS_LINE, SESSION_FIELD_LABEL, SESSION_ILLUSTRATION_LABEL,
+  EMPTY_SESSION_RECORD, SESSION_ATTEMPTS, SESSION_ATTEMPTS_LABEL, SESSION_ATTEMPTS_LINE, SESSION_FIELD_LABEL, SESSION_ILLUSTRATION_LABEL, SESSION_TEXT_MAX,
   editSessionPlan, lockSessionPlan, readSessionAgainstDay, readSessionPlan, readStoredSessionRecord, sessionPlanKeyFor, sessionSamplePlan, startNewSessionPlan, storedSessionRecord,
   type JournaledTrade, type SessionAccountContext, type SessionPlanInputs, type SessionPlanRecord,
 } from "@/lib/journal/propSessionPlan";
@@ -75,7 +75,7 @@ export function PropSessionPlanPanel({ storageKey, sample = false, account }: {
   const journaledNet = useMemo(() => (sample ? null : readSessionAgainstDay(rec, trades, marketDayKey(), account).dayNetCents), [sample, rec, trades, account]);
   const usesJournal = journaledNet !== null && journaledNet < (p.netTodayCents ?? 0);
   const plan = useMemo(() => readSessionPlan(usesJournal ? { ...p, netTodayCents: journaledNet } : p, account), [p, account, usesJournal, journaledNet]);
-  const entered = p.symbol.trim() !== "" || p.stopTicks !== null || p.riskPerTradeCents !== null || p.dailyLossLimitCents !== null;
+  const entered = p.setup.trim() !== "" || p.symbol.trim() !== "" || p.stopTicks !== null || p.riskPerTradeCents !== null || p.dailyLossLimitCents !== null;
   const summary = plan.status === "SIZED"
     ? `${plan.contracts} ${plan.root} · ${formatCents(plan.tradeRiskCents)} a trade · ${SESSION_ATTEMPTS_LABEL[plan.attempts].toLowerCase()}`
     : entered ? "not sized yet" : "not entered";
@@ -85,8 +85,12 @@ export function PropSessionPlanPanel({ storageKey, sample = false, account }: {
     <div data-testid="prop-session" data-verdict={plan.status === "SIZED" ? plan.verdict : "NOT_SIZED"}
       style={{ border: `1px solid ${LINE}`, borderRadius: 10, background: "rgba(11,11,13,0.9)", padding: 12, display: "grid", gap: 10 }}>
       <span style={{ fontSize: 11, letterSpacing: 1, color: GOLD, fontWeight: 800 }}>TODAY&apos;S RISK PLAN · sized against the rules above</span>
-      <Fold key={`session-${loaded}`} id="session" title="Instrument, stop and risk" summary={summary} startOpen={entered}>
+      <Fold key={`session-${loaded}`} id="session" title="Setup, stop and risk" summary={summary} startOpen={entered}>
         <div style={GRID}>
+          <label style={{ ...LABEL, gridColumn: "1 / -1" }}><span>Setup you are waiting for (your words)</span>
+            <input value={p.setup} maxLength={SESSION_TEXT_MAX} data-testid="prop-session-setup" onChange={e => edit({ setup: e.target.value })} style={FIELD} autoComplete="off" /></label>
+          <label style={{ ...LABEL, gridColumn: "1 / -1" }}><span>Where the idea is wrong (invalidation)</span>
+            <input value={p.invalidation} maxLength={SESSION_TEXT_MAX} data-testid="prop-session-invalidation" onChange={e => edit({ invalidation: e.target.value })} style={FIELD} autoComplete="off" /></label>
           <label style={LABEL}><span>Instrument (e.g. MNQ1!, /MES)</span>
             <input value={p.symbol} maxLength={16} data-testid="prop-session-symbol" onChange={e => edit({ symbol: e.target.value.toUpperCase() })} style={FIELD} autoComplete="off" /></label>
           <label style={LABEL}><span>Stop distance in ticks</span>

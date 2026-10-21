@@ -85,6 +85,11 @@ export function PropEvaluationTodayView({ stored, sessionPlan = null }: { readon
           </React.Fragment>
         ))}
       </dl>
+      {sessionPlan && sessionPlan.plan.setup.trim() ? (
+        <p data-testid="prop-today-setup" style={{ margin: "8px 0 0", fontSize: 13, overflowWrap: "anywhere" }}>
+          <span style={{ color: MUTED }}>Waiting for:</span> {sessionPlan.plan.setup} · <span style={{ color: MUTED }}>wrong if:</span> {sessionPlan.plan.invalidation.trim() || "not written yet"}
+        </p>
+      ) : null}
       <p data-testid="prop-today-rules" style={{ margin: "10px 0 0", fontSize: 13, fontWeight: 600 }}>{PROP_TODAY_RULES_LINE}</p>
       <p style={{ margin: "6px 0 0", fontSize: 12, color: MUTED }}>
         Kept on this device only. Your prep checklist on this page holds the levels (support, resistance, VWAP, POC), the opening range and the order-flow read. <Link href="/journal" style={{ color: GOLD }}>Open the desk →</Link>
