@@ -6,7 +6,8 @@ import { describe, expect, it } from "vitest";
 
 import { instrumentEconomics } from "@/lib/marketData/contractEconomics";
 import {
-  EMPTY_SESSION_PLAN, SESSION_PLAN_STORAGE_KIND, readSessionPlan, readStoredSessionPlan,
+  EMPTY_SESSION_PLAN, EMPTY_SESSION_RECORD, SESSION_PLAN_STORAGE_KIND, editSessionPlan, lockSessionPlan, readSessionPlan, readStoredSessionPlan,
+  readStoredSessionRecord, startNewSessionPlan, storedSessionRecord,
   type SessionAccountContext, type SessionPlanInputs,
 } from "./propSessionPlan";
 
@@ -133,9 +134,57 @@ describe("device storage", () => {
   it("round-trips a stored plan and refuses anything malformed", () => {
     const p = plan({ attempts: 2, dailyLossLimitCents: 50_000, netTodayCents: -1_250, maxTradesPerDay: 3 });
     expect(readStoredSessionPlan(JSON.parse(JSON.stringify({ kind: SESSION_PLAN_STORAGE_KIND, version: 1, plan: p })))).toEqual(p);
-    expect(readStoredSessionPlan({ kind: SESSION_PLAN_STORAGE_KIND, version: 2, plan: p })).toBeNull();
+    expect(readStoredSessionPlan({ kind: SESSION_PLAN_STORAGE_KIND, version: 3, plan: p })).toBeNull();
     expect(readStoredSessionPlan("nope")).toBeNull();
     expect(readStoredSessionPlan({ kind: SESSION_PLAN_STORAGE_KIND, version: 1, plan: { ...p, attempts: 9, stopTicks: "40" } }))
       .toMatchObject({ attempts: 1, stopTicks: null });
+  });
+});
+
+describe("lock the plan before the session", () => {
+  const T0 = Date.UTC(2026, 9, 21, 13, 30), T1 = T0 + 25 * 60_000;
+  const draft = { ...EMPTY_SESSION_RECORD, plan: plan({ dailyLossLimitCents: 50_000 }) };
+
+  it("edits before the lock are a draft — no amendment", () => {
+    const r = editSessionPlan(draft, { stopTicks: 30 }, T0);
+    expect(r.plan.stopTicks).toBe(30);
+    expect(r.amendments).toEqual([]);
+    expect(r.lockedAtMs).toBeNull();
+  });
+
+  it("the locked plan is kept; a change after the lock is appended, never written over it", () => {
+    const locked = lockSessionPlan(draft, T0);
+    expect(locked.lockedAtMs).toBe(T0);
+    expect(locked.lockedPlan).toEqual(draft.plan);
+    const r = editSessionPlan(locked, { attempts: 2, riskPerTradeCents: 20_000 }, T1);
+    expect(r.plan.attempts).toBe(2);
+    expect(r.lockedPlan?.attempts).toBe(1);
+    expect(r.amendments).toEqual([
+      { at: T1, field: "attempts", from: "One and done", to: "Two attempts" },
+      { at: T1, field: "riskPerTradeCents", from: "$150.00", to: "$200.00" },
+    ]);
+    // Locking again does not move the lock or clear the trail.
+    expect(lockSessionPlan(r, T1 + 1)).toBe(r);
+  });
+
+  it("today's running result is a fact of the day, not a change of plan", () => {
+    const r = editSessionPlan(lockSessionPlan(draft, T0), { netTodayCents: -12_500 }, T1);
+    expect(r.plan.netTodayCents).toBe(-12_500);
+    expect(r.amendments).toEqual([]);
+  });
+
+  it("a new day keeps the settings as a draft and clears the lock, the trail and today's result", () => {
+    const r = startNewSessionPlan(editSessionPlan(lockSessionPlan(draft, T0), { attempts: 3, netTodayCents: -500 }, T1));
+    expect(r).toMatchObject({ lockedAtMs: null, lockedPlan: null, amendments: [] });
+    expect(r.plan.attempts).toBe(3);
+    expect(r.plan.netTodayCents).toBe(0);
+  });
+
+  it("storage keeps the lock and trail (v2) and still reads a v1 plan; a trail without its lock is dropped", () => {
+    const r = editSessionPlan(lockSessionPlan(draft, T0), { attempts: 2 }, T1);
+    expect(readStoredSessionRecord(JSON.parse(JSON.stringify(storedSessionRecord(r))))).toEqual(r);
+    expect(readStoredSessionRecord({ kind: SESSION_PLAN_STORAGE_KIND, version: 1, plan: draft.plan })).toEqual(draft);
+    const torn = { ...storedSessionRecord(r), lockedPlan: null };
+    expect(readStoredSessionRecord(torn)).toMatchObject({ lockedAtMs: null, amendments: [] });
   });
 });

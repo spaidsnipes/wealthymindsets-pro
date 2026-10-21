@@ -27,7 +27,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useBrokerAudience } from "@/lib/broker/useBrokerAudience";
 import { memberKeyOf } from "@/lib/journal/managementOwner";
 import { formatCents, pct, PROP_UNVERIFIED, readPropEvaluation, readPropStored, type Known, type PropStored } from "@/lib/journal/propEvaluation";
-import { readSessionPlan, readStoredSessionPlan, sessionPlanKeyFor, SESSION_ATTEMPTS_LABEL, type SessionPlanInputs } from "@/lib/journal/propSessionPlan";
+import { readSessionPlan, readStoredSessionRecord, sessionPlanKeyFor, SESSION_ATTEMPTS_LABEL, type SessionPlanRecord } from "@/lib/journal/propSessionPlan";
 
 export const PROP_TODAY_RULES_LINE = "These are the rules, not a target for today. No trade is required." as const;
 export const PROP_TODAY_EMPTY_LINE = "No evaluation entered — open the Journal's desk." as const;
@@ -44,7 +44,7 @@ export function propDeskHasEntry(s: PropStored | null): boolean {
 }
 
 /** The card itself — pure (the stored record in, markup out). */
-export function PropEvaluationTodayView({ stored, sessionPlan = null }: { readonly stored: PropStored | null; readonly sessionPlan?: SessionPlanInputs | null }): React.ReactElement {
+export function PropEvaluationTodayView({ stored, sessionPlan = null }: { readonly stored: PropStored | null; readonly sessionPlan?: SessionPlanRecord | null }): React.ReactElement {
   const box = { border: `1px solid ${LINE}`, borderRadius: 12, padding: "12px 14px", background: "rgba(212,175,55,0.04)", color: INK } as const;
   if (!propDeskHasEntry(stored)) {
     return (
@@ -66,11 +66,12 @@ export function PropEvaluationTodayView({ stored, sessionPlan = null }: { readon
     ["Drawdown headroom", say(r.drawdownHeadroomCents, formatCents), "prop-today-headroom"],
   ];
   // The Journal's risk plan, read through its own engine against the same account reading — never a copy.
-  const plan = sessionPlan ? readSessionPlan(sessionPlan, { drawdownHeadroomCents: r.drawdownHeadroomCents, contractLimit: x.contractLimit, verified: r.verified }) : null;
+  const plan = sessionPlan ? readSessionPlan(sessionPlan.plan, { drawdownHeadroomCents: r.drawdownHeadroomCents, contractLimit: x.contractLimit, verified: r.verified }) : null;
   if (plan?.status === "SIZED") rows.push(
     ["Risk plan", `${plan.contracts} ${plan.root} · ${SESSION_ATTEMPTS_LABEL[plan.attempts].toLowerCase()}`, "prop-today-plan"],
     ["One trade carries · the day at most", `${formatCents(plan.tradeRiskCents)} · ${formatCents(plan.dayExposureCents)}`, "prop-today-plan-risk"],
     ["Plan against the limits", plan.verdict === "WITHIN_LIMITS" ? "Within the limits entered" : plan.verdict === "BREAKS_A_LIMIT" ? `Breaks ${plan.checks.filter(c => c.state === "BREAKS").length} — open the desk` : "Cannot say yet", "prop-today-plan-verdict"],
+    ["Plan locked", sessionPlan!.lockedAtMs === null ? "Not locked yet — lock it on the desk before the session" : `${when(sessionPlan!.lockedAtMs)}${sessionPlan!.amendments.length ? ` · ${sessionPlan!.amendments.length} change${sessionPlan!.amendments.length === 1 ? "" : "s"} after the lock` : " · as planned"}`, "prop-today-plan-lock"],
   );
   return (
     <section data-testid="prop-today" data-state={x.verifiedAtMs !== null ? "VERIFIED" : "UNVERIFIED"} aria-label="Prop evaluation today" style={box}>
@@ -97,13 +98,13 @@ export function PropEvaluationToday(): React.ReactElement | null {
   const { user } = useAuth();
   const audience = useBrokerAudience();
   const [stored, setStored] = useState<PropStored | null | undefined>(undefined);
-  const [sessionPlan, setSessionPlan] = useState<SessionPlanInputs | null>(null);
+  const [sessionPlan, setSessionPlan] = useState<SessionPlanRecord | null>(null);
   useEffect(() => {
     if (audience !== "OWNER" || !user?.id) { setStored(undefined); return; }
     const deskKey = memberKeyOf(PROP_EVALUATION_BASE_KEY, user.id);
     try { setStored(readPropStored(JSON.parse(window.localStorage.getItem(deskKey) ?? "null"))); }
     catch { setStored(null); }
-    try { setSessionPlan(readStoredSessionPlan(JSON.parse(window.localStorage.getItem(sessionPlanKeyFor(deskKey)) ?? "null"))); }
+    try { setSessionPlan(readStoredSessionRecord(JSON.parse(window.localStorage.getItem(sessionPlanKeyFor(deskKey)) ?? "null"))); }
     catch { setSessionPlan(null); }
   }, [audience, user?.id]);
   if (audience !== "OWNER" || !user?.id || stored === undefined) return null;

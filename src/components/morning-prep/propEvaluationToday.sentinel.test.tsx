@@ -111,10 +111,11 @@ describe("the Journal's risk plan on the card (2026-10-21)", () => {
     const r = readPropEvaluation(x);
     const p = readSessionPlan(sessionSamplePlan(), { drawdownHeadroomCents: r.drawdownHeadroomCents, contractLimit: x.contractLimit, verified: r.verified });
     if (p.status !== "SIZED") throw new Error(p.why);
-    const t = text(renderToStaticMarkup(<PropEvaluationTodayView stored={stored(x)} sessionPlan={sessionSamplePlan()} />));
+    const t = text(renderToStaticMarkup(<PropEvaluationTodayView stored={stored(x)} sessionPlan={{ plan: sessionSamplePlan(), lockedAtMs: null, lockedPlan: null, amendments: [] }} />));
     expect(t).toContain(`Risk plan ${p.contracts} ${p.root} · one and done`);
     expect(t).toContain(`One trade carries · the day at most ${formatCents(p.tradeRiskCents)} · ${formatCents(p.dayExposureCents)}`);
     expect(t).toContain("Plan against the limits Cannot say yet");
+    expect(t).toContain("Plan locked Not locked yet — lock it on the desk before the session");
     expect(t).not.toMatch(/\b(make|earn|aim for|go for|need)\b[^.]{0,40}\$\d/i);
     expect(t).not.toMatch(/\$[\d,.]+ today/i);
   });
@@ -124,7 +125,7 @@ describe("the Journal's risk plan on the card (2026-10-21)", () => {
   it("the door reads the plan beside the desk's own key and still writes nothing", () => {
     const src = read("components/morning-prep/PropEvaluationToday.tsx");
     expect(src).toContain("sessionPlanKeyFor(deskKey)");
-    expect(src).toContain("readStoredSessionPlan(");
+    expect(src).toContain("readStoredSessionRecord(");
     expect(src).not.toMatch(/setItem|removeItem/);
   });
 });

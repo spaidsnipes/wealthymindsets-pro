@@ -16,8 +16,9 @@ import { AMBER, BTN, FIELD, Fact, Fold, GOLD, GREEN, GRID, INK, LABEL, LINE, MUT
 import { proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { formatCents } from "@/lib/journal/propEvaluation";
 import {
-  EMPTY_SESSION_PLAN, SESSION_ATTEMPTS, SESSION_ATTEMPTS_LABEL, SESSION_ATTEMPTS_LINE, SESSION_ILLUSTRATION_LABEL, SESSION_PLAN_STORAGE_KIND,
-  readSessionPlan, readStoredSessionPlan, sessionPlanKeyFor, sessionSamplePlan, type SessionAccountContext, type SessionPlanInputs,
+  EMPTY_SESSION_RECORD, SESSION_ATTEMPTS, SESSION_ATTEMPTS_LABEL, SESSION_ATTEMPTS_LINE, SESSION_FIELD_LABEL, SESSION_ILLUSTRATION_LABEL,
+  editSessionPlan, lockSessionPlan, readSessionPlan, readStoredSessionRecord, sessionPlanKeyFor, sessionSamplePlan, startNewSessionPlan, storedSessionRecord,
+  type SessionAccountContext, type SessionPlanInputs, type SessionPlanRecord,
 } from "@/lib/journal/propSessionPlan";
 
 const wholeOrNull = (v: string, prev: number | null): number | null => {
@@ -31,22 +32,24 @@ export function PropSessionPlanPanel({ storageKey, sample = false, account }: {
   readonly sample?: boolean;
   readonly account: SessionAccountContext;
 }): React.ReactElement {
-  const [p, setP] = useState<SessionPlanInputs>(sample ? sessionSamplePlan() : EMPTY_SESSION_PLAN);
+  const [rec, setRec] = useState<SessionPlanRecord>(sample ? { ...EMPTY_SESSION_RECORD, plan: sessionSamplePlan() } : EMPTY_SESSION_RECORD);
+  const p = rec.plan;
   const [loaded, setLoaded] = useState(sample);
   const key = storageKey ? sessionPlanKeyFor(storageKey) : null;
   useEffect(() => {
     if (sample) return;
-    let stored: SessionPlanInputs | null = null;
-    try { stored = key ? readStoredSessionPlan(JSON.parse(window.localStorage.getItem(key) ?? "null")) : null; } catch { stored = null; }
-    setP(stored ?? EMPTY_SESSION_PLAN);
+    let stored: SessionPlanRecord | null = null;
+    try { stored = key ? readStoredSessionRecord(JSON.parse(window.localStorage.getItem(key) ?? "null")) : null; } catch { stored = null; }
+    setRec(stored ?? EMPTY_SESSION_RECORD);
     setLoaded(true);
   }, [key, sample]);
   useEffect(() => {
     if (sample || !loaded || !key || proofSceneHoldsWrites()) return;
-    try { window.localStorage.setItem(key, JSON.stringify({ kind: SESSION_PLAN_STORAGE_KIND, version: 1, plan: p })); } catch { /* blocked: the plan still works for this visit */ }
-  }, [p, loaded, key, sample]);
+    try { window.localStorage.setItem(key, JSON.stringify(storedSessionRecord(rec))); } catch { /* blocked: the plan still works for this visit */ }
+  }, [rec, loaded, key, sample]);
 
-  const edit = (patch: Partial<SessionPlanInputs>) => setP(prev => ({ ...prev, ...patch }));
+  const edit = (patch: Partial<SessionPlanInputs>) => setRec(prev => editSessionPlan(prev, patch, Date.now()));
+  const lockedAt = rec.lockedAtMs === null ? null : new Date(rec.lockedAtMs).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
   const plan = useMemo(() => readSessionPlan(p, account), [p, account]);
   const entered = p.symbol.trim() !== "" || p.stopTicks !== null || p.riskPerTradeCents !== null || p.dailyLossLimitCents !== null;
   const summary = plan.status === "SIZED"
@@ -105,6 +108,31 @@ export function PropSessionPlanPanel({ storageKey, sample = false, account }: {
       ) : (
         <span data-testid="prop-session-why" style={{ fontSize: 12, color: MUTED, overflowWrap: "anywhere" }}>{plan.why}</span>
       )}
+      {/* Lock before the bell: the plan as locked is kept; later changes are listed, never written over it. */}
+      {plan.status === "SIZED" && rec.lockedAtMs === null ? (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+          <button type="button" data-testid="prop-session-lock" disabled={sample} onClick={() => setRec(prev => lockSessionPlan(prev, Date.now()))}
+            style={{ ...BTN, opacity: sample ? 0.5 : 1 }}>Lock plan before the session</button>
+          <span style={{ fontSize: 11, color: MUTED }}>Locking keeps this plan as it is now. You can still change it later; each change is listed beside the lock.</span>
+        </div>
+      ) : null}
+      {rec.lockedAtMs !== null ? (
+        <div data-testid="prop-session-locked" data-amendments={rec.amendments.length} style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: 8, display: "grid", gap: 4 }}>
+          <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.6, color: rec.amendments.length ? AMBER : GREEN }}>
+            LOCKED {lockedAt}{rec.amendments.length ? ` · ${rec.amendments.length} change${rec.amendments.length === 1 ? "" : "s"} after the lock` : " · as planned"}
+          </span>
+          {rec.amendments.length ? (
+            <ul style={{ margin: 0, paddingLeft: 16, display: "grid", gap: 2 }}>
+              {rec.amendments.map((a, i) => (
+                <li key={i} data-testid="prop-session-amendment" style={{ fontSize: 11, color: INK, overflowWrap: "anywhere" }}>
+                  {new Date(a.at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })} · {SESSION_FIELD_LABEL[a.field]}: {a.from} → {a.to}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <button type="button" data-testid="prop-session-new-day" onClick={() => setRec(prev => startNewSessionPlan(prev))} style={{ ...BTN, justifySelf: "start" }}>Start a new day&apos;s plan</button>
+        </div>
+      ) : null}
       <p role="status" data-testid="prop-session-verdict" style={{ margin: 0, fontSize: 13, fontWeight: 700, color: tone, overflowWrap: "anywhere" }}>
         {plan.status === "SIZED" ? plan.verdictLine : "No plan sized yet."}
       </p>

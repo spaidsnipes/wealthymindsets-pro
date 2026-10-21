@@ -204,15 +204,63 @@ export function readSessionPlan(x: SessionPlanInputs, account: SessionAccountCon
   };
 }
 
-/** Storage (this device only, beside the desk record). Anything malformed reads as nothing. */
+// ── LOCK BEFORE THE SESSION (Megazord §6: "lock plan before outcome") ──────────────────────────────────
+// The trader locks the plan before the bell. The locked plan is kept as it was; any later change is still
+// allowed (it is the trader's account) but is APPENDED as a dated amendment, never written over the lock.
+// Review compares the day with the plan as locked, and sees every change made after it.
+
+export interface SessionPlanAmendment {
+  readonly at: number;
+  readonly field: keyof SessionPlanInputs;
+  readonly from: string;
+  readonly to: string;
+}
+export interface SessionPlanRecord {
+  readonly plan: SessionPlanInputs;
+  readonly lockedAtMs: number | null;
+  /** The plan exactly as it stood when locked. */
+  readonly lockedPlan: SessionPlanInputs | null;
+  readonly amendments: readonly SessionPlanAmendment[];
+}
+export const EMPTY_SESSION_RECORD: SessionPlanRecord = { plan: EMPTY_SESSION_PLAN, lockedAtMs: null, lockedPlan: null, amendments: [] };
+
+export const SESSION_FIELD_LABEL: Readonly<Record<keyof SessionPlanInputs, string>> = {
+  symbol: "Instrument", stopTicks: "Stop (ticks)", riskPerTradeCents: "Risk per trade", feesPerContractCents: "Fees per contract",
+  dailyLossLimitCents: "Daily loss limit", netTodayCents: "Today's result", attempts: "Attempts", maxTradesPerDay: "Maximum trades",
+};
+const fieldWords = (field: keyof SessionPlanInputs, v: unknown): string => {
+  if (v === null || v === undefined || v === "") return "—";
+  if (field === "attempts") return SESSION_ATTEMPTS_LABEL[v as SessionAttempts] ?? String(v);
+  if (field.endsWith("Cents")) return formatCents(v as Cents);
+  return String(v);
+};
+
+export function lockSessionPlan(r: SessionPlanRecord, nowMs: number): SessionPlanRecord {
+  return r.lockedAtMs !== null ? r : { ...r, lockedAtMs: nowMs, lockedPlan: r.plan, amendments: [] };
+}
+
+/** Edit the plan. Before the lock it is a draft; after the lock every changed field is appended as an amendment. */
+export function editSessionPlan(r: SessionPlanRecord, patch: Partial<SessionPlanInputs>, nowMs: number): SessionPlanRecord {
+  const plan = { ...r.plan, ...patch };
+  if (r.lockedAtMs === null) return { ...r, plan };
+  // Today's running result is a fact of the day, not a change of plan: it is updated without an amendment.
+  const changed = (Object.keys(patch) as (keyof SessionPlanInputs)[]).filter(k => k !== "netTodayCents" && patch[k] !== r.plan[k]);
+  const amendments = [...r.amendments, ...changed.map(field => ({ at: nowMs, field, from: fieldWords(field, r.plan[field]), to: fieldWords(field, plan[field]) }))];
+  return { ...r, plan, amendments };
+}
+
+/** A new day: keep the trader's settings as a draft, clear the lock and its amendments, and zero today's result. */
+export function startNewSessionPlan(r: SessionPlanRecord): SessionPlanRecord {
+  return { plan: { ...r.plan, netTodayCents: 0 }, lockedAtMs: null, lockedPlan: null, amendments: [] };
+}
+
+/** Storage (this device only, beside the desk record). Anything malformed reads as nothing. v1 had no lock. */
 export const SESSION_PLAN_STORAGE_KIND = "WM_PROP_SESSION_PLAN" as const;
 /** The plan is kept beside the desk's own owner-scoped record. */
 export const sessionPlanKeyFor = (deskKey: string): string => `${deskKey}:session-plan`;
-export function readStoredSessionPlan(raw: unknown): SessionPlanInputs | null {
+function readPlanFields(raw: unknown): SessionPlanInputs | null {
   if (!raw || typeof raw !== "object") return null;
-  const r = raw as Record<string, unknown>;
-  if (r.kind !== SESSION_PLAN_STORAGE_KIND || r.version !== 1 || !r.plan || typeof r.plan !== "object") return null;
-  const p = r.plan as Record<string, unknown>;
+  const p = raw as Record<string, unknown>;
   const int = (v: unknown) => (typeof v === "number" && Number.isInteger(v) ? v : null);
   const attempts = SESSION_ATTEMPTS.find(a => a === p.attempts) ?? 1;
   return {
@@ -220,6 +268,25 @@ export function readStoredSessionPlan(raw: unknown): SessionPlanInputs | null {
     stopTicks: int(p.stopTicks), riskPerTradeCents: int(p.riskPerTradeCents), feesPerContractCents: int(p.feesPerContractCents),
     dailyLossLimitCents: int(p.dailyLossLimitCents), netTodayCents: int(p.netTodayCents), attempts, maxTradesPerDay: int(p.maxTradesPerDay),
   };
+}
+export function readStoredSessionRecord(raw: unknown): SessionPlanRecord | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  if (r.kind !== SESSION_PLAN_STORAGE_KIND || (r.version !== 1 && r.version !== 2)) return null;
+  const plan = readPlanFields(r.plan);
+  if (!plan) return null;
+  if (r.version === 1) return { ...EMPTY_SESSION_RECORD, plan };
+  const lockedAtMs = typeof r.lockedAtMs === "number" && Number.isFinite(r.lockedAtMs) ? r.lockedAtMs : null;
+  const lockedPlan = lockedAtMs === null ? null : readPlanFields(r.lockedPlan);
+  const amendments = lockedPlan && Array.isArray(r.amendments)
+    ? r.amendments.filter((a): a is SessionPlanAmendment => !!a && typeof a.at === "number" && typeof a.field === "string" && a.field in SESSION_FIELD_LABEL && typeof a.from === "string" && typeof a.to === "string").slice(0, 200)
+    : [];
+  return { plan, lockedAtMs: lockedPlan ? lockedAtMs : null, lockedPlan, amendments };
+}
+export const storedSessionRecord = (r: SessionPlanRecord) => ({ kind: SESSION_PLAN_STORAGE_KIND, version: 2 as const, ...r });
+/** v1 reader kept for callers that only want today's plan. */
+export function readStoredSessionPlan(raw: unknown): SessionPlanInputs | null {
+  return readStoredSessionRecord(raw)?.plan ?? null;
 }
 
 /** The sample desk's plan — SYNTHETIC, no one's account; shown only under the SAMPLE ACCOUNT banner. */
