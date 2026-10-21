@@ -206,6 +206,8 @@ export function readSessionPlan(x: SessionPlanInputs, account: SessionAccountCon
 
 /** Storage (this device only, beside the desk record). Anything malformed reads as nothing. */
 export const SESSION_PLAN_STORAGE_KIND = "WM_PROP_SESSION_PLAN" as const;
+/** The plan is kept beside the desk's own owner-scoped record. */
+export const sessionPlanKeyFor = (deskKey: string): string => `${deskKey}:session-plan`;
 export function readStoredSessionPlan(raw: unknown): SessionPlanInputs | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;

@@ -17,10 +17,8 @@ import { proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { formatCents } from "@/lib/journal/propEvaluation";
 import {
   EMPTY_SESSION_PLAN, SESSION_ATTEMPTS, SESSION_ATTEMPTS_LABEL, SESSION_ATTEMPTS_LINE, SESSION_ILLUSTRATION_LABEL, SESSION_PLAN_STORAGE_KIND,
-  readSessionPlan, readStoredSessionPlan, sessionSamplePlan, type SessionAccountContext, type SessionPlanInputs,
+  readSessionPlan, readStoredSessionPlan, sessionPlanKeyFor, sessionSamplePlan, type SessionAccountContext, type SessionPlanInputs,
 } from "@/lib/journal/propSessionPlan";
-
-export const sessionPlanKeyFor = (deskKey: string) => `${deskKey}:session-plan`;
 
 const wholeOrNull = (v: string, prev: number | null): number | null => {
   const t = v.trim();
