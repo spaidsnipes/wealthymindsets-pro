@@ -482,12 +482,12 @@ describe("responsive P0 command surfaces", () => {
   it("fails Lounge into one calm runtime-truth canvas instead of crashing or rendering empty rails", () => {
     const lounge = source("../app/lounge/page.tsx");
     expect(lounge).toContain('data-lounge-runtime="not-configured"');
-    expect(lounge).toContain("Lounge is not configured on this runtime");
+    expect(lounge).toContain("WOW Lounge is not configured on this runtime");
     expect(lounge).toContain("No community records were requested");
     // 2026-10-03: the lounge reads through /api/lounge, so the unavailable
     // canvas names the SERVER's answer (not configured / no tables / no
     // answer) rather than browser env names it no longer reads.
-    expect(lounge).toContain("Lounge has no community store yet");
+    expect(lounge).toContain("WOW Lounge has no community store yet");
     expect(lounge.indexOf('if (storeState !== "OK" && storeState !== "LOADING") {')).toBeLessThan(lounge.indexOf('aria-label="Open community tools"'));
   });
 

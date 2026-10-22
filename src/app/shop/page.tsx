@@ -211,7 +211,7 @@ export default function ShopPage() {
             color: "#c9a55c", textTransform: "uppercase", fontWeight: 400,
           }}
         >
-          WM
+          WOW
         </span>
         <div style={{ width: 1, height: 16, background: "rgba(139,106,41,0.35)" }} aria-hidden="true" />
         <h1
@@ -221,7 +221,7 @@ export default function ShopPage() {
             letterSpacing: -0.1, margin: 0,
           }}
         >
-          Shop
+          WOW Shop
         </h1>
         <span style={{ fontSize: 10, color: "#8a8271", fontStyle: "italic" }}>
           Books · art · beauty · music · tools · culture

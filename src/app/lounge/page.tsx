@@ -903,9 +903,9 @@ export default function LoungePage() {
         >
           <p className="text-[10px] font-black uppercase tracking-[0.24em] text-wm-gold">Community connection</p>
           <h1 className="mt-3 text-xl font-black text-wm-text">
-            {storeState === "NOT_CONFIGURED" ? "Lounge is not configured on this runtime"
-              : storeState === "TABLE_MISSING" ? "Lounge has no community store yet"
-              : "Lounge could not be reached"}
+            {storeState === "NOT_CONFIGURED" ? "WOW Lounge is not configured on this runtime"
+              : storeState === "TABLE_MISSING" ? "WOW Lounge has no community store yet"
+              : "WOW Lounge could not be reached"}
           </h1>
           <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-wm-text-muted">
             No community records were requested, and no empty feed is being inferred.{" "}
