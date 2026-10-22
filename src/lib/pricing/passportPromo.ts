@@ -3,8 +3,8 @@
  * half off until the promotion ends, then the standard price.
  *
  * The end date is configuration, not code: NEXT_PUBLIC_PASSPORT_PROMO_ENDS
- * (ISO date, e.g. "2026-12-31"). Unset → the offer runs "for a limited time"
- * with no invented deadline. On or after the end date the offer disappears
+ * (ISO date, e.g. "2026-12-31"). Unset → the offer is stated with no end at all: an
+ * open-ended "for a limited time" reads as fake urgency (Founder ship order, 2026-10-21). On or after the end date the offer disappears
  * by itself. Display only: billing is not connected to WM Pro yet, so this
  * never charges, discounts or grants anything.
  */
@@ -18,7 +18,7 @@ export type PassportPromo =
 export function passportPromo(endsIso: string | undefined | null, nowMs: number = Date.now()): PassportPromo {
   const raw = endsIso?.trim();
   if (!raw) {
-    return { active: true, firstMonth: PASSPORT_PROMO_FIRST_MONTH, thenMonthly: PASSPORT_STANDARD_MONTHLY, endsLabel: "for a limited time" };
+    return { active: true, firstMonth: PASSPORT_PROMO_FIRST_MONTH, thenMonthly: PASSPORT_STANDARD_MONTHLY, endsLabel: "" };
   }
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
   if (!m) return { active: false }; // a malformed date never extends an offer
@@ -32,5 +32,7 @@ export function passportPromo(endsIso: string | undefined | null, nowMs: number 
 
 export function passportPromoLine(p: PassportPromo): string | null {
   if (!p.active) return null;
-  return `Intro offer: your first month is $${p.firstMonth} (half off), ${p.endsLabel} — then $${p.thenMonthly}/month.`;
+  return p.endsLabel
+    ? `Intro offer: your first month is $${p.firstMonth} (half off), ${p.endsLabel} — then $${p.thenMonthly}/month.`
+    : `Intro offer: your first month is $${p.firstMonth} (half off), then $${p.thenMonthly}/month.`;
 }

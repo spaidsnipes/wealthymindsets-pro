@@ -5,8 +5,8 @@ import { passportPromo, passportPromoLine } from "./passportPromo";
 
 describe("Passport intro offer — first month half off until the promotion ends", () => {
   const now = Date.UTC(2026, 9, 6, 12);
-  it("unset end date → limited time, no invented deadline", () => {
-    expect(passportPromoLine(passportPromo(undefined, now))).toBe("Intro offer: your first month is $10 (half off), for a limited time — then $20/month.");
+  it("unset end date → no deadline and no open-ended 'limited time'", () => {
+    expect(passportPromoLine(passportPromo(undefined, now))).toBe("Intro offer: your first month is $10 (half off), then $20/month.");
   });
   it("runs through the stated day, then disappears", () => {
     expect(passportPromoLine(passportPromo("2026-10-31", now))).toBe("Intro offer: your first month is $10 (half off), through October 31, 2026 — then $20/month.");
