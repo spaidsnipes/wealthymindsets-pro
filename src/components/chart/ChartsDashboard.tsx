@@ -91,6 +91,7 @@ import { WatchlistPanel } from "./WatchlistPanel";
 import { AlertsPanel, type PriceAlert } from "./AlertsPanel";
 import { ChartSettingsModal, type ChartSettings, DEFAULT_CHART_SETTINGS } from "./ChartSettingsModal";
 import { ToolStylePopover, type ToolStyleTarget } from "./ToolStylePopover";
+import { liftNeonRoom, NEON_ROOM, traderEdit } from "@/lib/chart/chartSettingsEdit";
 import { deliverChartDraftPrice, useChartLineModifyAsk } from "@/lib/execution/chartOrderLines";
 import {
   CANDLE_DOWN_DEFAULT,
@@ -1276,8 +1277,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     // trader's canvas. See `lib/chart/marketFieldMaterial.ts`.
     () => ({
       ...DEFAULT_CHART_SETTINGS,
+      // liftNeonRoom: a colour change made in WM Neon used to store the neon room as the trader's own
+      // field, so the chart stayed dark in Original (lib/chart/chartSettingsEdit.ts).
       ...(migrateMarketField(
-        lsGet<Partial<ChartSettings>>("wm_chartSettings", {}),
+        liftNeonRoom(lsGet<Partial<ChartSettings>>("wm_chartSettings", {})),
       ) as Partial<ChartSettings>),
     }),
   );
@@ -1358,13 +1361,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // Display mode owns the room material, never the market-direction channels.
   // A trader's palette remains visible in both Original and WM Neon.
   return theme === "neon"
-    ? {
-        ...paletteChartSettings,
-        background: "#02060A",
-        gridColor: "rgba(47,243,255,0.07)",
-        crosshairColor: "#2ff3ff",
-        neon: true,
-      }
+    ? { ...paletteChartSettings, ...NEON_ROOM }
     : paletteChartSettings;
   }, [chartSettings, chartThemeKey, theme]);
 
@@ -1379,18 +1376,17 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       return;
     }
 
-    const candleKeys: Array<keyof ChartSettings> = [
-      "candleUp", "candleDown", "wickUp", "wickDown", "borderUp", "borderDown",
-    ];
-    const candlePaintChanged = candleKeys.some(key => next[key] !== effChartSettings[key]);
-    setChartSettings(next);
+    // `next` is the SHOWN settings edited (candle theme and WM Neon laid over the trader's own). Store only
+    // what the trader changed: storing `next` whole kept the neon room after one colour change.
+    const { settings, candlePaintChanged } = traderEdit(chartSettings, effChartSettings, next);
+    setChartSettings(settings);
     if (!candlePaintChanged) return;
 
     // A deliberate swatch choice becomes the active palette immediately.
     // Without this handoff, the app-wide preset silently overpainted the
     // trader's six candle channels and the picker appeared to do nothing.
     setAppSettings(writeAppSettings({ chartTheme: "custom" }));
-  }, [effChartSettings]);
+  }, [chartSettings, effChartSettings]);
 
   // ── NEW: Layout ─────────────────────────────────────────────
   const [chartLayout, setChartLayout] = useState<ChartLayout>(() => lsGet("wm_chartLayout", "1") as ChartLayout);

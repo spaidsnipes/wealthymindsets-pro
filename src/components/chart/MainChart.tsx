@@ -24998,8 +24998,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // CODEX PLATE 14 · Structure Profile "distribution anchored to swing": the rows wear the leg's
                 // position ramp — the top of the leg blue, through green and gold, to red at its foot (grey rows
                 // read as one more haze, serving NQ1! 15m Oct 16). POC stays brass. The ink owner holds the ramp.
+                // A colour the trader chose for Structure (its gear) wears the rows; at rest the ramp does
+                // (Founder 2026-10-22: the picker must change the profile it names).
                 const legT = bot > top ? (y - top) / (bot - top) : 0.5;
-                const legRgb = tpoPlateRamp(legT);
+                const legRgb = pk.chosen.VALUE ? pk.rgb("VALUE") : tpoPlateRamp(legT);
                 const rowA = r.insideValueArea ? (narrowGlass ? 0.7 : 0.62) : (narrowGlass ? 0.46 : 0.4);
                 ctx.fillStyle = r.isPoc ? pk.rgba("POC", narrowGlass ? 0.9 : 0.86) : `rgba(${legRgb},${rowA})`;
                 ctx.fillRect(histX, y, w, Math.max(1, rowH - 1));
