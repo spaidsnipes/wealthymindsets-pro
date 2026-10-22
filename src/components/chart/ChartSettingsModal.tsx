@@ -597,7 +597,7 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                   <ColorSwatch value={s.deltaBuy ?? FLOW_COLOR_DEFAULTS.deltaBuy}         onChange={v => set({ deltaBuy: v })}       label="Delta bubble · net buy" />
                   <ColorSwatch value={s.deltaSell ?? FLOW_COLOR_DEFAULTS.deltaSell}       onChange={v => set({ deltaSell: v })}      label="Delta bubble · net sell" />
                   <ColorSwatch value={s.absorptionInk ?? FLOW_COLOR_DEFAULTS.absorptionInk}     onChange={v => set({ absorptionInk: v })}   label="Absorption shelf · words" />
-                  <ColorSwatch value={s.fusedProfileInk ?? FLOW_COLOR_DEFAULTS.fusedProfileInk} onChange={v => set({ fusedProfileInk: v })} label="Fused profile · outline + POC/VA" />
+                  <ColorSwatch value={s.fusedProfileInk ?? FLOW_COLOR_DEFAULTS.fusedProfileInk} onChange={v => set({ fusedProfileInk: v })} label="Fused profile · outline + knots" />
                   <ColorSwatch value={s.fvgBullInk ?? s.deltaBuy ?? FLOW_COLOR_DEFAULTS.fvgBullInk}   onChange={v => set({ fvgBullInk: v })}   label="Fair Value Gap · bullish" />
                   <ColorSwatch value={s.fvgBearInk ?? s.deltaSell ?? FLOW_COLOR_DEFAULTS.fvgBearInk}  onChange={v => set({ fvgBearInk: v })}   label="Fair Value Gap · bearish" />
                   <ColorSwatch value={s.callWallInk ?? FLOW_COLOR_DEFAULTS.callWallInk} onChange={v => set({ callWallInk: v })} label="Call Wall (solid)" />

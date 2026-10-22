@@ -5450,20 +5450,20 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // No histogram point for a placeholder volume (volumeTruth.ts): EURUSD's
       // live 1 was drawn as a full-height bar over a week of 0s (2026-09-26).
       const volReal = volumeTruthFor(symbol, [...prevBars, bar]).real;
+      // The SAME inks the series was built with (the trader's volume colours): the live bar used to repaint
+      // in a hard-coded teal/red, so a chosen volume colour lasted only until the next tick.
+      const volUp   = chartSettings?.neon ? "rgba(0,255,163,0.70)" : volumeInk(chartSettings?.volumeUp, VOLUME_UP_DEFAULT);
+      const volDown = chartSettings?.neon ? "rgba(255,46,99,0.70)"  : volumeInk(chartSettings?.volumeDown, VOLUME_DOWN_DEFAULT);
       // Caught-up closed bars carry their volume too (liveBarFold.ts).
       if (volReal) for (const u of caught.updates) {
         try {
-          volRef.current.update({ time: u.time, value: u.volume, color: u.close >= u.open
-            ? (chartSettings?.neon ? "rgba(0,255,163,0.70)" : "rgba(0,212,170,0.55)")
-            : (chartSettings?.neon ? "rgba(255,46,99,0.70)"  : "rgba(255,77,106,0.55)") } as any);
+          volRef.current.update({ time: u.time, value: u.volume, color: u.close >= u.open ? volUp : volDown } as any);
         } catch { /* series mid-rebuild */ }
       }
       if (volReal) volRef.current.update({
         time:  bar.time,
         value: bar.volume,
-        color: bar.close >= bar.open
-          ? (chartSettings?.neon ? "rgba(0,255,163,0.70)" : "rgba(0,212,170,0.55)")
-          : (chartSettings?.neon ? "rgba(255,46,99,0.70)"  : "rgba(255,77,106,0.55)"),
+        color: bar.close >= bar.open ? volUp : volDown,
       } as any);
     } catch {
       // last-resort: if update still rejects, force the price onto the visible
@@ -5941,6 +5941,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const s = chart.addSeries(LW.HistogramSeries,{ color, priceLineVisible: false, lastValueVisible: false });
         s.setData(bars.map((b, i) => ({ time: b.time as any, value: vals[i] })).filter(d => isFinite(d.value)));
         indSeriesRef.current.push(s);
+        styleInd(s as never);
         return s;
       } catch { return null; }
     };
@@ -6044,6 +6045,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ? { time: b.time as any, value: vals[i], color: "rgba(0,0,0,0)" }
           : { time: b.time as any, value: vals[i] }).filter(d => isFinite(d.value)));
         indSeriesRef.current.push(s);
+        styleInd(s as never);
         return s;
       } catch { return null; }
     };
@@ -6461,8 +6463,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     if (inds.has("Volume")) {
       setupScale("vol_hist", 0.80);
       const volVals = bars.map(b => b.volume);
-      const s = addOscHist(volVals, bars.map(b => b.close >= b.open ? "rgba(0,229,204,0.65)" : "rgba(206,147,216,0.65)"), "vol_hist");
-      regLive(s, (bs) => { const b = bs[bs.length - 1]; return b ? { value: b.volume, color: b.close >= b.open ? "rgba(0,229,204,0.65)" : "rgba(206,147,216,0.65)" } : null; });
+      // Each bar carries its own colour, which outranks a series colour, so the trader's main colour (its gear)
+      // is applied here: up bars in it, down bars in it held back. Unchosen: the shipped teal / violet.
+      const vc = hexToRgbTriplet(indSettings?.Volume?.color || "");
+      const vUp = vc ? `rgba(${vc[0]},${vc[1]},${vc[2]},0.8)` : "rgba(0,229,204,0.65)";
+      const vDn = vc ? `rgba(${vc[0]},${vc[1]},${vc[2]},0.38)` : "rgba(206,147,216,0.65)";
+      const s = addOscHist(volVals, bars.map(b => b.close >= b.open ? vUp : vDn), "vol_hist");
+      regLive(s, (bs) => { const b = bs[bs.length - 1]; return b ? { value: b.volume, color: b.close >= b.open ? vUp : vDn } : null; });
     }
 
     // ── Tape CVD (H-701) — the lawful cumulative delta pane ──────
@@ -9856,7 +9863,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           fpTrailBars.add(Number(c.time));
         }
         const scale = deltaScale(pts.map(p => p.d));
-        const ink = (d: number, a: number) => `rgba(${d >= 0 ? flowColorsRef.current.dBuy : flowColorsRef.current.dSell},${a})`;
+        // The Delta gear's own pair paints the Delta band (it used to reach only the CVD pane); the other
+        // footprint views keep the house delta ink. Both default to the same green / red.
+        const ink = (d: number, a: number) => effectiveFP === "delta"
+          ? (d >= 0 ? buyRgba(a) : sellRgba(a))
+          : `rgba(${d >= 0 ? flowColorsRef.current.dBuy : flowColorsRef.current.dSell},${a})`;
         ctx.save();
         ctx.globalAlpha = att.alpha("footprint");
         if (pts.length && view !== "number") {
@@ -23973,7 +23984,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               */
               const silBars = lp && lp.drawn && dnaAlone.measured && dnaAlone.shape ? lp.bars : [];
               if (silBars.length >= 2) {
-                const ink = DNA_SHAPE_INK[dnaAlone.shape!];
+                // A colour the trader chose for DNA wears the silhouette; at rest its shape's ink does.
+                const dnaPk = pkFamily.species("DNA");
+                const ink = dnaPk.chosen.VALUE ? { ...DNA_SHAPE_INK[dnaAlone.shape!], rgb: dnaPk.rgb("VALUE") } : DNA_SHAPE_INK[dnaAlone.shape!];
                 const sorted = [...silBars].sort((a, b) => a.price - b.price);
                 let step = Infinity;
                 for (let i = 1; i < sorted.length; i++) step = Math.min(step, sorted[i].price - sorted[i - 1].price);
@@ -25538,7 +25551,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     const top = Math.min(+ya, +yb), hh = Math.max(1, Math.abs(+ya - +yb) - (Math.abs(+ya - +yb) > 3 ? 1 : 0));
                     const midP = (r.lo + r.hi) / 2;
                     const inVA = vah1 != null && val1 != null && midP <= vah1 && midP >= val1;
-                    ctx.fillStyle = `rgba(${MEMORY_MASS_RGB},${inVA ? 0.8 : 0.5})`;
+                    // A colour the trader chose for Memory wears its mass; at rest the mass ink does.
+                    ctx.fillStyle = pk.chosen.VALUE ? pk.rgba("VALUE", inVA ? 0.8 : 0.5) : `rgba(${MEMORY_MASS_RGB},${inVA ? 0.8 : 0.5})`;
                     ctx.fillRect(x0m, top, Math.max(1, r.share * massW), hh);
                     memMassRows++;
                   }
