@@ -18,13 +18,13 @@ describe("entryCompleteness", () => {
   it("a bare self-reported trade names every gap, in form order, with the read that needs each", () => {
     const c = entryCompleteness({ processQuality: "UNRESOLVED", setup: "", lessons: "  " });
     expect(c.gaps.map(g => g.id)).toEqual(["PROCESS", "PLANNED_RISK", "MFE", "SETUP", "LESSON"]);
-    expect(c.line).toBe("Not recorded when this trade was saved: Process quality, Planned R (1R = $), MFE (R), Setup, Lessons Learned. A saved entry is never rewritten, so record them on the next trade; nothing is guessed for this one.");
+    expect(c.line).toBe("Not recorded when this trade was saved: Process quality, Planned R (1R = $), MFE (R), Setup, Lessons Learned. A saved entry is never rewritten: add what you know now as a dated note below (kept beside the original and not counted in the reads), and record them on the next trade. Nothing is guessed for this one.");
     expect(c.gaps.find(g => g.id === "PROCESS")!.neededFor).toMatch(/Learning Genome/);
   });
   it("one gap reads in the singular; a non-finite R is not a recorded R", () => {
     const c = entryCompleteness({ ...full, realizedR: Number.NaN });
     expect(c.gaps.map(g => g.id)).toEqual(["PLANNED_RISK"]);
-    expect(c.line).toMatch(/record it on the next trade;/);
+    expect(c.line).toMatch(/record it on the next trade\. Nothing is guessed/);
   });
   it("never grades the trader", () => {
     const c = entryCompleteness({ processQuality: "UNRESOLVED", setup: "", lessons: "" });

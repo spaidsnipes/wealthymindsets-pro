@@ -41,6 +41,7 @@ const OWNER_SCOPED_KEYS: readonly string[] = [
   "wm_scanner_starred",   // scanner starred symbols
   "wm_scanner_alerted",   // scanner alerted symbols
   "wm_journal_entries",   // journal entries (owner-specific)
+  "wm_journal_amendments", // notes added after the outcome beside saved entries (owner-specific)
   "wm_ledger_one_r",      // the trader's stated 1R for the Broker Ledger rule replay
   "wm_ledger_tag_amendments_v1", // the trader's confirmations / corrections of inferred behaviour tags
   "wm_process_days_v1",   // the trader's own Process-Before-P&L day grades
@@ -113,7 +114,7 @@ const OWNER_SCOPED_PREFIXES: readonly string[] = [
   // Garden 19 (2026-10-08): the journal stores are keyed by the member through the SAME owner —
   // `wm_journal_entries:<member>`, the legacy `wm-journal:<member>`, `wm_story_review_v1:<member>` —
   // and purged at sign-out like their unsuffixed keys.
-  "wm_journal_entries:",
+  "wm_journal_entries:", "wm_journal_amendments:",
   "wm-journal:",
   "wm_story_review_v1:",
   // Founder order §7 (2026-10-09): the owner's prop-evaluation desk — balances and rules he typed, keyed by his id

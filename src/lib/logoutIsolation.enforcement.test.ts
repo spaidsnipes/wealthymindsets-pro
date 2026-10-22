@@ -44,7 +44,7 @@ const OWNER_SCOPED_KEYS = new Set<string>([
   "wm-radio-liked", "wm-shop-wishlist", "wm-pine-saved",
   "wm_songs", "wm_watchlists", "wm_quick_syms",
   "wm_scanner_starred", "wm_scanner_alerted",
-  "wm_journal_entries", "wm_ledger_one_r", "wm_ledger_tag_amendments_v1", "wm_process_days_v1", "wm_ledger_models_v1", "wm_restoration_days_v1", "wm_ledger_clinic_v1", "wm_rule_card_hidden_day", "wm_profile_rules_effective", "wm_pattern_working_on_v1", "wm_edu_progress",
+  "wm_journal_entries", "wm_journal_amendments", "wm_ledger_one_r", "wm_ledger_tag_amendments_v1", "wm_process_days_v1", "wm_ledger_models_v1", "wm_restoration_days_v1", "wm_ledger_clinic_v1", "wm_rule_card_hidden_day", "wm_profile_rules_effective", "wm_pattern_working_on_v1", "wm_edu_progress",
   "wm_api_keys", "wm_creator_waitlist",
   // 2026-10-04 cross-user leak audit:
   "wm-journal", "wm_execution_guardrails_v1", "wm_price_alerts", "wm_story_review_v1", "wm-pine-scripts",
@@ -60,7 +60,7 @@ const OWNER_SCOPED_KEYS = new Set<string>([
 ]);
 
 /** OWNER_SCOPED_PREFIXES from logoutIsolation.ts (matches by startsWith). */
-const OWNER_SCOPED_PREFIXES: readonly string[] = ["wm-notes-", "wm_tv_chat_", "wm_draw:v1:", "wm:morning-prep:v2:", "wm:decision-identity:", "wm:risk-receipt:", "wm:management-plan:v1:", "wm:management-plan-draft:v1:", "wm:management-day-rules:v1:", "wm_journal_entries:", "wm-journal:", "wm_story_review_v1:", "wm:journal-ticket-at-send:v1:", "wm:prop-evaluation:v1:"];
+const OWNER_SCOPED_PREFIXES: readonly string[] = ["wm-notes-", "wm_tv_chat_", "wm_draw:v1:", "wm:morning-prep:v2:", "wm:decision-identity:", "wm:risk-receipt:", "wm:management-plan:v1:", "wm:management-plan-draft:v1:", "wm:management-day-rules:v1:", "wm_journal_entries:", "wm_journal_amendments:", "wm-journal:", "wm_story_review_v1:", "wm:journal-ticket-at-send:v1:", "wm:prop-evaluation:v1:"];
 
 /**
  * Keys cleared by a domain-specific `clearX()` invoked from
