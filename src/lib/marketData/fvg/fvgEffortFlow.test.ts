@@ -216,11 +216,11 @@ describe("§5 Inspect context — two named scopes, by reference", () => {
 
   it("outcome 3 — the tape does not reach the bar: 'not read', with how far the tape regime does reach", () => {
     const s = around(1);
-    expect(tapeRegimeAtFormationLine(s, b2Sec - 600)).toBe("Regime at formation (tape): not read — the tape does not reach this bar. The tape regime is kept for the last 4 bars — as far back as the newest 2,000 prints reach.");
+    expect(tapeRegimeAtFormationLine(s, b2Sec - 600)).toBe("Regime at formation (tape): not read — the tape does not reach this bar. The tape regime is kept for the last 4 bars — as far back as the newest 8,000 prints reach.");
     // Before the series, after its newest bar, and an empty series: all 'not read' with the reach sentence.
     expect(tapeRegimeAtFormationLine(s, b2Sec - 86_400)).toMatch(/^Regime at formation \(tape\): not read — the tape does not reach this bar\. The tape regime is kept for the last 4 bars/);
     expect(tapeRegimeAtFormationLine(s, b2Sec + 86_400)).toMatch(/not read — the tape does not reach this bar\./);
-    expect(tapeRegimeAtFormationLine([], b2Sec)).toBe("Regime at formation (tape): not read — the tape does not reach this bar. The tape regime is read from the newest 2,000 prints; none reach these bars.");
+    expect(tapeRegimeAtFormationLine([], b2Sec)).toBe("Regime at formation (tape): not read — the tape does not reach this bar. The tape regime is read from the newest 8,000 prints; none reach these bars.");
     // The reach sentence appears on this row ONLY.
     expect(tapeRegimeAtFormationLine(s, b2Sec)).not.toMatch(/kept for the last/);
   });

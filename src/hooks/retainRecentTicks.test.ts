@@ -84,7 +84,7 @@ describe("retainRecentTicks — the tape retention contract", () => {
 
   it("stays bounded across many successive flushes", () => {
     let held: Tick[] = [];
-    for (let flush = 0; flush < 50; flush++) {
+    for (let flush = 0; flush < 120; flush++) {
       held = retainRecentTicks(seq(100, flush * 100), held);
     }
 
@@ -92,7 +92,7 @@ describe("retainRecentTicks — the tape retention contract", () => {
     expect(
       held[0].price,
       "the head must be the most recent flush, not a stale one",
-    ).toBe(tick(49 * 100).price);
+    ).toBe(tick(119 * 100).price);
   });
 
   it("holds enough tape for a per-bar reading to have something to read", () => {

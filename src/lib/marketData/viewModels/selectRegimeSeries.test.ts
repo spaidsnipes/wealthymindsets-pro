@@ -111,11 +111,11 @@ describe("regimeSeriesReach — how far back the tape regime is kept (cert lane,
     const r = regimeSeriesReach(pts);
     expect(r.bars).toBe(11);
     expect(r.fromTime).toBe(1000 + 289 * 60);
-    expect(r.prints).toBe(2000);
-    expect(r.words).toBe("The tape regime is kept for the last 11 bars — as far back as the newest 2,000 prints reach.");
+    expect(r.prints).toBe(8000);
+    expect(r.words).toBe("The tape regime is kept for the last 11 bars — as far back as the newest 8,000 prints reach.");
   });
   it("no reach is said plainly; one bar is singular", () => {
-    expect(regimeSeriesReach([pt(1, "NO_TAPE")]).words).toBe("The tape regime is read from the newest 2,000 prints; none reach these bars.");
+    expect(regimeSeriesReach([pt(1, "NO_TAPE")]).words).toBe("The tape regime is read from the newest 8,000 prints; none reach these bars.");
     expect(regimeSeriesReach([pt(1, "NO_TAPE"), pt(2, "TAPE")]).words).toContain("the last 1 bar —");
     expect(regimeSeriesReach([]).bars).toBe(0);
   });

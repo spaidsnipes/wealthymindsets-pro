@@ -78,7 +78,7 @@ export const ASSET_18_EFFICIENCY_GRADE_REFUSAL =
 /**
  * ── BOTH CONSTANTS BELOW ARE SET BY A CEILING THIS MODULE DOES NOT OWN ──────
  *
- * `useWebSocket` retains `RECENT_TICK_RETENTION` prints — 2,000 — through
+ * `useWebSocket` retains `RECENT_TICK_RETENTION` prints — 8,000 — through
  * `retainRecentTicks`, the one named rule, locked by its own test. That is the
  * entire tape any consumer in the chart room can see, and it bounds this
  * worksheet completely.

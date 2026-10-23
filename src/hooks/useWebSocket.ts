@@ -111,7 +111,10 @@ export interface Tick {
  * from being starved before it begins. A selector that lacked evidence at 50
  * must still say so at this ceiling if the evidence is still missing.
  */
-export const RECENT_TICK_RETENTION = 2000;
+// 2000 → 8000 (Founder's Chrome, NQ1! 5m 2026-10-23: "I got big trades on, why do I see only one bubble?" — on NQ 2,000
+// prints were ~20 minutes, so the order-flow seam walked right and older bubbles and cells aged off the glass). Still
+// bounded: ~1 MB of prints; the paint receipt (paintMeanMs) is the check that consumers still fit the frame budget.
+export const RECENT_TICK_RETENTION = 8000;
 
 /**
  * PURE. The retention rule itself, lifted out of the flush so it can be tested.

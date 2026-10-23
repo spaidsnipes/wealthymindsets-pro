@@ -36,7 +36,7 @@ import type { MarketStateResolution } from "../canonicalMarketState";
 import { classifyRegime, type RegimeDimensions, type RegimeMatchers, type RegimeVerdict } from "./selectRegime";
 
 /** The live tape ring's depth (useWebSocket RECENT_TICK_RETENTION). */
-export const REGIME_SERIES_TAPE_RETENTION = 2000;
+export const REGIME_SERIES_TAPE_RETENTION = 8000; // = RECENT_TICK_RETENTION (raised 2026-10-23)
 
 export type RegimeSeriesBasis = "TAPE" | "NO_TAPE";
 

@@ -20,7 +20,7 @@
  * The picture implies any bar can be inspected. In this product that is false,
  * and the falsehood is not small.
  *
- * `useWebSocket` retains `RECENT_TICK_RETENTION` prints — 2,000, through
+ * `useWebSocket` retains `RECENT_TICK_RETENTION` prints — 8,000, through
  * `retainRecentTicks`, the one named rule. That is the entire per-trade tape
  * any consumer in the chart room can see, and it is a LIVE window: it holds
  * the most recent trades and nothing older. On an active future that is on
