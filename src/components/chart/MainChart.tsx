@@ -382,6 +382,8 @@ const VC_CLOSED_REBUILD_MS = 1_000;
 const BRICK_SPRITE_CACHE_MAX = 48;
 /** The order-flow seam's "bar totals only" hatch fades to nothing this far left of the seam (2026-10-23). */
 const SEAM_HATCH_FADE_PX = 140;
+/** An event sentence that spoke keeps its voice this long (2026-10-23: it blinked chip ↔ pip). */
+const SPEAKER_HOLD_MS = 15_000;
 /**
  * G06 FOUNDER BODIES — the plate's own figures (WM_GuestTour_G06_Academy_
  * Anatomy_Teach), keyed off the plate so the chart carries THE Founder's
@@ -3793,6 +3795,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const foldPrintRef = useRef<(tick: Tick, heardLive: boolean) => boolean>(() => false);
   /** Where a moving word sat LAST frame, by key — tried first so a still-clear seat is kept (no hopping). */
   const seatMemoryRef = useRef<Map<string, { x: number; y: number; w: number; h: number }>>(new Map());
+  // Event sentences that spoke recently (sentence → last spoke ms): they keep their voice for SPEAKER_HOLD_MS.
+  const speakerHoldRef = useRef<Map<string, number>>(new Map());
   /** The order-flow seam's start and since when it has held — its chip speaks once the backfill stops moving it. */
   const seamStartRef = useRef<{ t: number; since: number }>({ t: NaN, since: 0 });
   const foldPrint = (tick: Tick, heardLive: boolean): boolean => {
@@ -29782,7 +29786,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const chipsBeforeWords = floatingChips.length;
           floatingChips.push(...wordRectsNow);
           // Plate 30: only the EVENT_SENTENCES_MAX event anchors nearest the newest candles speak a sentence.
-          const speakers = new Set(anchors.filter(a => plainAnchorWord(a) != null).sort((p, q) => q.x - p.x).slice(0, EVENT_SENTENCES_MAX));
+          // A SENTENCE THAT SPOKE KEEPS ITS VOICE FOR SPEAKER_HOLD_MS (Founder's Chrome, NQ1! 5m 2026-10-23, one-minute
+          // recording: "Lower high — sellers in control" blinked chip ↔ pip as nearer notes came and went). Recent speakers
+          // are seated first; the nearest-to-now fill what is left.
+          const nowSp = Date.now();
+          const spokeAt = speakerHoldRef.current;
+          for (const [k, t] of spokeAt) if (nowSp - t > SPEAKER_HOLD_MS) spokeAt.delete(k);
+          const speakers = new Set(anchors.filter(a => plainAnchorWord(a) != null)
+            .sort((p, q) => (spokeAt.has(plainAnchorWord(q)!) ? 1 : 0) - (spokeAt.has(plainAnchorWord(p)!) ? 1 : 0) || q.x - p.x)
+            .slice(0, EVENT_SENTENCES_MAX));
+          for (const a of speakers) spokeAt.set(plainAnchorWord(a)!, nowSp);
           // ONE LIST CHIP (Founder's Chrome, NQ1! 5m 2026-10-23: two "2 events · Show list" chips read as a duplicate). Only
           // the newest cluster says "N events · Show list"; an older cluster is a pip (its tap still lists it).
           { let listSaid = false;
