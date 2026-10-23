@@ -255,7 +255,8 @@ export function DOMPanel({ symbol, onClose }: { symbol: string; onClose?: () => 
         tabIndex={-1}
         // `wm-chart-dom-sheet`: the trader ASKED for this panel, so below 1024px it
         // opens as a sheet instead of being hidden with the idle rails (globals.css).
-        className="wm-chart-dom wm-chart-dom-sheet border-l border-wm-border flex flex-col shrink-0 outline-none"
+        // Brighter book (Founder 2026-10-23, "dome … colors dimmer"): depth bars 0.12 → 0.26, walls 0.35 → 0.5, prices in pearl.
+      className="wm-chart-dom wm-chart-dom-sheet border-l border-wm-border flex flex-col shrink-0 outline-none"
         style={{ width: 190, background: "#0A0B10", fontSize: 13 }}
       >
         <div className="flex items-center gap-2 px-3 shrink-0" style={{ height: 38, borderBottom: "1px solid rgba(30,32,48,0.8)" }}>
@@ -351,9 +352,9 @@ export function DOMPanel({ symbol, onClose }: { symbol: string; onClose?: () => 
 
       {/* Column headers */}
       <div className="flex shrink-0" style={{ height:24, borderBottom:"1px solid rgba(30,32,48,0.6)" }}>
-        <div style={{ flex:1, textAlign:"right", paddingRight:6, fontSize:11, fontWeight:700, color:"rgba(255,77,103,0.75)", display:"flex", alignItems:"center", justifyContent:"flex-end" }}>ASK</div>
+        <div style={{ flex:1, textAlign:"right", paddingRight:6, fontSize:11, fontWeight:700, color:"#FF4D67", display:"flex", alignItems:"center", justifyContent:"flex-end" }}>ASK</div>
         <div style={{ width:78, textAlign:"center", fontSize:11, fontWeight:700, color:"#8b8fa8", display:"flex", alignItems:"center", justifyContent:"center" }}>PRICE</div>
-        <div style={{ flex:1, textAlign:"left", paddingLeft:6, fontSize:11, fontWeight:700, color:"rgba(0,192,118,0.75)", display:"flex", alignItems:"center" }}>BID</div>
+        <div style={{ flex:1, textAlign:"left", paddingLeft:6, fontSize:11, fontWeight:700, color:"#00C076", display:"flex", alignItems:"center" }}>BID</div>
       </div>
 
       {/* DOM levels */}
@@ -375,7 +376,7 @@ export function DOMPanel({ symbol, onClose }: { symbol: string; onClose?: () => 
                 <div style={{
                   position:"absolute", top:2, bottom:2, borderRadius:2,
                   width: barW, right: 78,
-                  background: lvl.isWall ? "rgba(255,77,103,0.35)" : "rgba(255,77,103,0.12)",
+                  background: lvl.isWall ? "rgba(255,77,103,0.5)" : "rgba(255,77,103,0.26)",
                 }} />
               )}
 
@@ -387,7 +388,7 @@ export function DOMPanel({ symbol, onClose }: { symbol: string; onClose?: () => 
 
               <div style={{
                 width:78, textAlign:"center", fontFamily:"monospace", fontSize:13, fontWeight: isAtPrice ? 800 : 600,
-                color: isAtPrice ? "#F0B429" : "#8b8fa8",
+                color: isAtPrice ? "#F0B429" : "#C9CEDD",
                 background: isAtPrice ? "rgba(240,180,41,0.08)" : "transparent",
                 position:"relative", zIndex:2,
               }}>
@@ -404,7 +405,7 @@ export function DOMPanel({ symbol, onClose }: { symbol: string; onClose?: () => 
                 <div style={{
                   position:"absolute", top:2, bottom:2, borderRadius:2,
                   width: barW, left: 78,
-                  background: lvl.isWall ? "rgba(0,192,118,0.35)" : "rgba(0,192,118,0.12)",
+                  background: lvl.isWall ? "rgba(0,192,118,0.5)" : "rgba(0,192,118,0.26)",
                 }} />
               )}
             </div>
