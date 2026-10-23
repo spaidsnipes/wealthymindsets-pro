@@ -43,7 +43,12 @@ const PLANS: Record<string, YahooTimeframePlan> = {
   "4h":  { interval: "60m", range: "730d", multiplier: 4,  baseSeconds: 3600, sourceMode: "reconstructed" },
   "1D":  { interval: "1d",  range: "5y",   multiplier: 1,  sourceMode: "native" },
   "1W":  { interval: "1wk", range: "10y",  multiplier: 1,  sourceMode: "native" },
-  "1M":  { interval: "1mo", range: "max",  multiplier: 1,  sourceMode: "native" },
+  // "50y", never "max" (measured 2026-10-23, AAPL): interval=1mo&range=max answers
+  // dataGranularity "3mo" — quarterly bars that this plan served AS MONTHLY. 50y
+  // answers "1mo" with 503 bars, the same depth. (PROVIDER_EVIDENCE.silentDowngrade.)
+  "1M":  { interval: "1mo", range: "50y",  multiplier: 1,  sourceMode: "native" },
+  // A quarterly CANDLE (2026-10-23): Yahoo's own 3mo bars.
+  "1Q":  { interval: "3mo", range: "50y",  multiplier: 1,  sourceMode: "native" },
   "3M":  { interval: "3mo", range: "max",  multiplier: 1,  sourceMode: "native" },
   "6M":  { interval: "3mo", range: "max",  multiplier: 2,  calendarMonths: 6,  sourceMode: "reconstructed" },
   "1Y":  { interval: "1mo", range: "max",  multiplier: 12, calendarMonths: 12, sourceMode: "reconstructed" },
