@@ -26342,6 +26342,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             let axisWS = 60;
             try { axisWS = chart.priceScale("right").width(); } catch { /* keep default */ }
             const plotRightS = Math.max(8, W - axisWS);
+            // Names stand left of a profile column (Founder's Chrome, NQ1! 5m 2026-10-23: "SWING HIGH 29,224.50" sat on the
+            // Visible Range bars). The level's rule still runs to the axis; only the words stop at the column.
+            const pclMS = Math.min(profileColumnLeftRef.current.prev, profileColumnLeftRef.current.cur);
+            const wordRightS = Number.isFinite(pclMS) && pclMS > plotRightS * 0.5 && pclMS < plotRightS - 8 ? pclMS - 4 : plotRightS;
             let paneBotS = H;
             try {
               const ps = (chart as any).paneSize?.(0);
@@ -26515,7 +26519,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const tw = ctx.measureText(t).width + 10, th = 14;
               // A broken level is named at its break, on the side price left it from.
               const y = bx != null ? (m.kind === "HIGH" ? m.y + 2 : m.y - th - 2) : m.kind === "HIGH" ? m.y - th - 2 : m.y + 2;
-              const pref = { x: bx != null ? Math.max(m.x, bx - tw - 4) : plotRightS - 6 - tw, y: Math.max(HEADER_FLOOR_Y + 2, Math.min(paneBotS - th, y)), w: tw, h: th };
+              const pref = { x: bx != null ? Math.max(m.x, bx - tw - 4) : wordRightS - 6 - tw, y: Math.max(HEADER_FLOOR_Y + 2, Math.min(paneBotS - th, y)), w: tw, h: th };
               const spot = placeClearOfKeepOut(pref, [...keepOut(), ...rowBodiesAt(pref.y, pref.y + th)], { minX: Math.max(keepOutMinX(), m.x), blockers: floatingChips, strict: true });
               recordKeepOut(keepOutLedger, spot);
               // A BLOCKED name is NOT painted (serving ES1! 15m, 2026-09-26:
@@ -26559,7 +26563,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const anchor = ms.bias === "HIGHER_HIGHS" ? named[0] : named[named.length - 1];
               const up = ms.bias === "HIGHER_HIGHS";
               const prefY = anchor ? (up ? anchor.y - th - 3 : anchor.y + anchor.h + 3) : HEADER_FLOOR_Y + 4;
-              const pref = { x: plotRightS - 6 - tw, y: Math.max(HEADER_FLOOR_Y + 2, Math.min(paneBotS - th, prefY)), w: tw, h: th };
+              const pref = { x: wordRightS - 6 - tw, y: Math.max(HEADER_FLOOR_Y + 2, Math.min(paneBotS - th, prefY)), w: tw, h: th };
               const alt = anchor ? { ...pref, y: Math.max(HEADER_FLOOR_Y + 2, Math.min(paneBotS - th, up ? anchor.y + anchor.h + 3 : anchor.y - th - 3)) } : null;
               const spot = placeClearOfKeepOut(pref, [...keepOut(), ...rowBodiesAt(Math.min(pref.y, alt?.y ?? pref.y), Math.max(pref.y, alt?.y ?? pref.y) + th)], {
                 minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: alt ? [alt] : [],

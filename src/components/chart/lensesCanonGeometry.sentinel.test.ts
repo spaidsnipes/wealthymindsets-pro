@@ -159,7 +159,8 @@ const PINS: Pin[] = [
       b.structure.length > 0 &&
       !b.structure.includes("W - 168") &&
       b.structure.includes("ds.marketStructureBiasPlaced = spot.mode;") &&
-      /const pref = \{ x: plotRightS - 6 - tw, y: Math\.max\(HEADER_FLOOR_Y \+ 2,/.test(b.structure) },
+      // 2026-10-23: the bias word stops at the profile column (wordRightS), not the axis.
+      /const pref = \{ x: wordRightS - 6 - tw, y: Math\.max\(HEADER_FLOOR_Y \+ 2,/.test(b.structure) },
 
   // Added 2026-09-26 after serving ES1! 15m: "SWING H◉UNRESOLVED" — a BLOCKED
   // name kept its preferred rect and painted over the H-901 coin and the
