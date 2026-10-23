@@ -371,8 +371,12 @@ describe("attention governor × semantic permission (H-501)", () => {
     for (const depth of ["MID", "NEAR"] as const) {
       const g = selectAttentionGovernor(input({ density: selectSemanticDensity(depth) }));
       expect(permissionAt("regimeField", depth)).toBe("QUIET");
-      expect(g.alpha("regimeField"), depth).toBeCloseTo(QUIET_CEILING, 10);
+      // 2026-10-23: QUIET_CEILING 0.6 → 0.8; a SUPPORTING layer is held lower still by the load share at MID/NEAR.
+      expect(g.alpha("regimeField"), depth).toBeLessThanOrEqual(QUIET_CEILING + 1e-9);
     }
+    // A LIVE tool the depth made QUIET reads at the ceiling, no lower (Founder 2026-10-23: footprint sat at 0.6).
+    expect(permissionAt("footprint", "MID")).toBe("QUIET");
+    expect(selectAttentionGovernor(input({ density: selectSemanticDensity("MID") })).alpha("footprint")).toBeCloseTo(QUIET_CEILING, 10);
     const far = selectAttentionGovernor(input({ density: selectSemanticDensity("FAR") }));
     expect(far.alpha("regimeField")).toBe(TIER_CEILING.SUPPORTING);
     // Market Structure at FAR is macro (density 1) but QUIET in form.
@@ -522,7 +526,7 @@ describe("phone opacity — the word budget does not dim ink (Founder, 2026-10-0
     }
     // A layer the DEPTH made quiet is still capped — on both.
     expect(permissionAt("regimeField", "MID")).toBe("QUIET");
-    expect(desk.alpha("regimeField")).toBeCloseTo(QUIET_CEILING, 10);
+    expect(desk.alpha("regimeField")).toBeLessThanOrEqual(QUIET_CEILING + 1e-9); // load share holds it at MID (2026-10-23)
     expect(phone.alpha("regimeField")).toBeLessThanOrEqual(QUIET_CEILING);
     for (const k of ["footprint", "deltaLevels", "profileFusion"] as const) {
       if (permissionAt(k, "MID") === "QUIET") expect(phone.alpha(k), k).toBeLessThanOrEqual(QUIET_CEILING + 1e-9);

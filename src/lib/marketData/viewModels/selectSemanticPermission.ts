@@ -69,8 +69,10 @@ export type PermissionRow = readonly [Permission, Permission, Permission];
 
 /** How bright the candles read under the FAR veil (plate: "DIM CANDLES"). */
 export const FAR_CANDLES_DIM = 0.44;
-/** A QUIET layer is never louder than this (= the density's SOFT). */
-export const QUIET_CEILING = 0.6;
+/** A QUIET layer is never louder than this. 0.6 → 0.8 (Founder's Chrome 2026-10-23, "you can barely see things": the
+ *  footprint he switched on painted at 0.6 at MID). QUIET withholds WORDS; it no longer dims a tool below the ON MEANS
+ *  SEEN floor for context (0.8). */
+export const QUIET_CEILING = 0.8;
 
 const S = "SPEAK", Q = "QUIET", X = "SILENT";
 

@@ -21411,7 +21411,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // Both tick families' words are placed together at the end
               // (serving NQ 5m, 2026-10-05: "CALL OI …" printed straight over
               // the brick texture and over its neighbour — unreadable).
-              const tickWords: { y: number; text: string; rgb: string; a: number }[] = [];
+              const tickWords: { y: number; text: string; rgb: string; a: number; oiStrike?: number; oiCall?: string; oiPut?: string }[] = [];
               // The NAMES read at the layer's text alpha (the phone's text floor
               // lives in the governor); the ticks keep the layer's own alpha.
               const oiWordA = att.textAlpha("derivativesPressure");
@@ -21438,8 +21438,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.lineTo(plotRightD, y);
                   ctx.stroke();
                   ctx.setLineDash([]);
-                  const label = `${call ? "CALL" : "PUT"} OI ${fmtD(w.strike)} · ${w.openInterest >= 1000 ? `${Math.round(w.openInterest / 1000)}k` : w.openInterest}`;
-                  tickWords.push({ y, text: label, rgb, a: 0.95 * oiWordA });
+                  const oiN = w.openInterest >= 1000 ? `${Math.round(w.openInterest / 1000)}k` : String(w.openInterest);
+                  // ONE STRIKE, ONE CHIP (Founder's Chrome, NQ1! 5m 2026-10-23: "PUT OI 29,200 · 890" sat on "CALL OI
+                  // 29,200 · 307"): a call and a put at the same strike share one name — "OI 29,200 · C 307 · P 890".
+                  const twin = tickWords.find(tw => tw.oiStrike === w.strike);
+                  if (twin) {
+                    const c = call ? oiN : twin.oiCall!, pN = call ? twin.oiPut! : oiN;
+                    twin.text = `OI ${fmtD(w.strike)} · C ${c} · P ${pN}`; twin.rgb = "226,214,186";
+                  } else {
+                    const label = `${call ? "CALL" : "PUT"} OI ${fmtD(w.strike)} · ${oiN}`;
+                    tickWords.push({ y, text: label, rgb, a: 0.95 * oiWordA, oiStrike: w.strike, oiCall: call ? oiN : undefined, oiPut: call ? undefined : oiN });
+                  }
                   oiMarks.push(`${w.type}@${w.strike}`);
                 }
                 ctx.textAlign = "left";
@@ -21506,7 +21515,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.font = marketFont("OBJECT_NAME");
                 ctx.textAlign = "left";
                 ctx.textBaseline = "bottom";
-                const ROW = 13;
+                const ROW = 16; // 13 → 16: a stepped label keeps 3px of air from its neighbour (2026-10-23, labels touched)
                 const placed: { x: number; y: number; w: number; h: number }[] = [];
                 const over = (q: { x: number; y: number; w: number; h: number }, rs: readonly { x: number; y: number; w: number; h: number }[]) =>
                   rs.some(r => q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y);
@@ -29752,6 +29761,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           floatingChips.push(...wordRectsNow);
           // Plate 30: only the EVENT_SENTENCES_MAX event anchors nearest the newest candles speak a sentence.
           const speakers = new Set(anchors.filter(a => plainAnchorWord(a) != null).sort((p, q) => q.x - p.x).slice(0, EVENT_SENTENCES_MAX));
+          // ONE LIST CHIP (Founder's Chrome, NQ1! 5m 2026-10-23: two "2 events · Show list" chips read as a duplicate). Only
+          // the newest cluster says "N events · Show list"; an older cluster is a pip (its tap still lists it).
+          { let listSaid = false;
+            for (const a of [...speakers].sort((p, q) => q.x - p.x)) {
+              if (!/ events · Show list$/.test(plainAnchorWord(a) ?? "")) continue;
+              if (listSaid) speakers.delete(a); else listSaid = true;
+            } }
           const placed = anchors.map(a => {
             // A lone held word is a quiet 12px pip (tap lists it); only a
             // CLUSTER earns the words "N MARKET EVENTS" (serving NQ 5m, 8f7f6f4:
