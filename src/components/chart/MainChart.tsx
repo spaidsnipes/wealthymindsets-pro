@@ -21552,7 +21552,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // Plate 05 word budget: only the four strikes nearest the live price carry words; the others keep
                 // their tick and are listed with the event notes (never dropped).
                 const lastYTick = (() => { const lb = (barsRef.current ?? [])[(barsRef.current ?? []).length - 1]; const yl = lb ? srs.priceToCoordinate(lb.close) : null; return yl == null ? null : +yl; })();
-                const speakingTicks = new Set(lastYTick == null ? tickWords : [...tickWords].sort((p, q) => Math.abs(p.y - lastYTick) - Math.abs(q.y - lastYTick)).slice(0, 4));
+                // Plate 05 word budget, tightened (Founder's Chrome, NQ1! 5m 2026-10-23: three "NDX … → … · OI" labels 5 points apart
+                // crowded the wall's top): nearest-to-price first, a label within 14px of one already speaking keeps only its
+                // tick (its words go to the event list), and at most three speak.
+                const speakingTicks = new Set<(typeof tickWords)[number]>();
+                for (const t of lastYTick == null ? tickWords : [...tickWords].sort((p, q) => Math.abs(p.y - lastYTick) - Math.abs(q.y - lastYTick))) {
+                  if (speakingTicks.size >= 3) break;
+                  if ([...speakingTicks].some(o => Math.abs(o.y - t.y) < 14)) continue;
+                  speakingTicks.add(t);
+                }
                 for (const t of [...tickWords].sort((p, q) => p.y - q.y)) {
                   if (!speakingTicks.has(t)) { displacedNotes.push({ layer: "DERIVATIVES", text: t.text, x: plotRightD - 40, y: t.y }); oiWordsListed++; continue; }
                   const tw = ctx.measureText(t.text).width;
@@ -21656,6 +21664,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.textBaseline = "middle";
                   ctx.fillText(word, r.x + 8, r.y + 8.5);
                   if (scopeW) ds.pressureScopeSaid = "STATUS_LINE";
+                  // The status line names the near-price scope; the withheld front is that same fact (2026-10-23: a second
+                  // line "ZERO-GAMMA WITHHELD · NEAR-PRICE CHAIN ONLY" repeated it under the stack). Said once, here.
+                  if (scopeW && chainScopeWithheldWords(dp.chainScope)) ds.pressureZeroGammaSaid = "SCOPE_LINE";
                 } else if (scopeW) {
                   // §20 (serving NQ1! 9f4d784: the longer status line found no
                   // clear slot and the scope went unsaid). The scope is never
