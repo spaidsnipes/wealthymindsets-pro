@@ -20831,7 +20831,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 }
                 const wallH = courses * courseH;
                 const len = Math.min(plotRightD * 0.62, 170 + w.share * 2800);
-                const x1 = plotRightD - 2, x0 = x1 - len;
+                // The masonry ends where a profile column begins (Founder's Chrome, NQ1! 5m 2026-10-23: the bricks ran under
+                // the Visible Range and volume profile bars to the axis). Its LENGTH (materiality) is kept; it moves left.
+                const pclW = Math.min(profileColumnLeftRef.current.prev, profileColumnLeftRef.current.cur);
+                const x1 = Number.isFinite(pclW) && pclW > plotRightD * 0.5 && pclW < plotRightD - 8 ? pclW - 4 : plotRightD - 2, x0 = x1 - len;
                 const top = yc - wallH / 2;
                 const brickW = 26;
                 const depth = 7;
@@ -21498,8 +21501,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   const both = e.kinds.size > 1;
                   const call = e.kinds.has("CALL_OI");
                   const rgb = both ? "226,214,186" : call ? "80,190,180" : "214,120,150";
-                  const side = both ? "call + put OI" : call ? "call OI" : "put OI";
-                  tickWords.push({ y, text: `${im.index} ${fmtD(Number(indexLevel))} → ${fmtD(e.futuresLevel)} · ${side} · mapped`, rgb, a: 0.92 * baseA });
+                  // Short (2026-10-23, it ran across VRP VAL and the bricks): the arrow says "mapped from the index".
+                tickWords.push({ y, text: `${im.index} ${fmtD(Number(indexLevel))} → ${fmtD(e.futuresLevel)} · ${both ? "C+P" : call ? "C" : "P"} OI`, rgb, a: 0.92 * baseA });
                 }
                 ctx.textAlign = "left";
                 ds.indexMappedWalls = marks.join("|") || "NONE";
@@ -26534,10 +26537,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const lag = `${ms.unconfirmedBars} newest bars not yet confirmable`;
               // Auction verdict beneath the bias — the same plate.
               const av = auctionVerdictRef.current;
+              // Two lines at most (Founder's Chrome, NQ1! 5m 2026-10-23: four lines stacked under PUT WALL 29,150). The
+              // confirmation lag was an 8.5px line no one could read; it is the receipt's (marketStructureLag) and Inspect's.
               const lines: { t: string; f: string; c: string }[] = [
                 { t: word, f: marketFont("WARNING"), c: INK },
-                { t: lag, f: `600 8.5px ${MARKET_SANS}`, c: "rgba(160,152,134,0.9)" },
               ];
+              ds.marketStructureLag = lag;
               if (av && av !== "UNKNOWN") lines.push({ t: `AUCTION · ${av}`, f: marketFont("OBJECT_NAME"), c: "rgba(201,165,92,0.9)" });
               let tw = 0;
               for (const l of lines) { ctx.font = l.f; tw = Math.max(tw, ctx.measureText(l.t).width); }
