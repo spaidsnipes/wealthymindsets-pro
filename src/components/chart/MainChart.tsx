@@ -3799,6 +3799,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const seatMemoryRef = useRef<Map<string, { x: number; y: number; w: number; h: number }>>(new Map());
   // Event sentences that spoke recently (sentence → last spoke ms): they keep their voice for SPEAKER_HOLD_MS.
   const speakerHoldRef = useRef<Map<string, number>>(new Map());
+  // The swing price the Structure Profile's title names this frame (null = none): Market Structure does not name it again.
+  const structureTitledPriceRef = useRef<number | null>(null);
   /** The order-flow seam's start and since when it has held — its chip speaks once the backfill stops moving it. */
   const seamStartRef = useRef<{ t: number; since: number }>({ t: NaN, since: 0 });
   const foldPrint = (tick: Tick, heardLive: boolean): boolean => {
@@ -20840,7 +20842,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   }
                 }
                 const wallH = courses * courseH;
-                const len = Math.min(plotRightD * 0.62, 170 + w.share * 2800);
+                // Length still reads materiality, on a shorter scale (serving 67cde10, ES1! 5m 2026-10-23: four put walls 5
+                // points apart each ran ~700px — a brick slab over the whole afternoon's candles). Biggest wall longest; none
+                // longer than 40% of the plot.
+                const len = Math.min(plotRightD * 0.4, 120 + w.share * 1800);
                 // The masonry ends where a profile column begins (Founder's Chrome, NQ1! 5m 2026-10-23: the bricks ran under
                 // the Visible Range and volume profile bars to the axis). Its LENGTH (materiality) is kept; it moves left.
                 const pclW = Math.min(profileColumnLeftRef.current.prev, profileColumnLeftRef.current.cur);
@@ -25330,6 +25335,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             };
             const silence = structureSilenceWords({ form, kind: sp.anchor.kind, anchorPrice: sp.anchor.price, legBars: sp.legBars, poc: sp.poc, dp: pxDp });
             if (silence) {
+              structureTitledPriceRef.current = null;
               // The rule form: one chip names the swing, the leg and why its
               // shape is withheld; the leg POC the rule carries is named by the
               // family's level chip on its own row, like every species' POC.
@@ -25340,6 +25346,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               }
               ds.structureProfileSilence = form;
             } else {
+              structureTitledPriceRef.current = sp.anchor.price;
               chip(
                 // A phone reads the short form whole (iPhone 17 Pro, 2026-10-17: "STRUCTURE · FROM SWING LO…").
                 narrowGlass ? `STRUCTURE · ${kind} ${gPx(sp.anchor.price)}` : `STRUCTURE · ${kind} ${gPx(sp.anchor.price)}${est}`, // the leg's bar count is Inspect's (2026-10-23, fewer words)
@@ -25359,6 +25366,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ds.structureProfileAnchor = `${sp.anchor.kind}@${sp.anchor.time}`;
             ds.structureProfileLegBars = String(sp.legBars);
           } else {
+            structureTitledPriceRef.current = null;
             if (on && sp?.drawn && ax == null) ds.structureProfile = "ANCHOR_OFF_CAMERA";
             delete ds.structureProfileRows;
             delete ds.structureProfileRowEdge;
@@ -26551,6 +26559,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const named: { x: number; y: number; w: number; h: number }[] = [];
             for (const m of lastMarks) {
               const bx = brokeAt.get(m);
+              // ONE NAME PER SWING (serving 67cde10, BTCUSD 5m 2026-10-23: "STRUCTURE · SWING HIGH 81,748.87" and "SWING HIGH
+              // 81,748.87" stacked). The Structure Profile's title already names this price; the rule stays, the words wait.
+              if (bx == null && structureTitledPriceRef.current != null && Math.abs(structureTitledPriceRef.current - m.price) < 1e-9) {
+                levels.push(`${m.kind === "HIGH" ? "H" : "L"}:${m.price.toFixed(pxDp)}:NAMED_BY_STRUCTURE`);
+                continue;
+              }
               const t = `${m.kind === "HIGH" ? "SWING HIGH" : "SWING LOW"} ${gPx(m.price)}` + (bx != null ? " · BROKEN" : "");
               ctx.font = marketFont("OBJECT_NAME");
               const tw = ctx.measureText(t).width + 10, th = 14;
