@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { supabaseGetUserById } from "@/lib/auth";
+import { isCoreTeam } from "@/lib/coreTeam";
 import { verifyWowLoungeGrant } from "@/lib/lounge/wowPostGrant";
 import { checkOp, loungeStore, readComments, readFeed, runOp, storeFailure, type LoungeActor, type LoungeOp } from "@/lib/lounge/loungeStore";
 
@@ -28,7 +29,8 @@ export async function POST(request: Request) {
     const email = typeof (acct as { email?: unknown } | null)?.email === "string" ? (acct as { email: string }).email : null;
     const me: LoungeActor = { ownerId: g.owner_id, handle, name, avatar, email };
     const rest = loungeStore();
-    if (g.op.op === "feed") return NextResponse.json(await readFeed(rest, me.ownerId, me.handle), { headers: NO_STORE });
+    // moderator: the core team, proven by the verified email — lets WOW show "Hide for everyone".
+    if (g.op.op === "feed") return NextResponse.json({ ...(await readFeed(rest, me.ownerId, me.handle)), moderator: isCoreTeam(null, me.email) }, { headers: NO_STORE });
     if (g.op.op === "comments") {
       const id = Number((g.op as { postId?: unknown }).postId);
       if (!Number.isInteger(id) || id <= 0) return NextResponse.json({ error: "Bad post id" }, { status: 400 });
@@ -37,7 +39,7 @@ export async function POST(request: Request) {
     const op = g.op as LoungeOp;
     const bad = checkOp(op);
     if (bad) return NextResponse.json({ error: bad }, { status: 400, headers: NO_STORE });
-    if (op.op === "post" || op.op === "comment") {
+    if (op.op === "post" || op.op === "comment" || op.op === "report") {
       const rl = checkRateLimit(`lounge-write:${me.ownerId}`, { max: 10, windowMs: 60_000 });
       if (!rl.ok) return rl.response;
     } else {

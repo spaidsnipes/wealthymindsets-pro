@@ -31,7 +31,7 @@ export interface WowLoungeGrant {
 
 const USER_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const HANDLE = /^[A-Za-z0-9_.-]{2,40}$/;
-const OPS = new Set(["feed", "comments", "post", "comment", "like", "unlike", "delete", "follow", "unfollow"]);
+const OPS = new Set(["feed", "comments", "post", "comment", "like", "unlike", "delete", "follow", "unfollow", "report", "block", "unblock", "mute", "unmute", "hide", "unhide"]);
 
 function sameString(a: string, b: string): boolean {
   if (a.length !== b.length) return false;

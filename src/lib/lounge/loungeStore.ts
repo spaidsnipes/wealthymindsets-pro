@@ -27,10 +27,18 @@ export type LoungeOp =
   | { op: "post"; content: string; type?: string; trade_card?: unknown; tags?: unknown }
   | { op: "comment"; postId: number; body: string }
   | { op: "like" | "unlike" | "delete"; postId: number }
-  | { op: "follow" | "unfollow"; handle: string };
+  | { op: "follow" | "unfollow"; handle: string }
+  // Safety (GK 2365a30f, 2d5d2fab): report a post, block or mute a person for
+  // yourself, and a core-team moderator hide. Lounge-only: nothing here touches
+  // Academy, Marketplace or WM Pro access.
+  | { op: "report"; postId: number; reason: string }
+  | { op: "block" | "unblock" | "mute" | "unmute"; handle: string }
+  | { op: "hide" | "unhide"; postId: number };
+
+export const MAX_REPORT = 500;
 
 export class LoungeStoreError extends Error {
-  constructor(readonly state: "NOT_CONFIGURED" | "TABLE_MISSING" | "UPSTREAM", message: string) { super(message); }
+  constructor(readonly state: "NOT_CONFIGURED" | "TABLE_MISSING" | "UPSTREAM", message: string, readonly pgCode?: string) { super(message); }
 }
 
 type Rest = <T>(path: string, init?: RequestInit) => Promise<T>;
@@ -50,8 +58,10 @@ export function loungeStore(env: Record<string, string | undefined> = process.en
     const body = text ? JSON.parse(text) : null;
     if (!res.ok) {
       const code = (body as { code?: string } | null)?.code;
-      if (res.status === 404 || code === "42P01" || code === "PGRST205") throw new LoungeStoreError("TABLE_MISSING", "The lounge tables do not exist in the store.");
-      throw new LoungeStoreError("UPSTREAM", `Lounge store answered HTTP ${res.status}.`);
+      if (res.status === 404 || code === "42P01" || code === "PGRST205") throw new LoungeStoreError("TABLE_MISSING", "The lounge tables do not exist in the store.", code);
+      // A column the safety SQL adds (hidden_at) is not there yet.
+      if (code === "42703" || code === "PGRST204") throw new LoungeStoreError("TABLE_MISSING", "Lounge safety is not installed in the store yet.", code);
+      throw new LoungeStoreError("UPSTREAM", `Lounge store answered HTTP ${res.status}.`, code);
     }
     return body as T;
   };
@@ -60,8 +70,33 @@ export function loungeStore(env: Record<string, string | undefined> = process.en
 const inList = (ids: readonly (number | string)[]) => `(${ids.map(i => encodeURIComponent(String(i))).join(",")})`;
 
 /** The feed every entry point shows: newest 60 posts with counts, plus what this viewer liked and follows. */
+const missing = (e: unknown) => e instanceof LoungeStoreError && e.state === "TABLE_MISSING";
+
+/** Posts a moderator hid stay out of every feed. Until the safety SQL is run the column is absent and nothing is hidden. */
+async function visiblePosts(rest: Rest): Promise<{ posts: Array<{ id: number; user_handle?: string }>; safety: "ON" | "NOT_INSTALLED" }> {
+  try {
+    return { posts: await rest(`lounge_posts?select=${POST_FIELDS}&hidden_at=is.null&order=created_at.desc&limit=60`), safety: "ON" };
+  } catch (e) {
+    if (!missing(e)) throw e;
+    return { posts: await rest(`lounge_posts?select=${POST_FIELDS}&order=created_at.desc&limit=60`), safety: "NOT_INSTALLED" };
+  }
+}
+
+/** The people this viewer blocked or muted. Either way their posts leave this viewer's feed. */
+export async function readBlocks(rest: Rest, viewerOwnerId: string | null): Promise<Array<{ blocked_handle: string; kind: "block" | "mute" }>> {
+  if (!viewerOwnerId) return [];
+  try {
+    return await rest(`lounge_blocks?select=blocked_handle,kind&owner_id=eq.${encodeURIComponent(viewerOwnerId)}`);
+  } catch (e) {
+    if (missing(e)) return [];
+    throw e;
+  }
+}
+
 export async function readFeed(rest: Rest, viewerOwnerId: string | null, viewerHandle: string | null) {
-  const posts = await rest<Array<{ id: number }>>(`lounge_posts?select=${POST_FIELDS}&order=created_at.desc&limit=60`);
+  const [{ posts: all, safety }, blocks] = await Promise.all([visiblePosts(rest), readBlocks(rest, viewerOwnerId)]);
+  const hiddenFromMe = new Set(blocks.map(b => b.blocked_handle));
+  const posts = all.filter(p => !hiddenFromMe.has(String(p.user_handle ?? "")));
   const ids = posts.map(p => p.id);
   const owner = viewerOwnerId ? encodeURIComponent(viewerOwnerId) : null;
   const [likes, comments, follows, myLikes] = await Promise.all([
@@ -78,6 +113,9 @@ export async function readFeed(rest: Rest, viewerOwnerId: string | null, viewerH
     state: "OK" as const,
     me: viewerHandle,
     following: follows.map(f => f.following_handle),
+    blocked: blocks.filter(b => b.kind !== "mute").map(b => b.blocked_handle),
+    muted: blocks.filter(b => b.kind === "mute").map(b => b.blocked_handle),
+    safety,
     posts: posts.map(p => ({ ...p, like_count: likeCount.get(p.id) ?? 0, comment_count: commentCount.get(p.id) ?? 0, liked_by_me: liked.has(p.id) })),
   };
 }
@@ -91,7 +129,7 @@ export async function readComments(rest: Rest, postId: number) {
 export function checkOp(body: LoungeOp | null): string | null {
   if (!body || typeof body !== "object") return "Bad request";
   const id = "postId" in body ? Number(body.postId) : NaN;
-  const needsId = body.op === "comment" || body.op === "like" || body.op === "unlike" || body.op === "delete";
+  const needsId = body.op === "comment" || body.op === "like" || body.op === "unlike" || body.op === "delete" || body.op === "report" || body.op === "hide" || body.op === "unhide";
   if (needsId && !(Number.isInteger(id) && id > 0)) return "Bad post id";
   return null;
 }
@@ -142,6 +180,44 @@ export async function runOp(rest: Rest, me: LoungeActor, body: LoungeOp): Promis
       if (!target || target.length > 60 || target === me.handle) return { status: 400, body: { error: "Bad handle" } };
       if (body.op === "follow") await rest("lounge_follows", { method: "POST", body: JSON.stringify({ owner_id: me.ownerId, follower_handle: me.handle, following_handle: target }) });
       else await rest(`lounge_follows?owner_id=eq.${owner}&following_handle=eq.${encodeURIComponent(target)}`, { method: "DELETE" });
+      return { status: 200, body: { state: "OK" } };
+    }
+    case "report": {
+      const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+      if (!reason || reason.length > MAX_REPORT) return { status: 400, body: { error: "Say briefly what is wrong (up to 500 characters)." } };
+      // One report per person per post; a repeat is accepted without a second row.
+      await rest("lounge_reports?on_conflict=post_id,reporter_owner_id", { method: "POST", headers: { Prefer: "resolution=ignore-duplicates,return=minimal" }, body: JSON.stringify({
+        post_id: id, reporter_owner_id: me.ownerId, reporter_handle: me.handle, reason,
+      }) });
+      return { status: 200, body: { state: "OK", reported: id } };
+    }
+    case "block":
+    case "mute":
+    case "unblock":
+    case "unmute": {
+      const target = typeof body.handle === "string" ? body.handle.trim() : "";
+      if (!target || target.length > 60 || target === me.handle) return { status: 400, body: { error: "Bad handle" } };
+      const kind = body.op === "mute" || body.op === "unmute" ? "mute" : "block";
+      if (body.op === "block" || body.op === "mute") {
+        await rest("lounge_blocks?on_conflict=owner_id,blocked_handle", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ owner_id: me.ownerId, blocked_handle: target, kind }) });
+        // Blocking also stops following; muting leaves the follow alone.
+        if (kind === "block") await rest(`lounge_follows?owner_id=eq.${owner}&following_handle=eq.${encodeURIComponent(target)}`, { method: "DELETE" });
+      } else {
+        await rest(`lounge_blocks?owner_id=eq.${owner}&blocked_handle=eq.${encodeURIComponent(target)}&kind=eq.${kind}`, { method: "DELETE" });
+      }
+      return { status: 200, body: { state: "OK" } };
+    }
+    case "hide":
+    case "unhide": {
+      // Moderators are the core team, proven by the verified email on the server.
+      if (!isCoreTeam(null, me.email)) return { status: 403, body: { error: "Only a Lounge moderator can hide posts." } };
+      const changed = await rest<unknown[]>(`lounge_posts?id=eq.${id}&select=id`, { method: "PATCH", body: JSON.stringify(
+        body.op === "hide" ? { hidden_at: new Date().toISOString(), hidden_by: me.handle } : { hidden_at: null, hidden_by: null },
+      ) });
+      if (!Array.isArray(changed) || changed.length === 0) return { status: 404, body: { error: "No such post." } };
+      if (body.op === "hide") {
+        try { await rest(`lounge_reports?post_id=eq.${id}&status=eq.OPEN`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ status: "HIDDEN" }) }); } catch (e) { if (!missing(e)) throw e; }
+      }
       return { status: 200, body: { state: "OK" } };
     }
     default:

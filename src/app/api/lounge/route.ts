@@ -72,7 +72,7 @@ export async function POST(request: Request): Promise<Response> {
   if (bad || !body) return NextResponse.json({ error: bad ?? "Bad request" }, { status: 400 });
   // Anti-flood (2026-10-04): posts and comments are limited; toggles get a
   // generous ceiling of their own (2026-10-05).
-  if (body.op !== "post" && body.op !== "comment") {
+  if (body.op !== "post" && body.op !== "comment" && body.op !== "report") {
     const rl = checkRateLimit(`lounge-toggle:${auth.user.sub}`, { max: 120, windowMs: 60_000 });
     if (!rl.ok) return rl.response;
   } else {
