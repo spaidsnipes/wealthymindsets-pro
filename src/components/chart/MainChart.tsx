@@ -20896,11 +20896,21 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // its face: the masonry is clipped around it, never painted over
                 // it (serving BTC: the 85,000 wall buried a VAH EST chip).
                 const chipsUnder = floatingChips.filter(c => c.x < x1 && c.x + c.w > x0 && c.y < top + wallH && c.y + c.h > top);
+                // PRICE IS NEVER UNDER THE BRICKS (Founder's Chrome, NQ1! 5m 2026-10-23: the 29,150 masonry ran back into the
+                // newest candles and painted over them). Every candle body and wick in the wall's span is cut out.
+                const vrW = chart.timeScale().getVisibleLogicalRange();
+                const candlesUnder = candleCutOutRects(barsRef.current ?? [], {
+                  visible: vrW ? { from: +vrW.from, to: +vrW.to } : null,
+                  barSpacing: bsp,
+                  timeToX: t => { const xk = chart.timeScale().timeToCoordinate(t as never); return xk == null ? null : +xk; },
+                  priceToY: pp => { const yk = srs.priceToCoordinate(pp); return yk == null ? null : +yk; },
+                }, x0, x1).filter(c => c.y < top + wallH + 14 && c.y + c.h > top);
                 ctx.save();
-                if (chipsUnder.length) {
+                if (chipsUnder.length || candlesUnder.length) {
                   ctx.beginPath();
                   ctx.rect(0, 0, W, paneBotD + 40);
                   for (const c of chipsUnder) ctx.rect(c.x - 1, c.y - 1, c.w + 2, c.h + 2);
+                  for (const c of candlesUnder) ctx.rect(c.x - 1, c.y - 1, c.w + 2, c.h + 2);
                   ctx.clip("evenodd");
                 }
                 if (!broken) {
