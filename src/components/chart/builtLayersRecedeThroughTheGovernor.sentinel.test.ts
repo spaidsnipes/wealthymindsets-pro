@@ -407,7 +407,8 @@ describe("phone reads on f37005c (2026-10-09): the scale toggle sits in its corn
     expect(CHART).toContain('<button type="button" className="absolute wm-chart-scale-toggle wm-tap-slop"');
   });
   it("on narrow glass the mass's four shells sum to the fog cap and stop at the newest column", () => {
-    expect(CHART).toContain("const massK = narrowGlass ? FOG_CAP / (0.1 + 0.145 + 0.19 + 0.235) : 1;");
+    // 2026-10-23: the desk has its own cap too (EFFORT_DESK_FOG_SUM) — the phone's is still FOG_CAP.
+    expect(CHART).toContain("const massK = (narrowGlass ? FOG_CAP : EFFORT_DESK_FOG_SUM) / (0.1 + 0.145 + 0.19 + 0.235);");
     expect(CHART).toContain("${((0.1 + li * 0.045) * massK).toFixed(3)})`;");
     expect(CHART).toContain("const colM = sovereignColumn();");
   });

@@ -384,6 +384,8 @@ const BRICK_SPRITE_CACHE_MAX = 48;
 const SEAM_HATCH_FADE_PX = 140;
 /** An event sentence that spoke keeps its voice this long (2026-10-23: it blinked chip ↔ pip). */
 const SPEAKER_HOLD_MS = 15_000;
+/** The Effort mass shells' summed ink on the desk (was 0.67, 2026-10-23: grey fog over the candles). */
+const EFFORT_DESK_FOG_SUM = 0.36;
 /**
  * G06 FOUNDER BODIES — the plate's own figures (WM_GuestTour_G06_Academy_
  * Anatomy_Teach), keyed off the plate so the chart carries THE Founder's
@@ -16077,7 +16079,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.clip(cutT, "evenodd");
                 // PHONE (f37005c, 2026-10-09): four shells sum to 0.67 ink — grey
                 // fog. On narrow glass their SUM is FOG_CAP.
-                const massK = narrowGlass ? FOG_CAP / (0.1 + 0.145 + 0.19 + 0.235) : 1;
+                // DESK (Founder 2026-10-23, "gray fog … you can barely see things"): the four shells summed to 0.67 light-grey
+                // ink over the newest 30 bars. On the desk their SUM is EFFORT_DESK_FOG_SUM; the ridge edges keep full ink.
+                const massK = (narrowGlass ? FOG_CAP : EFFORT_DESK_FOG_SUM) / (0.1 + 0.145 + 0.19 + 0.235);
                 // NO HARD NOTCH (6944df9): only the FILL leaves the newest column,
                 // feathered 8px each side; the contour hairlines run through.
                 const colM = sovereignColumn();
