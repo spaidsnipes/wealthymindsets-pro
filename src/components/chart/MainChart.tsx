@@ -22163,7 +22163,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   const scopeW = gexScopeWords(gex);
                   // THE MODEL WORDS FIRST (serving 834 all-on, 2026-10-11 04:05: the desk-width line was
                   // fitted to "… MODEL, ASSUMED D…" — the disclosure is what may never be cut; provenance follows).
-                  parts.push(`GAMMA · ${gex.grade} · MODEL, ASSUMED DEALER SIDE · ${src!.name} · ${src!.oi}${asOfW ? ` · as of ${asOfW}` : ""}${scopeW ? ` · ${scopeW}` : ""}${flipW}`);
+// The desk says the disclosure and the OI clock only (Founder 2026-10-23, "words and labels everywhere": the line
+                  // ran the whole chart width — as-of, every expiry, the flip reason). Those are Inspect's; the phone's folded
+                  // truth line keeps them whole.
+                  parts.push(`GAMMA · ${gex.grade} · MODEL, ASSUMED DEALER SIDE · ${src!.name} · ${src!.oi}${narrowGlass ? `${asOfW ? ` · as of ${asOfW}` : ""}${scopeW ? ` · ${scopeW}` : ""}${flipW}` : ""}`);
                 }
                 if (composed.yielded.GAMMA_FLIP || composed.yielded.GAMMA_POSITIVE || composed.yielded.GAMMA_NEGATIVE) parts.push("flip / regions shown by Derivatives Pressure");
               }
