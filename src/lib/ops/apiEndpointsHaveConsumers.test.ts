@@ -88,9 +88,9 @@ const NO_IN_APP_CALLER: Readonly<Record<string, OrphanEntry>> = {
     cls: "CROSS_PRODUCT",
     evidence:
       "Registered at birth, 2026-10-22 (Mission Control P0: one Lounge, one writer). WOW World's Worker " +
-      "(wow-world-os worker/adapters.js loungePost) POSTs an HMAC-signed lounge_post grant here over the WM_PRO " +
-      "service binding when it holds no Supabase service key; this host writes the one lounge_posts table both apps read. " +
-      "No WM Pro screen calls it — WM Pro members post through /api/lounge.",
+      "(wow-world-os worker/adapters.js loungePost) sends HMAC-signed lounge_op grants (feed, comments, post, comment, like, delete, follow) here over the " +
+      "WM_PRO service binding; this host runs the one Lounge's rules (src/lib/lounge/loungeStore.ts) on the tables both apps read. " +
+      "No WM Pro screen calls it — WM Pro members use /api/lounge.",
   },
   "/api/livekit/classroom": {
     cls: "CROSS_PRODUCT",

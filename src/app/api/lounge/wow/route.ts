@@ -1,37 +1,50 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { checkRateLimit } from "@/lib/rateLimit";
-import { verifyWowPostGrant } from "@/lib/lounge/wowPostGrant";
+import { supabaseGetUserById } from "@/lib/auth";
+import { verifyWowLoungeGrant } from "@/lib/lounge/wowPostGrant";
+import { checkOp, loungeStore, readComments, readFeed, runOp, storeFailure, type LoungeActor, type LoungeOp } from "@/lib/lounge/loungeStore";
+
+export const dynamic = "force-dynamic";
+const NO_STORE = { "Cache-Control": "no-store" };
 
 /**
- * Server-to-server only: WOW OS posts a Lounge post it signed for a Passport
- * member; this host writes it to the one `lounge_posts` table that both WOW and
- * WM Pro read. See src/lib/lounge/wowPostGrant.ts for what is checked.
+ * Server-to-server only: WOW OS sends a Lounge op it signed for a Passport
+ * member. Same rules, same tables, same feed as /api/lounge — one Lounge.
+ * See src/lib/lounge/wowPostGrant.ts for what is checked.
  */
 export async function POST(request: Request) {
   const body = await request.text();
-  const check = await verifyWowPostGrant(process.env.CLASSROOM_GRANT_SECRET, body, request.headers.get("x-ath-grant-signature"));
-  if (!check.ok) return NextResponse.json({ error: check.error }, { status: check.status });
+  const check = await verifyWowLoungeGrant(process.env.CLASSROOM_GRANT_SECRET, body, request.headers.get("x-ath-grant-signature"));
+  if (!check.ok) return NextResponse.json({ error: check.error }, { status: check.status, headers: NO_STORE });
   const g = check.grant;
-  const rl = checkRateLimit(`lounge:${g.user_id}`, { max: 30, windowMs: 60_000 });
-  if (!rl.ok) return rl.response;
-  const db = getSupabaseAdmin();
-  if (!db) return NextResponse.json({ error: "LOUNGE_WRITES_NOT_CONFIGURED" }, { status: 503 });
-  const { data, error } = await db.from("lounge_posts").insert({
-    user_id: g.user_id,
-    user_handle: g.handle,
-    user_name: g.name,
-    user_avatar: "",
-    user_color: "#00D4AA",
-    // Badges are derived, never self-declared — same as /api/lounge.
-    user_tier: "BASIC",
-    user_verified: false,
-    user_ceo: false,
-    content: g.content,
-    type: g.type,
-    trade_card: null,
-    tags: g.tags,
-  }).select("id,user_handle,user_name,content,type,tags,created_at").single();
-  if (error || !data) return NextResponse.json({ error: "Post failed" }, { status: 500 });
-  return NextResponse.json({ post: data }, { status: 201, headers: { "cache-control": "no-store" } });
+  const reply = (r: { status: number; body: Record<string, unknown> }) => NextResponse.json(r.body, { status: r.status, headers: NO_STORE });
+  try {
+    // One face per person: the shared account's own handle when it has one.
+    const acct = await supabaseGetUserById(g.owner_id).catch(() => null);
+    const meta = ((acct as { user_metadata?: Record<string, unknown> } | null)?.user_metadata ?? {}) as Record<string, unknown>;
+    const handle = typeof meta.handle === "string" && meta.handle.trim() ? meta.handle.trim() : g.fallback_handle;
+    const name = typeof meta.displayName === "string" && meta.displayName.trim() ? meta.displayName.trim() : g.fallback_name;
+    const avatar = typeof meta.avatar === "string" && meta.avatar.length <= 2048 ? meta.avatar : "";
+    const me: LoungeActor = { ownerId: g.owner_id, handle, name, avatar };
+    const rest = loungeStore();
+    if (g.op.op === "feed") return NextResponse.json(await readFeed(rest, me.ownerId, me.handle), { headers: NO_STORE });
+    if (g.op.op === "comments") {
+      const id = Number((g.op as { postId?: unknown }).postId);
+      if (!Number.isInteger(id) || id <= 0) return NextResponse.json({ error: "Bad post id" }, { status: 400 });
+      return NextResponse.json(await readComments(rest, id), { headers: NO_STORE });
+    }
+    const op = g.op as LoungeOp;
+    const bad = checkOp(op);
+    if (bad) return NextResponse.json({ error: bad }, { status: 400, headers: NO_STORE });
+    if (op.op === "post" || op.op === "comment") {
+      const rl = checkRateLimit(`lounge-write:${me.ownerId}`, { max: 10, windowMs: 60_000 });
+      if (!rl.ok) return rl.response;
+    } else {
+      const rl = checkRateLimit(`lounge-toggle:${me.ownerId}`, { max: 120, windowMs: 60_000 });
+      if (!rl.ok) return rl.response;
+    }
+    return reply(await runOp(rest, me, op));
+  } catch (e) {
+    return reply(storeFailure(e));
+  }
 }
