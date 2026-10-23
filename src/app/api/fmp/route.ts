@@ -19,7 +19,7 @@ import { requireAuth } from "@/lib/requireAuth";
 // Financials with "provider not configured"). Prefer the non-public FMP_KEY —
 // this is a server-only route, so a NEXT_PUBLIC_ key needlessly ships in the
 // client bundle, contradicting this file's own "keeps the key off the client".
-const FMP_KEY = process.env.FMP_KEY || process.env.NEXT_PUBLIC_FMP_KEY || "";
+const FMP_KEY = process.env.FMP_KEY || "";
 const FMP_BASE = "https://financialmodelingprep.com";
 
 const CACHE = new Map<string, { data: unknown; ts: number }>();
@@ -57,7 +57,7 @@ export async function GET(request: Request) {
     // Sentinel enforces this shape across the whole /api tree.
     return NextResponse.json(
       // Names for the operator only (ruling 2026-10-09): a member reads plain words, the same edge and a stable code.
-      audienceBody(isOperator(auth.user.sub), { error: "FMP fundamentals provider is not configured", edge: "NOT CONFIGURED", missing: ["FMP_KEY (or NEXT_PUBLIC_FMP_KEY)"], source: "fmp" }),
+      audienceBody(isOperator(auth.user.sub), { error: "FMP fundamentals provider is not configured", edge: "NOT CONFIGURED", missing: ["FMP_KEY"], source: "fmp" }),
       { status: 503 },
     );
   }

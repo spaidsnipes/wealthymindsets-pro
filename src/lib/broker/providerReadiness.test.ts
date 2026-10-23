@@ -112,11 +112,11 @@ describe("market-data & realtime lanes (the ones the receipt was blind to)", () 
     expect(r.lane).toBe("market-data");
   });
 
-  it("finnhub accepts the NEXT_PUBLIC_ fallback the route actually reads", () => {
-    // /api/finnhub: process.env.FINNHUB_KEY ?? process.env.NEXT_PUBLIC_FINNHUB_KEY
+  it("finnhub no longer accepts a NEXT_PUBLIC_ name (Aug 8 directive Part XV; prod carries none, measured 2026-10-23)", () => {
+    // A NEXT_PUBLIC_ name is a browser-bundle name; a server key must never be read under one.
     const r = computeProviderReadiness("finnhub", { NEXT_PUBLIC_FINNHUB_KEY: "k" });
-    expect(r.status).toBe("CONFIGURED");
-    expect(r.missing).toEqual([]);
+    expect(r.status).not.toBe("CONFIGURED");
+    expect(computeProviderReadiness("finnhub", { FINNHUB_KEY_: "k" }).status).toBe("CONFIGURED");
   });
 
   /**
