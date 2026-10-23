@@ -29418,7 +29418,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const rowsT = [below, above, ...fartherT];
               // Garden 19 §15 (Sheriff A1, 2026-10-07): the plate never sits on the
               // newest candles' column (bodies AND wicks) — price sovereignty.
-              const spotT = placeClearOfKeepOut(below, [...keepOut(), ...newestColumnRects(), ...rowBodiesAt(Math.min(...rowsT.map(r => r.y)), Math.max(...rowsT.map(r => r.y)) + hT)], {
+              // A SEAT IS KEPT WHILE IT STAYS CLEAR (Founder's Chrome, NQ1! 5m 2026-10-23, one-minute recording: the WAIT tag
+              // jumped below ↔ above its candle every few seconds). Last frame's seat, held relative to the event bar, is
+              // tried first; the usual order follows.
+              const heldT = seatMemoryRef.current.get("debtTag");
+              const heldRectT = heldT && heldT.w === wT ? { x: Math.min(Math.max(x + heldT.x, keepOutMinX()), plotRightT - wT - 4), y: clampY(yLo + heldT.y), w: wT, h: hT } : null;
+              const heldSpotT = heldRectT ? placeClearOfKeepOut(heldRectT, [...keepOut(), ...newestColumnRects(), ...rowBodiesAt(heldRectT.y, heldRectT.y + hT)], {
+                minX: keepOutMinX(), blockers: [...floatingChips, ...marketObjectPinRectsRef.current], strict: true,
+              }) : null;
+              const spotT = heldSpotT && heldSpotT.mode !== "BLOCKED" && !heldSpotT.onCandles ? heldSpotT : placeClearOfKeepOut(below, [...keepOut(), ...newestColumnRects(), ...rowBodiesAt(Math.min(...rowsT.map(r => r.y)), Math.max(...rowsT.map(r => r.y)) + hT)], {
                 minX: keepOutMinX(),
                 // The pins are the objects' own handles, fixed to price/time:
                 // the plate steps around them, never the other way round.
@@ -29426,6 +29434,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 strict: true,
                 alternates: [above, ...fartherT],
               });
+              if (spotT.mode !== "BLOCKED" && !spotT.onCandles) seatMemoryRef.current.set("debtTag", { x: spotT.rect.x - x, y: spotT.rect.y - yLo, w: wT, h: hT });
               // PRICE SOVEREIGNTY: on narrow glass the plate has a slot clear of
               // the newest column AND every candle body, or it is not painted —
               // the WAIT strip under the chart carries the word (it always does).
