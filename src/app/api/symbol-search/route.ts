@@ -41,11 +41,10 @@ import { requireAuth } from "@/lib/requireAuth";
 const POLYGON_FETCH_LIMIT = 200;
 const RESULT_LIMIT = 20;
 
-// WM-SEC-P0-05 (2026-08-08): prefer server-only POLYGON_KEY. NEXT_PUBLIC_
-// fallback stays as a transitional secondary so an in-flight rotation
-// doesn't strand this endpoint; remove that fallback once Founder deletes
-// NEXT_PUBLIC_POLYGON_KEY from the server environment.
-const POLYGON_KEY = process.env.POLYGON_KEY ?? process.env.NEXT_PUBLIC_POLYGON_KEY ?? "";
+// WM-SEC-P0-05 (2026-08-08): server-only POLYGON_KEY. The transitional
+// NEXT_PUBLIC_ fallback was removed 2026-10-23 once the host was measured to
+// carry no NEXT_PUBLIC_ provider names (wrangler secret list).
+const POLYGON_KEY = process.env.POLYGON_KEY ?? "";
 
 const CACHE = new Map<string, { data: unknown; ts: number }>();
 const TTL_MS = 30_000; // 30s cache
