@@ -1,50 +1,69 @@
 "use client";
 /**
- * ONE LOUNGE (Founder, Oct 22): "the features in the wm pro lounge should be the
- * wow os lounge … it's one lounge not 2 different or multiple different lounges."
- *
- * WM Pro's Lounge door opens the WOW OS Lounge itself — same feed, same posts,
- * likes, comments and follows (one store, written by /api/lounge/wow and
- * /api/lounge). No "are you sure" screen: the Passport rides through
- * /api/passport/to-wow (POST from this site), so a signed-in member lands
- * signed in. Back from WOW returns here once and steps on back to where the
- * member was in WM Pro instead of bouncing them into the Lounge again.
+ * ONE DESTINATION PER SHARED ROOM (Founder, Oct 22): "it's one lounge not 2
+ * different or multiple different lounges" — and the same for TV, Radio, Shop
+ * and the Academy. WM Pro is the trading OS; these rooms are WOW OS's. A WM Pro
+ * door to one of them opens the WOW room itself. No "are you sure" screen: the
+ * Passport rides through /api/passport/to-wow (POST from this site), so a
+ * signed-in member lands signed in. Back from WOW returns here once and steps
+ * on back to where the member was in WM Pro instead of bouncing them out again.
  */
 import { useEffect } from "react";
 import { WOW_DOOR_ACTION, wowDoorFields } from "@/lib/passport/openWowWorld";
+import { wowAcademyPath } from "@/lib/academy/wowAcademyPath";
 
-const FLAG = "wm.lounge.forwarded";
+export type WowRoom = "lounge" | "tv" | "radio" | "shop" | "academy";
 
-export function loungeTarget(search: string): string {
-  const room = new URLSearchParams(search).get("room");
-  return room && /^[A-Za-z0-9_-]{1,64}$/.test(room) ? `/lounge?room=${room}` : "/lounge";
+const ROOM_PATH: Record<WowRoom, string> = { lounge: "/lounge", tv: "/wow-tv", radio: "/wow-radio", shop: "/marketplace", academy: "/academy" };
+const ROOM_NAME: Record<WowRoom, string> = { lounge: "WOW Lounge", tv: "WOW TV", radio: "WOW Radio", shop: "WOW Marketplace", academy: "WOW Academy" };
+
+/** The WOW path a WM Pro room URL opens (keeps a live-room link and maps old lesson ids). */
+export function wowTarget(room: WowRoom, search: string): string {
+  const q = new URLSearchParams(search);
+  if (room === "lounge") {
+    const r = q.get("room");
+    return r && /^[A-Za-z0-9_-]{1,64}$/.test(r) ? `/lounge?room=${r}` : "/lounge";
+  }
+  if (room === "academy") {
+    const lesson = q.get("lesson");
+    return lesson ? wowAcademyPath(lesson) : "/academy";
+  }
+  return ROOM_PATH[room];
 }
 
-export default function LoungeForward() {
+/** Back-compat name used by the Lounge layout and tests. */
+export const loungeTarget = (search: string) => wowTarget("lounge", search);
+
+export function WowRoomForward({ room }: { room: WowRoom }) {
   useEffect(() => {
+    const flag = `wm.room.forwarded.${room}`;
     let recent = false;
-    try { recent = Date.now() - Number(sessionStorage.getItem(FLAG) || 0) < 60_000; sessionStorage.removeItem(FLAG); } catch { /* storage off */ }
+    try { recent = Date.now() - Number(sessionStorage.getItem(flag) || 0) < 60_000; sessionStorage.removeItem(flag); } catch { /* storage off */ }
     if (recent && window.history.length > 1) { window.history.back(); return; }
-    try { sessionStorage.setItem(FLAG, String(Date.now())); } catch { /* storage off */ }
+    try { sessionStorage.setItem(flag, String(Date.now())); } catch { /* storage off */ }
     const form = document.createElement("form");
     form.method = "POST";
     form.action = WOW_DOOR_ACTION;
     form.style.display = "none";
-    for (const [name, value] of Object.entries(wowDoorFields(loungeTarget(window.location.search)))) {
+    for (const [name, value] of Object.entries(wowDoorFields(wowTarget(room, window.location.search)))) {
       const input = document.createElement("input");
       input.type = "hidden"; input.name = name; input.value = value;
       form.appendChild(input);
     }
     document.body.appendChild(form);
     form.submit();
-  }, []);
+  }, [room]);
   return (
     <main className="flex min-h-[60vh] items-center justify-center p-6 text-center" aria-live="polite">
       <div>
-        <p className="text-lg font-black text-wm-text">Opening the WOW Lounge…</p>
-        <p className="mt-2 text-sm text-wm-text-dim">One Lounge for every ATH app — your Passport comes with you.</p>
-        <noscript><a href="https://thewow.online/lounge">Open the WOW Lounge</a></noscript>
+        <p className="text-lg font-black text-wm-text">Opening {ROOM_NAME[room]}…</p>
+        <p className="mt-2 text-sm text-wm-text-dim">One {ROOM_NAME[room].replace("WOW ", "")} for every ATH app — your Passport comes with you.</p>
+        <noscript><a href={`https://thewow.online${ROOM_PATH[room]}`}>Open {ROOM_NAME[room]}</a></noscript>
       </div>
     </main>
   );
+}
+
+export default function LoungeForward() {
+  return <WowRoomForward room="lounge" />;
 }

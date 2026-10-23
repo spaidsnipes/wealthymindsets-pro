@@ -21,3 +21,26 @@ describe("one Lounge: WM Pro's Lounge door opens the WOW OS Lounge", () => {
     expect(src).not.toMatch(/confirm\(|wmConfirm/);
   });
 });
+
+import { wowTarget } from "./LoungeForward";
+describe("one destination for every shared room opened from WM Pro", () => {
+  it("TV, Radio, Shop and Academy open their WOW rooms", () => {
+    expect(wowTarget("tv", "")).toBe("/wow-tv");
+    expect(wowTarget("radio", "")).toBe("/wow-radio");
+    expect(wowTarget("shop", "")).toBe("/marketplace");
+    expect(wowTarget("academy", "")).toBe("/academy");
+  });
+  it("an old Academy lesson link lands on the WOW lesson that teaches it", () => {
+    expect(wowTarget("academy", "?lesson=fp-1")).toBe("/academy/a-plus/glass/footprint");
+    expect(wowTarget("academy", "?lesson=fvg-3")).toBe("/academy/a-plus/fvg/3");
+  });
+  it("each room layout serves the forward (Radio keeps only its upload studio)", () => {
+    for (const [dir, room] of [["tv", "tv"], ["shop", "shop"], ["education", "academy"]] as const) {
+      const src = readFileSync(join(process.cwd(), `src/app/${dir}/layout.tsx`), "utf8");
+      expect(src).toContain(`<WowRoomForward room="${room}" />`);
+    }
+    const radio = readFileSync(join(process.cwd(), "src/components/os/RadioRoomGate.tsx"), "utf8");
+    expect(radio).toMatch(/studio"\) === "1"/);
+    expect(radio).toContain('<WowRoomForward room="radio" />');
+  });
+});
