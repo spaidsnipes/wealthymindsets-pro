@@ -21204,7 +21204,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.restore();
                 masonryRects.push({ x: x0, y: top - 2, w: len + 2, h: wallH + 4 });
                 const seenW = wallTestSpanWords(dp.testSpanSec);
-                if (wallsSpeak) wallWords.push({ word: `${w.polarity === "PUT_HEAVY" ? "PUT" : "CALL"} WALL ${fmtD(w.strike)} · ${wallLifeWord(w.life)}${w.tests ? ` ×${w.tests}` : ""}${heldThisBar ? " · PULLED BACK THIS BAR" : ""}${seenW ? ` · ${seenW}` : ""}`, x: x0, y: top + wallH / 2 });
+                if (wallsSpeak) wallWords.push({ word: `${w.polarity === "PUT_HEAVY" ? "PUT" : "CALL"} WALL ${fmtD(w.strike)} · ${wallLifeWord(w.life)}${w.tests ? ` ×${w.tests}` : ""}`, x: x0, y: top + wallH / 2 });
+                // Name, life, tests — that is the wall's name on the glass (Founder's Chrome, NQ1! 5m 2026-10-23: "… · PULLED
+                // BACK THIS BAR" ran 380px across the Structure rows). The bar's pull-back is the contact glow's to show; the
+                // test span is Inspect's. Both stay in the receipt.
+                if (heldThisBar || seenW) painted.push(`WALL_NOTE@${w.strike}:${heldThisBar ? "PULLED_BACK" : ""}${seenW ? `|${seenW}` : ""}`);
                 painted.push(`WALL@${w.strike}:${w.life}:${w.tests}`);
               }
               void strikesSorted;
