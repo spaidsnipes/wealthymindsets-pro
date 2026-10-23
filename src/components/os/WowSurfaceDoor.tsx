@@ -3,8 +3,9 @@
  * A one-click door from a WM Pro WOW-named surface (TV, Radio) to the same
  * room in WOW World. It carries the Passport through /api/passport/to-wow in
  * a NEW tab, so whatever is playing or charting here stays where it is.
- * WOW Lounge is deliberately not given this door: WM Pro's Lounge and WOW's
- * Lounge are different communities with different stores.
+ * Lounge needs no door: since Oct 22 WM Pro's Lounge and WOW's Lounge are one
+ * feed — both read `lounge_posts`, and WOW's posts are written here
+ * (/api/lounge/wow), so a post made in either app shows in both.
  */
 import { openWowWorld } from "@/lib/passport/openWowWorld";
 

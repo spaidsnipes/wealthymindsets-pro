@@ -84,6 +84,14 @@ const NO_IN_APP_CALLER: Readonly<Record<string, OrphanEntry>> = {
       "the webhook endpoint the Founder creates in the Stripe dashboard, never src. The route refuses anything " +
       "without a valid Stripe-Signature (billingRoutes.route.test.ts), so an in-app caller could not use it.",
   },
+  "/api/lounge/wow": {
+    cls: "CROSS_PRODUCT",
+    evidence:
+      "Registered at birth, 2026-10-22 (Mission Control P0: one Lounge, one writer). WOW World's Worker " +
+      "(wow-world-os worker/adapters.js loungePost) POSTs an HMAC-signed lounge_post grant here over the WM_PRO " +
+      "service binding when it holds no Supabase service key; this host writes the one lounge_posts table both apps read. " +
+      "No WM Pro screen calls it — WM Pro members post through /api/lounge.",
+  },
   "/api/livekit/classroom": {
     cls: "CROSS_PRODUCT",
     evidence:
@@ -366,7 +374,9 @@ describe("every API endpoint has something that actually calls it", () => {
     // with the same Passport, registered at birth.
     // 2 -> 3 on 2026-10-16: /api/livekit/classroom, WOW Academy classrooms' LiveKit token broker,
     // called server-to-server by WOW World with a signed grant, registered at birth.
-    expect(every.filter((e) => e.cls === "CROSS_PRODUCT").length).toBe(3);
+    // 3 -> 4 on 2026-10-22: /api/lounge/wow, WOW Lounge posts written by the one Lounge writer,
+    // called server-to-server by WOW World with a signed post, registered at birth.
+    expect(every.filter((e) => e.cls === "CROSS_PRODUCT").length).toBe(4);
 
     // Every DARK entry must point at the ticket that owns paying it down.
     for (const [path, entry] of dark) {
