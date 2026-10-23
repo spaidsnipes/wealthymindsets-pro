@@ -21610,6 +21610,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.restore();
 
               // ── CLIMATE (global) — one line, the environment's name ────
+              delete ds.pressureZeroGammaSaid; // set this frame only when the scope line carries the withheld front
               if (dpSpeaks) {
                 const srcW = positioningSourceWords(dp.source);
                 // §20: a near-money subset names its scope in place of a climate it cannot claim.
@@ -21658,7 +21659,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.fillStyle = "rgba(200,192,174,0.85)";
                   ctx.textAlign = "left"; ctx.textBaseline = "middle";
                   const yS = takeSilenceRow();
-                  const scopeLine = `${fieldOn ? "DERIVATIVES PRESSURE" : "BRICK WALLS"} · ${scopeW}`;
+                  // One line for one fact (2026-10-23: "NEAR-PRICE …" and "ZERO-GAMMA · WITHHELD — ONLY THE ~120 CONTRACTS
+                  // NEAREST PRICE …" said the same scope twice in the stack): the withheld front rides on the scope line.
+                  const zgW = chainScopeWithheldWords(dp.chainScope) ? " · ZERO-GAMMA WITHHELD" : "";
+                  const scopeLine = `${fieldOn ? "DERIVATIVES PRESSURE" : "BRICK WALLS"} · ${scopeW}${zgW}`;
+                  if (zgW) ds.pressureZeroGammaSaid = "SCOPE_LINE"; else delete ds.pressureZeroGammaSaid;
                   ctx.fillText(fitSilence(scopeLine), silenceX, yS);
                   if (yS > 0) floatingChips.push({ x: silenceX, y: yS - 7, w: ctx.measureText(scopeLine).width, h: 14 });
                   ds.pressureScopeSaid = yS > 0 ? "SILENCE_STACK" : "SILENCE_FOLDED";
@@ -21912,7 +21917,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const scopeNow = dp.drawn ? dp.chainScope : null;
               // The glass says it short (Founder 2026-10-23, "words and labels everywhere"); the whole sentence stays in
               // Inspect and the ⓘ (chainScopeWithheldWords).
-              const withheldW = scopeNow && chainScopeWithheldWords(scopeNow) ? "ZERO-GAMMA WITHHELD · NEAR-PRICE CHAIN ONLY" : null;
+              const withheldW = scopeNow && chainScopeWithheldWords(scopeNow) && ds.pressureZeroGammaSaid !== "SCOPE_LINE" ? "ZERO-GAMMA WITHHELD · NEAR-PRICE CHAIN ONLY" : null;
               if (withheldW && scopeNow) {
                 ctx.save();
                 ctx.font = marketFont("OBJECT_NAME");
