@@ -15,7 +15,7 @@ const ladderFor = (sym: string) => CANON_LADDER.map(r => canonAvailabilityFor(r,
 const table = (sym: string) =>
   ladderFor(sym).map(r => `${r.id}:${r.availability === "NATIVE_PROVIDER" ? "N" : r.availability === "DERIVED_CANONICAL" ? "D" : "U"}`).join(" ");
 // tastytrade's own candles: 5s / 15s / 30s, every minute size it streams, hours, days, weeks, months.
-const TASTY = "TICK:U 1s:U 5s:N 10s:U 15s:N 30s:N 1m:N 2m:N 3m:N 5m:N 10m:N 15m:N 20m:U 30m:N 1h:N 2h:N 4h:N 1D:N 1W:N 1M:N 1Q:U 6M:U 1Y:U";
+const TASTY = "TICK:U 1s:U 5s:N 10s:U 15s:N 30s:N 1m:N 2m:N 3m:N 5m:N 10m:N 15m:N 20m:N 30m:N 1h:N 2h:N 4h:N 1D:N 1W:N 1M:N 1Q:U 6M:U 1Y:U";
 const NOTHING = CANON_LADDER.map(r => `${r.id}:U`).join(" ");
 const DELAYED = ["Alpaca", "Finnhub", "Yahoo", "Polygon"];
 

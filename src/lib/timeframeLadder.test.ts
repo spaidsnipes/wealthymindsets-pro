@@ -102,7 +102,7 @@ describe("the availability table — what the chart's bar path can do with each 
     const table = CANON_LADDER.map(r => `${r.id}:${r.availability === "NATIVE_PROVIDER" ? "N" : r.availability === "DERIVED_CANONICAL" ? "D" : "U"}`);
     expect(table.join(" ")).toBe(
       "TICK:U 1s:U 5s:N 10s:U 15s:N 30s:N " +
-      "1m:N 2m:N 3m:N 5m:N 10m:N 15m:N 20m:U 30m:N " +
+      "1m:N 2m:N 3m:N 5m:N 10m:N 15m:N 20m:N 30m:N " +
       "1h:N 2h:N 4h:N " +
       "1D:N 1W:N 1M:N 1Q:U 6M:U 1Y:U",
     );
@@ -113,7 +113,7 @@ describe("the availability table — what the chart's bar path can do with each 
     // The seconds rungs are ROUTE-served (tastytrade, futures) — Alpaca is not
     // their route, and the per-symbol walk says so (see the seconds test below).
     const natives = CANON_LADDER.filter(r => r.availability === "NATIVE_PROVIDER" && getTimeframe(r.chartTf).source !== "route");
-    expect(natives.length).toBe(13);
+    expect(natives.length).toBe(14);
     for (const r of natives) {
       if (r.availability === "UNAVAILABLE") throw new Error("unreachable");
       expect(alpaca[r.chartTf], `${r.id}: /api/alpaca has no entry for "${r.chartTf}"`).toBe(exactAlpacaBucket(r));
@@ -171,10 +171,10 @@ describe("the availability table — what the chart's bar path can do with each 
     }
   });
 
-  it("20m and 1Q: not built yet — and it is true, no route serves either", () => {
+  it("1Q: not built yet — and it is true, no route serves it (20m was built 2026-10-23)", () => {
     const alpaca = alpacaTfMap();
     const fh = finnhubResKeys();
-    for (const id of ["20m", "1Q"]) {
+    for (const id of ["1Q"]) {
       const r = avail(id);
       if (r.availability !== "UNAVAILABLE") throw new Error(`${id} is no longer UNAVAILABLE`);
       expect(r.reason.startsWith("Not built yet")).toBe(true);
@@ -235,7 +235,6 @@ describe("spoken names — one phrase builder for the strip and the ladder", () 
 
   it("names the rungs that have no chart id from their own size", () => {
     expect(canonRungSpokenName(avail("1s"))).toBe("1 second bars");
-    expect(canonRungSpokenName(avail("20m"))).toBe("20 minutes bars");
     expect(canonRungSpokenName(avail("1Q"))).toBe("1 quarter bars");
     expect(canonRungSpokenName(avail("6M"))).toBe("6 months bars");
     expect(canonRungSpokenName(avail("1Y"))).toBe("1 year bars");
@@ -262,8 +261,10 @@ describe("liveBarBucketSec — the live forming bar's clock, fail closed", () =>
   const oldClock = (tf: string) => OLD[tf] ?? 60;
 
   it("answers every one of the 19 original TFIds exactly as the hook's old table did", () => {
-    expect(TF_IDS).toHaveLength(22);
-    const original = TF_IDS.filter(id => !/^\d+s$/.test(id));
+    expect(TF_IDS).toHaveLength(23);
+    // 20m (2026-10-23) is not one of the 19: it never had an old clock, and it gets its own size.
+    expect(liveBarBucketSec("20m")).toBe(1200);
+    const original = TF_IDS.filter(id => !/^\d+s$/.test(id) && id !== "20m");
     expect(original).toHaveLength(19);
     for (const id of original) expect(liveBarBucketSec(id), id).toBe(oldClock(id));
     // The seconds clocks (2026-10-01) are their own size, never the old ?? 60.
@@ -280,7 +281,7 @@ describe("liveBarBucketSec — the live forming bar's clock, fail closed", () =>
   });
 
   it("answers null — no clock, no forming bar — for the retired 1t/5t/30t and every non-clock id", () => {
-    for (const raw of ["1t", "5t", "30t", "100T", "TICK", "10s", "1s", "20m", "1Q", "3Y", "D", "", "banana"]) {
+    for (const raw of ["1t", "5t", "30t", "100T", "TICK", "10s", "1s", "1Q", "3Y", "D", "", "banana"]) {
       expect(liveBarBucketSec(raw), `"${raw}"`).toBeNull();
     }
   });

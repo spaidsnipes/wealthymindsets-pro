@@ -65,7 +65,7 @@ describe("TimeframeLadder — every canon rung, honest about each", () => {
         expect(el!.props["aria-label"]).toBe(canonRungSpokenName(r));
       }
     }
-    expect(tree.filter(e => e.type === "button")).toHaveLength(16);
+    expect(tree.filter(e => e.type === "button")).toHaveLength(17);
   });
 
   it("every unavailable rung states its reason in visible words, not only a tooltip", () => {
@@ -94,7 +94,7 @@ describe("TimeframeLadder — every canon rung, honest about each", () => {
     for (const b of buttons) (b.props.onClick as () => void)();
     const expected = TSLA_LADDER.flatMap(r => (r.availability === "UNAVAILABLE" ? [] : [r.chartTf]));
     expect(onChoose.mock.calls.map(c => c[0])).toEqual(expected);
-    expect(expected).toEqual(["5s", "15s", "30s", "1m", "2m", "3m", "5m", "10m", "15m", "30m", "1h", "2h", "4h", "1D", "1W", "1M"]);
+    expect(expected).toEqual(["5s", "15s", "30s", "1m", "2m", "3m", "5m", "10m", "15m", "20m", "30m", "1h", "2h", "4h", "1D", "1W", "1M"]);
   });
 
   it("a DERIVED rung, when one exists, says 'derived' aloud and on the glass", () => {
@@ -166,7 +166,7 @@ describe("the ladder answers for the symbol on the glass (Garden 16 §26)", () =
     // 16 servable rungs (5s/15s/30s included), every one native.
     const es = elements(TimeframeLadder({ timeframe: "15m", symbol: "ES1!", onChoose: () => {} })).filter(e => e.type === "button");
     expect(es.length).toBeGreaterThan(15);
-    expect(es).toHaveLength(16);
+    expect(es).toHaveLength(17);
     expect(es.every(e => e.props["data-availability"] === "NATIVE_PROVIDER")).toBe(true);
     expect(derivedIds("ES1!")).toEqual([]);
     const tree = elements(TimeframeLadder({ timeframe: "4h", symbol: "BTCUSD", onChoose: () => {} }));
@@ -175,7 +175,7 @@ describe("the ladder answers for the symbol on the glass (Garden 16 §26)", () =
     expect(b.props["aria-current"]).toBe("true");
     for (const sym of ["TSLA", "BTC"]) {
       const buttons = elements(TimeframeLadder({ timeframe: "15m", symbol: sym, onChoose: () => {} })).filter(e => e.type === "button");
-      expect(buttons, sym).toHaveLength(16);
+      expect(buttons, sym).toHaveLength(17);
       expect(buttons.every(e => e.props["data-availability"] === "NATIVE_PROVIDER"), sym).toBe(true);
     }
   });

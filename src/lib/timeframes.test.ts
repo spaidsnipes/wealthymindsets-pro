@@ -11,7 +11,7 @@ describe("canonical timeframe set", () => {
   it("covers the 19 required intervals from 1m through 5Y, plus the three route-served seconds clocks", () => {
     const required: TFId[] = [
       "5s","15s","30s",
-      "1m","2m","3m","5m","10m","15m","30m","45m","1h","2h","4h",
+      "1m","2m","3m","5m","10m","15m","20m","30m","45m","1h","2h","4h",
       "1D","1W","1M","3M","6M","1Y","2Y","5Y",
     ];
     expect([...TF_IDS].sort()).toEqual([...required].sort());
@@ -40,7 +40,8 @@ describe("canonical timeframe set", () => {
 describe("provider support is measured, not assumed", () => {
   it("marks exactly the four provider-rejected intervals as aggregated", () => {
     const aggregated = TIMEFRAMES.filter(t => t.source === "aggregated").map(t => t.id);
-    expect(aggregated.sort()).toEqual(["10m", "2h", "3m", "45m"]);
+    // 20m (2026-10-23) is folded from 5m where the vendor has no 20-minute bucket.
+    expect(aggregated.sort()).toEqual(["10m", "20m", "2h", "3m", "45m"]);
   });
 
   it("aggregated intervals match the intervals the provider actually rejected", () => {

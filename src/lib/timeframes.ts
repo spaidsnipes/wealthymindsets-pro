@@ -34,7 +34,7 @@
 
 export type TFId =
   | "5s" | "15s" | "30s"
-  | "1m" | "2m" | "3m" | "5m" | "10m" | "15m" | "30m" | "45m"
+  | "1m" | "2m" | "3m" | "5m" | "10m" | "15m" | "20m" | "30m" | "45m"
   | "1h" | "2h" | "4h"
   | "1D" | "1W" | "1M" | "3M" | "6M" | "1Y" | "2Y" | "5Y";
 
@@ -139,6 +139,11 @@ const TF_LIST: Timeframe[] = [
     maxRangeSec: 8 * DAY,  minBarsForState: 120 },
   { id: "10m", label: "10m", candleIntervalSec: 10 * MIN, defaultRangeSec: 7 * DAY,
     source: "aggregated", aggregatedFrom: "5m",  aggregationFactor: 2,
+    maxRangeSec: 30 * DAY, minBarsForState: 100 },
+  // 20m (2026-10-23): the canon's MINUTES family names it; Alpaca (20Min) and
+  // tastytrade ({=20m}) publish it natively, Yahoo folds four 5m bars.
+  { id: "20m", label: "20m", candleIntervalSec: 20 * MIN, defaultRangeSec: 14 * DAY,
+    source: "aggregated", aggregatedFrom: "5m",  aggregationFactor: 4,
     maxRangeSec: 30 * DAY, minBarsForState: 100 },
   { id: "45m", label: "45m", candleIntervalSec: 45 * MIN, defaultRangeSec: 30 * DAY,
     source: "aggregated", aggregatedFrom: "15m", aggregationFactor: 3,
@@ -316,7 +321,7 @@ export function hasEnoughBarsForState(id: TFId, barCount: number): boolean {
 /** Full canonical ordering — intraday first, then daily and longer. */
 export const CHART_TF_ORDER: readonly TFId[] = Object.freeze([
   "5s", "15s", "30s",
-  "1m", "2m", "3m", "5m", "10m", "15m", "30m", "45m", "1h", "2h", "4h",
+  "1m", "2m", "3m", "5m", "10m", "15m", "20m", "30m", "45m", "1h", "2h", "4h",
   "1D", "1W", "1M", "3M", "6M", "1Y", "2Y", "5Y",
 ]);
 
@@ -521,7 +526,6 @@ export type CanonRung =
 
 /** The reasons a human reads. Short, true, and none of them a promise. */
 const NO_TAPE = "Needs a certified trade tape — none on this path.";
-const NOT_BUILT_20M = "Not built yet — no bar route serves 20-minute bars.";
 const NOT_BUILT_1Q = "Not built yet — no chart timeframe asks a route for quarterly candles.";
 const OPEN_6M = "Open decision — a half-year candle, or six months of daily bars.";
 const OPEN_1Y = "Open decision — a yearly candle, or one year of daily bars.";
@@ -545,7 +549,7 @@ export const CANON_LADDER: readonly CanonRung[] = Object.freeze([
   native("5m",  "MINUTES", 5,  "minute"),
   native("10m", "MINUTES", 10, "minute"),
   native("15m", "MINUTES", 15, "minute"),
-  off("20m",    "MINUTES", 20, "minute", NOT_BUILT_20M),
+  native("20m", "MINUTES", 20, "minute"),
   native("30m", "MINUTES", 30, "minute"),
 
   native("1h", "HOURS", 1, "hour"),

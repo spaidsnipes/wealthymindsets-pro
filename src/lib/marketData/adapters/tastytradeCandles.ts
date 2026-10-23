@@ -24,6 +24,7 @@ const PERIODS: Readonly<Record<string, { readonly period: string; readonly secon
   "5m": { period: "5m", seconds: 300 },
   "10m": { period: "10m", seconds: 600 },
   "15m": { period: "15m", seconds: 900 },
+  "20m": { period: "20m", seconds: 1200 },
   "30m": { period: "30m", seconds: 1800 },
   "1h": { period: "h", seconds: 3600 },
   "2h": { period: "2h", seconds: 7200 },

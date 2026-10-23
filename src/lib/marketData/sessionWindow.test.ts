@@ -183,7 +183,7 @@ describe("the session clock is the registry's, and a non-clock id gets none", ()
   });
 
   it("× THE TICK THAT READ AS A MINUTE: a non-clock id has no minutes", () => {
-    for (const tf of ["1t", "100T", "TICK", "10s", "20m", "7m", "3Y", "", "banana"]) {
+    for (const tf of ["1t", "100T", "TICK", "10s", "7m", "3Y", "", "banana"]) {
       expect(barMinutesOf(tf), `"${tf}"`).toBeNull();
     }
   });
