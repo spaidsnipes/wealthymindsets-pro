@@ -25,7 +25,8 @@ export async function POST(request: Request) {
     const handle = typeof meta.handle === "string" && meta.handle.trim() ? meta.handle.trim() : g.fallback_handle;
     const name = typeof meta.displayName === "string" && meta.displayName.trim() ? meta.displayName.trim() : g.fallback_name;
     const avatar = typeof meta.avatar === "string" && meta.avatar.length <= 2048 ? meta.avatar : "";
-    const me: LoungeActor = { ownerId: g.owner_id, handle, name, avatar };
+    const email = typeof (acct as { email?: unknown } | null)?.email === "string" ? (acct as { email: string }).email : null;
+    const me: LoungeActor = { ownerId: g.owner_id, handle, name, avatar, email };
     const rest = loungeStore();
     if (g.op.op === "feed") return NextResponse.json(await readFeed(rest, me.ownerId, me.handle), { headers: NO_STORE });
     if (g.op.op === "comments") {

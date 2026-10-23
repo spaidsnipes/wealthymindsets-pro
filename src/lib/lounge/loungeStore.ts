@@ -12,6 +12,7 @@
  * Extracted unchanged from /api/lounge (2026-10-03 … 10-05 security passes).
  */
 import { resolveSupabaseServiceKey } from "@/lib/supabaseConfigStatus";
+import { isCoreTeam } from "@/lib/coreTeam";
 
 export const MAX_POST = 2000;
 export const MAX_COMMENT = 1000;
@@ -20,7 +21,7 @@ export const POST_FIELDS = "id,user_handle,user_name,user_avatar,user_color,user
 export const COMMENT_FIELDS = "id,post_id,user_handle,user_name,user_avatar,user_color,body,created_at";
 
 /** Who is acting: the shared account id plus the public face the Lounge shows. */
-export type LoungeActor = { ownerId: string; handle: string; name: string; avatar: string };
+export type LoungeActor = { ownerId: string; handle: string; name: string; avatar: string; /** verified sign-in email, server-side only — proves the core-team Crown W */ email?: string | null };
 
 export type LoungeOp =
   | { op: "post"; content: string; type?: string; trade_card?: unknown; tags?: unknown }
@@ -108,7 +109,9 @@ export async function runOp(rest: Rest, me: LoungeActor, body: LoungeOp): Promis
       const tc = body.type === "trade" && body.trade_card && typeof body.trade_card === "object" ? body.trade_card : null;
       const [row] = await rest<unknown[]>(`lounge_posts?select=${POST_FIELDS}`, { method: "POST", body: JSON.stringify({
         owner_id: me.ownerId, user_handle: me.handle, user_name: me.name, user_avatar: me.avatar, user_color: "#00D4AA",
-        user_tier: "BASIC", user_verified: false, user_ceo: false,
+        // Crown W + check: derived from the account's verified email on the
+        // server (coreTeam.ts), never from anything the request says.
+        user_tier: "BASIC", user_verified: isCoreTeam(null, me.email), user_ceo: isCoreTeam(null, me.email),
         content, type: body.type === "trade" ? "trade" : "text", trade_card: tc, tags,
       }) });
       return { status: 200, body: { state: "OK", post: row } };

@@ -37,9 +37,9 @@ const REALMS: readonly Realm[] = [
   // No host → no door (it used to open WM itself); shown like the other realms not yet open.
   { key: "dreamboard",   label: "DREAMBOARD",  tagline: "Plan · Create · Manifest",   href: DREAMBOARD_URL ? `${DREAMBOARD_URL}/` : undefined, external: true, glyph: "★" },
   { key: "powertribes",  label: "POWERTRIBES", tagline: "Lead · Build · Scale",        glyph: "✦" },
-  // Night shift 2026-10-07: the card read like a live store; /shop itself is a
-  // concept catalog with checkout not connected. The card now says so.
-  { key: "marketplace",  label: "MARKETPLACE", tagline: "Merch · Books · Lifestyle",   href: "/shop", glyph: "◈", note: "concept catalog" },
+  // Oct 22 (one destination): /shop opens the WOW Marketplace itself — the ATH
+  // Store with real products and checkout — so the card no longer says "concept".
+  { key: "marketplace",  label: "WOW MARKETPLACE", tagline: "Merch · Books · Lifestyle", href: "/shop", glyph: "◈" },
   { key: "games",        label: "GAMES",       tagline: "Play · Compete · Conquer",    glyph: "⬢" },
 ];
 

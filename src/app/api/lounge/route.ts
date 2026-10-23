@@ -35,7 +35,7 @@ const NO_STORE = { "Cache-Control": "no-store" };
 function meFrom(user: { sub: string; email: string; handle?: string; displayName?: string; avatar?: string }): LoungeActor | null {
   const handle = (user.handle ?? "").trim();
   if (!handle) return null;
-  return { ownerId: user.sub, handle, name: (user.displayName ?? handle).trim() || handle, avatar: user.avatar ?? "" };
+  return { ownerId: user.sub, handle, name: (user.displayName ?? handle).trim() || handle, avatar: user.avatar ?? "", email: user.email };
 }
 
 const reply = (r: { status: number; body: Record<string, unknown> }) => NextResponse.json(r.body, { status: r.status, headers: NO_STORE });
