@@ -36,7 +36,7 @@ describe("G16 §23 · Profile Fusion on the glass", () => {
 
   it("bar-built Composite and Visible Range say CANDLE-EST", () => {
     expect(CHART).toContain("TODAY EXCLUDED${profileEstWord(cp.quality)}`");
-    expect(CHART).toContain("MOVES WITH THE VIEW${profileEstWord(vrpVM.quality)}`");
+    expect(CHART).toContain("VISIBLE RANGE · ${vrpVM.barsInView} BARS${profileEstWord(vrpVM.quality)}`"); // 2026-10-23: shorter caption, EST kept
   });
 });
 

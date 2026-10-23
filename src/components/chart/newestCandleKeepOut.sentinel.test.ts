@@ -216,7 +216,7 @@ describe("the exhaustion chip clears every body under its row and the chips on t
 describe("the Structure Profile's name and LEG POC chip clear every body under their rows", () => {
   // Added 2026-09-25 (keep-out completion): both chips (0.82 backing) print
   // right of the swing over the leg's own candles, with no keep-out at all.
-  const chipFn = slice("const chip = (text: string, x: number, y: number, rowIfBlocked = false) => {", "`STRUCTURE · FROM ${kind}");
+  const chipFn = slice("const chip = (text: string, x: number, y: number, rowIfBlocked = false) => {", "`STRUCTURE · ${kind} ${gPx(sp.anchor.price)}${est}`"); // 2026-10-23: the title lost "FROM … BARS" (fewer words)
 
   it("tests the chip-free row strictly, then the rows a step away, then a slide that stops at the anchor", () => {
     expect(chipFn).toMatch(/const rowsS: number\[\] = \[y\];\s*for \(let step = 1; step <= 6; step\+\+\) \{/);

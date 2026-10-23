@@ -92,6 +92,7 @@ import { AlertsPanel, type PriceAlert } from "./AlertsPanel";
 import { ChartSettingsModal, type ChartSettings, DEFAULT_CHART_SETTINGS } from "./ChartSettingsModal";
 import { ToolStylePopover, type ToolStyleTarget } from "./ToolStylePopover";
 import { liftNeonRoom, NEON_ROOM, traderEdit } from "@/lib/chart/chartSettingsEdit";
+import { useDwellWord } from "@/lib/chart/wordDwell";
 import { deliverChartDraftPrice, useChartLineModifyAsk } from "@/lib/execution/chartOrderLines";
 import {
   CANDLE_DOWN_DEFAULT,
@@ -772,11 +773,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // Big Trades "Simultaneous Mode": when ON, Big Trades bubbles overlay on top of
   // the active order-flow tool instead of replacing it. `bigTradesOverlay` tracks
   // whether the overlay is currently toggled on (only meaningful while simul ON).
-  const [bigTradesSimul,   setBigTradesSimul]   = useState<boolean>(
-    // Garden 18 §XXI: Big Trades is its own sense — an overlay beside any
-    // footprint mode unless the trader chose exclusive mode ("0").
-    () => typeof window === "undefined" || localStorage.getItem("wm_bigtrades_simul") !== "0"
-  );
+  // Garden 18 §XXI, made law (Founder 2026-10-23: "simultaneous … should just be a mode … you can put the big trades on
+  // the delta, all the order flow tools"): Big Trades is ALWAYS its own overlay beside any footprint mode. The
+  // exclusive switch is gone; a stored "0" (his Chrome held one — Big Trades switched off by picking Imbalance) is ignored.
+  const bigTradesSimul = true;
   // Persisted (2026-10-03): it started false on every load, so a Big Trades
   // the trader switched on vanished at the next reload (serving BTC 1m).
   const [bigTradesOverlay, setBigTradesOverlay] = useState<boolean>(() => lsGet("wm_bigtrades_on", false) as boolean);
@@ -1411,17 +1411,6 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     setFootprintType(p.mode);
     if (bigTradesSimul) setBigTradesOverlay(p.bigTrades);
   }), [bigTradesSimul]);
-  // Sync Big Trades Simultaneous Mode when toggled from the gear popover.
-  useEffect(() => {
-    const onSimul = (e: Event) => {
-      const on = !!(e as CustomEvent).detail?.on;
-      setBigTradesSimul(on);
-      // Leaving simul mode clears the standalone overlay so state stays coherent.
-      if (!on) setBigTradesOverlay(false);
-    };
-    window.addEventListener("wm-bigtrades-simul", onSimul);
-    return () => window.removeEventListener("wm-bigtrades-simul", onSimul);
-  }, []);
   usePersistOnChange("wm_candleType",   candleType);
   usePersistOnChange("wm_timeframe",    timeframe);
   usePersistOnChange("wm_chartLayout",  chartLayout);
@@ -5579,12 +5568,19 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
      owners and hand the single reader to MainChart's OHLC horizon.
      A DAY-CHANGE PERCENT IS NOT A MARKET REGIME: the first verdict remains a
      day-change band and the second remains the canonical tape-owned regime. */
+  // The tape regime word holds 20s before it changes (wordDwell.ts: it flip-flopped BALANCE/TREND every few seconds).
+  const liveRegime = chartCanvasState?.regime ?? null;
+  const regimeKey = liveRegime ? `${liveRegime.resolution}:${liveRegime.value ?? ""}` : "NONE";
+  const regimeByKey = React.useRef(new Map<string, typeof liveRegime>());
+  regimeByKey.current.set(regimeKey, liveRegime);
+  const heldRegimeKey = useDwellWord(regimeKey, 20_000);
+  const heldRegime = heldRegimeKey === regimeKey ? liveRegime : (regimeByKey.current.get(heldRegimeKey) ?? liveRegime);
   const badge = selectRegimeBadge({
     change: ticker.change,
     changePct: ticker.changePct,
     symbol,
     at: sessionClockDate,
-    canonRegime: chartCanvasState?.regime ?? null,
+    canonRegime: heldRegime,
   });
   // REPLAY: today's day-change band beside a past bar is a live word on a
   // past camera — withheld while the camera walks history (Sheriff batch 3).

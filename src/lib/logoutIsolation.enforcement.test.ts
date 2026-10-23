@@ -156,6 +156,7 @@ const DEVICE_LEVEL_EXEMPT = new Set<string>([
   "wm_profile_strength",      // profile ink strength — device chart pref
   "wm_questionChoice",        // question lens choice — device chart pref
   "wm_visual_roles",          // visual roles — device chart layout pref
+  "wm_visual_roles_visit",    // this visit's Focus / Quiet roles (sessionStorage) — device chart pref
   "wm_workspaceLayouts",      // saved chart layouts — device layout pref, like wm_chartLayout
 ]);
 

@@ -188,9 +188,6 @@ function BigTradesControls() {
   const [paused, setPaused] = useState<boolean>(
     () => typeof window !== "undefined" && localStorage.getItem("wm_bubble_paused") === "1"
   );
-  const [simul, setSimul] = useState<boolean>(
-    () => typeof window !== "undefined" && localStorage.getItem("wm_bigtrades_simul") === "1"
-  );
   // Max bubbles to show. 0 = "All" (default) → the engine keeps every big trade.
   const [maxN, setMaxN] = useState<number>(
     () => (typeof window === "undefined" ? 0 : (parseInt(localStorage.getItem("wm_bubble_max") || "0", 10) || 0))
@@ -208,12 +205,6 @@ function BigTradesControls() {
     } catch {}
   };
 
-  const toggleSimul = () => {
-    const next = !simul; setSimul(next);
-    try { localStorage.setItem("wm_bigtrades_simul", next ? "1" : "0"); } catch {}
-    try { window.dispatchEvent(new CustomEvent("wm-bigtrades-simul", { detail: { on: next } })); } catch {}
-  };
-
   const toggleSound = () => {
     const next = !sound; setSound(next);
     try { localStorage.setItem("wm_bubble_sound", next ? "on" : "off"); } catch {}
@@ -224,12 +215,10 @@ function BigTradesControls() {
     emitBigTradesControl(next ? "pause" : "resume");
   };
   const reset = () => {
-    // Restore defaults: sound ON, resumed, exclusive mode, All bubbles, and a fresh respawn.
+    // Restore defaults: sound ON, resumed, All bubbles, and a fresh respawn (Big Trades is always its own overlay).
     setSound(true);   try { localStorage.setItem("wm_bubble_sound", "on"); } catch {}
     setPaused(false); try { localStorage.setItem("wm_bubble_paused", "0"); } catch {}
-    setSimul(false);  try { localStorage.setItem("wm_bigtrades_simul", "0"); } catch {}
     setBubbleMax(0);  // "All"
-    try { window.dispatchEvent(new CustomEvent("wm-bigtrades-simul", { detail: { on: false } })); } catch {}
     emitBigTradesControl("resume");
     emitBigTradesControl("refresh");
   };
@@ -313,30 +302,6 @@ function BigTradesControls() {
           {/* Delta Bubble level count migrated to the Smart Money panel's "WM DELTA
               BUBBLES" section (WM-UX-P0-01) — it sits with the bubbles it controls.
               Single source of truth: wm_delta_levels is now owned there. */}
-          {/* Simultaneous Mode — when ON, Big Trades bubbles overlay ON TOP of
-              whatever other order-flow tool is active (Delta, Bid×Ask, Imbalance,
-              Agg/Passive, Vol Profile). When OFF, selecting Big Trades runs it
-              alone (exclusive) and turns the other order-flow tools off. */}
-          <button
-            onClick={toggleSimul}
-            className="flex items-center justify-between w-full px-2 py-1.5 rounded text-[12px] text-wm-text hover:bg-wm-card border-t border-wm-border/40 mt-1 pt-2"
-          >
-            <span className="flex flex-col items-start text-left">
-              <span className="font-semibold">Simultaneous Mode</span>
-              <span className="text-[9.5px] text-wm-text-dim leading-tight mt-0.5">
-                {simul ? "Overlays on top of other tools" : "Runs alone (exclusive)"}
-              </span>
-            </span>
-            <span className={clsx(
-              "shrink-0 w-8 h-4 rounded-full relative transition-colors",
-              simul ? "bg-wm-green/60" : "bg-wm-border"
-            )}>
-              <span className={clsx(
-                "absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all",
-                simul ? "left-[18px]" : "left-0.5"
-              )} />
-            </span>
-          </button>
           <button
             onClick={reset}
             className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-[12px] text-wm-text hover:bg-wm-card border-t border-wm-border/40 mt-1 pt-2"

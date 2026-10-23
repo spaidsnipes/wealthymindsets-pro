@@ -125,12 +125,35 @@ export function readStoredRoles(): VisualRoles {
   return readSavedRoles();
 }
 
+/*
+ * FOCUS AND QUIET LAST ONE VISIT (Founder's Chrome, NQ1! 5m 2026-10-23: "the colors got dark again … you can barely
+ * see the walls"). His stored roles read EXHAUSTION: PRIMARY plus four AMBIENT, set days before and never shown on the
+ * glass — every other tool he had on painted at FOCUS_OTHERS_MAX (0.25): Structure Profile, Visible Range, Delta
+ * Levels, Market Structure, the walls. A lead is a reading he is doing NOW; it does not survive a reload. Only HIDE
+ * (LATENT — an explicit act that takes the pixels away, so its absence is seen) is kept across visits.
+ */
+export const VISUAL_ROLES_SESSION_KEY = "wm_visual_roles_visit";
+
+/** The roles a new visit inherits: HIDE only. */
+export function persistentRoles(roles: VisualRoles): VisualRoles {
+  const out: Partial<Record<ProfileId, VisualRole>> = {};
+  for (const [id, r] of Object.entries(roles) as [ProfileId, VisualRole][]) if (r === "LATENT") out[id] = r;
+  return out;
+}
+
 function readSavedRoles(): VisualRoles {
-  try { return parseVisualRoles(localStorage.getItem(VISUAL_ROLES_STORAGE_KEY)); } catch { return {}; }
+  try {
+    const visit = sessionStorage.getItem(VISUAL_ROLES_SESSION_KEY);
+    if (visit != null) return parseVisualRoles(visit);
+  } catch { /* no session storage */ }
+  try { return persistentRoles(parseVisualRoles(localStorage.getItem(VISUAL_ROLES_STORAGE_KEY))); } catch { return {}; }
 }
 
 export function writeStoredRoles(roles: VisualRoles): void {
   if (proofSceneHoldsWrites()) sceneRoles = parseVisualRoles(roles);
-  else try { localStorage.setItem(VISUAL_ROLES_STORAGE_KEY, JSON.stringify(roles)); } catch { /* this visit only */ }
+  else {
+    try { sessionStorage.setItem(VISUAL_ROLES_SESSION_KEY, JSON.stringify(roles)); } catch { /* this visit only */ }
+    try { localStorage.setItem(VISUAL_ROLES_STORAGE_KEY, JSON.stringify(persistentRoles(roles))); } catch { /* this visit only */ }
+  }
   try { window.dispatchEvent(new Event(VISUAL_ROLES_EVENT)); } catch { /* no window */ }
 }

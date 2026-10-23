@@ -5287,7 +5287,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // so a stale tick that reaches this effect BEFORE React re-runs it with the
   // new liveBar carries the previous version and is dropped.
   const myTickVersion = versionGuardRef.current.currentVersion;
+  // Every live tick the candle path drops is counted by reason (data-live-drops), so a frozen candle under a moving
+  // header can be told apart: not ready, stale closure, stale bar, deviation.
+  const noteLiveDrop = (why: string) => {
+    const dsD = canvasRef.current?.dataset; if (!dsD) return;
+    const m = new Map((dsD.liveDrops ?? "").split("|").filter(Boolean).map(x => x.split(":") as [string, string]));
+    m.set(why, String((+(m.get(why) ?? 0)) + 1));
+    dsD.liveDrops = [...m].map(([k, v]) => `${k}:${v}`).join("|");
+  };
   useEffect(() => {
+    if (liveBar && (!candleRef.current || !volRef.current || !ready)) noteLiveDrop(!ready ? "NOT_READY" : "NO_SERIES");
     if (!liveBar || !candleRef.current || !volRef.current || !ready) return;
 
     // ── WM-CHART-P0-06: symbol-identity gate on the live tick-folding path ──
@@ -5303,7 +5312,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     // (symbol, timeframe) to still match — a mismatch means we're a stale
     // closure holding a stale tick; drop it. This is a superset of the
     // magnitude check, not a replacement (both stay active).
-    if (!versionGuardRef.current.isCurrent(myTickVersion)) return;
+    if (!versionGuardRef.current.isCurrent(myTickVersion)) { noteLiveDrop("STALE_CLOSURE"); return; }
 
     // Provenance: a real tick reached the chart just now.
     lastTickAtRef.current = Date.now();
@@ -5352,7 +5361,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // were slipping through and, folded into the forming bar's high/low over
       // a multi-hour 4h/1h candle, slowly stretched the price scale and crushed
       // every real candle into a sliver "after a few minutes".
-      if (ref > 0 && Math.abs(price - ref) / ref > 0.08) return;
+      if (ref > 0 && Math.abs(price - ref) / ref > 0.08) { noteLiveDrop("DEVIATION"); return; }
       // Also reject corrupt high/low fields on a fresh bar from the provider.
       if (lastBar && Math.floor(liveBar.time) > lastBar.time) {
         const h = lbHigh, l = lbLow;
@@ -5389,7 +5398,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     // wick tastytrade's own candles do not have). Folding is for a forming
     // bar stamped AHEAD inside the same interval, not for a price from an
     // earlier interval than the newest candle.
-    if (lastBar && !outsideRTH && liveBarIsStale(lastBar.time, t, intervalSec)) return;
+    if (lastBar && !outsideRTH && liveBarIsStale(lastBar.time, t, intervalSec)) { noteLiveDrop("STALE"); return; }
     if (lastBar && shouldFoldChartLiveBar(lastBar.time, t, outsideRTH)) {
       t = lastBar.time; // update the current forming candle in place
       // Same bucket: the hook's own high/low carry every print the flush
@@ -5447,6 +5456,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       for (const u of caught.updates) { try { candleRef.current.update(u as any); } catch { /* series mid-rebuild */ } }
       candleRef.current.update(bar as any);
       noteSeries(performance.now());
+      // LAG RECEIPT (Founder 2026-10-23: "sometimes the chart numbers don't move, but the top numbers do"): what the
+      // forming candle was last painted with, and when — read beside the header price to measure the lag.
+      { const dsL = canvasRef.current?.dataset; if (dsL) { dsL.livePaintedClose = String(bar.close); dsL.livePaintedAt = String(Date.now()); } }
       // No histogram point for a placeholder volume (volumeTruth.ts): EURUSD's
       // live 1 was drawn as a full-height bar over a week of 0s (2026-09-26).
       const volReal = volumeTruthFor(symbol, [...prevBars, bar]).real;
@@ -21815,7 +21827,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // (the lane asks 20h back). The trader's clock names the day
                 // whenever it is not today.
                 const fromWords = traderClock(flow.fromMs, { seconds: false, nowMs: Date.now() });
-                const cap = `OPTIONS FLOW · ${flow.events.length} largest by premium of ${flow.heard.toLocaleString()} prints · heard from ${fromWords} · ≥${flow.minSize} contracts`;
+                // Short on the glass (2026-10-23, fewer words): the ranking rule and size floor are Inspect's.
+                const cap = `OPTIONS FLOW · ${flow.events.length} OF ${flow.heard.toLocaleString()} PRINTS · SINCE ${fromWords}`;
                 const rowY = takeSilenceRow(cap);
                 if (rowY > 0) {
                   ctx.textAlign = "left";
@@ -21865,7 +21878,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // says so in the shared silence stack.
             {
               const scopeNow = dp.drawn ? dp.chainScope : null;
-              const withheldW = scopeNow ? chainScopeWithheldWords(scopeNow) : null;
+              // The glass says it short (Founder 2026-10-23, "words and labels everywhere"); the whole sentence stays in
+              // Inspect and the ⓘ (chainScopeWithheldWords).
+              const withheldW = scopeNow && chainScopeWithheldWords(scopeNow) ? "ZERO-GAMMA WITHHELD · NEAR-PRICE CHAIN ONLY" : null;
               if (withheldW && scopeNow) {
                 ctx.save();
                 ctx.font = marketFont("OBJECT_NAME");
@@ -24467,7 +24482,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // Just above its own lane — no longer a fixed row at y=66 inside
               // the header band, where it collided with the semantic badge
               // "MID · ZONES + PROFILE SPEAK" and INSPECT (serving, 2026-09-25).
-              const text = `VISIBLE RANGE · ${vrpVM.barsInView} BARS · MOVES WITH THE VIEW${profileEstWord(vrpVM.quality)}`;
+              // Fewer words on the glass (Founder's Chrome, NQ1! 5m 2026-10-23: this caption ran into the Structure title and a
+              // wall name — "…MOVES WITH THE VIEW · CANDLE-EST" over "STRUCTURE · FROM SWING HIGH … · 21 BARS"). The name,
+              // the count and the honesty word stay; "moves with the view" is Inspect's sentence.
+              const text = `VISIBLE RANGE · ${vrpVM.barsInView} BARS${profileEstWord(vrpVM.quality)}`;
               const capR = quietWords(text, { x: right, y: top - 18, right: true }, pk.rgbaAs("ANCHOR", "VALUE", 0.92), [{ x: right, y: top - 34, right: true }]);
               ds.visibleRangeCaption = `${Math.round(capR.x)},${Math.round(capR.y)}`;
             }
@@ -25269,7 +25287,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             } else {
               chip(
                 // A phone reads the short form whole (iPhone 17 Pro, 2026-10-17: "STRUCTURE · FROM SWING LO…").
-                narrowGlass ? `STRUCTURE · ${kind} ${gPx(sp.anchor.price)}` : `STRUCTURE · FROM ${kind} ${gPx(sp.anchor.price)} · ${sp.legBars} BARS${est}`,
+                narrowGlass ? `STRUCTURE · ${kind} ${gPx(sp.anchor.price)}` : `STRUCTURE · ${kind} ${gPx(sp.anchor.price)}${est}`, // the leg's bar count is Inspect's (2026-10-23, fewer words)
                 // The chip's box is y−12…y+2: its top never rises into the header chrome.
                 x0 + 4, Math.max(HEADER_FLOOR_Y + 12, top - 4), narrowGlass,
               );
