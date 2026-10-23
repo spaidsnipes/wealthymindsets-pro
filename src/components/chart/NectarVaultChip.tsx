@@ -34,7 +34,10 @@ export function NectarVaultChip({ activeSymbol }: { activeSymbol: string }) {
   // agree (null), then swap in real content after mount.
   const [mounted, setMounted] = useState(false);
   const [, setTick] = useState(0);
-  useEffect(() => { setMounted(true); }, []);
+  // Fewer words on the glass (Founder 2026-10-23): "Evidence saved" says itself for 10s, then the chip is "● N symbols";
+  // hover or open shows the label again (CSS: .wm-nectar-vault-chip[data-quiet] label).
+  const [quiet, setQuiet] = useState(false);
+  useEffect(() => { setMounted(true); const t = setTimeout(() => setQuiet(true), 10_000); return () => clearTimeout(t); }, []);
   useEffect(() => subscribeSessionSymbolStore(() => setTick(t => t + 1)), []);
   const { setActiveSymbol } = useActiveSymbol();
 
@@ -70,6 +73,7 @@ export function NectarVaultChip({ activeSymbol }: { activeSymbol: string }) {
   return (
     <details
       className="wm-nectar-vault-chip"
+      data-quiet={quiet ? "" : undefined}
       style={{
         position: "absolute", top: 8, right: 8, zIndex: 57,
         pointerEvents: "auto", color: "#8B92AC", fontSize: 9.5,

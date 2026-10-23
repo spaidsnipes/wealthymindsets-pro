@@ -3129,3 +3129,6 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
 @container wm-scale-band (min-width: 680px) {
   .wm-chart-scale-row { bottom: 3px !important; height: 28px; } /* !important: the row carries an inline bottom */
 }
+
+/* Nectar chip, quiet after 10s (2026-10-23, fewer words on the glass): the label returns on hover or when open. */
+.wm-nectar-vault-chip[data-quiet]:not([open]):not(:hover) .wm-nectar-vault-chip__label { display: none; }
