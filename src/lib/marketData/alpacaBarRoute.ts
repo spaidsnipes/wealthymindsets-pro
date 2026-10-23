@@ -24,6 +24,7 @@ export const ALPACA_TF_MAP: Readonly<Record<string, { timeframe: string; daysBac
   "5m":  { timeframe: "5Min",  daysBack: 5   },
   "10m": { timeframe: "10Min", daysBack: 10  },
   "15m": { timeframe: "15Min", daysBack: 30  },
+  "20m": { timeframe: "20Min", daysBack: 30  },
   "30m": { timeframe: "30Min", daysBack: 60  },
   "1h":  { timeframe: "1Hour", daysBack: 90  },
   "2h":  { timeframe: "2Hour", daysBack: 120 },

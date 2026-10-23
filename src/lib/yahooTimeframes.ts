@@ -35,6 +35,7 @@ const PLANS: Record<string, YahooTimeframePlan> = {
   "3m":  { interval: "1m",  range: "5d",   multiplier: 3,  baseSeconds: 60,   sourceMode: "reconstructed" },
   "5m":  { interval: "5m",  range: "5d",   multiplier: 1,  sourceMode: "native" },
   "10m": { interval: "5m",  range: "5d",   multiplier: 2,  baseSeconds: 300,  sourceMode: "reconstructed" },
+  "20m": { interval: "5m",  range: "5d",   multiplier: 4,  baseSeconds: 300,  sourceMode: "reconstructed" },
   "15m": { interval: "15m", range: "60d",  multiplier: 1,  sourceMode: "native" },
   "30m": { interval: "30m", range: "60d",  multiplier: 1,  sourceMode: "native" },
   "1h":  { interval: "60m", range: "730d", multiplier: 1,  sourceMode: "native" },
