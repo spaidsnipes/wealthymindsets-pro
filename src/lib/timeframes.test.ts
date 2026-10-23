@@ -12,7 +12,7 @@ describe("canonical timeframe set", () => {
     const required: TFId[] = [
       "5s","15s","30s",
       "1m","2m","3m","5m","10m","15m","20m","30m","45m","1h","2h","4h",
-      "1D","1W","1M","3M","6M","1Y","2Y","5Y",
+      "1D","1W","1M","1Q","3M","6M","1Y","2Y","5Y",
     ];
     expect([...TF_IDS].sort()).toEqual([...required].sort());
   });

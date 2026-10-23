@@ -147,7 +147,7 @@ function isDailyOrLonger(timeframe: string): boolean {
 /** How many of the latest bars form the window. A policy of this module's,
  *  keyed by the registry's own ids so it cannot name one that does not exist. */
 const DAILY_WINDOW_BARS: Readonly<Partial<Record<TFId, number>>> = {
-  "1D": 5, "1W": 4, "1M": 3, "3M": 4, "6M": 4, "1Y": 3, "2Y": 3, "5Y": 3,
+  "1D": 5, "1W": 4, "1M": 3, "1Q": 3, "3M": 4, "6M": 4, "1Y": 3, "2Y": 3, "5Y": 3,
 };
 
 export function sessionWindowFor(symbol: string, timeframe: string, extendedHours: boolean): SessionWindow {

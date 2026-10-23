@@ -36,7 +36,7 @@ export type TFId =
   | "5s" | "15s" | "30s"
   | "1m" | "2m" | "3m" | "5m" | "10m" | "15m" | "20m" | "30m" | "45m"
   | "1h" | "2h" | "4h"
-  | "1D" | "1W" | "1M" | "3M" | "6M" | "1Y" | "2Y" | "5Y";
+  | "1D" | "1W" | "1M" | "1Q" | "3M" | "6M" | "1Y" | "2Y" | "5Y";
 
 /**
  * native      — the generic vendor (Yahoo, PROVIDER_EVIDENCE) serves it.
@@ -159,6 +159,11 @@ const TF_LIST: Timeframe[] = [
     source: "native", providerInterval: "1wk", maxRangeSec: 3650 * DAY, minBarsForState: 52 },
   { id: "1M", label: "1M", candleIntervalSec: 30 * DAY,  defaultRangeSec: 1825 * DAY,
     source: "native", providerInterval: "1mo", maxRangeSec: 3650 * DAY, minBarsForState: 36 },
+  // 1Q (2026-10-23): a QUARTERLY CANDLE — one bar per calendar quarter. Not "3M",
+  // which is a range id (90 days of bars) whose meaning is still the Founder's.
+  // Yahoo publishes "3mo" (PROVIDER_EVIDENCE.validIntervals) and Alpaca "3Month".
+  { id: "1Q", label: "1Q", candleIntervalSec: 91 * DAY,  defaultRangeSec: 3650 * DAY,
+    source: "native", providerInterval: "3mo", maxRangeSec: 3650 * DAY, minBarsForState: 20 },
   { id: "3M", label: "3M", candleIntervalSec: DAY,       defaultRangeSec: 90 * DAY,
     source: "native", providerInterval: "1d",  maxRangeSec: 3650 * DAY, minBarsForState: 60 },
   { id: "6M", label: "6M", candleIntervalSec: DAY,       defaultRangeSec: 180 * DAY,
@@ -322,7 +327,7 @@ export function hasEnoughBarsForState(id: TFId, barCount: number): boolean {
 export const CHART_TF_ORDER: readonly TFId[] = Object.freeze([
   "5s", "15s", "30s",
   "1m", "2m", "3m", "5m", "10m", "15m", "20m", "30m", "45m", "1h", "2h", "4h",
-  "1D", "1W", "1M", "3M", "6M", "1Y", "2Y", "5Y",
+  "1D", "1W", "1M", "1Q", "3M", "6M", "1Y", "2Y", "5Y",
 ]);
 
 /**
@@ -408,10 +413,10 @@ export function timeframeSpokenName(id: TFId): string {
   // canonical table stores 1M as 30 days. Naming it "30 days" would be a
   // different claim than the button makes, so the calendar units are named
   // from the id where the id IS the calendar unit.
-  const cal = /^(\d+)([DWMY])$/.exec(id);
+  const cal = /^(\d+)([DWMQY])$/.exec(id);
   if (cal) {
     const n = Number(cal[1]);
-    const unit = ({ D: "day", W: "week", M: "month", Y: "year" } as const)[cal[2] as "D" | "W" | "M" | "Y"];
+    const unit = ({ D: "day", W: "week", M: "month", Q: "quarter", Y: "year" } as const)[cal[2] as "D" | "W" | "M" | "Q" | "Y"];
     return spokenBars(n, unit);
   }
   if (sec % 3600 === 0) return spokenBars(sec / 3600, "hour");
@@ -526,7 +531,6 @@ export type CanonRung =
 
 /** The reasons a human reads. Short, true, and none of them a promise. */
 const NO_TAPE = "Needs a certified trade tape — none on this path.";
-const NOT_BUILT_1Q = "Not built yet — no chart timeframe asks a route for quarterly candles.";
 const OPEN_6M = "Open decision — a half-year candle, or six months of daily bars.";
 const OPEN_1Y = "Open decision — a yearly candle, or one year of daily bars.";
 
@@ -559,7 +563,7 @@ export const CANON_LADDER: readonly CanonRung[] = Object.freeze([
   native("1D", "DAYS_LONGER", 1, "day"),
   native("1W", "DAYS_LONGER", 1, "week"),
   native("1M", "DAYS_LONGER", 1, "month"),
-  off("1Q",    "DAYS_LONGER", 1, "quarter", NOT_BUILT_1Q),
+  native("1Q", "DAYS_LONGER", 1, "quarter"),
   off("6M",    "DAYS_LONGER", 6, "month",   OPEN_6M),
   off("1Y",    "DAYS_LONGER", 1, "year",    OPEN_1Y),
 ]);

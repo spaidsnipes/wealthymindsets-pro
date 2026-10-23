@@ -138,8 +138,8 @@ describe("not every future keeps the Globex day (2026-09-25)", () => {
 // minutes. Every REAL id must answer exactly as before; the old implementation
 // is kept here, verbatim, as the oracle.
 describe("the session clock is the registry's, and a non-clock id gets none", () => {
-  const OLD_DAILY = /^(D|1D|W|1W|M|1M|3M|6M|1Y|2Y|3Y|5Y)$/;
-  const OLD_BARS: Record<string, number> = { "1D": 5, "1W": 4, "1M": 3, "3M": 4, "6M": 4, "1Y": 3, "2Y": 3, "3Y": 3, "5Y": 3 };
+  const OLD_DAILY = /^(D|1D|W|1W|M|1M|1Q|3M|6M|1Y|2Y|3Y|5Y)$/; // 1Q (quarterly candle) joined 2026-10-23
+  const OLD_BARS: Record<string, number> = { "1D": 5, "1W": 4, "1M": 3, "1Q": 3, "3M": 4, "6M": 4, "1Y": 3, "2Y": 3, "3Y": 3, "5Y": 3 };
   const oldBarMinutes = (tf: string) => {
     const m = /^(\d+)(m|h)$/i.exec(tf.trim());
     if (!m) return 1;

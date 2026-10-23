@@ -130,7 +130,7 @@ const BUCKET_TO_CANONICAL: Record<string, string> = {
   "1Min": "1m", "2Min": "2m", "3Min": "3m", "5Min": "5m",
   "10Min": "10m", "15Min": "15m", "20Min": "20m", "30Min": "30m",
   "1Hour": "1h", "2Hour": "2h", "4Hour": "4h",
-  "1Day": "1D", "1Week": "1W", "1Month": "1M",
+  "1Day": "1D", "1Week": "1W", "1Month": "1M", "3Month": "1Q",
 };
 
 export function canonicalTimeframeForAlpacaBucket(bucket: string): string {
