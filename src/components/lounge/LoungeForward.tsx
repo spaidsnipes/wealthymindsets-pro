@@ -34,13 +34,17 @@ export function wowTarget(room: WowRoom, search: string): string {
 /** Back-compat name used by the Lounge layout and tests. */
 export const loungeTarget = (search: string) => wowTarget("lounge", search);
 
+/** True only when this page load came from the browser's Back/Forward buttons. */
+export function cameBack(perf: Pick<Performance, "getEntriesByType"> | undefined = typeof performance === "undefined" ? undefined : performance): boolean {
+  const nav = perf?.getEntriesByType?.("navigation")?.[0] as PerformanceNavigationTiming | undefined;
+  return nav?.type === "back_forward";
+}
+
 export function WowRoomForward({ room }: { room: WowRoom }) {
   useEffect(() => {
-    const flag = `wm.room.forwarded.${room}`;
-    let recent = false;
-    try { recent = Date.now() - Number(sessionStorage.getItem(flag) || 0) < 60_000; sessionStorage.removeItem(flag); } catch { /* storage off */ }
-    if (recent && window.history.length > 1) { window.history.back(); return; }
-    try { sessionStorage.setItem(flag, String(Date.now())); } catch { /* storage off */ }
+    // Arrived here by pressing Back from the WOW room: step on back into WM Pro
+    // instead of bouncing out again. Any deliberate visit (click, link, typed URL) forwards.
+    if (cameBack() && window.history.length > 1) { window.history.back(); return; }
     const form = document.createElement("form");
     form.method = "POST";
     form.action = WOW_DOOR_ACTION;

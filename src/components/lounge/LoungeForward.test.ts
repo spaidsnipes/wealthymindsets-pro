@@ -44,3 +44,14 @@ describe("one destination for every shared room opened from WM Pro", () => {
     expect(radio).toContain('<WowRoomForward room="radio" />');
   });
 });
+
+import { cameBack } from "./LoungeForward";
+describe("Back from a WOW room steps back into WM Pro; a fresh visit always forwards", () => {
+  const perf = (type: string) => ({ getEntriesByType: () => [{ type }] }) as unknown as Pick<Performance, "getEntriesByType">;
+  it("only a back/forward load counts as coming back", () => {
+    expect(cameBack(perf("back_forward"))).toBe(true);
+    expect(cameBack(perf("navigate"))).toBe(false);
+    expect(cameBack(perf("reload"))).toBe(false);
+    expect(cameBack(undefined)).toBe(false);
+  });
+});
