@@ -99,7 +99,7 @@ export interface ChartSettings {
 }
 
 /** The volume bars' shipped colours as a picker can show them (the alpha is the room's, kept on paint). */
-export const VOLUME_COLOR_PICKER_DEFAULTS = { volumeUp: "#c4a574", volumeDown: "#6e5a3c" } as const;
+export const VOLUME_COLOR_PICKER_DEFAULTS = { volumeUp: "#d6b67e", volumeDown: "#967a52" } as const;
 
 /** The shipped order-flow colours — the exact values the chart painted before. */
 export const FLOW_COLOR_DEFAULTS = {

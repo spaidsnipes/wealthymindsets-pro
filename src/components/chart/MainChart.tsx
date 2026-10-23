@@ -380,6 +380,8 @@ const HEAT_REINK_MS = 2_000;
 const VC_CLOSED_REBUILD_MS = 1_000;
 /** Brick Walls masonry sprites kept at most (a camera holds a handful of walls). */
 const BRICK_SPRITE_CACHE_MAX = 48;
+/** The order-flow seam's "bar totals only" hatch fades to nothing this far left of the seam (2026-10-23). */
+const SEAM_HATCH_FADE_PX = 140;
 /**
  * G06 FOUNDER BODIES — the plate's own figures (WM_GuestTour_G06_Academy_
  * Anatomy_Teach), keyed off the plate so the chart carries THE Founder's
@@ -29069,9 +29071,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const bx = Math.round(firstSided.x - bsp * 0.6);
             const top = HEADER_FLOOR_Y, bot = pane0Bottom;
             ctx.save();
-            ctx.beginPath(); ctx.rect(0, top, Math.max(0, bx), bot - top); ctx.clip();
-            ctx.strokeStyle = "rgba(200,192,174,0.09)"; ctx.lineWidth = 1;
-            for (let hx = -(bot - top); hx < bx; hx += 9) { ctx.beginPath(); ctx.moveTo(hx, bot); ctx.lineTo(hx + (bot - top), top); ctx.stroke(); }
+            // THE HATCH FADES OUT WITHIN SEAM_HATCH_FADE_PX (Founder's Chrome, NQ1! 5m 2026-10-23: with the tape heard only since
+            // the page opened, the hatch textured most of the chart — "the whole chart background … dark"). Near the seam it
+            // still says "before here: bar totals"; across the rest of history the glass stays clean.
+            const hx0 = Math.max(0, bx - SEAM_HATCH_FADE_PX);
+            ctx.beginPath(); ctx.rect(hx0, top, Math.max(0, bx - hx0), bot - top); ctx.clip();
+            const hatchInk = ctx.createLinearGradient(hx0, 0, Math.max(hx0 + 1, bx), 0);
+            hatchInk.addColorStop(0, "rgba(200,192,174,0)"); hatchInk.addColorStop(1, "rgba(200,192,174,0.12)");
+            ctx.strokeStyle = hatchInk; ctx.lineWidth = 1;
+            for (let hx = hx0 - (bot - top); hx < bx; hx += 9) { ctx.beginPath(); ctx.moveTo(hx, bot); ctx.lineTo(hx + (bot - top), top); ctx.stroke(); }
             ctx.restore();
             ctx.save();
             ctx.strokeStyle = "rgba(212,175,55,0.8)"; ctx.lineWidth = 1.25; ctx.setLineDash([5, 4]);

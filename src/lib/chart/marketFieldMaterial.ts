@@ -130,10 +130,11 @@ export const CROSSHAIR_COLOR_DEFAULT = "#8a8271";
  * rediscover by blanking a control.
  */
 
-/** Brass, well back — volume recedes beneath the price it belongs to. */
-export const VOLUME_UP_DEFAULT = "rgba(196,165,116,0.38)";
-/** The recessed brass, needing more alpha to read at all at this luminance. */
-export const VOLUME_DOWN_DEFAULT = "rgba(110,90,60,0.62)";
+/** Brass — volume still sits beneath price, but READS (Founder 2026-10-23, "volume … you can barely see things": at
+ *  0.38 / a 110,90,60 brown the bars were a dark smear on a TV or monitor). */
+export const VOLUME_UP_DEFAULT = "rgba(214,182,126,0.6)";
+/** The recessed brass, one clear luminance step below the up bar. */
+export const VOLUME_DOWN_DEFAULT = "rgba(150,122,82,0.72)";
 
 /* ── THE VOLUME PROFILE — THE FOURTH COPY OF THE RAINBOW ────────────────────
  *
