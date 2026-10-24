@@ -50,13 +50,13 @@ const TIERS: Tier[] = [
     // other ATH app is its $10 tier for that member. The Passport identity itself is free. Tier id / env stay PASSPORT.
     id: "PASSPORT", name: "World Pass", price: "$20", tagline: "Your $20 app here + the $10 tier of every other ATH app.",
     includes: ["Everything in WM Pro App — one $20 charge, not $20 + $10", "Member rooms", "The $10 tier of every other ATH app — WAVEMOTION, Power Tribes and every app to come"],
-    limits: ["Only the apps named at checkout — not every future app"],
+    limits: ["Other apps at their $10 tier — not their $20 or $50 tiers"],
     cta: { label: "Not on sale yet" },
     offer: PASSPORT_PROMO,
   },
   {
     id: "OS", name: "WM Pro OS", price: "$50", tagline: "The full operating system.",
-    includes: ["Everything in World Pass — one $50 charge, not $50 + $20 + $10", "The supported invention, tool and profile suite", "Decision → Journal → Review learning loop", "Supported broker connections", "SpaidBot analysis with a stated monthly allowance"],
+    includes: ["Everything in World Pass — one $50 charge, not $50 + $20 + $10", "The supported invention, tool and profile suite", "Decision → Journal → Review learning loop", "Broker connections — in BETA, opening to members as each broker is supported", "SpaidBot analysis with a stated monthly allowance"],
     limits: ["Not unlimited AI", "Exchange data and broker capabilities depend on your broker and markets", "No autonomous trading — every order is yours to confirm"],
     cta: { label: "Not on sale yet" },
   },
