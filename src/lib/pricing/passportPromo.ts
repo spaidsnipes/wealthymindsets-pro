@@ -33,6 +33,6 @@ export function passportPromo(endsIso: string | undefined | null, nowMs: number 
 export function passportPromoLine(p: PassportPromo): string | null {
   if (!p.active) return null;
   return p.endsLabel
-    ? `Intro offer: your first month is $${p.firstMonth} (half off), ${p.endsLabel} — then $${p.thenMonthly}/month.`
-    : `Intro offer: your first month is $${p.firstMonth} (half off), then $${p.thenMonthly}/month.`;
+    ? `Intro offer: your first month of World Pass is $${p.firstMonth} (half off), ${p.endsLabel} — then $${p.thenMonthly}/month.`
+    : `Intro offer: your first month of World Pass is $${p.firstMonth} (half off), then $${p.thenMonthly}/month.`;
 }

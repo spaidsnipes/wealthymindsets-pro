@@ -11,7 +11,7 @@ import { passportPromo, passportPromoLine } from "@/lib/pricing/passportPromo";
 import { SellingStory } from "@/components/marketing/SellingStory";
 import { PRODUCT_LINE } from "@/lib/marketing/sellingStory";
 
-// Founder 2026-10-06: Passport first month half off until the promotion ends.
+// Founder 2026-10-06: World Pass (the $20 tier) first month half off until the promotion ends.
 const PASSPORT_PROMO = passportPromoLine(passportPromo(process.env.NEXT_PUBLIC_PASSPORT_PROMO_ENDS));
 
 /**
@@ -46,15 +46,17 @@ const TIERS: Tier[] = [
     cta: { label: "Not on sale yet" },
   },
   {
-    id: "PASSPORT", name: "Passport", price: "$20", tagline: "One identity across the participating ATH apps.",
-    includes: ["Everything in WM Pro App — one $20 charge, not $20 + $10", "Passport identity and member rooms", "Access to the participating ATH operating systems named at checkout"],
+    // Founder 2026-10-23 (final): the $20 tier IS the WOW World Pass — the first app bought at $20 is the pass, and every
+    // other ATH app is its $10 tier for that member. The Passport identity itself is free. Tier id / env stay PASSPORT.
+    id: "PASSPORT", name: "World Pass", price: "$20", tagline: "Your $20 app here + the $10 tier of every other ATH app.",
+    includes: ["Everything in WM Pro App — one $20 charge, not $20 + $10", "Member rooms", "The $10 tier of every other ATH app — WAVEMOTION, Power Tribes and every app to come"],
     limits: ["Only the apps named at checkout — not every future app"],
     cta: { label: "Not on sale yet" },
     offer: PASSPORT_PROMO,
   },
   {
     id: "OS", name: "WM Pro OS", price: "$50", tagline: "The full operating system.",
-    includes: ["Everything in Passport — one $50 charge, not $50 + $20 + $10", "The supported invention, tool and profile suite", "Decision → Journal → Review learning loop", "Supported broker connections", "SpaidBot analysis with a stated monthly allowance"],
+    includes: ["Everything in World Pass — one $50 charge, not $50 + $20 + $10", "The supported invention, tool and profile suite", "Decision → Journal → Review learning loop", "Supported broker connections", "SpaidBot analysis with a stated monthly allowance"],
     limits: ["Not unlimited AI", "Exchange data and broker capabilities depend on your broker and markets", "No autonomous trading — every order is yours to confirm"],
     cta: { label: "Not on sale yet" },
   },
