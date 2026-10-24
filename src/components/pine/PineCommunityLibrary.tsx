@@ -35,7 +35,7 @@ const COMMUNITY_SCRIPTS: CommunityScript[] = [
   {
     id: "clc-rule-signal",
     title: "CLC Rule Signal v3",
-    author: "Spade_CLC",
+    author: "Spaid_CLC",
     authorBadge: "👑",
     category: "Smart Money",
     description: "Context · Location · Confirmation signal overlay. Marks valid CLC setups with arrows, draws structure levels, and alerts on confirmation candle close.",
@@ -217,7 +217,7 @@ plotshape(bearDiv, "Bear Div", shape.arrowdown, location.top,    #FF4D6A, size=s
   {
     id: "ttm-squeeze-pro",
     title: "TTM Squeeze Pro",
-    author: "SpadeQuant",
+    author: "SpaidQuant",
     authorBadge: "⚡",
     category: "Momentum",
     description: "Enhanced TTM Squeeze with Momentum histogram, Squeeze dots (black/gray/red), and integrated Bollinger/Keltner compression signal. Color-gradient momentum bars.",

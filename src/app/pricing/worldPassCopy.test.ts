@@ -2,17 +2,19 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-// Founder 2026-10-24 (final): the $20 World Pass is a paid pick of ONE app at $20 + the $10 tier of every other ATH app,
-// future apps included; never free; never every app's $20/$50 tier. thewow.online is WOW OS, never "WOW World".
+// Founder 2026-10-24 (final, with corrections): real tier names (Basic / Premium · World Pass / OS), never "$10 tier".
+// The $20 World Pass = Premium of the chosen app + Basic of every other ATH app + all of WOW OS + Academy + Marketplace,
+// future apps included; never the Premium/Pro tier of every app; no trials, no founding discounts.
+// thewow.online is WOW OS, never "WOW World".
 const PRICING = readFileSync(path.join(process.cwd(), "src/app/pricing/page.tsx"), "utf8");
 const PROFILE = readFileSync(path.join(process.cwd(), "src/app/profile/page.tsx"), "utf8");
 
 describe("World Pass copy says the Founder's rule", () => {
-  it("names what it includes and what it is not", () => {
-    for (const w of ["The $10 tier of every other ATH app", "Dreamboard", "WOW Academy", "never free", "not the $20 or $50 tier of every app"]) expect(PRICING.toLowerCase(), w).toContain(w.toLowerCase());
+  it("names what the pass opens and what it is not", () => {
+    for (const w of ["Basic of every other ATH app", "WOW Academy", "Dreamboard", "WOW Marketplace", "not the Premium or Pro tier of every app"]) expect(PRICING, w).toContain(w);
   });
-  it("never says future apps are excluded, or that the pass is free", () => {
-    for (const w of ["Only the apps named at checkout", "not every future app", "World Pass free", "free World Pass"]) expect(PRICING, w).not.toContain(w);
+  it("uses tier names, and never excludes future apps or offers a trial", () => {
+    for (const w of ["$10 tier", "$20 tier", "Only the apps named at checkout", "not every future app", "trial", "Founding"]) expect(PRICING, w).not.toContain(w);
   });
   it("the profile calls thewow.online WOW OS", () => {
     expect(PROFILE).not.toContain("opens WOW World");

@@ -34,8 +34,8 @@ export interface TierSpec {
 
 export const TIER_SPEC: Readonly<Record<BillingTier, TierSpec>> = {
   FREE: { tier: "FREE", name: "Free · Guest", monthlyCents: 0, priceEnv: null, rank: 0 },
-  APP: { tier: "APP", name: "WM Pro App", monthlyCents: 1_000, priceEnv: "WM_STRIPE_PRICE_APP", rank: 1 },
-  PASSPORT: { tier: "PASSPORT", name: "World Pass", monthlyCents: 2_000, priceEnv: "WM_STRIPE_PRICE_PASSPORT", rank: 2 },
+  APP: { tier: "APP", name: "WM Pro App · Basic", monthlyCents: 1_000, priceEnv: "WM_STRIPE_PRICE_APP", rank: 1 },
+  PASSPORT: { tier: "PASSPORT", name: "WM Pro Premium · World Pass", monthlyCents: 2_000, priceEnv: "WM_STRIPE_PRICE_PASSPORT", rank: 2 },
   OS: { tier: "OS", name: "WM Pro OS", monthlyCents: 5_000, priceEnv: "WM_STRIPE_PRICE_OS", rank: 3 },
 };
 
