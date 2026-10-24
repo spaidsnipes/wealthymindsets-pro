@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       // Names for the operator only (ruling 2026-10-09): a member or guest reads plain words, the same edge and a stable code.
       audienceBody(false, {
-        error: `WOW World Passport handoff is NOT CONFIGURED on this host runtime — missing required ${missing.length === 1 ? "variable" : "variables"}: ${missing.join(", ")}. Set them in the host runtime secrets (e.g. Cloudflare) and redeploy.`,
+        error: `Passport (WOW OS) handoff is NOT CONFIGURED on this host runtime — missing required ${missing.length === 1 ? "variable" : "variables"}: ${missing.join(", ")}. Set them in the host runtime secrets (e.g. Cloudflare) and redeploy.`,
         edge: "NOT CONFIGURED",
         missing,
       }),
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
   });
   const user = await supabaseGetUserById(userId);
   const email = typeof user?.email === "string" ? user.email : "";
-  if (!email) return NextResponse.json({ error: "WOW World could not restore this Passport." }, { status: 503 });
+  if (!email) return NextResponse.json({ error: "WOW OS could not restore this Passport." }, { status: 503 });
   const metadata = (user?.user_metadata ?? {}) as Record<string, unknown>;
   const response = NextResponse.redirect(new URL(`/${destination}`, request.url), { status: 303 });
   response.headers.set("Cache-Control", "no-store");

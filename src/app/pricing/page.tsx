@@ -46,17 +46,26 @@ const TIERS: Tier[] = [
     cta: { label: "Not on sale yet" },
   },
   {
-    // Founder 2026-10-23 (final): the $20 tier IS the WOW World Pass — the first app bought at $20 is the pass, and every
-    // other ATH app is its $10 tier for that member. The Passport identity itself is free. Tier id / env stay PASSPORT.
-    id: "PASSPORT", name: "World Pass", price: "$20", tagline: "Your $20 app here + the $10 tier of every other ATH app.",
-    includes: ["Everything in WM Pro App — one $20 charge, not $20 + $10", "Member rooms", "The $10 tier of every other ATH app — WAVEMOTION, Power Tribes and every app to come"],
-    limits: ["Other apps at their $10 tier — not their $20 or $50 tiers"],
+    // Founder 2026-10-23, restated as final 2026-10-24: the WM Pro $20 tier IS the World Pass. The member picks ONE
+    // app at $20 (here: WM Pro); every other ATH app opens at its $10 tier, future apps included. Never free; never
+    // the $20/$50 tier of every app. Passport identity is free. Tier id / env stay PASSPORT.
+    id: "PASSPORT", name: "World Pass", price: "$20", tagline: "WM Pro at $20 is your pick — and every other ATH app opens at its $10 tier.",
+    includes: [
+      "Everything in WM Pro App — one $20 charge, not $20 + $10",
+      "The $10 tier of every other ATH app: WAVEMOTION Starter, WOW OS rooms, WOW Academy, Dreamboard when it opens, every new ATH app, and WOW World (the future metaverse) when it opens",
+      "It grows: each new ATH app joins your pass at its $10 tier without raising your price",
+    ],
+    limits: [
+      "A paid plan, never free — your Passport identity is what's free",
+      "The $20 tier of one app (WM Pro), not the $20 or $50 tier of every app",
+      "App tiers in other apps switch on as each app connects",
+    ],
     cta: { label: "Not on sale yet" },
     offer: PASSPORT_PROMO,
   },
   {
     id: "OS", name: "WM Pro OS", price: "$50", tagline: "The full operating system.",
-    includes: ["Everything in World Pass — one $50 charge, not $50 + $20 + $10", "The supported invention, tool and profile suite", "Decision → Journal → Review learning loop", "Broker connections — in BETA, opening to members as each broker is supported", "SpaidBot analysis with a stated monthly allowance"],
+    includes: ["Everything in the WM Pro $20 tier — one $50 charge, not $50 + $20 + $10", "The supported invention, tool and profile suite", "Decision → Journal → Review learning loop", "Broker connections — in BETA, opening to members as each broker is supported", "SpaidBot analysis with a stated monthly allowance"],
     limits: ["Not unlimited AI", "Exchange data and broker capabilities depend on your broker and markets", "No autonomous trading — every order is yours to confirm"],
     cta: { label: "Not on sale yet" },
   },
@@ -184,6 +193,19 @@ export default function PricingPage() {
             </section>
           ))}
         </div>
+
+        {/* THE WORLD PASS, MADE OBVIOUS (Founder 2026-10-24, final: "make the value obvious"). Never free; never every app's top tier. */}
+        <section data-testid="world-pass-value" aria-label="What the $20 World Pass gets you" style={{ marginTop: 20, padding: "16px 18px", borderRadius: 12, border: `1px solid ${GOLD}`, background: "rgba(201,165,92,0.08)", maxWidth: 820 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 10px", color: INK }}>What the $20 World Pass gets you</h2>
+          <ol style={{ margin: 0, paddingLeft: 20, fontSize: 14, lineHeight: 1.7, color: INK }}>
+            <li><strong>Pick your app at $20.</strong> Here, that&apos;s WM Pro $20.</li>
+            <li><strong>Get the $10 tier of everything else:</strong> WAVEMOTION Starter (40 clips a month), WOW OS rooms, WOW Academy, Dreamboard when it opens, every new ATH app, and WOW World (the future metaverse) when it opens.</li>
+            <li><strong>It keeps growing.</strong> At today&apos;s list prices that&apos;s $30 of app tiers for $20, and every new ATH app joins at $10 without raising your price.</li>
+          </ol>
+          <p style={{ margin: "10px 0 0", fontSize: 12, lineHeight: 1.6, color: MUTED }}>
+            Never free — your Passport is what&apos;s free. Not the $20 or $50 tier of every app. App tiers switch on as each app connects.
+          </p>
+        </section>
 
         <p style={{ color: MUTED, fontSize: 12, lineHeight: 1.6, marginTop: 28, marginBottom: 4, maxWidth: 820 }}>
           WM Pro is analysis and trading software, not investment advice. Read the risk and market-data disclosures before you trade.

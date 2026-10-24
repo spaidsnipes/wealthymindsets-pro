@@ -714,7 +714,7 @@ function ProfilePageInner() {
 
           {/* The same sign-in, two connections (2026-10-03): the broker record
               this profile does not compute (its tiles count Journal entries only;
-              Paper trades are held out and named), and the WOW World Passport this account already is. */}
+              Paper trades are held out and named), and the Passport this account already is (it opens WOW OS). */}
           <div data-testid="profile-connections" className="mt-3 flex flex-wrap gap-2 text-[11px]">
             <Link href="/journal?tab=ledger" prefetch={false} data-testid="profile-broker-record"
               className="inline-flex items-center min-h-11 rounded-lg border border-wm-border px-3 py-1.5 text-wm-text hover:border-wm-gold/60"
@@ -724,8 +724,8 @@ function ProfilePageInner() {
             <button type="button" data-testid="profile-wow-passport"
               onClick={() => { openWowWorld("/passport"); }}
               className="inline-flex items-center min-h-11 rounded-lg border border-wm-border px-3 py-1.5 text-wm-text hover:border-wm-gold/60"
-              title="This account is your WM World Passport — the same sign-in opens WOW World">
-              WOW World Passport ↗
+              title="This account is your Passport — the same sign-in opens WOW OS">
+              Your Passport on WOW OS ↗
             </button>
           </div>
 
