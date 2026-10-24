@@ -16,6 +16,12 @@ describe("World Pass copy says the Founder's rule", () => {
   it("uses tier names, and never excludes future apps or offers a trial", () => {
     for (const w of ["$10 tier", "$20 tier", "Only the apps named at checkout", "not every future app", "trial", "Founding"]) expect(PRICING, w).not.toContain(w);
   });
+  it("never says another app's tier is on today when that app does not grant it yet (payment readiness 2026-10-24)", () => {
+    // WAVEMOTION reads World Pass status on Passport link but grants no plan from it yet (wav-month app/ui/public-tour.tsx).
+    expect(PRICING).not.toContain("WAVEMOTION Starter today");
+    expect(PRICING).not.toContain("(40 clips a month) today");
+    expect(PRICING).toContain("once WAVEMOTION connects to the World Pass");
+  });
   it("the profile calls thewow.online WOW OS", () => {
     expect(PROFILE).not.toContain("opens WOW World");
     expect(PROFILE).not.toContain("WOW World Passport");

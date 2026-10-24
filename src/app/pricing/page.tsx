@@ -53,7 +53,7 @@ const TIERS: Tier[] = [
     tagline: "Your passport to the whole ATH ecosystem — WM Pro Premium, plus Basic of every other ATH app.",
     includes: [
       "Everything in WM Pro App — one $20 charge, not $20 + $10",
-      "Basic of every other ATH app — WAVEMOTION Starter (40 clips a month) today, and every app after it",
+      "Basic of every other ATH app — WAVEMOTION Starter (40 clips a month) once WAVEMOTION connects to the World Pass, and every app after it",
       "All of WOW OS on one pass: Lounge, WOW TV, WOW Music, WOW Radio and the WOW Shop",
       "WOW Academy classes and tracks",
       "The WOW Marketplace — shop it, and apply to sell there as a WOW Creator Partner",
@@ -202,7 +202,7 @@ export default function PricingPage() {
           <h2 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 10px", color: INK }}>What the $20 World Pass gets you: your passport to the whole ecosystem</h2>
           <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14, lineHeight: 1.7, color: INK }}>
             <li><strong>Premium of the app you choose.</strong> Here, that&apos;s WM Pro Premium.</li>
-            <li><strong>Basic of every other ATH app:</strong> WAVEMOTION Starter today, and every app after it.</li>
+            <li><strong>Basic of every other ATH app:</strong> WAVEMOTION Starter once WAVEMOTION connects to the World Pass, and every app after it.</li>
             <li><strong>All of WOW OS on one pass:</strong> Lounge, WOW TV, WOW Music, WOW Radio, the WOW Shop.</li>
             <li><strong>WOW Academy</strong>, and the <strong>WOW Marketplace</strong> (apply to sell as a Creator Partner).</li>
             <li><strong>Dreamboard</strong> when it opens, <strong>every new ATH app</strong> at Basic, and <strong>WOW World</strong> (the future metaverse) when it opens.</li>
