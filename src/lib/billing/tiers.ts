@@ -9,9 +9,11 @@
  * server looks up that tier's Stripe price id from an environment variable
  * whose NAME is fixed here. No variable set → that tier is not on sale.
  *
- * BUNDLES. Owning another product on the account (World Pass, say) grants no
- * WM Pro tier unless its price id is listed in `BILLING_BUNDLES`. The slot is
- * typed and EMPTY: a bundle is a Founder decision, never an inference.
+ * BUNDLES. Owning another product on the account grants no WM Pro tier unless
+ * its price id is listed in `BILLING_BUNDLES`. The slot is typed and EMPTY.
+ * The World Pass is NOT a bundle here: WOW OS owns that record and WM Pro reads
+ * it (worldPass.ts / worldPassRead.ts) — Premium if WM Pro is the chosen app,
+ * Basic otherwise — never inferred from a Stripe price.
  *
  * PURE. Reads variable NAMES and the values the caller's env holds; returns a
  * price id only to server code (never placed in a response by this module).
@@ -35,7 +37,9 @@ export interface TierSpec {
 export const TIER_SPEC: Readonly<Record<BillingTier, TierSpec>> = {
   FREE: { tier: "FREE", name: "Free · Guest", monthlyCents: 0, priceEnv: null, rank: 0 },
   APP: { tier: "APP", name: "WM Pro App · Basic", monthlyCents: 1_000, priceEnv: "WM_STRIPE_PRICE_APP", rank: 1 },
-  PASSPORT: { tier: "PASSPORT", name: "WM Pro Premium · World Pass", monthlyCents: 2_000, priceEnv: "WM_STRIPE_PRICE_PASSPORT", rank: 2 },
+  // Founder 2026-10-24: the ONE World Pass is sold on WOW OS. This tier is "WM Pro Premium" on its own (same
+  // price, same Stripe price id, existing subscribers untouched); the id/env stay PASSPORT for those records.
+  PASSPORT: { tier: "PASSPORT", name: "WM Pro Premium", monthlyCents: 2_000, priceEnv: "WM_STRIPE_PRICE_PASSPORT", rank: 2 },
   OS: { tier: "OS", name: "WM Pro OS", monthlyCents: 5_000, priceEnv: "WM_STRIPE_PRICE_OS", rank: 3 },
 };
 

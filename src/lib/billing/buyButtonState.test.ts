@@ -41,7 +41,8 @@ describe("the pricing page", () => {
   it("reads what is on sale from the server, sends only the tier name, and keeps the honest fallback", () => {
     expect(page.length).toBeGreaterThan(3000);
     expect(page).toContain('fetch("/api/billing/tiers", { cache: "no-store" })');
-    expect(page).toContain('fetch("/api/billing/standing", { cache: "no-store" })');
+    // Opening Pricing also re-reads the member's World Pass from WOW OS (2026-10-24).
+    expect(page).toContain('fetch("/api/billing/standing?worldPass=refresh", { cache: "no-store" })');
     expect(page).toContain('fetch(path === "checkout" ? "/api/billing/checkout" : "/api/billing/portal", { method: "POST",');
     expect(page).toContain("body: JSON.stringify(tier ? { tier } : {})");
     // No price, amount or price id leaves the page; the webhook is never called from it.

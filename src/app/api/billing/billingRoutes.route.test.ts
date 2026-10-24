@@ -398,3 +398,37 @@ describe("GET /api/billing/standing and POST /api/billing/portal", () => {
     expect(call.params.get("return_url")).toBe("https://wealthymindsetspro.com/pricing");
   });
 });
+
+describe("the World Pass (owned by WOW OS) on the routes — never sold twice, never stacked", () => {
+  const standing = async (q = "") => (await import("./standing/route")).GET(new Request(`https://wealthymindsetspro.com/api/billing/standing${q}`));
+  const seedPass = (over: Record<string, unknown> = {}) => mocks.kv!.store.set(`billing:v1:worldpass:${USER}`, JSON.stringify({ v: 1, userId: USER, status: "ACTIVE", chosenApp: "wm_pro", livemode: false, currentPeriodEnd: "2026-11-20T00:00:00.000Z", fetchedAt: new Date().toISOString(), ...over }));
+
+  it("standing: an ACTIVE pass with WM Pro chosen → tier PASSPORT while ownTier stays FREE; another app → APP", async () => {
+    configure();
+    seedPass();
+    const j = await (await standing("?worldPass=refresh")).json();
+    expect(j).toMatchObject({ tier: "PASSPORT", ownTier: "FREE", worldPass: { status: "ACTIVE", chosenApp: "wm_pro", grants: "PASSPORT", paidAlso: false }, worldPassUrl: "https://thewow.online/passport?app=wm_pro#world-pass" });
+    seedPass({ chosenApp: "wavemotion" });
+    expect(await (await standing()).json()).toMatchObject({ tier: "APP", worldPass: { grants: "APP" } });
+  });
+
+  it("standing: CANCELED, stale, or the other mode's pass grants nothing", async () => {
+    configure();
+    for (const over of [{ status: "CANCELED" }, { fetchedAt: new Date(Date.now() - 25 * 3_600_000).toISOString() }, { livemode: true }]) {
+      seedPass(over);
+      const j = await (await standing()).json();
+      expect(j.tier, JSON.stringify(over)).toBe("FREE");
+    }
+  });
+
+  it("checkout refuses a tier the pass already covers — nothing goes to Stripe; OS above it is still sold", async () => {
+    configure({ WM_STRIPE_PRICE_OS: "price_os00000001" });
+    seedPass();
+    const res = await checkout({ tier: "PASSPORT" });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ code: "COVERED_BY_WORLD_PASS" });
+    expect(sent).toEqual([]);
+    stripeWith({});
+    expect((await checkout({ tier: "OS" })).status).not.toBe(409);
+  });
+});

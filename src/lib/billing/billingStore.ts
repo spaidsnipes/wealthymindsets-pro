@@ -15,6 +15,8 @@ import type { WebullKvNamespace } from "@/lib/marketData/webullKvTokenStore";
 import { webullWorkerEnv } from "@/lib/marketData/webullSessionStore";
 
 import { memberTierOf, readEntitlement, type EntitlementRecord } from "./entitlement";
+import { combinedTier, worldPassTier } from "./worldPass";
+import { currentWorldPass } from "./worldPassRead";
 import { billingStanding } from "./standing";
 import type { BillingEnv, BillingTier } from "./tiers";
 
@@ -100,13 +102,20 @@ export async function userForCustomer(kv: BillingKv | null, customerId: string |
 }
 
 /**
- * THE ONE SERVER-SIDE READING of what a member has bought: the tier their
- * record grants right now, in the server's current mode. FREE when billing is
- * not configured, when no record exists, or when the record cannot be read.
+ * THE ONE SERVER-SIDE READING of what a member has: the higher of the tier their
+ * own WM Pro record grants and the tier their World Pass (WOW OS) covers, in the
+ * server's current mode — never the two added up. FREE when billing is not
+ * configured, when nothing is held, or when nothing can be read.
  * Nothing in WM Pro gates on it yet — what a tier unlocks is a Founder decision.
  */
-export async function memberTier(userId: string, env: BillingEnv = process.env, loadKv: () => Promise<BillingKv | null> = billingKv): Promise<BillingTier> {
+export async function memberTier(userId: string, env: BillingEnv = process.env, loadKv: () => Promise<BillingKv | null> = billingKv, readPass: typeof currentWorldPass = currentWorldPass): Promise<BillingTier> {
   const standing = billingStanding(env);
   if (standing.mode === "NOT_CONFIGURED") return "FREE";
-  try { return memberTierOf(await loadEntitlement(await loadKv(), userId), standing.live); } catch { return "FREE"; }
+  let kv: BillingKv | null = null;
+  try { kv = await loadKv(); } catch { kv = null; }
+  let own: BillingTier = "FREE";
+  try { own = memberTierOf(await loadEntitlement(kv, userId), standing.live); } catch { own = "FREE"; }
+  let pass = null;
+  try { pass = worldPassTier(await readPass(userId, kv, { env }), standing.live); } catch { pass = null; }
+  return combinedTier(own, pass);
 }

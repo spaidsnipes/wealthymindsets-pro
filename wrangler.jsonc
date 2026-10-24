@@ -99,6 +99,16 @@
   ],
 
   /**
+   * WOW OS — the owner of the ONE World Pass record (Founder decision 2026-10-24).
+   * src/lib/billing/worldPassRead.ts asks WOW for a member's World Pass through this
+   * binding (falling back to https://thewow.online). A binding, not a secret: the
+   * request is signed with WOW_REALM_KEY (optional; absent → no World Pass read).
+   */
+  "services": [
+    { "binding": "WOW", "service": "wow-world-os" }
+  ],
+
+  /**
    * SECRET NAMES — never values. See the SECRETS note above.
    *
    * This list is NOT hand-maintained. It is a MIRROR of

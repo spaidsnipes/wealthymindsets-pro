@@ -12,6 +12,8 @@ import { CANONICAL_URL } from "@/lib/canonicalUrl";
 import { publicFailure } from "@/lib/publicFailure";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { requireAuth } from "@/lib/requireAuth";
+import { worldPassCovers, worldPassTier } from "@/lib/billing/worldPass";
+import { currentWorldPass } from "@/lib/billing/worldPassRead";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +53,10 @@ export async function POST(request: Request) {
   try { record = await loadEntitlement(kv, auth.user.sub); } catch { return refuse(publicFailure(new Error("billing record unreadable"), "billing-checkout"), 503); }
   if (record && record.livemode === standing.live && record.status === "active") {
     return refuse({ error: "You already have an active plan. Change or cancel it from Manage billing.", code: "ALREADY_ACTIVE" }, 409);
+  }
+  // NEVER STACKED WITH THE WORLD PASS: a tier the member's World Pass (WOW OS) already covers is not sold again.
+  if (worldPassCovers(worldPassTier(await currentWorldPass(auth.user.sub, kv), standing.live), tier)) {
+    return refuse({ error: "You're covered by your World Pass — this plan is already included. Nothing was charged.", code: "COVERED_BY_WORLD_PASS" }, 409);
   }
 
   // ONE customer per Passport identity across the shared account — found before it is ever created.

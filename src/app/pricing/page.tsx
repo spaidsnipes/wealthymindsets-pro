@@ -10,8 +10,9 @@ import { usePublishOsStanding } from "@/components/os/osStandingContext";
 import { passportPromo, passportPromoLine } from "@/lib/pricing/passportPromo";
 import { SellingStory } from "@/components/marketing/SellingStory";
 import { PRODUCT_LINE } from "@/lib/marketing/sellingStory";
+import { WORLD_PASS_BUY_URL } from "@/lib/billing/worldPass";
 
-// Founder 2026-10-06: WM Pro Premium · World Pass first month half off until the promotion ends.
+// Founder 2026-10-06: WM Pro Premium first month half off until the promotion ends.
 const PASSPORT_PROMO = passportPromoLine(passportPromo(process.env.NEXT_PUBLIC_PASSPORT_PROMO_ENDS));
 
 /**
@@ -30,7 +31,7 @@ const GOLD = "#c9a55c", INK = "#ede6d3", MUTED = "#a89c80", LINE = "rgba(201,165
 // Thumb targets (phone audit 2026-10-06: the footer's inline links were 15 px tall at 375 px).
 const TAP = { display: "inline-flex", alignItems: "center", justifyContent: "center", minHeight: 44, minWidth: 44, padding: "0 4px", color: GOLD } as const;
 
-type Tier = { id?: PaidTier; name: string; price: string; tagline: string; includes: string[]; limits: string[]; cta: { label: string; href?: string }; offer?: string | null };
+type Tier = { id?: PaidTier; name: string; price: string; tagline: string; includes: string[]; limits: string[]; cta: { label: string; href?: string }; offer?: string | null; worldPassLink?: boolean };
 
 const TIERS: Tier[] = [
   {
@@ -46,25 +47,22 @@ const TIERS: Tier[] = [
     cta: { label: "Not on sale yet" },
   },
   {
-    // Founder 2026-10-24 (final, with corrections): WM Pro Premium ($20) IS the World Pass when WM Pro is the member's
-    // chosen app. The World Pass is the ecosystem pass: Premium of the chosen app + Basic of every other ATH app.
-    // Never the Premium/Pro tier of every app. Tier id / env stay PASSPORT.
-    id: "PASSPORT", name: "WM Pro Premium · World Pass", price: "$20",
-    tagline: "Your passport to the whole ATH ecosystem — WM Pro Premium, plus Basic of every other ATH app.",
+    // Founder 2026-10-24 (decision applied): the ONE World Pass is sold on WOW OS, which owns its record. This tier is
+    // "WM Pro Premium" on its own — same $20 price, same Stripe price, existing subscribers' billing untouched — and it
+    // points to the World Pass so nobody pays $20 twice. Tier id / env stay PASSPORT (existing records).
+    id: "PASSPORT", name: "WM Pro Premium", price: "$20",
+    tagline: "WM Pro at Premium, on its own. Want the whole ATH ecosystem too? The World Pass includes this.",
     includes: [
       "Everything in WM Pro App — one $20 charge, not $20 + $10",
-      "Basic of every other ATH app — WAVEMOTION Starter (40 clips a month) once WAVEMOTION connects to the World Pass, and every app after it",
-      "All of WOW OS on one pass: Lounge, WOW TV, WOW Music, WOW Radio and the WOW Shop",
-      "WOW Academy classes and tracks",
-      "The WOW Marketplace — shop it, and apply to sell there as a WOW Creator Partner",
-      "Dreamboard when it opens, every new ATH app at Basic, and WOW World (the future metaverse) when it opens",
+      "WM Pro Premium on your account — the same Premium the World Pass gives when WM Pro is your Premium app",
     ],
     limits: [
-      "Premium of one app (WM Pro), not the Premium or Pro tier of every app",
-      "App tiers in other apps switch on as each app connects",
+      "WM Pro alone: this is not the World Pass and opens no other app's tier",
+      "Have the World Pass with WM Pro as your Premium app? You already have this — don't buy it twice",
     ],
     cta: { label: "Not on sale yet" },
     offer: PASSPORT_PROMO,
+    worldPassLink: true,
   },
   {
     id: "OS", name: "WM Pro OS", price: "$50", tagline: "The full operating system.",
@@ -82,6 +80,8 @@ export default function PricingPage() {
   const { user } = useAuth();
   const [sale, setSale] = useState<{ mode: "NOT_CONFIGURED" | "TEST" | "LIVE"; tiers: Record<string, boolean>; passportIntro?: boolean } | null>(null);
   const [memberTier, setMemberTier] = useState<BillingTier | null>(null);
+  // What the member's World Pass (owned by WOW OS) covers here; the two never stack.
+  const [pass, setPass] = useState<{ grants: PaidTier | null; chosenApp: string | null; paidAlso: boolean } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [said, setSaid] = useState<string | null>(null);
   useEffect(() => {
@@ -93,12 +93,18 @@ export default function PricingPage() {
     return () => { live = false; };
   }, []);
   useEffect(() => {
-    if (!user) { setMemberTier(null); return; }
+    if (!user) { setMemberTier(null); setPass(null); return; }
     let live = true;
-    fetch("/api/billing/standing", { cache: "no-store" })
+    // Opening Pricing re-reads the World Pass from WOW OS.
+    fetch("/api/billing/standing?worldPass=refresh", { cache: "no-store" })
       .then(r => (r.ok ? r.json() : null))
-      .then(j => { if (live) setMemberTier(j && typeof j.tier === "string" ? (j.tier as BillingTier) : null); })
-      .catch(() => { if (live) setMemberTier(null); });
+      .then(j => {
+        if (!live) return;
+        setMemberTier(j && typeof (j.ownTier ?? j.tier) === "string" ? ((j.ownTier ?? j.tier) as BillingTier) : null);
+        const w = j?.worldPass;
+        setPass(w && typeof w === "object" ? { grants: w.grants === "PASSPORT" || w.grants === "APP" ? w.grants : null, chosenApp: typeof w.chosenApp === "string" ? w.chosenApp : null, paidAlso: w.paidAlso === true } : null);
+      })
+      .catch(() => { if (live) { setMemberTier(null); setPass(null); } });
     return () => { live = false; };
   }, [user]);
   const anyOnSale = !!sale && sale.mode !== "NOT_CONFIGURED" && Object.values(sale.tiers).some(Boolean);
@@ -140,6 +146,12 @@ export default function PricingPage() {
             Paid plans are not on sale yet. Billing is being connected; until it is, no card can be charged here and no paid badge grants access.
           </p>
         )}
+        {pass?.grants ? (
+          <p role="status" data-testid="world-pass-covered" style={{ marginTop: 10, border: `1px solid ${GOLD}`, borderRadius: 8, padding: "10px 14px", color: INK, fontSize: 13, maxWidth: 720 }}>
+            You&apos;re covered by your World Pass: {pass.grants === "PASSPORT" ? "WM Pro is your Premium app, so you have WM Pro Premium." : "your Premium app is another ATH app, so you have WM Pro App · Basic here. Make WM Pro your Premium app on your WOW Passport to get WM Pro Premium."}
+            {pass.paidAlso ? " You also pay WM Pro for a plan the pass already covers — cancel it in Manage billing so you don't pay twice." : ""}
+          </p>
+        ) : null}
         {said ? <p role="alert" data-testid="billing-said" style={{ marginTop: 10, color: INK, fontSize: 13, maxWidth: 720 }}>{said}</p> : null}
 
         {/* §57 SELLING PASS — what the tiers buy into, said once, above them. */}
@@ -167,14 +179,19 @@ export default function PricingPage() {
               <ul aria-label="Limits" style={{ margin: 0, paddingLeft: 18, fontSize: 12, lineHeight: 1.6, color: MUTED }}>
                 {t.limits.map((x) => <li key={x}>{x}</li>)}
               </ul>
+              {t.worldPassLink ? (
+                <a data-testid="world-pass-link" href={WORLD_PASS_BUY_URL} rel="noopener" style={{ ...TAP, justifyContent: "flex-start", fontSize: 13, fontWeight: 700, textDecoration: "underline" }}>Get the World Pass on WOW OS (pick WM Pro as your Premium app)</a>
+              ) : null}
               <div style={{ marginTop: "auto" }}>
-                {t.id && buyButtonState({ tier: t.id, onSale: sale?.tiers ?? null, mode: sale?.mode ?? null, signedIn: user ? true : false, memberTier }).kind !== "NOT_ON_SALE" ? (() => {
-                  const b = buyButtonState({ tier: t.id!, onSale: sale?.tiers ?? null, mode: sale?.mode ?? null, signedIn: user ? true : false, memberTier });
+                {t.id && buyButtonState({ tier: t.id, onSale: sale?.tiers ?? null, mode: sale?.mode ?? null, signedIn: user ? true : false, memberTier, worldPassTier: pass?.grants ?? null }).kind !== "NOT_ON_SALE" ? (() => {
+                  const b = buyButtonState({ tier: t.id!, onSale: sale?.tiers ?? null, mode: sale?.mode ?? null, signedIn: user ? true : false, memberTier, worldPassTier: pass?.grants ?? null });
                   const live = { display: "inline-flex", alignItems: "center", minHeight: 44, padding: "0 18px", borderRadius: 8, border: `1px solid ${GOLD}`, background: "rgba(201,165,92,0.12)", color: "#e8b923", fontWeight: 700, textDecoration: "none", cursor: "pointer", fontSize: 14 } as const;
                   return (
                     <div data-testid="tier-buy" data-tier={t.id} data-kind={b.kind}>
                       {b.kind === "SIGN_IN" ? (
                         <Link href="/login?next=/pricing" style={live}>{b.label}</Link>
+                      ) : b.kind === "COVERED" ? (
+                        <a href="https://thewow.online/passport#world-pass" rel="noopener" style={live}>{b.label}</a>
                       ) : (
                         <button type="button" disabled={busy !== null} onClick={() => { void go(b.kind === "BUY" ? "checkout" : "portal", b.kind === "BUY" ? t.id : undefined); }} style={{ ...live, opacity: busy !== null ? 0.6 : 1 }}>
                           {busy === t.id ? "Opening Stripe…" : b.label}
@@ -201,15 +218,16 @@ export default function PricingPage() {
         <section data-testid="world-pass-value" aria-label="What the $20 World Pass gets you" style={{ marginTop: 20, padding: "16px 18px", borderRadius: 12, border: `1px solid ${GOLD}`, background: "rgba(201,165,92,0.08)", maxWidth: 820 }}>
           <h2 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 10px", color: INK }}>What the $20 World Pass gets you: your passport to the whole ecosystem</h2>
           <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14, lineHeight: 1.7, color: INK }}>
-            <li><strong>Premium of the app you choose.</strong> Here, that&apos;s WM Pro Premium.</li>
-            <li><strong>Basic of every other ATH app:</strong> WAVEMOTION Starter once WAVEMOTION connects to the World Pass, and every app after it.</li>
+            <li><strong>Premium of the app you choose.</strong> Pick WM Pro and you get WM Pro Premium here.</li>
+            <li><strong>Basic of every other ATH app:</strong> WM Pro App · Basic here if you pick another app, WAVEMOTION Starter, and every app after it.</li>
             <li><strong>All of WOW OS on one pass:</strong> Lounge, WOW TV, WOW Music, WOW Radio, the WOW Shop.</li>
             <li><strong>WOW Academy</strong>, and the <strong>WOW Marketplace</strong> (apply to sell as a Creator Partner).</li>
             <li><strong>Dreamboard</strong> when it opens, <strong>every new ATH app</strong> at Basic, and <strong>WOW World</strong> (the future metaverse) when it opens.</li>
           </ul>
           <p style={{ margin: "10px 0 0", fontSize: 12, lineHeight: 1.6, color: MUTED }}>
-            At today&apos;s list prices that&apos;s $30 of app tiers for $20, and it grows with every app ATH ships. Premium of one app, not the Premium or Pro tier of every app. App tiers switch on as each app connects.
+            At today&apos;s list prices that&apos;s $30 of app tiers for $20, and it grows with every app ATH ships. Premium of one app, not the Premium or Pro tier of every app. The World Pass is sold once, on WOW OS; each app switches its tier on from your pass when you open it, and it never stacks with a plan you buy here.
           </p>
+          <a data-testid="world-pass-buy" href={WORLD_PASS_BUY_URL} rel="noopener" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, marginTop: 10, padding: "0 18px", borderRadius: 8, border: `1px solid ${GOLD}`, background: "rgba(201,165,92,0.12)", color: "#e8b923", fontWeight: 700, textDecoration: "none", fontSize: 14 }}>Get the World Pass on WOW OS (pick WM Pro as your Premium app)</a>
         </section>
 
         <p style={{ color: MUTED, fontSize: 12, lineHeight: 1.6, marginTop: 28, marginBottom: 4, maxWidth: 820 }}>
