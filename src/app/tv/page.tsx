@@ -152,7 +152,7 @@ function WMTVHome({ onOpenLive, onOpenPodcast }: { onOpenLive: () => void; onOpe
               style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(232,185,35,0.3)" }}>
               <Podcast size={15} /> Podcast Stage
             </motion.button>
-            <WowSurfaceDoor to="/wow-tv" label="WOW TV in WOW World" testId="tv-wow-world-door" />
+            <WowSurfaceDoor to="/wow-tv" label="WOW TV in WOW OS" testId="tv-wow-world-door" />
           </div>
 
           <div className="mt-4 text-[11px] text-wm-text-muted">Live status appears only after a host starts a verified room.</div>

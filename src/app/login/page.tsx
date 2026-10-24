@@ -109,7 +109,7 @@ function LoginPage() {
       else if (authError === "rate_limited") setError("Too many attempts from this connection. Wait a few minutes, then open the link again.");
       // "Verified" only when the link did not also report a failure — the two
       // used to show together ("expired" in red, "verified" in gold).
-      else if (searchParams.get("confirmed") === "1") setSuccess("Your email is verified. Sign in to open your WOW World workspace.");
+      else if (searchParams.get("confirmed") === "1") setSuccess("Your email is verified. Sign in to open your WOW OS workspace.");
       return;
     }
     confirmationHandled.current = true;
@@ -122,7 +122,7 @@ function LoginPage() {
       body: JSON.stringify({ accessToken }),
     }).then(async response => {
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "Your email was verified, but the WOW World session could not be created.");
+      if (!response.ok) throw new Error(data.error || "Your email was verified, but the WOW OS session could not be created.");
       window.location.assign(safeNextPath(searchParams.get("next")) ?? FOUNDER_LANDING_ROUTE); // G12: the one landing owner, not the quarantined deck
     }).catch(error => {
       setError(authFailureMessage(error, "Your verification could not be completed."));

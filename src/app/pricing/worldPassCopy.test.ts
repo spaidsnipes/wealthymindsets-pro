@@ -26,4 +26,13 @@ describe("World Pass copy says the Founder's rule", () => {
     expect(PROFILE).not.toContain("opens WOW World");
     expect(PROFILE).not.toContain("WOW World Passport");
   });
+  it("sign-in and the WOW doors name today's ecosystem WOW OS; WOW World stays the future metaverse (Founder 2026-10-24)", () => {
+    const src = (f: string) => readFileSync(path.join(process.cwd(), f), "utf8");
+    expect(src("src/app/login/page.tsx")).toContain("Sign in to open your WOW OS workspace.");
+    expect(src("src/components/os/WMOperatingSystem.tsx")).toContain(">WOW OS ↗<");
+    expect(src("src/components/os/WowSurfaceDoor.tsx")).toContain("— opens WOW OS in a new tab");
+    for (const f of ["src/app/login/page.tsx", "src/components/os/WowSurfaceDoor.tsx", "src/app/tv/page.tsx", "src/app/radio/page.tsx"]) expect(src(f), f).not.toContain("WOW World");
+    expect(src("src/components/os/WMOperatingSystem.tsx")).not.toContain("WOW World ↗");
+    expect(PRICING).toContain("WOW World</strong> (the future metaverse) when it opens");
+  });
 });

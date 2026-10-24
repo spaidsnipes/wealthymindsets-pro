@@ -327,7 +327,7 @@ function WowWorldDoor(): React.ReactElement {
         border: `1px solid ${RULE}`, borderRadius: 2,
       }}
     >
-      <span style={{ ...EYEBROW, color: GOLD }}>WOW World ↗</span>
+      <span style={{ ...EYEBROW, color: GOLD }}>WOW OS ↗</span>
       <span style={{ fontSize: 11, color: MUTED, lineHeight: "15px" }}>Your Passport opens it — same sign-in, its own tab.</span>
     </button>
   );

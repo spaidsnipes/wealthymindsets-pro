@@ -852,7 +852,7 @@ export default function RadioPage() {
             <h1 className="text-[20px] font-black text-wm-text tracking-tight">WOW Radio</h1>
             <p className="text-[11px] text-wm-text-muted">Music, podcasts & live streams from the WM community</p>
           </div>
-          <WowSurfaceDoor to="/wow-radio" label="WOW Radio in WOW World" testId="radio-wow-world-door" />
+          <WowSurfaceDoor to="/wow-radio" label="WOW Radio in WOW OS" testId="radio-wow-world-door" />
 
           {/* Live badge */}
           <div className="ml-auto flex shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-full"
