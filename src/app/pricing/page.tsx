@@ -12,7 +12,7 @@ import { SellingStory } from "@/components/marketing/SellingStory";
 import { PRODUCT_LINE } from "@/lib/marketing/sellingStory";
 import { WORLD_PASS_BUY_URL } from "@/lib/billing/worldPass";
 
-// Founder 2026-10-06: WM Pro Premium first month half off until the promotion ends.
+// Holiday special (Founder 2026-10-25): WM Pro Premium first month half off through Dec 25 2026 11:59 PM CT; gone after.
 const PASSPORT_PROMO = passportPromoLine(passportPromo(process.env.NEXT_PUBLIC_PASSPORT_PROMO_ENDS));
 
 /**

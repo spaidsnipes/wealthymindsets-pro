@@ -141,6 +141,7 @@ describe("POST /api/billing/checkout", () => {
   });
 
   it("THE PASSPORT INTRO OFFER IS CHARGED AS SHOWN: the configured coupon rides Passport checkout only, and the public read says so", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-12-26T05:59:00Z")); // inside the holiday special
     configure({ WM_STRIPE_PRICE_APP: "price_app0000001", WM_STRIPE_COUPON_PASSPORT_INTRO: "wm_intro_half" }); stripeWith();
     expect((await checkout({ tier: "PASSPORT" })).status).toBe(201);
     const pass = sent.filter(s => s.path === "checkout/sessions").at(-1)!;
@@ -150,6 +151,17 @@ describe("POST /api/billing/checkout", () => {
     sent = [];
     expect((await checkout({ tier: "APP" })).status).toBe(201);
     expect(sent.find(s => s.path === "checkout/sessions")!.params.get("discounts[0][coupon]")).toBeNull();
+    vi.useRealTimers();
+  });
+
+  it("…the holiday special ends by itself after Dec 25 2026 11:59 PM CT: no coupon, no promise", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-12-26T06:00:01Z"));
+    try {
+      configure({ WM_STRIPE_COUPON_PASSPORT_INTRO: "wm_intro_half" }); stripeWith();
+      expect((await checkout({ tier: "PASSPORT" })).status).toBe(201);
+      expect(sent.find(s => s.path === "checkout/sessions")!.params.get("discounts[0][coupon]")).toBeNull();
+      expect(JSON.parse(await (await (await import("./tiers/route")).GET(new Request("https://wealthymindsetspro.com/api/billing/tiers", { headers: { "cf-connecting-ip": "203.0.113.9" } }))).text())).toMatchObject({ passportIntro: false });
+    } finally { vi.useRealTimers(); }
   });
 
   it("…an ENDED offer applies no coupon, and the public read stops promising it", async () => {
