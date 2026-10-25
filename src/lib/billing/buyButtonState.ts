@@ -4,7 +4,7 @@
  * A button that cannot take payment must not look like it can. So a paid
  * tier's button is live ONLY when the server says that tier is on sale:
  *   · not on sale (or not yet known)  → "Not on sale yet", disabled;
- *   · on sale, signed out             → "Sign in to buy" (a link);
+ *   · on sale, signed out             → "Sign in or create an account to buy" (a link);
  *   · on sale, signed in              → "Subscribe" (starts Stripe Checkout);
  *   · this is the member's plan       → "Your plan" + "Manage billing";
  *   · the member holds another plan   → "Change plan in Manage billing";
@@ -42,7 +42,7 @@ export function buyButtonState(input: {
   const selling = input.mode !== null && input.mode !== "NOT_CONFIGURED" && input.onSale?.[input.tier] === true;
   if (!selling) return { kind: "NOT_ON_SALE", label: NOT_ON_SALE_LABEL, note: null };
   const test = input.mode === "TEST" ? "Test mode — no real charge is made." : null;
-  if (input.signedIn !== true) return { kind: "SIGN_IN", label: "Sign in to buy", note: test };
+  if (input.signedIn !== true) return { kind: "SIGN_IN", label: "Sign in or create an account to buy", note: test };
   const pass = input.worldPassTier ?? null;
   if (pass && TIER_SPEC[pass].rank >= TIER_SPEC[input.tier].rank) {
     if (input.memberTier === input.tier) return { kind: "CURRENT", label: "Your plan · Manage billing", note: "Your World Pass already includes this plan. Cancel it in Manage billing so you don't pay twice." };

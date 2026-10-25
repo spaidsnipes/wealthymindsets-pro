@@ -60,7 +60,7 @@ const routes = argv.filter((a, i) => !a.startsWith("--") && !argv[i - 1]?.starts
  * path would measure the login form twice and report the signup form as clean
  * without ever rendering it.
  */
-const ROUTES = routes.length ? routes : ["/login", "/login?mode=signup", "/reset-password", "/pricing", "/legal", "/legal/risk", "/legal/market-data", "/welcome"];
+const ROUTES = routes.length ? routes : ["/login", "/login?mode=signup", "/reset-password", "/pricing", "/legal", "/legal/terms", "/legal/privacy", "/legal/risk", "/legal/market-data", "/welcome"];
 
 /**
  * SHORT PAGES — a route whose OWN content is honestly smaller than the census

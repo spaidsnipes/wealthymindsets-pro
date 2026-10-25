@@ -22,9 +22,9 @@ describe("buyButtonState", () => {
     expect(NOT_ON_SALE_LABEL).toBe("Not on sale yet");
   });
 
-  it("on sale: signed out → Sign in to buy; signed in → Subscribe; own plan → manage; another plan → change in Manage billing", () => {
+  it("on sale: signed out → Sign in or create an account to buy; signed in → Subscribe; own plan → manage; another plan → change in Manage billing", () => {
     const base = { tier: "PASSPORT" as const, onSale: ON, mode: "LIVE" as const };
-    expect(buyButtonState({ ...base, signedIn: false, memberTier: null })).toEqual({ kind: "SIGN_IN", label: "Sign in to buy", note: null });
+    expect(buyButtonState({ ...base, signedIn: false, memberTier: null })).toEqual({ kind: "SIGN_IN", label: "Sign in or create an account to buy", note: null });
     expect(buyButtonState({ ...base, signedIn: null, memberTier: null }).kind).toBe("SIGN_IN");
     expect(buyButtonState({ ...base, signedIn: true, memberTier: "FREE" })).toEqual({ kind: "BUY", label: "Subscribe", note: null });
     expect(buyButtonState({ ...base, signedIn: true, memberTier: null }).kind).toBe("BUY");

@@ -166,3 +166,18 @@ it("the room's provenance segments wrap inside the plate — no horizontal page 
   const os = readFileSync(path.join(process.cwd(), "src/components/os/WMOperatingSystem.tsx"), "utf8");
   expect(os).toContain('<span key={segment} style={{ ...EYEBROW, whiteSpace: "normal", maxWidth: "100%", textAlign: "center" }}>');
 });
+
+describe("the provenance line ends above the app bar (guest audit 2026-10-25)", () => {
+  // MEASURED 390x844 on a served build: at full scroll "RIGHT OF WAY" sat under the WAIT plaque and
+  // "SOURCE CERTIFIED REALTIME" under the app bar, and a ~100px band of empty black stood between the
+  // decision cards and the footer (the dashboard reserved the bars, but the footer comes after it).
+  it("the footer reserves the bars that are drawn (app bar + plaque), outranking the shell's 66px nav reservation", () => {
+    expect(CSS).toContain("body:has(.wm-mobile-tabbar) .wm-os-provenance.wm-os-provenance {");
+    expect(CSS).toContain("padding-bottom: calc(52px + var(--wm-g19-plaque, 0px) + env(safe-area-inset-bottom) + 12px) !important;");
+  });
+  it("one reservation: on the phone the footer (always after the room) carries it, the dashboard does not", () => {
+    expect(CSS).toContain("body:has(.wm-mobile-tabbar) .wm-os-body .wm-chart-dashboard { padding-bottom: 0; }");
+    // and keeps it when no footer follows
+    expect(CSS).toContain(".wm-chart-dashboard { padding-bottom: calc(52px + var(--wm-g19-plaque, 0px) + env(safe-area-inset-bottom)); }");
+  });
+});

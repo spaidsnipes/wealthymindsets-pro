@@ -2677,8 +2677,10 @@ Trade the system, trust the process, winners every day 🚀`,
             {filtered.length === 0 && (
               <div className="flex items-start justify-center p-3 pt-6">
                 <RoomStatePlaque kind="empty" align="center" testId="journal-list-empty" icon={<FileText size={12} />}
-                  title={linkedFilterActive ? "No linked decisions found" : "No entries found"}>
-                  {linkedFilterActive ? "No journal entry is linked to this decision yet." : "Nothing in the journal matches these filters."}
+                  title={linkedFilterActive ? "No linked decisions found" : entries.length === 0 ? "No journal entries yet" : "No entries found"}>
+                  {/* Guest audit 2026-10-25: a new member with an empty journal and no filter set was told
+                      "Nothing in the journal matches these filters" — blaming filters they never touched. */}
+                  {linkedFilterActive ? "No journal entry is linked to this decision yet." : entries.length === 0 ? "Tap New journal entry to log your first trade — or a day you chose not to trade." : "Nothing in the journal matches these filters."}
                 </RoomStatePlaque>
               </div>
             )}

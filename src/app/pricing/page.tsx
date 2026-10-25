@@ -72,6 +72,9 @@ const TIERS: Tier[] = [
   },
 ];
 
+/** The one-line plan list at the top of the page: the same names and prices as TIERS, never restated. */
+const PLANS_AT_A_GLANCE = TIERS.map(({ name, price }) => ({ name, price }));
+
 export default function PricingPage() {
   // Inside the OS shell for members: this page reads no market feed.
   usePublishOsStanding({ surface: "Pricing", feed: FEEDLESS_SURFACE });
@@ -146,6 +149,19 @@ export default function PricingPage() {
             Paid plans are not on sale yet. Billing is being connected; until it is, no card can be charged here and no paid badge grants access.
           </p>
         )}
+        {/* THE PRICES BEFORE THE PROSE (guest audit 2026-10-25): at 390px the first price stood three
+            screens down, under the story. The story keeps its place above the tiers (§57); this one line
+            names every plan and jumps to them, and the holiday special is said where a visitor lands. */}
+        {PASSPORT_PROMO && offerHonoured ? (
+          <p data-testid="holiday-special-banner" style={{ marginTop: 14, padding: "10px 14px", borderRadius: 8, border: `1px solid ${GOLD}`, background: "rgba(201,165,92,0.10)", color: INK, fontSize: 14, lineHeight: 1.5, maxWidth: 720 }}>{PASSPORT_PROMO}</p>
+        ) : null}
+        <nav aria-label="Plans at a glance" data-testid="plans-at-a-glance" style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 14 }}>
+          {PLANS_AT_A_GLANCE.map((t) => (
+            <a key={t.name} href="#plans" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, padding: "0 12px", borderRadius: 8, border: `1px solid ${LINE}`, color: INK, fontSize: 13, textDecoration: "none" }}>
+              {t.name} <span style={{ color: GOLD, marginLeft: 6, fontWeight: 700 }}>{t.price}</span>
+            </a>
+          ))}
+        </nav>
         {pass?.grants ? (
           <p role="status" data-testid="world-pass-covered" style={{ marginTop: 10, border: `1px solid ${GOLD}`, borderRadius: 8, padding: "10px 14px", color: INK, fontSize: 13, maxWidth: 720 }}>
             You&apos;re covered by your World Pass: {pass.grants === "PASSPORT" ? "WM Pro is your Premium app, so you have WM Pro Premium." : "your Premium app is another ATH app, so you have WM Pro App · Basic here. Make WM Pro your Premium app on your WOW Passport to get WM Pro Premium."}
@@ -159,7 +175,7 @@ export default function PricingPage() {
           <SellingStory variant="compact" withProductLine={false} />
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16, marginTop: 28 }}>
+        <div id="plans" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16, marginTop: 28, scrollMarginTop: 16 }}>
           {TIERS.map((t) => (
             <section key={t.name} aria-label={`${t.name} ${t.price} per month`} style={{ background: FIELD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 20, display: "flex", flexDirection: "column", gap: 12 }}>
               <div>

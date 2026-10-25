@@ -2172,6 +2172,18 @@ input[type=range]::-moz-range-track { height: 4px; background: #26262d; border-r
      the sheet is its header + the placing strip, whatever stage it was in; it returns when placement ends. */
   [data-testid="trade-panel"][data-placing="yes"] { max-height: 124px !important; overflow-y: hidden !important; }
 }
+/* THE PROVENANCE LINE ENDS ABOVE THE APP BAR TOO (guest audit 2026-10-25, 390x844). The shell
+   reserves the old four-door nav (66px) under its provenance footer, but the app bar (52px) plus
+   the WAIT plaque (48px) stand 100px tall: at full scroll RIGHT OF WAY sat under the plaque and
+   SOURCE CERTIFIED REALTIME under the bar. The footer follows the room, so the dashboard reservation
+   above only painted a band of empty black between the decision cards and the footer.
+   One reservation, at the end of the page, sized from the bars that are drawn. */
+@media (max-width: 639px) and (min-height: 521px) {
+  body:has(.wm-mobile-tabbar) .wm-os-body .wm-chart-dashboard { padding-bottom: 0; }
+  body:has(.wm-mobile-tabbar) .wm-os-provenance.wm-os-provenance {
+    padding-bottom: calc(52px + var(--wm-g19-plaque, 0px) + env(safe-area-inset-bottom) + 12px) !important;
+  }
+}
 
 /* ── 3. PHONE: THE MASTHEAD SPENDS ITS ROWS ON JOBS ─────────────────────────
    Market room only. Row one: the mark. Row two: Workspace · Tools · Rooms
