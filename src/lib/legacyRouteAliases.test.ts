@@ -119,3 +119,10 @@ describe("/signup is answered by the alias owner (G12, 2026-09-29)", () => {
     expect([t.pathname, t.search]).toEqual(["/login", "?mode=signup"]);
   });
 });
+
+describe("/terms and /privacy reach the legal documents (2026-10-25: both were 404)", () => {
+  it("maps each typed address to its /legal page", () => {
+    expect(legacyAliasTarget("/terms")).toBe("/legal/terms");
+    expect(legacyAliasTarget("/privacy/")).toBe("/legal/privacy");
+  });
+});

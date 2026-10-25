@@ -55,6 +55,11 @@ export const LEGACY_ROUTE_ALIASES: Readonly<Record<string, string>> = {
   "/backtest": "/backtesting",
   // Settings is a drawer, not a page; a typed /settings opens it over Charts.
   "/settings": "/charts?settings=open",
+  // Typed by hand and asked for by app stores, payment forms and partners
+  // (measured 2026-10-25: /terms and /privacy answered 404). The documents
+  // live under /legal.
+  "/terms": "/legal/terms",
+  "/privacy": "/legal/privacy",
 };
 
 /**
