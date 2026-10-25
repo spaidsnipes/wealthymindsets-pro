@@ -1230,7 +1230,17 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
   // `?? 60` that clocked every unknown id — a future tick id included — as
   // one-minute bars. `liveBarBucketSec` answers for every TFId exactly as the
   // table did, and null for anything else: no clock, no forming bar.
-  const getIntervalSec = useCallback((): number | null => liveBarBucketSec(timeframe), [timeframe]);
+  //
+  // READ THROUGH A REF (P0 2026-10-25). The tick handlers below are captured
+  // ONCE by the socket effect, which re-runs on [symbol] only. Closing over
+  // `timeframe` here froze the bucket at the timeframe the symbol was opened
+  // on: 1h → 1m left every tick stamped on the hour (STALE-dropped, frozen
+  // candle under a moving header) and 1m → 1h opened a new candle every
+  // minute on the hourly chart ("OPENED 2:57 PM" on 1h, serving 10339f8).
+  // Updated by the timeframe effect at the bottom of this hook, together with
+  // the live-bar reset, so the new clock and the empty bar arrive as one.
+  const intervalSecRef = useRef<number | null>(liveBarBucketSec(timeframe));
+  const getIntervalSec = useCallback((): number | null => intervalSecRef.current, []);
 
   /* Flush buffer to React state (called in RAF) */
   const flush = useCallback(() => {
@@ -1934,6 +1944,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
 
   // A timeframe change starts an empty live bar; only observed ticks may refill it.
   useEffect(() => {
+    intervalSecRef.current = liveBarBucketSec(timeframe);
     barRef.current = null;
     lastBarEventAtRef.current = null;
     closedBarsRef.current = [];
