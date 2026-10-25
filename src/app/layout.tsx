@@ -10,6 +10,7 @@ import { RadioProvider } from "@/contexts/RadioContext";
 import { Toaster } from "react-hot-toast";
 import { ServiceWorkerRegistrar } from "@/components/pwa/ServiceWorkerRegistrar";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
+import { AthosSpaidbotLauncher } from "@/components/spaidbot/AthosSpaidbotLauncher";
 import { CANONICAL_URL } from "@/lib/canonicalUrl";
 import { WM_BRAND } from "@/lib/brand/brandCanon";
 
@@ -113,6 +114,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </SymbolProvider>
             </WMSProvider>
           </RadioProvider>
+          {/* ATHOS "Ask Spaidbot" — public signed-out doors ONLY (allow-list in lib/spaidbot/athosSpaidbot.ts). */}
+          <AthosSpaidbotLauncher />
         </AuthProvider>
 
         {/* Toast notifications (above music player bar) */}
