@@ -150,7 +150,8 @@ import {
   recordSkip,
   withPaintBudget,
 } from "@/lib/chart/paintBudgetLedger";
-import { coinbaseProduct, useWebSocket, type Tick } from "@/hooks/useWebSocket";
+import { coinbaseProduct, RECENT_TICK_RETENTION, useWebSocket, type Tick } from "@/hooks/useWebSocket";
+import { trimPrintDedupe } from "@/lib/chart/printDedupe";
 import { chartFeedReading, priceSourceBadge, resolveChartSurfaceBadge } from "@/lib/priceSource";
 import { useProvenSessionClosure } from "@/lib/marketData/useProvenSessionClosure";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
@@ -3814,9 +3815,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     const dedupeKey = marketTickDedupeKey(tick);
     if (processedTicksRef.current.has(dedupeKey)) return false;
     processedTicksRef.current.add(dedupeKey);
-    if (processedTicksRef.current.size > 8000) {
-      processedTicksRef.current = new Set([...processedTicksRef.current].slice(-4000));
-    }
+    // The window outlives the tape it guards (printDedupe.ts): a 4,000-key window under an 8,000-print
+    // tape re-folded thousands of prints per frame — duplicate volume and a chart that sank to 12 fps.
+    processedTicksRef.current = trimPrintDedupe(processedTicksRef.current, RECENT_TICK_RETENTION);
 
     let barTime = Math.floor(tick.time / 1000 / intervalSec) * intervalSec;
     // TICK BARS: the print's bar is the builder's, not a clock bucket. A
