@@ -130,7 +130,12 @@ export function retainRecentTicks(
   previous: readonly Tick[],
   limit: number = RECENT_TICK_RETENTION,
 ): Tick[] {
-  return [...incoming, ...previous].slice(0, limit);
+  // One copy per frame (this runs in every hook instance on every flush), not a spread and a slice.
+  if (incoming.length >= limit) return incoming.slice(0, limit);
+  const out = incoming.slice();
+  const keep = Math.min(previous.length, limit - incoming.length);
+  for (let i = 0; i < keep; i++) out.push(previous[i]);
+  return out;
 }
 
 /**
@@ -1142,11 +1147,33 @@ export function marketStateFor(
   return ownerSymbol === requestedSymbol ? state : silent;
 }
 
-export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe: string }) {
+/**
+ * A consumer that paints the forming bar itself (MainChart) hears each flush's bar IN the flush —
+ * the same animation frame the print was folded in — instead of waiting for a render and an effect.
+ * `meta` names the symbol and bar clock the bar was built on, so a flush that lands across a switch
+ * is recognisable as someone else's. The same object is then published as `liveBar`.
+ */
+export type LiveFlushListener = (
+  bar: LegacyOhlcvTuple | null,
+  closed: readonly LegacyOhlcvTuple[],
+  meta: { readonly symbol: string; readonly intervalSec: number | null },
+) => void;
+
+export function useWebSocket({ symbol, timeframe, onLiveFlush }: { symbol: string; timeframe: string; onLiveFlush?: { readonly current: LiveFlushListener | null } }) {
   // Updated during render so a promise from the prior effect cannot land in
   // the gap before React runs that effect's cleanup.
   const activeSymbolRef = useRef(symbol);
   activeSymbolRef.current = symbol;
+  // The symbol the RUNNING socket effect was opened for (set by that effect, not by render): a
+  // flush scheduled before a switch's effect ran still names the previous symbol.
+  const tapeSymbolRef = useRef(symbol);
+  const onLiveFlushRef = useRef(onLiveFlush);
+  onLiveFlushRef.current = onLiveFlush;
+  const handOffLiveBar = (bar: LegacyOhlcvTuple | null) => {
+    const l = onLiveFlushRef.current?.current;
+    if (!l) return;
+    try { l(bar, closedBarsRef.current, { symbol: tapeSymbolRef.current, intervalSec: intervalSecRef.current }); } catch { /* the chart's own guards report its drops */ }
+  };
   const base      = getBasePrice(symbol);
 
   // Hot path refs — no re-render on every tick
@@ -1283,6 +1310,9 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     // Read before the updater runs (it may run later than this line).
     const closedPub = closedDirtyRef.current ? closedBarsRef.current.slice() : null;
     closedDirtyRef.current = false;
+    // ONE snapshot of the forming bar: handed to the painter now, published as `liveBar` below.
+    const liveSnap = barRef.current ? { ...barRef.current } : null;
+    handOffLiveBar(liveSnap);
     setState(prev => {
       const newVol = prev.ticker.volume + dropped.size + ticks.reduce((s, t) => s + t.size, 0);
       // Day-change is vs the REAL prior close (from the quote). Falling back to
@@ -1305,7 +1335,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
               volume:    newVol,
             }
           : { ...prev.ticker, price, volume: newVol },
-        liveBar:     barRef.current ? { ...barRef.current } : null,
+        liveBar:     liveSnap,
         closedLiveBars: closedPub ?? prev.closedLiveBars,
         recentTicks: retainRecentTicks(ticks, prev.recentTicks),
         orderBook:   bookRef.current,
@@ -1432,12 +1462,14 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
       const price = priceRef.current, size = p.volume;
       // Measured from the newest print's own timestamp, at publish.
       const now = Date.now(), time = p.time;
+      const liveSnap = bar ? { ...bar } : null;
+      handOffLiveBar(liveSnap);
       setState(previous => ({
         ...previous,
         ticker: { ...previous.ticker, price, volume: previous.ticker.volume + size },
         // A clockless id builds no bar (applyTickToClock); `{ ...null }` would
         // publish an empty object as if it were one.
-        liveBar: bar ? { ...bar } : null,
+        liveBar: liveSnap,
         closedLiveBars: closed ?? previous.closedLiveBars,
         source: p.source!,
         connected: true,
@@ -1461,6 +1493,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     tickBuf.current = [];
     droppedRef.current = { count: 0, size: 0 };
 
+    tapeSymbolRef.current = symbol;
     const b = getBasePrice(symbol);
     baseRef.current  = b;
     priceRef.current = b;

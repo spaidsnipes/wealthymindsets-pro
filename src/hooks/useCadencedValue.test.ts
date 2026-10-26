@@ -34,8 +34,9 @@ describe("the room reads the cadenced tape; the header reads the frame", () => {
   it("every recentTicks reader in ChartsDashboard reads the cadenced tape", () => {
     expect(src).toContain("recentTicks: frameTicks, source, tapeSource, connected, lastObservedAtMs } = useWebSocket({ symbol, timeframe });");
     expect(src).toMatch(/const recentTicks = useCadencedValue\(frameTicks, tapeCadenceKey, ANALYTIC_CADENCE_MS, ticksAreEmpty\);/);
-    // frameTicks has exactly one reader: the cadence.
-    expect(src.match(/\bframeTicks\b/g)?.length).toBe(2);
+    // frameTicks has exactly two readers, both cadenced: the room's tape and the canonical publication's tuple.
+    expect(src.match(/\bframeTicks\b/g)?.length).toBe(4);
+    expect(src).toMatch(/const publicationTape = useCadencedValue\(\s*React\.useMemo\(\(\) => \(\{ ticker, recentTicks: frameTicks, bars: liveChartBars \}\), \[ticker, frameTicks, liveChartBars\]\),\s*tapeCadenceKey, ANALYTIC_CADENCE_MS, publicationTapeIsEmpty,/);
   });
   it("the Living Profile's distribution is built off the frame; its live price stays per frame", () => {
     expect(src).toMatch(/const livingProfileSnapshot = React\.useMemo\(\s*\(\) => buildLivingProfileSnapshot\(/);

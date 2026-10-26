@@ -22,7 +22,7 @@ describe("forming-candle anatomy", () => {
   it("reads only this bar's real prints; the ring is fed from recentTicks trades and reset per market", () => {
     expect(block).toContain("formingPrintsRef.current.filter(q => q.t >= barStartMs)");
     expect(MC).toContain("if (!tk.trade || !Number.isFinite(tk.price) || !Number.isFinite(tk.time) || tk.time <= lastT) continue;");
-    expect(MC).toContain("useEffect(() => { formingPrintsRef.current = []; formingLastTRef.current = 0; }, [symbol, timeframe]);");
+    expect(MC).toContain("useEffect(() => { formingPrintsRef.current = []; formingLastTRef.current = 0; formingSeenRef.current = null; }, [symbol, timeframe]);");
   });
   it("tempo is this bar's own rate vs its last 3s; breathing only in LIVE; no prints → a named silence", () => {
     expect(block).toContain("const recent = prints.filter(q => q.t >= t1 - 3000).length / 3;");

@@ -162,7 +162,7 @@ import { ErrorBoundary, SafePanel } from "@/components/ui/ErrorBoundary";
 import { StockInfoPanel } from "./StockInfoPanel";
 import LeftSidebar from "./LeftSidebar";
 import { useWebSocket } from "@/hooks/useWebSocket";
-import { ANALYTIC_CADENCE_MS, priceIsUnknown, ticksAreEmpty, useCadencedValue } from "@/hooks/useCadencedValue";
+import { ANALYTIC_CADENCE_MS, priceIsUnknown, publicationTapeIsEmpty, ticksAreEmpty, useCadencedValue } from "@/hooks/useCadencedValue";
 import { chartFeedReading, resolveChartSurfaceBadge } from "@/lib/priceSource";
 import { CANONICAL_FIDELITY_LABELS } from "@/lib/marketData/canonicalFidelityLabels";
 import type { MarketFidelityReading } from "@/lib/marketData/marketFidelityAlgebra";
@@ -1779,6 +1779,16 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const chartHeaderFeedState = chartFeedReading(
     source, connected, liveChartBars.length > 0, quoteSession.sessionOpen, lastObservedAtMs, Date.now(), true,
   ).status.state;
+  // THE CANONICAL PUBLICATION READS THE ANALYTIC CADENCE (perf 2026-10-25 night, NQ 1m lag). It sorts
+  // and folds the whole 8,000-print tape (direction, volatility, order flow, the Living Profile) and it
+  // was handed the per-frame `ticker` and the per-tick bars, so it ran on EVERY frame — measured 92 ms
+  // of main thread per second on BTC 1m at 40 prints/s, the single largest cost in the room. Ticker,
+  // tape and bars now advance TOGETHER at most 4×/s (one cadenced tuple, so the price it seals is
+  // always one of the prints it was handed); a new symbol/timeframe and the first prints land at once.
+  const publicationTape = useCadencedValue(
+    React.useMemo(() => ({ ticker, recentTicks: frameTicks, bars: liveChartBars }), [ticker, frameTicks, liveChartBars]),
+    tapeCadenceKey, ANALYTIC_CADENCE_MS, publicationTapeIsEmpty,
+  );
   usePublishChartMarketState({
     symbol,
     timeframe,
@@ -1786,8 +1796,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     // single deterministic source shared with every reader (see b46fa64).
     // Asset class decides: a continuous (crypto) market is 24X7, never RTH.
     session: canonicalSession(extHours, canonicalAssetClass(symbol)),
-    ticker,
-    recentTicks,
+    ticker: publicationTape.ticker,
+    recentTicks: publicationTape.recentTicks,
     source,
     connected,
     // The candles MainChart actually loaded, so canonical state can publish a
@@ -1800,7 +1810,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     // The LIVE bars, by name — never the camera's. While bar replay drives
     // the camera `chartBars` is last Tuesday; publishing that would make the
     // replay a second author of this instrument's canonical MarketState.
-    bars: liveChartBars,
+    bars: publicationTape.bars,
     // ASK-17: the header's feed verdict (chartFeedReading — the same grader
     // and inputs MainChart's strip uses), so Inspect and header agree.
     feedState: chartHeaderFeedState,

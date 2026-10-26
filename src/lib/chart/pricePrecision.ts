@@ -186,7 +186,32 @@ function tickDecimals(tick: number): number {
   return MAX_PRICE_PRECISION;
 }
 
+/*
+ * MEMOISED PER BAR LIST (perf 2026-10-25 night, the Founder's 1m lag). The chart asks this question
+ * dozens of times per frame — every price label, pin, tag and paint pass — and the grid answer reads
+ * the newest 300 bars (1,200 prices through toPrecision) each time: measured 55 ms of main thread per
+ * second on BTC 1m at 40 prints/s. The answer is a pure function of (symbol, bars); a bar list is a
+ * new array whenever it changes, so it is cached on the array itself. The length and the newest bar
+ * are re-checked so a list grown or edited in place is never answered from a stale entry.
+ */
+interface PrecisionMemo { readonly len: number; readonly last: PrecisionBar | undefined; readonly lastClose: number; readonly bySymbol: Map<string, DisplayPrecisionReading> }
+const precisionMemo = new WeakMap<readonly PrecisionBar[], PrecisionMemo>();
+
 export function displayPrecisionReading(symbol: string, bars: readonly PrecisionBar[]): DisplayPrecisionReading {
+  if (!Array.isArray(bars)) return displayPrecisionReadingUncached(symbol, bars);
+  const last = bars[bars.length - 1];
+  let memo = precisionMemo.get(bars);
+  if (!memo || memo.len !== bars.length || memo.last !== last || memo.lastClose !== last?.close) {
+    memo = { len: bars.length, last, lastClose: last?.close ?? NaN, bySymbol: new Map() };
+    precisionMemo.set(bars, memo);
+  }
+  const key = symbol ?? "";
+  let r = memo.bySymbol.get(key);
+  if (!r) { r = displayPrecisionReadingUncached(symbol, bars); memo.bySymbol.set(key, r); }
+  return r;
+}
+
+function displayPrecisionReadingUncached(symbol: string, bars: readonly PrecisionBar[]): DisplayPrecisionReading {
   const grid = (): DisplayPrecisionReading => ({ dp: pricePrecisionFromBars(bars), basis: "BAR_GRID" });
   const sym = (symbol ?? "").trim().toUpperCase();
   if (!sym) return grid();

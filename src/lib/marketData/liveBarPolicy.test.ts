@@ -131,3 +131,14 @@ describe("a real print a few ms out of order inside the bar still counts (2026-1
     expect(absorbOutOfOrderPrint(current, { price: 99, size: 1, time: 124_000 }, null)).toBeNull();
   });
 });
+
+describe("1Q live bars open on the calendar quarter (2026-10-26: a 91-day floor opened 'Oct 22')", () => {
+  it("every instant of a quarter maps to its first day, 00:00 UTC", async () => {
+    const { liveBarStartSec } = await import("./liveBarPolicy");
+    const Q = 91 * 86_400;
+    expect(liveBarStartSec(Date.UTC(2026, 9, 26, 5, 0) / 1000, Q)).toBe(Date.UTC(2026, 9, 1) / 1000);
+    expect(liveBarStartSec(Date.UTC(2026, 9, 1) / 1000, Q)).toBe(Date.UTC(2026, 9, 1) / 1000);
+    expect(liveBarStartSec(Date.UTC(2026, 8, 30, 23, 59) / 1000, Q)).toBe(Date.UTC(2026, 6, 1) / 1000);
+    expect(liveBarStartSec(Date.UTC(2027, 1, 14) / 1000, Q)).toBe(Date.UTC(2027, 0, 1) / 1000);
+  });
+});

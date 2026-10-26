@@ -83,7 +83,9 @@ describe.runIf(REPLAY_DRIVES_THE_CAMERA)("THE ROOM — frozen ancestry in, live 
     expect(DASH).toMatch(/const chartBarIdentities: readonly CanonicalBarIdentity\[\] =\s*replayCamera && cameraWalksHistory \? replayCamera\.identities : liveChartBarIdentities;/);
     // THE NO-SECOND-MARKETSTATE LAW. Replay must never author canonical state.
     const publish = between(DASH, "usePublishChartMarketState({", "});");
-    expect(publish, "the canonical MarketState publish must read the LIVE bars by name").toContain("bars: liveChartBars,");
+    // The publication reads the LIVE bars through its cadenced tuple (perf 2026-10-25), never the camera's.
+    expect(publish, "the canonical MarketState publish must read the LIVE bars by name").toContain("bars: publicationTape.bars,");
+    expect(DASH).toContain("({ ticker, recentTicks: frameTicks, bars: liveChartBars })");
     expect(publish).not.toMatch(/bars:\s*chartBars\b/);
   });
 

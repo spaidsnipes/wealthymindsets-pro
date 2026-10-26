@@ -71,3 +71,5 @@ export function useCadencedValue<T>(
 /** "First sample" tests for useCadencedValue — module-level so their identity never changes. */
 export const ticksAreEmpty = (t: readonly unknown[]): boolean => t.length === 0;
 export const priceIsUnknown = (p: number): boolean => !(Number.isFinite(p) && p > 0);
+/** The canonical publication's tuple is "empty" until the tape has spoken (its first prints land at once). */
+export const publicationTapeIsEmpty = (v: { readonly recentTicks: readonly unknown[] }): boolean => v.recentTicks.length === 0;

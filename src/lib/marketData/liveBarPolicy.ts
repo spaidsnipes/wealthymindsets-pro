@@ -29,6 +29,8 @@ export type LiveBarUpdate =
 const DAY_SEC = 86_400;
 const WEEK_SEC = 7 * DAY_SEC;
 const MONTH_SEC = 30 * DAY_SEC;
+/** The registry's 1Q candle (91 days) — a CALENDAR quarter, like the vendor's 3-month bars. */
+const QUARTER_SEC = 91 * DAY_SEC;
 
 /**
  * THE START OF THE BAR A PRINT BELONGS TO — calendar-true for weeks and months.
@@ -49,6 +51,12 @@ export function liveBarStartSec(tSec: number, intervalSec: number): number {
   if (intervalSec === MONTH_SEC) {
     const d = new Date(tSec * 1000);
     return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1) / 1000;
+  }
+  // A 91-day floor is no quarter: on 2026-10-26 it opened a fresh 1Q candle "Oct 22" beside the
+  // vendor's real Q4 bar (Oct 1). Quarters open Jan / Apr / Jul / Oct 1, 00:00 UTC.
+  if (intervalSec === QUARTER_SEC) {
+    const d = new Date(tSec * 1000);
+    return Date.UTC(d.getUTCFullYear(), Math.floor(d.getUTCMonth() / 3) * 3, 1) / 1000;
   }
   return Math.floor(tSec / intervalSec) * intervalSec;
 }

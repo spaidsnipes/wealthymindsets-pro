@@ -15,6 +15,7 @@ import { fetchQuoteToken, forgetQuoteToken } from "./tastyQuoteTokenClient";
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 
 import {
+  CONTRACT_EVENT_FIELDS,
   TAPE_EVENT_TYPE,
   type ContractEvent,
   applyContractEvent,
@@ -61,6 +62,53 @@ let emitQueued = false;
 /** Bumped when the identity behind the stream changes; a connect that began before it gives up. */
 let identity = 0;
 
+/*
+ * THE PRINT TAPE RIDES ITS OWN CHANNEL, UNAGGREGATED (perf 2026-10-25 night — the Founder: "still some
+ * delay and lag", worst on 1m). The quote channel is set up with acceptAggregationPeriod 0.25 s: right
+ * for quotes, Greeks and option chains (dxFeed conflates them to 4 updates a second), wrong for the
+ * chart's prints, which dxFeed then delivers in clumps every 250 ms — up to a quarter second late, and
+ * a forming candle that jumps four times a second instead of moving with the tape. TimeAndSale now
+ * subscribes on a second FEED channel set up with aggregation 0 (the same setup tastyHistory's own
+ * socket has always used for prints). If that channel does not open, or the server refuses it, the
+ * prints fall back to the quote channel exactly as before — never both, so no print is heard twice.
+ */
+export const TAPE_CHANNEL = DXLINK_FEED_CHANNEL + 2;
+/** How long the tape channel may take to open before the prints fall back to the quote channel. */
+export const TAPE_CHANNEL_OPEN_MS = 2500;
+type TapeLane = "PENDING" | "OPEN" | "FALLBACK";
+let tapeLane: TapeLane = "PENDING";
+let tapeLaneTimer: ReturnType<typeof setTimeout> | null = null;
+/** Which channel the prints ride now, or null while the tape channel is still opening. */
+function tapeChannelNow(): number | null {
+  if (!feedOpen) return null;
+  return tapeLane === "OPEN" ? TAPE_CHANNEL : tapeLane === "FALLBACK" ? DXLINK_FEED_CHANNEL : null;
+}
+function onChannel<T extends { channel?: number }>(frame: T, channel: number): T {
+  return { ...frame, channel };
+}
+function sendTapeSubscription(add: readonly string[], remove: readonly string[], reset = false) {
+  const ch = tapeChannelNow();
+  if (ch == null || (!add.length && !remove.length && !reset)) return;
+  send(onChannel(buildContractSubscriptionFrame(add, remove, reset, [TAPE_EVENT_TYPE]), ch));
+}
+/** The prints move to the quote channel for the rest of this socket's life. */
+function tapeFallBack() {
+  if (tapeLaneTimer) { clearTimeout(tapeLaneTimer); tapeLaneTimer = null; }
+  if (tapeLane === "FALLBACK") return;
+  tapeLane = "FALLBACK";
+  if (feedOpen && tapeRefs.size) sendTapeSubscription([...tapeRefs.keys()], []);
+}
+/** The tape channel's own setup: prints only, never aggregated. */
+export function buildTapeFeedSetupFrame() {
+  return {
+    type: "FEED_SETUP",
+    channel: TAPE_CHANNEL,
+    acceptAggregationPeriod: 0,
+    acceptDataFormat: "COMPACT",
+    acceptEventFields: { [TAPE_EVENT_TYPE]: [...CONTRACT_EVENT_FIELDS[TAPE_EVENT_TYPE]] },
+  };
+}
+
 function emit(patch: Partial<Omit<Snapshot, "version" | "quotes">> = {}) {
   snapshot = { ...snapshot, ...patch, quotes, version: snapshot.version + 1 };
   for (const l of listeners) l();
@@ -82,6 +130,8 @@ function teardown() {
   if (keepalive) clearInterval(keepalive);
   keepalive = null;
   feedOpen = false;
+  tapeLane = "PENDING";
+  if (tapeLaneTimer) { clearTimeout(tapeLaneTimer); tapeLaneTimer = null; }
   if (ws) { ws.onclose = null; ws.onerror = null; ws.onmessage = null; try { ws.close(); } catch { /* closed */ } }
   ws = null;
 }
@@ -199,7 +249,10 @@ async function connect() {
         return;
       case "AUTH_STATE":
         if (m.state === "UNAUTHORIZED") send(buildAuthFrame(token));
-        else if (m.state === "AUTHORIZED") send(buildChannelRequestFrame());
+        else if (m.state === "AUTHORIZED") {
+          send(buildChannelRequestFrame());
+          send(onChannel(buildChannelRequestFrame(), TAPE_CHANNEL));
+        }
         return;
       case "CHANNEL_OPENED":
         if (m.channel === DXLINK_FEED_CHANNEL) {
@@ -207,10 +260,22 @@ async function connect() {
           feedOpen = true;
           retries = 0;
           send(buildContractSubscriptionFrame([...refs.keys()], [], true));
-          if (tapeRefs.size) send(buildContractSubscriptionFrame([...tapeRefs.keys()], [], false, [TAPE_EVENT_TYPE]));
+          // The prints: on the tape channel once it is open; on this one if it has fallen back; and a
+          // tape channel that has not opened by TAPE_CHANNEL_OPEN_MS hands them to this one.
+          if (tapeRefs.size) sendTapeSubscription([...tapeRefs.keys()], []);
+          if (tapeLane === "PENDING" && !tapeLaneTimer) tapeLaneTimer = setTimeout(() => { tapeLaneTimer = null; if (ws === sock && tapeLane === "PENDING") tapeFallBack(); }, TAPE_CHANNEL_OPEN_MS);
           for (const [symbol, r] of candleRequests) send(candleFrame("add", symbol, r.fromTime));
           emit({ stream: "LIVE", reason: null });
+        } else if (m.channel === TAPE_CHANNEL && tapeLane === "PENDING") {
+          send(buildTapeFeedSetupFrame());
+          tapeLane = "OPEN";
+          if (tapeLaneTimer) { clearTimeout(tapeLaneTimer); tapeLaneTimer = null; }
+          if (tapeRefs.size) sendTapeSubscription([...tapeRefs.keys()], [], true);
         }
+        return;
+      case "CHANNEL_CLOSED":
+        // The tape channel closing is not the stream failing: the prints go back to the quote channel.
+        if (m.channel === TAPE_CHANNEL) tapeFallBack();
         return;
       case "FEED_DATA": {
         const now = Date.now();
@@ -238,6 +303,7 @@ async function connect() {
         return;
       }
       case "ERROR":
+        if (m.channel === TAPE_CHANNEL) { tapeFallBack(); return; }
         scheduleRetry(tastyStreamReasonWords("ERROR", `${m.error ?? ""} ${m.message ?? ""}`.trim() || null));
         return;
       default:
@@ -249,7 +315,7 @@ async function connect() {
 function subscribe(symbols: readonly string[], tape = false, withQuotes = true): () => void {
   const tapeAdded: string[] = [];
   if (tape) for (const s of symbols) { const n = tapeRefs.get(s) ?? 0; tapeRefs.set(s, n + 1); if (n === 0) tapeAdded.push(s); }
-  if (tapeAdded.length && feedOpen) send(buildContractSubscriptionFrame(tapeAdded, [], false, [TAPE_EVENT_TYPE]));
+  if (tapeAdded.length) sendTapeSubscription(tapeAdded, []);
   const added: string[] = [];
   if (withQuotes) for (const s of symbols) {
     const n = refs.get(s) ?? 0;
@@ -263,7 +329,7 @@ function subscribe(symbols: readonly string[], tape = false, withQuotes = true):
     if (tape) {
       const tapeRemoved: string[] = [];
       for (const s of symbols) { const n = (tapeRefs.get(s) ?? 1) - 1; if (n <= 0) { tapeRefs.delete(s); tapeRemoved.push(s); } else tapeRefs.set(s, n); }
-      if (tapeRemoved.length && feedOpen) send(buildContractSubscriptionFrame([], tapeRemoved, false, [TAPE_EVENT_TYPE]));
+      if (tapeRemoved.length) sendTapeSubscription([], tapeRemoved);
     }
     const removed: string[] = [];
     if (withQuotes) for (const s of symbols) {

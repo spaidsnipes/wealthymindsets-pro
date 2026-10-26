@@ -27,7 +27,7 @@ import { INDICATOR_CONFIG, resolveParams, visibleAtTf, type IndicatorSettings } 
 import { parseExchangeSymbol } from "@/lib/exchanges";
 import { canonicalAssetClass, canonicalInstrumentId, cryptoBaseTicker, marketClockET } from "@/lib/marketData/canonicalIdentity";
 import { DataVersionGuard } from "@/lib/chartContext";
-import { liveBarIsStale, shouldFoldChartLiveBar } from "@/lib/marketData/liveBarPolicy";
+import { liveBarIsStale, liveBarStartSec, shouldFoldChartLiveBar } from "@/lib/marketData/liveBarPolicy";
 import { foldClosedLiveBars, foldFormingBar, liveDespikeApplies } from "@/lib/marketData/liveBarFold";
 import { barsFromPrints } from "@/lib/marketData/printBars";
 /** The parent hears the forming bar at most this often (a new bar: at once). */
@@ -40,6 +40,7 @@ import {
   PHASE_WORD, PHASE_MEANING, SCALE_HEAVY_T, SCALE_THIN_T, fitWeatherLens, lensRadiusCapFor, liveEdgeKeepOutX, ladderInk, ladderRungYs, poolSpan, splitAtBites, ringPoint, scaleAngle, weatherLensGate,
   wordOnTopArc, type WeatherLens,
 } from "@/lib/chart/liquidityGlassGeometry";
+import { tapeDelta } from "@/lib/chart/tapeDelta";
 import { axisPriceFormatFor, displayPrecisionFor, instrumentTickFor, priceFormatFor, pricePrecisionFromBars } from "@/lib/chart/pricePrecision";
 import { relatedFlowLine, relatedRoot } from "@/lib/chart/fxRelatedFlow";
 import { useFxRelatedFlow } from "@/lib/broker/useFxRelatedFlow";
@@ -150,7 +151,7 @@ import {
   recordSkip,
   withPaintBudget,
 } from "@/lib/chart/paintBudgetLedger";
-import { coinbaseProduct, RECENT_TICK_RETENTION, useWebSocket, type Tick } from "@/hooks/useWebSocket";
+import { coinbaseProduct, RECENT_TICK_RETENTION, useWebSocket, type LiveFlushListener, type Tick } from "@/hooks/useWebSocket";
 import { trimPrintDedupe } from "@/lib/chart/printDedupe";
 import { chartFeedReading, priceSourceBadge, resolveChartSurfaceBadge } from "@/lib/priceSource";
 import { useProvenSessionClosure } from "@/lib/marketData/useProvenSessionClosure";
@@ -3627,7 +3628,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     return () => window.removeEventListener("wm-vp-colors", load);
   }, [profileStrength, speciesInkKey]);
 
-  const { liveBar, closedLiveBars, ticker, recentTicks, tapeSource, source, connected, quoteRefusal, lastObservedAtMs } = useWebSocket({ symbol, timeframe });
+  // The flush hands its forming bar straight to the candle (applyLiveBar below) — no render in between.
+  const liveFlushRef = useRef<LiveFlushListener | null>(null);
+  const liveAppliedRef = useRef<LegacyOhlcvTuple | null>(null);
+  const { liveBar, closedLiveBars, ticker, recentTicks, tapeSource, source, connected, quoteRefusal, lastObservedAtMs } = useWebSocket({ symbol, timeframe, onLiveFlush: liveFlushRef });
   // Canon "CLOSED IS NOT DELAYED" — closure outranks the provider verdict, so
   // the chart chrome cannot claim an active session on a closed one (§8).
   // `null` until mount and on every weekday: provider labelling is unchanged.
@@ -3772,6 +3776,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     onFlowLadderRef.current?.(null);
     bigTradePrintAccRef.current = new Map();
     processedTicksRef.current = new Set();
+    tapeFoldGenRef.current++;
     // Session counters + horizon + sparkline are NOT reset here. They live in
     // the per-symbol store so switching from BTC → TSLA no longer destroys
     // the running BTC observation window; returning to BTC restores exactly
@@ -3798,6 +3803,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     (session tape stats / horizon stay "heard live").
   */
   const foldPrintRef = useRef<(tick: Tick, heardLive: boolean) => boolean>(() => false);
+  /** Bumped whenever THE ladder's dedupe window is rebuilt: the next fold walks the whole tape again. */
+  const tapeFoldGenRef = useRef(0);
+  /** The tape ring the live fold last walked, under the inputs it walked it with (tapeDelta.ts). */
+  const tapeFoldSeenRef = useRef<{ key: string; ticks: readonly Tick[] | null }>({ key: "", ticks: null });
   /** Where a moving word sat LAST frame, by key — tried first so a still-clear seat is kept (no hopping). */
   const seatMemoryRef = useRef<Map<string, { x: number; y: number; w: number; h: number }>>(new Map());
   // Event sentences that spoke recently (sentence → last spoke ms): they keep their voice for SPEAKER_HOLD_MS.
@@ -3821,7 +3830,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     // tape re-folded thousands of prints per frame — duplicate volume and a chart that sank to 12 fps.
     processedTicksRef.current = trimPrintDedupe(processedTicksRef.current, RECENT_TICK_RETENTION);
 
-    let barTime = Math.floor(tick.time / 1000 / intervalSec) * intervalSec;
+    // The candle's own bucket (liveBarPolicy.liveBarStartSec): a 7-day floor opens "weeks" on Thursday
+    // (the epoch's weekday) and a 30-day floor is no month — the 1W / 1M footprint and Big Trades sat on
+    // bars the candles never had. Every clock that divides the day is the same floor as before.
+    let barTime = liveBarStartSec(tick.time / 1000, intervalSec);
     // TICK BARS: the print's bar is the builder's, not a clock bucket. A
     // backfilled print waits for the one merge (tickFlushRef); a re-cut
     // refolds the ladder through here with each print's new bar time.
@@ -3903,6 +3915,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     bigTradePrintAccRef.current = new Map();
     tickAccStartedAtRef.current = null;
     processedTicksRef.current = new Set();
+    tapeFoldGenRef.current++;
     const keepFrom = bars.length > 400 ? bars[bars.length - 400].time : -Infinity;
     try {
       tb.forEachPrint((p, t) => {
@@ -4016,9 +4029,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     const dp      = base > 100 ? 2 : 4;
 
     let ladderChanged = false;
-    recentTicks.forEach(tick => {
+    // ONLY THE PRINTS THIS FLUSH ADDED (tapeDelta.ts): the fold is idempotent, but walking all 8,000
+    // prints per frame to rediscover that they were folded cost ~60 ms/s on a 40 prints/s tape. The
+    // whole tape is walked again whenever the ladder was rebuilt or the ring is not the same ring grown.
+    const foldKey = `${tapeFoldGenRef.current}|${timeframe}|${base}|${tapeSource ?? ""}|${canonicalSym}|${sessionSlot}`;
+    const delta = tapeFoldSeenRef.current.key === foldKey ? tapeDelta(tapeFoldSeenRef.current.ticks, recentTicks) : { full: true as const };
+    for (const tick of delta.full ? recentTicks : delta.fresh) {
       if (foldPrint(tick, true)) ladderChanged = true;
-    });
+    }
+    tapeFoldSeenRef.current = { key: foldKey, ticks: recentTicks };
     // TICK BARS: the prints just folded move the forming bar (or open the next).
     // A re-cut met here refolds THE ladder only once no backfill is mid-flight.
     if (tickBuilderRef.current) {
@@ -5308,9 +5327,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     m.set(why, String((+(m.get(why) ?? 0)) + 1));
     dsD.liveDrops = [...m].map(([k, v]) => `${k}:${v}`).join("|");
   };
-  useEffect(() => {
-    if (liveBar && (!candleRef.current || !volRef.current || !ready)) noteLiveDrop(!ready ? "NOT_READY" : "NO_SERIES");
-    if (!liveBar || !candleRef.current || !volRef.current || !ready) return;
+  /* THE CANDLE IS PAINTED IN THE FLUSH THAT HEARD THE PRINT (perf 2026-10-25 night, the Founder's
+     "still some delay and lag", worst on 1m). This fold used to run only as a React effect on the
+     hook's published `liveBar`: print → rAF flush → setState → a render of this whole chart → the
+     passive effect → series.update → setCandles/setLastPrice → a SECOND render — measured 3.3 chart
+     renders per candle update and 2–3 frames from print to candle. The hook now hands each flush's
+     bar straight here (useWebSocket `onLiveFlush`), inside the same animation frame, so the series
+     moves in that frame and this fold's own state writes batch into the ONE render the flush already
+     causes. The effect below stays as the path for every publish that did not come through a flush
+     (the chart becoming ready, a quote-only feed) and skips a bar this path already painted. */
+  const applyLiveBar = (liveBar: LegacyOhlcvTuple, closedLiveBars: readonly LegacyOhlcvTuple[] | undefined): void => {
+    if (!candleRef.current || !volRef.current) return;
 
     // ── WM-CHART-P0-06: symbol-identity gate on the live tick-folding path ──
     // The async data-load path is guarded by DataVersionGuard, but the WS tick
@@ -5586,6 +5613,22 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     // NOTE: Big-Trade bubbles spawn in the canvas loop (Pass A) from tickAccRef
     // ONLY — real aggressor tape, never synthetic footprint. No bubble without
     // a qualifying large trade at that price level on that bar.
+  };
+  liveFlushRef.current = (bar, closed, meta) => {
+    if (!bar || !candleRef.current || !volRef.current || !ready) return;
+    // The flush belongs to THIS chart's symbol and clock, or it waits for the effect (and its guards).
+    if (meta.symbol !== symbol || meta.intervalSec !== liveBarBucketSec(timeframe)) return;
+    // A closure from before the newest data load: the next render's effect paints this bar instead.
+    if (!versionGuardRef.current.isCurrent(myTickVersion)) return;
+    liveAppliedRef.current = bar;
+    applyLiveBar(bar, closed);
+  };
+  useEffect(() => {
+    if (liveBar && (!candleRef.current || !volRef.current || !ready)) noteLiveDrop(!ready ? "NOT_READY" : "NO_SERIES");
+    if (!liveBar || !candleRef.current || !volRef.current || !ready) return;
+    if (liveBar === liveAppliedRef.current) return; // painted already, in the flush that published it
+    liveAppliedRef.current = liveBar;
+    applyLiveBar(liveBar, closedLiveBars);
   }, [liveBar, ready]); // eslint-disable-line react-hooks/exhaustive-deps
   // A new symbol or timeframe is a new market clock measurement (marketClockProbe).
   useEffect(() => { resetMarketClock(); }, [symbol, timeframe]);
@@ -5598,12 +5641,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
      the paint reads the ones inside the forming bar. Reset per market. */
   const formingPrintsRef = useRef<{ p: number; t: number }[]>([]);
   const formingLastTRef = useRef(0);
-  useEffect(() => { formingPrintsRef.current = []; formingLastTRef.current = 0; }, [symbol, timeframe]);
+  const formingSeenRef = useRef<readonly Tick[] | null>(null);
+  useEffect(() => { formingPrintsRef.current = []; formingLastTRef.current = 0; formingSeenRef.current = null; }, [symbol, timeframe]);
   useEffect(() => {
     if (!recentTicks?.length) return;
     const ring = formingPrintsRef.current;
     let lastT = formingLastTRef.current;
-    for (const tk of recentTicks) {
+    // Only the prints this flush added (tapeDelta.ts); the time rule below keeps it exact either way.
+    const seen = formingSeenRef.current;
+    const d = tapeDelta(seen, recentTicks);
+    formingSeenRef.current = recentTicks;
+    for (const tk of d.full ? recentTicks : d.fresh) {
       if (!tk.trade || !Number.isFinite(tk.price) || !Number.isFinite(tk.time) || tk.time <= lastT) continue;
       ring.push({ p: tk.price, t: tk.time });
       lastT = tk.time;
