@@ -971,6 +971,17 @@ function joinTape(
 
 export { coinbaseProduct };
 
+/**
+ * ONE COINBASE SOCKET PER PRODUCT (perf P0 2026-10-25). The hub was keyed by the caller's SPELLING
+ * (the upper-cased symbol as typed): a chart on `BTC` and a watchlist / ticker strip that spells it
+ * `BTC-USD` (or `BTCUSD`) joined different hubs and opened two sockets streaming one product.
+ * Measured 2026-10-25 on /charts and /desk: one socket per product when the spellings agree — this
+ * makes it one socket per product when they do not. An unlisted symbol keeps its own key.
+ */
+export function coinbaseTapeKey(symbol: string): string {
+  return `coinbase:${coinbaseProduct(symbol) ?? symbol.toUpperCase()}`;
+}
+
 /** A crypto symbol's last streamed Coinbase print: its price and exchange time. */
 export interface CoinbaseLive { readonly price: number; readonly at: number }
 
@@ -992,7 +1003,7 @@ export function useCoinbaseLivePrices(symbols: readonly string[]): ReadonlyMap<s
     const latest = new Map<string, CoinbaseLive>();
     let dirty = false;
     const releases = key.split(",").map(sym => joinTape(
-      `coinbase:${sym}`,
+      coinbaseTapeKey(sym),
       (onTick, onStatus) => tryCoinbase(sym, onTick, onStatus),
       (t, isReal) => {
         if (!isReal || !(t.price > 0)) return;
@@ -1546,7 +1557,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
         processTick(tick, isReal);
       };
       cryptoCleanup = joinTape(
-        `coinbase:${symbol.toUpperCase()}`,
+        coinbaseTapeKey(symbol),
         (onTick, onStatus) => tryCoinbase(symbol, onTick, onStatus),
         onCoinbaseTick,
         (ok) => {

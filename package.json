@@ -15,6 +15,7 @@
     "audit:guest": "node scripts/guest-walk.mjs",
     "audit:brick-walls": "node tests/brick-walls-regression.mjs",
     "audit:inventions": "node tests/inventions-painted.mjs",
+    "audit:perf": "node scripts/perf-tape-stress.mjs",
     "ledger:inventions": "node scripts/invention-ledger.mjs --receipts docs/operations/invention-receipts.json",
     "prove:vp-pixels": "node scripts/prove-vp-pixels.mjs",
     "prove:bubble-pixels": "node scripts/prove-bubble-pixels.mjs",
