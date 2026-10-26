@@ -2,7 +2,7 @@
 
 import { paintLap, paintLapBegin, paintLapReceipt } from "@/lib/chart/paintLaps";
 import { compileInventionVisibility } from "@/lib/chart/inventionVisibility";
-import { arrivalRipple, bigTradeTier, percentileFromSorted, sortedSessionSizes } from "@/lib/chart/bigTradeTier";
+import { arrivalRipple, bigTradeTier, percentileFromSorted, SessionSizeIndex } from "@/lib/chart/bigTradeTier";
 import { symbolDoorHref } from "@/contexts/SymbolContext";
 import { servedTimeframeFor } from "@/lib/marketData/chartBarRoute";
 import { liveBarBucketSec, tickCountOf } from "@/lib/timeframes";
@@ -3657,6 +3657,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // remain two bubbles with two timestamps and two canonical event ids.
   const bigTradePrintAccRef = useRef<Map<number, BigTradeTick[]>>(new Map());
   const sessionSizesRef = useRef<{ count: number; sorted: ArrayLike<number> }>({ count: -1, sorted: [] });
+  /** Kept, not rebuilt: the sorted session sizes advance by the new prints only (bigTradeTier.SessionSizeIndex). */
+  const sessionSizeIndexRef = useRef(new SessionSizeIndex());
   /** Value Candle readings for closed bars, read once from the print store (per symbol|interval). */
   const vcStoreCacheRef = useRef<{ key: string; bars: Map<number, { n: number; bar: ValueCandleBar | null }> }>({ key: "", bars: new Map() });
   /** The value candle's last CLOSED-bar list and when it was built (rebuilt ≤ once per VC_CLOSED_REBUILD_MS). */
@@ -11107,7 +11109,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         {
           const acc = bigTradePrintAccRef.current;
           let printCount = 0; for (const v of acc.values()) printCount += v.length;
-          if (sessionSizesRef.current.count !== printCount) sessionSizesRef.current = { count: printCount, sorted: sortedSessionSizes(acc.values()) };
+          if (sessionSizesRef.current.count !== printCount) sessionSizesRef.current = { count: printCount, sorted: sessionSizeIndexRef.current.sync(acc) };
         }
         paintLap(10127); // Big Trades: discs + inscriptions
         let discsYieldedToForming = 0;

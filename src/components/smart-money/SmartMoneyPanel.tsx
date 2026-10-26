@@ -25,6 +25,7 @@ import { computeConfluence as computeConfluenceV1 } from "@/lib/marketData/confl
 import ValueCandlePanel from "@/components/experience/ValueCandlePanel";
 import { useOrderFlowReadings } from "@/lib/marketData/useOrderFlowReadings";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { ANALYTIC_CADENCE_MS, priceIsUnknown, ticksAreEmpty, useCadencedValue } from "@/hooks/useCadencedValue";
 import AbsorptionAnatomyPanel from "@/components/experience/AbsorptionAnatomyPanel";
 import DeltaDivergencePanel from "@/components/experience/DeltaDivergencePanel";
 import LiquidityWeatherPanel from "@/components/experience/LiquidityWeatherPanel";
@@ -366,7 +367,11 @@ export function SmartMoneyPanel({
     reader of it like any other surface. Nothing about what it renders changed;
     what changed is that there is no longer a second copy to drift.
   */
-  const { ticker, recentTicks, liveBar, tapeSource } = useWebSocket({ symbol, timeframe: "1m" });
+  const { ticker, recentTicks: frameTicks, liveBar, tapeSource } = useWebSocket({ symbol, timeframe: "1m" });
+  // THE ANALYTIC CADENCE (perf P0 2026-10-25, useCadencedValue.ts): the panel's readings re-derive
+  // from the tape at most 4×/s — the first prints and a new symbol still land at once.
+  const recentTicks = useCadencedValue(frameTicks, `${symbol}|1m`, ANALYTIC_CADENCE_MS, ticksAreEmpty);
+  const flowPrice = useCadencedValue(ticker.price > 0 ? ticker.price : 0, `${symbol}|1m`, ANALYTIC_CADENCE_MS, priceIsUnknown);
   const {
     realTape,
     valueCandle,
@@ -383,10 +388,11 @@ export function SmartMoneyPanel({
   const livePrice = ticker.price > 0 ? ticker.price : 0;
 
   // ── Build the REAL order-flow snapshot from live ticks + the live 1m bar ────
+  // Candle direction flips rarely; the bar itself moves every frame and must not re-run the tape sum.
+  const candleUp = liveBar ? Number(liveBar.close) >= Number(liveBar.open) : true;
   const flow: Flow = React.useMemo(() => {
     // CANDLE DIRECTION IS NOT FLOW. It reads the live bar, not the tape, so it
     // stays here and is NOT pushed into the aggressor selector.
-    const candleUp = liveBar ? Number(liveBar.close) >= Number(liveBar.open) : true;
 
     // §24 / H21 — ONE OWNER PER RULE, and ONE SHAPE.
     //
@@ -409,10 +415,10 @@ export function SmartMoneyPanel({
     // ≥2 BTC filter discarded ~100% of real Coinbase flow); that behaviour lives
     // in the selector's `trade === true && size > 0` filter.
     return {
-      ...selectAggressorFlow(realTape ? recentTicks : null, livePrice || 0),
+      ...selectAggressorFlow(realTape ? recentTicks : null, flowPrice || 0),
       candleUp,
     };
-  }, [recentTicks, liveBar, livePrice, realTape]);
+  }, [recentTicks, candleUp, flowPrice, realTape]);
 
   /*
     The five readings that used to be compiled here — value candle, absorption

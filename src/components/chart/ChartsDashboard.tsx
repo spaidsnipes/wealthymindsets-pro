@@ -162,6 +162,7 @@ import { ErrorBoundary, SafePanel } from "@/components/ui/ErrorBoundary";
 import { StockInfoPanel } from "./StockInfoPanel";
 import LeftSidebar from "./LeftSidebar";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { ANALYTIC_CADENCE_MS, priceIsUnknown, ticksAreEmpty, useCadencedValue } from "@/hooks/useCadencedValue";
 import { chartFeedReading, resolveChartSurfaceBadge } from "@/lib/priceSource";
 import { CANONICAL_FIDELITY_LABELS } from "@/lib/marketData/canonicalFidelityLabels";
 import type { MarketFidelityReading } from "@/lib/marketData/marketFidelityAlgebra";
@@ -1676,7 +1677,17 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     }
   }, []);
 
-  const { ticker, recentTicks, source, tapeSource, connected, lastObservedAtMs } = useWebSocket({ symbol, timeframe });
+  const { ticker, recentTicks: frameTicks, source, tapeSource, connected, lastObservedAtMs } = useWebSocket({ symbol, timeframe });
+  // THE ANALYTIC CADENCE (perf P0 2026-10-25, useCadencedValue.ts). The hook publishes the tape every
+  // frame — the header and the forming candle read `ticker` per frame and stay per frame. Every reader
+  // of the TAPE in this room (order-flow readings, regime series, Living Profile, Big Trades
+  // intelligence, aggressor flow, footprint worksheet, the canonical publication) sorts or folds up to
+  // 8,000 prints; at 60 Hz they held the main thread and the chart fell to ~33 fps with every
+  // invention on. They now read the same tape at most 4×/s — a new symbol/timeframe and the first
+  // prints still land at once, and the newest tape always lands within 250 ms.
+  const tapeCadenceKey = `${symbol}|${timeframe}`;
+  const recentTicks = useCadencedValue(frameTicks, tapeCadenceKey, ANALYTIC_CADENCE_MS, ticksAreEmpty);
+  const analyticPrice = useCadencedValue(ticker.price, tapeCadenceKey, ANALYTIC_CADENCE_MS, priceIsUnknown);
   /*
     ONE OWNER of the six order-flow readings — value candle, absorption,
     delta divergence, liquidity weather, stacked imbalance, delta levels.
@@ -1888,6 +1899,15 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     () => selectSessionWindowBars([...volumeBars], sessionWindowFor(symbol, timeframe, !!extHours)),
     [volumeBars, symbol, timeframe, extHours],
   );
+  // The DISTRIBUTION (the expensive part: every print or every session bar into tick-grid rows) is
+  // built from the cadenced tape; WHERE PRICE SITS against it reads the live price below, per frame.
+  // The tick grid moves only with the price's magnitude, so it is keyed on the grid, not the price.
+  const livingTickGrid = instrumentTickFor(symbol, ticker.price);
+  const livingProfileSnapshot = React.useMemo(
+    () => buildLivingProfileSnapshot(volumeIsReal ? recentTicks : null, livingSessionBars, instrumentTickFor(symbol, ticker.price)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the price only sets the tick grid (livingTickGrid)
+    [recentTicks, livingSessionBars, volumeIsReal, livingTickGrid, symbol],
+  );
   const livingProfileVM = React.useMemo(
     () =>
       // Garden 16 §21/§22 — the Living Profile is THIS auction, not the whole
@@ -1897,10 +1917,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       // now go through the ONE session-window owner the canvas uses, after
       // the volume gate (volumeTruth.ts): placeholder volume builds no body.
       // P0.2: buckets and POC/VAH/VAL on the instrument's tick grid (vpEngine.bucketOnTickGrid).
-      selectLivingProfile(buildLivingProfileSnapshot(volumeIsReal ? recentTicks : null, livingSessionBars, instrumentTickFor(symbol, ticker.price)), {
+      selectLivingProfile(livingProfileSnapshot, {
         livePrice: ticker.price,
       }),
-    [recentTicks, livingSessionBars, volumeIsReal, ticker.price, symbol],
+    [livingProfileSnapshot, ticker.price],
   );
 
   // Micah + Noah 2026-09-02 — /charts joins Phase 3 Market Canvas as a
@@ -2051,8 +2071,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // Feed this into the capability report so the fidelity chip lights
   // the ORDER FLOW capability (canon §Provider Status Per Capability).
   const chartFlowSnap = React.useMemo(
-    () => selectAggressorFlow(recentTicks, ticker.price),
-    [recentTicks, ticker.price],
+    () => selectAggressorFlow(recentTicks, analyticPrice),
+    [recentTicks, analyticPrice],
   );
 
   // Asset 14/16 canon: Market Object Passport (lineage, owner, birth,
@@ -2674,6 +2694,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
    * closed bar + tape length, never per tick; only while Regime Lighting is on.
    */
   const regimeSeriesCacheRef = React.useRef<{ key: string; value: ReturnType<typeof selectRegimeSeries> } | null>(null);
+  // Closed bars' readings kept across calls (selectRegimeSeries dimsCache); emptied with the instrument.
+  const regimeDimsCacheRef = React.useRef<{ key: string; map: NonNullable<Parameters<typeof selectRegimeSeries>[0]["dimsCache"]> }>({ key: "", map: new Map() });
   const regimeSeriesVM = React.useMemo(() => {
     // Tick (N-trade) bars have no bar length: each owns [its open, the next bar's open).
     const tradeCountBars = tickCountOf(timeframe) != null;
@@ -2681,7 +2703,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     const key = `${symbol}|${timeframe}|${chartBars.length}|${chartBars[chartBars.length - 2].time}|${recentTicks.length}|${tapeSource}`;
     if (regimeSeriesCacheRef.current?.key === key) return regimeSeriesCacheRef.current.value;
     const regimeBars = chartBars.slice(-300);
+    const dimsOwner = `${symbol}|${timeframe}|${tapeSource}`;
+    if (regimeDimsCacheRef.current.key !== dimsOwner) regimeDimsCacheRef.current = { key: dimsOwner, map: new Map() };
     const value = selectRegimeSeries({ bars: regimeBars, barSec: valueCandleBarSec ?? 0, ticks: recentTicks, source: tapeSource ?? null, now: Date.now(),
+      dimsCache: regimeDimsCacheRef.current.map,
       barCloses: tradeCountBars ? regimeBars.map((_, i) => regimeBars[i + 1]?.time ?? Infinity) : undefined });
     regimeSeriesCacheRef.current = { key, value };
     return value;
@@ -5199,11 +5224,15 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // Track day high/low from ticker
   useEffect(() => {
     if (ticker.price > 0) {
-      setCurrentPrice(ticker.price);
       setDayHigh(h => ticker.price > h ? ticker.price : h);
       setDayLow(l => (l === 0 || ticker.price < l) ? ticker.price : l);
     }
   }, [ticker.price]);
+  // The alerts' reference price (above/below, the panel's "current") follows the analytic cadence:
+  // a per-print setState here re-rendered this whole room a second time on every frame.
+  useEffect(() => {
+    if (analyticPrice > 0) setCurrentPrice(analyticPrice);
+  }, [analyticPrice]);
 
   /**
    * HAS THE ROOM FINISHED ASKING FOR THIS INSTRUMENT'S BARS?

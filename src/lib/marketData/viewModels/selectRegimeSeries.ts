@@ -73,6 +73,20 @@ export interface RegimeSeriesInput {
   readonly retention?: number;
   readonly matchers?: Partial<RegimeMatchers>;
   readonly minHistoryDepth?: number;
+  /**
+   * PER-BAR READINGS, KEPT (perf P0 2026-10-25). A closed bar's window — the prints at or before its
+   * close — does not change when newer prints arrive, so its dimensions are re-used from the previous
+   * call instead of re-derived (each derivation sorts up to `retention` prints, ×300 bars). Keyed on
+   * the bar, its cutoff and a fingerprint of the exact window (length, both ends, the middle), so a
+   * window that gained or lost any print is derived again. The map is pruned to this call's bars.
+   */
+  readonly dimsCache?: Map<string, { readonly dims: RegimeDimensions; readonly trades: number }>;
+}
+
+function windowKey(barTime: number, cutoff: number, source: string | null, w: readonly AggressorTick[]): string {
+  if (w.length === 0) return `${barTime}|${cutoff}|${source}|0`;
+  const a = w[0], m = w[w.length >> 1], z = w[w.length - 1];
+  return `${barTime}|${cutoff}|${source}|${w.length}|${a.time}:${a.price}:${a.size}:${a.side}|${m.time}:${m.price}:${m.size}|${z.time}:${z.price}:${z.size}:${z.side}`;
 }
 
 /** The publisher's dimension derivation, at one cutoff, over a newest-first window. */
@@ -94,6 +108,7 @@ export function selectRegimeSeries(input: RegimeSeriesInput): RegimeSeriesPoint[
   const oldest = timed.length ? Number(timed[timed.length - 1].time) : null;
   const out: RegimeSeriesPoint[] = [];
   const history: RegimeDimensions[] = [];
+  const usedKeys = new Map<string, { readonly dims: RegimeDimensions; readonly trades: number }>();
   for (let bi = 0; bi < input.bars.length; bi++) {
     const bar = input.bars[bi];
     // A bar owns [open, close): a print stamped at the next bar's open is not this bar's.
@@ -107,12 +122,17 @@ export function selectRegimeSeries(input: RegimeSeriesInput): RegimeSeriesPoint[
     let lo = 0, hi = timed.length;
     while (lo < hi) { const mid = (lo + hi) >> 1; if (Number(timed[mid].time) > cutoff) lo = mid + 1; else hi = mid; }
     const window = timed.slice(lo, lo + retention);
-    const dims = regimeDimensionsAt(window, cutoff, input.source, `regime-series:${bar.time}`);
+    const wKey = input.dimsCache ? windowKey(bar.time, cutoff, input.source, window) : null;
+    let kept = wKey ? input.dimsCache!.get(wKey) : undefined;
+    if (!kept) kept = { dims: regimeDimensionsAt(window, cutoff, input.source, `regime-series:${bar.time}`), trades: countTradeTicks(window) };
+    if (wKey) usedKeys.set(wKey, kept);
+    const dims = kept.dims;
     const vm = classifyRegime({ now: dims, capturedAt: cutoff, history: history.slice(), matchers: input.matchers, minHistoryDepth: input.minHistoryDepth });
-    out.push({ time: bar.time, state: vm.verdict, resolution: vm.resolution, basis: "TAPE", trades: countTradeTicks(window), why: vm.reason ?? vm.narrative });
+    out.push({ time: bar.time, state: vm.verdict, resolution: vm.resolution, basis: "TAPE", trades: kept.trades, why: vm.reason ?? vm.narrative });
     history.push(dims);
     if (history.length > 16) history.shift();
   }
+  if (input.dimsCache) { input.dimsCache.clear(); for (const [k, v] of usedKeys) input.dimsCache.set(k, v); }
   return out;
 }
 
