@@ -6,7 +6,7 @@ const src = readFileSync(join(__dirname, "page.tsx"), "utf8");
 
 describe("Partnerships — Founder-designated, disclosed, no invented terms", () => {
   it("publishes Upcomers with the referral code and an affiliate disclosure", () => {
-    expect(src).toContain('referralCode: "4vf9k7v"');
+    expect(src).toContain('referralCode: "4vft9k7v"');
     expect(src).toMatch(/Affiliate disclosure/);
   });
   it("publishes VeddBuild at its official domain", () => {

@@ -43,7 +43,7 @@ const PARTNERS: Partner[] = [
     accent: "#c9a55c",
     disclosure:
       "Affiliate disclosure: signing up with the referral code below may credit the founder. It does not change what Upcomers offers you, and nothing here is a trading recommendation.",
-    referralCode: "4vf9k7v",
+    referralCode: "4vft9k7v",
   },
   {
     name: "VeddBuild",
