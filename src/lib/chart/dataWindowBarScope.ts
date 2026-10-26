@@ -1,3 +1,4 @@
+import { cachedDateTimeFormat } from "@/lib/intl/cachedDateTimeFormat";
 import { fmtSessionDate, isSessionTimeframe } from "./sessionDateLabel";
 import { selectChartCloseLabel } from "../marketData/selectChartCloseLabel";
 
@@ -109,7 +110,7 @@ function fmtBarTime(
     return fmtSessionDate(barOpenedAtSeconds, timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone, { month: "short", day: "numeric", year: "numeric" });
   }
   try {
-    return new Intl.DateTimeFormat("en-US", {
+    return cachedDateTimeFormat("en-US", {
       month: "short",
       day: "numeric",
       hour: "2-digit",

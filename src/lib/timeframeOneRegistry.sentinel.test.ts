@@ -93,7 +93,9 @@ describe("the live forming bar's clock comes from the registry", () => {
     expect(hook).not.toMatch(/liveBar:\s*\{\s*\.\.\.barUpdate\.bar\s*\}/);
     // The unsigned-observation path publishes once per frame (2026-10-10) and
     // keeps the null rule: no bar → null, never `{ ...null }`.
-    expect(hook).toContain("liveBar: bar ? { ...bar } : null");
+    // (perf 2026-10-25: the one snapshot is handed to MainChart in the same frame and published.)
+    expect(hook).toContain("const liveSnap = bar ? { ...bar } : null;");
+    expect(hook).toContain("liveBar: liveSnap,");
   });
 });
 

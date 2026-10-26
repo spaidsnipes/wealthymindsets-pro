@@ -1,5 +1,6 @@
 "use client";
 
+import { stableMemo } from "@/lib/react/stableMemo";
 import { paintLap, paintLapBegin, paintLapReceipt } from "@/lib/chart/paintLaps";
 import { compileInventionVisibility } from "@/lib/chart/inventionVisibility";
 import { arrivalRipple, bigTradeTier, percentileFromSorted, SessionSizeIndex } from "@/lib/chart/bigTradeTier";
@@ -1989,7 +1990,7 @@ function groupedPrice(v: number, dp: number): string {
   return f.format(v);
 }
 
-export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTimeframe, footprintType, footprintEnabled = true, candleType = "candles", pineOutput, pineCode, onBarsReady,
+function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimeframe, footprintType, footprintEnabled = true, candleType = "candles", pineOutput, pineCode, onBarsReady,
   drawingTool = "cursor", drawingStyle = DEFAULT_DRAWING_STYLE, magnetActive = false, lockDrawings = false,
   onCreatePriceAlert,
   onDrawingComplete,
@@ -34184,3 +34185,6 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     </div>
   );
 }
+
+/** The room re-renders per tape flush; MainChart renders only when what it is handed changes (stableMemo). */
+export const MainChart = stableMemo(MainChartBody);

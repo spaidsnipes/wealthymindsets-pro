@@ -48,6 +48,7 @@
  * honestly be said about the bar and the tape; this renders that verdict.
  */
 
+import { cachedDateTimeFormat } from "@/lib/intl/cachedDateTimeFormat";
 import { signedWhole, traderSourceWords } from "@/lib/chart/traderSourceWords";
 import type { FvgRelationshipReading } from "@/lib/marketData/fvg/fvgRelationships";
 import { sizeUnitFor } from "@/lib/marketData/sizeUnit";
@@ -141,8 +142,8 @@ const UNREAD_COLOR = "#F0B429";
  */
 function zonedClock(timeZone: string | null | undefined) {
   let tz = timeZone || "UTC";
-  try { new Intl.DateTimeFormat("en-US", { timeZone: tz }); } catch { tz = "UTC"; }
-  const fmt = new Intl.DateTimeFormat("en-CA", {
+  try { cachedDateTimeFormat("en-US", { timeZone: tz }); } catch { tz = "UTC"; }
+  const fmt = cachedDateTimeFormat("en-CA", {
     timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit",
     hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23", timeZoneName: "short",
   });

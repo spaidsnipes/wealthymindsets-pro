@@ -1,3 +1,4 @@
+import { cachedDateTimeFormat } from "@/lib/intl/cachedDateTimeFormat";
 import { fmtSessionDate } from "./sessionDateLabel";
 /**
  * `LAST 07:23 PM` — THE SAME NUMBER MEANS "PERFECTLY FRESH" OR "ELEVEN MINUTES
@@ -138,7 +139,7 @@ function fin(v: unknown): number | null {
 /** Bar timestamps are SECONDS. `timeZone` is threaded so tests are deterministic. */
 function fmtClock(seconds: number, timeZone?: string, withSeconds = false): string | null {
   try {
-    return new Intl.DateTimeFormat("en-US", {
+    return cachedDateTimeFormat("en-US", {
       hour: "2-digit",
       minute: "2-digit",
       // Sub-minute bars name their second (live NQ1! 15s: four bars in a row read "OPENED 1:07 AM" and the
