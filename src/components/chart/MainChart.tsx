@@ -73,8 +73,11 @@ import { DEFAULT_CHART_SETTINGS, FLOW_COLOR_DEFAULTS, VOLUME_COLOR_PICKER_DEFAUL
 import { currentProofScene, proofCaptureOpen, proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { inspectedBarMark } from "@/lib/chart/inspectedBarMark";
 import { useSymbolOwnedState } from "@/lib/marketData/useSymbolOwnedState";
+import { owned, readOwned, UNOWNED, type Owned } from "@/lib/marketData/symbolOwned";
 /** One stable empty book (a fresh [] per render would re-run the cost-line effect every frame). */
 const NO_BROKER_COST_POSITIONS: never[] = [];
+// One frozen empty: the header reads it while the held bars belong to another symbol.
+const NO_HEADER_CANDLES: LegacyOhlcvTuple[] = [];
 import { rowsInPriceOrder } from "@/lib/chart/levelRowOrder";
 import { marketTickDedupeKey } from "@/lib/marketData/tickIdentity";
 import type { AggressorMethod } from "@/lib/marketData/marketEvent";
@@ -3388,7 +3391,30 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
 
   const base = getBase(symbol);
 
-  const [candles,   setCandles]   = useState<LegacyOhlcvTuple[]>([]);
+  /* THE HEADER NEVER SPEAKS FOR ANOTHER SYMBOL (Founder recording, 2026-10-25
+     ~0:06, /charts BTC → NQ1! 1h): for about a second, under "Loading NQ1! 1h
+     bars…", the legend read "NQ1! 1h 80155.40 LAST 1h BAR CLOSE … NOW 80356.83"
+     — BTC's bars, still held in this state, wearing the new symbol's label.
+     The bars now carry the symbol|timeframe they were written for, and the
+     header/OHLC strip read them only while that key is the chart's own
+     (`candlesOwned`); until the new symbol's own bars or quote arrive, the
+     price slot says it is loading. */
+  const candlesOwnerKey = `${symbol}|${timeframe}`;
+  const candlesOwnerKeyRef = useRef(candlesOwnerKey);
+  candlesOwnerKeyRef.current = candlesOwnerKey;
+  const [candlesHeld, setCandlesHeld] = useState<Owned<LegacyOhlcvTuple[]>>(UNOWNED);
+  const candles = candlesHeld.value ?? NO_HEADER_CANDLES;
+  const setCandles = useCallback((bars: LegacyOhlcvTuple[]) => {
+    setCandlesHeld(owned(candlesOwnerKeyRef.current, bars));
+  }, []);
+  // A live tick FOLDED onto the held bars keeps the key those bars were loaded
+  // for: a fold can never turn the previous symbol's bars into this symbol's.
+  const setCandlesFolded = useCallback((bars: LegacyOhlcvTuple[]) => {
+    setCandlesHeld(prev => owned(prev.key, bars));
+  }, []);
+  // The header's bars: this chart's own symbol|timeframe, or none (symbolOwned.ts).
+  const ownedCandles = readOwned(candlesHeld, candlesOwnerKey);
+  const candlesOwned = ownedCandles !== null;
   const [lastPrice, setLastPrice] = useState(base);
   const [openPrice, setOpenPrice] = useState(base);
   const [ready,     setReady]     = useState(false);
@@ -5582,7 +5608,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
     // route, so the bars are the same; only the moment of the write changed.
     const next = foldLiveBar(prevBars, bar);
     barsRef.current = next;
-    setCandles(next);
+    setCandlesFolded(next);
     // FOLD RECEIPT (debug=fold on the address only): the newest bars as the
     // chart holds them, so the glass can be checked against the venue's trades.
     if (foldDebugRef.current && canvasRef.current) {
@@ -30514,7 +30540,8 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
   // below owns formatting AND the three-state direction (an exactly-zero change
   // is flat, never "up"), and a second copy of either would agree with it only
   // until someone edited one of them.
-  const last      = candles[candles.length - 1];
+  // Another symbol's (or timeframe's) bars never fill this strip — see candlesOwned.
+  const last      = candlesOwned ? candles[candles.length - 1] : undefined;
   // THE MARKET'S OWN PRECISION, read from the bars (pricePrecision.ts). The
   // static base rule put EURUSD at two decimals: "1.14 +0.00 (+0.20%)" with
   // O/H/L all "1.14" (serving, EURUSD 1h, 2026-09-25). The base rule stays
@@ -30599,7 +30626,8 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
   // the header read 356.36 LAST BAR CLOSE beside NOW 355.56 from the newer
   // overnight print forming the next bar). Only a quote OLDER than the bars
   // yields.
-  const newestBarOpenMs = candles.length ? Number(candles[candles.length - 1].time) * 1000 : null;
+  const headerCandles = ownedCandles ?? NO_HEADER_CANDLES;
+  const newestBarOpenMs = headerCandles.length ? Number(headerCandles[headerCandles.length - 1].time) * 1000 : null;
   const headerLiveFresh = lastObservedAtMs != null && (
     Date.now() - lastObservedAtMs < HEADER_LIVE_FRESH_MS
     || (newestBarOpenMs != null && Number.isFinite(newestBarOpenMs) && lastObservedAtMs >= newestBarOpenMs)
@@ -30609,8 +30637,8 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
     // this cell speaks the replayed bar's close under the compiler's own
     // BAR CLOSE label instead of printing today's price over last week's bars.
     replayCameraOn || !headerLiveFresh ? null : ticker.price,
-    deriveLastBarClose(candles, servedTimeframeFor(timeframe, symbol), Date.now()),
-    candleSource !== "",
+    deriveLastBarClose(headerCandles, servedTimeframeFor(timeframe, symbol), Date.now()),
+    candlesOwned && candleSource !== "",
     dp,
     // SILENCE IS NOT CERTIFICATION — and TWO CALL SITES OF ONE COMPILER MAY
     // NOT ANSWER ONE QUESTION TWO WAYS.
@@ -30636,13 +30664,13 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
   const headerChangeFact = chartHeaderChangeFact(
     // Today's session change is a live-quote fact too; replay reads bar-over-bar.
     hasProviderChange && !replayCameraOn && headerLiveFresh ? { chg: change, pct: ticker.changePct as number } : null,
-    deriveBarOverBarChange(candles, servedTimeframeFor(timeframe, symbol), Date.now()),
+    deriveBarOverBarChange(headerCandles, servedTimeframeFor(timeframe, symbol), Date.now()),
     dp,
     // Same fact, same source, as the fidelity chip below: `candleSource` is ""
     // only until the bars fetch settles. Until then this row must not print
     // "— (change unavailable)", which names a provider that answered — none
     // has. The evidence was already in this component; it only had to be passed.
-    candleSource !== "",
+    candlesOwned && candleSource !== "",
   );
 
   /* ── Fullscreen handler ─────────────────────────────────── */
@@ -32498,6 +32526,21 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
             // same discipline the change cell beside it already follows. A
             // blank slot for one second is not a claim; "No price" over an
             // instrument about to paint 400 candles is.
+            // A SWITCH IN FLIGHT says so: the held bars are another symbol's
+            // (candlesOwned), so the slot names the symbol it is waiting for
+            // instead of going blank under the previous one's chart. Words,
+            // never a number — the first load of the page still opens blank.
+            if (headerPriceFact.kind === "AWAITING" && candlesHeld.key !== null && !candlesOwned) {
+              return (
+                <span
+                  data-price-kind="SWITCHING"
+                  className="font-mono text-xs text-wm-text-dim leading-none"
+                  aria-label={`Loading ${symbol} ${timeframe} — waiting for ${symbol}'s own bars or quote.`}
+                >
+                  Loading {symbol}…
+                </span>
+              );
+            }
             if (headerPriceFact.kind === "AWAITING") return null;
             if (!headerPriceFact.measured) {
               return (

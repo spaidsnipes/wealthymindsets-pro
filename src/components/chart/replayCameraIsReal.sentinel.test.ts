@@ -133,7 +133,7 @@ describe.runIf(REPLAY_DRIVES_THE_CAMERA)("THE GLASS — the window is painted, l
     // that engaged in the same flush has painted its window — and would put
     // today's bars back under every overlay on a replayed camera.
     const liveRoute = fold.slice(paint);
-    expect(liveRoute).toMatch(/const next = foldLiveBar\(prevBars, bar\);\s*barsRef\.current = next;\s*setCandles\(next\);/);
+    expect(liveRoute).toMatch(/const next = foldLiveBar\(prevBars, bar\);\s*barsRef\.current = next;\s*setCandlesFolded\(next\);/);
     expect(fold).not.toMatch(/setCandles\(prev =>/);
   });
 

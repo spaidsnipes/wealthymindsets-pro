@@ -300,7 +300,7 @@ describe("chart quote — a refused price is retracted, not relabelled", () => {
     expect(compileSite, "the live arm must be the quote this header received (withheld while replaying, or when the live lane has gone quiet — 2026-10-01)")
       .toMatch(/chartHeaderPriceFact\(\s*(?:\/\/[^\n]*\n\s*)*replayCameraOn \|\| !headerLiveFresh \? null : ticker\.price,/);
     expect(compileSite, "the fallback arm must be a PROVABLY closed bar, not a running value")
-      .toMatch(/deriveLastBarClose\(candles,/);
+      .toMatch(/deriveLastBarClose\(headerCandles,/);
 
     // The defect itself: the running last value must not be readable by the
     // rendered cell under any spelling. `lastPrice` lives elsewhere in this

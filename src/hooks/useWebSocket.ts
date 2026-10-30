@@ -58,6 +58,7 @@ import { quoteRoundIsCurrent } from "@/lib/marketData/quoteSymbolFence";
  * reason.
  */
 import { resolveQuoteDayChange } from "@/lib/marketData/resolveQuoteDayChange";
+import { adoptReferenceClose, tapeOutranksQuote, type HeldReference, type ReferenceRank } from "@/lib/marketData/dayReferenceClose";
 import { tapeProtocolChannel } from "@/lib/marketData/tapeProtocol";
 import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
 
@@ -1252,6 +1253,18 @@ export function useWebSocket({ symbol, timeframe, onLiveFlush }: { symbol: strin
   const hasRealDataRef = useRef(false);
   // A real print (`trade: true`) has been heard for this symbol (see processTick).
   const tradeHeardRef = useRef(false);
+  // When a real print last arrived (epoch ms) — while recent, a polled REST
+  // quote may not print its older price over the tape's (dayReferenceClose.ts).
+  const tradeHeardAtRef = useRef<number | null>(null);
+  // THE reference close, held by its one owner (dayReferenceClose.ts). Every
+  // offer — the exchange's Summary, a vendor quote's price − change — goes
+  // through adoptReference; prevCloseRef mirrors the held value for flush().
+  const heldReferenceRef = useRef<HeldReference | null>(null);
+  const adoptReference = (value: number, rank: ReferenceRank): number => {
+    heldReferenceRef.current = adoptReferenceClose(heldReferenceRef.current, { value, rank, atMs: Date.now() });
+    tastyRefCloseRef.current = heldReferenceRef.current?.rank === "EXCHANGE";
+    return heldReferenceRef.current?.value ?? 0;
+  };
   // The symbol's bars are built from prints only, from the start (crypto).
   const tradeTapeOnlyRef = useRef(false);
   // ONE VENUE BUILDS THE BAR (liveBarFold.admitBarVenue): the venue whose
@@ -1382,7 +1395,7 @@ export function useWebSocket({ symbol, timeframe, onLiveFlush }: { symbol: strin
     // (printBars): a quote or mid never opens or moves a crypto bar, not even
     // before the first print (serving a60366c: a volume-0 bar at a price
     // Coinbase never traded in that bucket opened the chart).
-    if (tick.trade === true) tradeHeardRef.current = true;
+    if (tick.trade === true) { tradeHeardRef.current = true; tradeHeardAtRef.current = Date.now(); }
     else if (tradeHeardRef.current || tradeTapeOnlyRef.current) return;
 
     const barUpdate = applyTickToClock(barRef.current, lastBarEventAtRef.current, tick, getIntervalSec());
@@ -1500,6 +1513,8 @@ export function useWebSocket({ symbol, timeframe, onLiveFlush }: { symbol: strin
     priceObservedRef.current = false;
     prevCloseRef.current = 0; // cleared on symbol change; repopulated by the next quote
     tastyRefCloseRef.current = false;
+    heldReferenceRef.current = null;
+    tradeHeardAtRef.current = null;
     barRef.current   = null;
     lastBarEventAtRef.current = null;
     closedBarsRef.current = [];
@@ -1685,7 +1700,7 @@ export function useWebSocket({ symbol, timeframe, onLiveFlush }: { symbol: strin
           {
             const pc = peekTastyQuote(contract.streamer)?.prevClose;
             const hasReferenceClose = pc != null && Number.isFinite(pc) && pc > 0;
-            if (hasReferenceClose) { prevCloseRef.current = pc!; tastyRefCloseRef.current = true; republishDayChange(); }
+            if (hasReferenceClose) { prevCloseRef.current = adoptReference(pc!, "EXCHANGE"); republishDayChange(); }
           }
           tastyCleanup = subscribeTastyEvents([contract.streamer], (e, receivedAtMs) => {
             if (disposed) return;
@@ -1759,7 +1774,7 @@ export function useWebSocket({ symbol, timeframe, onLiveFlush }: { symbol: strin
               const pc = e.values.prevDayClosePrice;
               // The exchange's own prior-day close: a real reference, or none.
               const hasReferenceClose = pc != null && Number.isFinite(pc) && pc > 0;
-              if (hasReferenceClose) { prevCloseRef.current = pc; tastyRefCloseRef.current = true; republishDayChange(); }
+              if (hasReferenceClose) { prevCloseRef.current = adoptReference(pc, "EXCHANGE"); republishDayChange(); }
               return;
             }
             // The side-less snapshot only speaks while no prints are flowing,
@@ -1872,8 +1887,11 @@ export function useWebSocket({ symbol, timeframe, onLiveFlush }: { symbol: strin
         const q = answer;
         // A live tastytrade print outranks a delayed REST snapshot: keep only
         // its reference close (for day change) and leave price/source alone.
-        if (tastyLiveAtRef.current != null && Date.now() - tastyLiveAtRef.current < 15_000) {
-          if (!tastyRefCloseRef.current && q.hasReferenceClose && Number.isFinite(q.change)) prevCloseRef.current = q.price - q.change;
+        // …and so does ANY live trade tape (Coinbase, Binance, Finnhub): the
+        // poll's price is older than the prints, and printing it between them
+        // was the header flicker (BTC 5m, 2026-10-24: 80739.71 ↔ 80860.01).
+        if ((tastyLiveAtRef.current != null && Date.now() - tastyLiveAtRef.current < 15_000) || tapeOutranksQuote(tradeHeardAtRef.current, Date.now())) {
+          if (q.hasReferenceClose && Number.isFinite(q.change)) { prevCloseRef.current = adoptReference(q.price - q.change, "VENDOR"); republishDayChange(); }
           setState(prev2 => ({ ...prev2, quoteRefusal: null }));
           return;
         }
@@ -1895,8 +1913,8 @@ export function useWebSocket({ symbol, timeframe, onLiveFlush }: { symbol: strin
         // change on every tick: a NON-ZERO fabrication, which is invisible to
         // selectTickerChangeDisplay because its only "no reference" signature is
         // exactly-zero. Seed only from a quote that carries a real reference.
-        if (!tastyRefCloseRef.current && q.hasReferenceClose && Number.isFinite(q.change)) {
-          prevCloseRef.current = realPrice - q.change;
+        if (q.hasReferenceClose && Number.isFinite(q.change)) {
+          prevCloseRef.current = adoptReference(realPrice - q.change, "VENDOR");
         }
         // SF-D01: stamp the synthesized tick with the REAL observation time when
         // the source resolved one (q.observedAt); only fall back to server
@@ -1909,9 +1927,11 @@ export function useWebSocket({ symbol, timeframe, onLiveFlush }: { symbol: strin
         // Real day change comes straight from the quote (not a per-poll delta) —
         // unless the exchange's own reference close (tastytrade Summary) is held:
         // that day boundary outranks the vendor's.
-        const exchangeRef = tastyRefCloseRef.current && prevCloseRef.current > 0 ? prevCloseRef.current : null;
-        const dayChange = exchangeRef != null ? +(realPrice - exchangeRef).toFixed(8) : q.change;
-        const dayChangePct = exchangeRef != null ? +((realPrice - exchangeRef) / exchangeRef * 100).toFixed(2) : q.changePct;
+        // ONE reference for every writer: the held one (dayReferenceClose.ts),
+        // whichever rank holds it — never this poll's own basis beside it.
+        const heldRef = prevCloseRef.current > 0 ? prevCloseRef.current : null;
+        const dayChange = heldRef != null ? +(realPrice - heldRef).toFixed(8) : q.change;
+        const dayChangePct = heldRef != null ? +((realPrice - heldRef) / heldRef * 100).toFixed(2) : q.changePct;
         const tape = tapeSourceRef.current;
         setState(prev2 => ({
           ...prev2,
