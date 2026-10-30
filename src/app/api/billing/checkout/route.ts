@@ -5,8 +5,8 @@ import { billingKv, loadEntitlement, saveEntitlement } from "@/lib/billing/billi
 import { BILLING_PRODUCT, PASSPORT_REF_KEY, emptyEntitlement } from "@/lib/billing/entitlement";
 import { BILLING_NOT_ON_SALE, billingStanding } from "@/lib/billing/standing";
 import { resolveCustomer, stripeCall } from "@/lib/billing/stripeApi";
-import { paidTierByName, passportIntroCoupon, tierPriceId } from "@/lib/billing/tiers";
-import { passportPromo } from "@/lib/pricing/passportPromo";
+import { paidTierByName, tierPriceId } from "@/lib/billing/tiers";
+import { OFFER_RETIRED, bodyAsksForOffer } from "@/lib/pricing/passportPromo";
 import { requestIsSameOrigin } from "@/lib/broker/credentialProbeGate";
 import { CANONICAL_URL } from "@/lib/canonicalUrl";
 import { publicFailure } from "@/lib/publicFailure";
@@ -26,7 +26,9 @@ const refuse = (body: object, status: number) => NextResponse.json(body, { statu
  *
  * Body: `{ "tier": "APP" | "PASSPORT" | "OS" }` and nothing else that matters:
  * the price id is the server's (an env var per tier); the client cannot send a
- * price, an amount, a customer or a URL. Signed-in members only, this site's
+ * price, an amount, a customer or a URL. NO OFFERS (Founder 2026-10-30): a body
+ * that asks for a promo, coupon, discount or trial is refused (410) before
+ * Stripe is asked, and no coupon is ever applied. Signed-in members only, this site's
  * origin only, five starts per ten minutes.
  *
  * FAIL CLOSED: billing not configured, the tier not on sale, no record store,
@@ -42,6 +44,7 @@ export async function POST(request: Request) {
   const standing = billingStanding(process.env);
   if (standing.mode === "NOT_CONFIGURED") return refuse(BILLING_NOT_ON_SALE, 503);
   const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+  if (bodyAsksForOffer(body)) return refuse(OFFER_RETIRED, 410);
   const tier = paidTierByName(body?.tier);
   if (!tier) return refuse({ error: "Name the plan to buy.", code: "UNKNOWN_TIER" }, 400);
   const priceId = tierPriceId(tier, process.env);
@@ -77,19 +80,17 @@ export async function POST(request: Request) {
 
   // WHICH LEGAL TEXT THE BUYER COULD READ, recorded with the purchase (one owner: lib/legal/legalVersion).
   const legalShown = legalShownAtPurchase();
-  // The Passport intro offer is charged as the pricing card shows it: half off the first month, by coupon.
-  const introCoupon = tier === "PASSPORT" ? passportIntroCoupon(process.env, passportPromo(process.env.NEXT_PUBLIC_PASSPORT_PROMO_ENDS).active) : null;
-  const metadata = { [PASSPORT_REF_KEY]: auth.user.sub, product: BILLING_PRODUCT, wm_tier: tier, legal_shown: legalShown, ...(introCoupon ? { wm_offer: "PASSPORT_INTRO" } : {}) };
+  // Every plan at its listed price: no coupon, no trial (one owner: lib/pricing/passportPromo).
+  const metadata = { [PASSPORT_REF_KEY]: auth.user.sub, product: BILLING_PRODUCT, wm_tier: tier, legal_shown: legalShown };
   const session = await stripeCall(process.env, "checkout/sessions", {
     method: "POST",
     // Not clock-based: the same member asking for the same tier gets the same session back.
-    idempotencyKey: `wmpro-checkout-${standing.mode}-${auth.user.sub}-${tier}${introCoupon ? "-intro" : ""}`,
+    idempotencyKey: `wmpro-checkout-${standing.mode}-${auth.user.sub}-${tier}`,
     params: {
       mode: "subscription",
       customer: customer.customerId,
       client_reference_id: auth.user.sub,
       line_items: { 0: { price: priceId, quantity: 1 } },
-      ...(introCoupon ? { discounts: { 0: { coupon: introCoupon } } } : {}),
       success_url: `${CANONICAL_URL}/pricing?billing=success`,
       cancel_url: `${CANONICAL_URL}/pricing?billing=cancelled`,
       metadata,

@@ -14,6 +14,31 @@ export function isPublicInfoPath(pathname: string): boolean {
   );
 }
 
+/**
+ * Every top-level room this app actually serves (a directory under src/app with a page).
+ *
+ * GUEST AUDIT 2026-10-25: a signed-out visitor who typed a wrong address (/pricng, /rooms)
+ * was sent to /login?next=/pricng — a sign-in door promising to return them to a page
+ * that does not exist. An address whose first segment is NOT a room is not protected
+ * (there is nothing behind it), so a guest reads the not-found page instead.
+ * FAIL CLOSED: a room missing from this list would render signed out, so
+ * authRoutes.test.ts reads src/app and fails if any page directory is not listed here.
+ */
+export const APP_ROUTE_ROOTS = [
+  "ai-bot", "backtest", "backtesting", "charts", "command-deck", "copy-trading", "creator", "desk",
+  "education", "heatmaps", "journal", "legal", "login", "lounge", "morning-prep", "nectar", "news",
+  "paper", "partnerships", "pricing", "privacy", "profile", "proof-lane", "radio", "readiness",
+  "research-heat", "reset-password", "scanner", "settings", "shop", "signup", "terms", "tv",
+  "vailbuild", "veddbuild", "webull-code", "welcome",
+] as const;
+
+/** True when the path's first segment is no room at all (the root "/" is a room). */
+export function isUnknownAppPath(pathname: string): boolean {
+  const first = pathname.split(/[?#]/)[0].split("/")[1] ?? "";
+  if (first === "") return false;
+  return !(APP_ROUTE_ROOTS as readonly string[]).includes(first);
+}
+
 export type AuthenticatedRouteState =
   | "PUBLIC"
   | "CHECKING_SESSION"
@@ -47,6 +72,8 @@ export function selectAuthenticatedRouteState(
   if (isPublicAuthPath(pathname)) return "PUBLIC";
   if (isPublicInfoPath(pathname) && !user) return loading ? "CHECKING_SESSION" : "PUBLIC";
   if (isPublicInfoPath(pathname)) return "READY";
+  // Not a room: a guest reads not-found, never a sign-in door to nowhere.
+  if (isUnknownAppPath(pathname) && !user) return loading ? "CHECKING_SESSION" : "PUBLIC";
   if (loading) return "CHECKING_SESSION";
   if (!user) return "SIGN_IN_REQUIRED";
 

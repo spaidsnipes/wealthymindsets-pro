@@ -42,7 +42,7 @@ describe("legal version", () => {
   it("the checkout writes the same line onto the Stripe session and the member's record", () => {
     const route = read("app/api/billing/checkout/route.ts");
     expect(route).toContain("const legalShown = legalShownAtPurchase();");
-    expect(route).toContain("wm_tier: tier, legal_shown: legalShown,");
+    expect(route).toContain("wm_tier: tier, legal_shown: legalShown");
     expect(route).toContain("customerMatch: customer.match, legalShown: legalShownAtPurchase() });");
   });
 });

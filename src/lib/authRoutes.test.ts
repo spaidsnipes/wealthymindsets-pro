@@ -4,10 +4,36 @@ import fs from "node:fs";
 import path from "node:path";
 
 import {
+  APP_ROUTE_ROOTS,
   PUBLIC_AUTH_PATHS,
   isPublicAuthPath,
+  isUnknownAppPath,
   selectAuthenticatedRouteState,
 } from "./authRoutes";
+
+describe("a guest on an address that is no room reads not-found, not a sign-in door (guest audit 2026-10-25)", () => {
+  it("unknown first segments are public for a guest, after the session resolves", () => {
+    expect(selectAuthenticatedRouteState("/pricng", null, true)).toBe("CHECKING_SESSION");
+    expect(selectAuthenticatedRouteState("/pricng", null, false)).toBe("PUBLIC");
+    expect(selectAuthenticatedRouteState("/rooms", null, false)).toBe("PUBLIC");
+    expect(isUnknownAppPath("/")).toBe(false);
+  });
+  it("every real room stays protected exactly as before", () => {
+    for (const r of ["/charts", "/journal", "/journal/anything", "/lounge", "/desk", "/"]) {
+      expect(isUnknownAppPath(r), r).toBe(false);
+      expect(selectAuthenticatedRouteState(r, null, false), r).toBe("SIGN_IN_REQUIRED");
+    }
+  });
+  it("FAIL CLOSED: every page directory under src/app is listed as a room (and every listed room exists)", () => {
+    const app = path.join(process.cwd(), "src/app");
+    const hasPage = (d: string): boolean => fs.readdirSync(d, { withFileTypes: true }).some(e => (e.isFile() && /^page\.(t|j)sx?$/.test(e.name)) || (e.isDirectory() && hasPage(path.join(d, e.name))));
+    const dirs = fs.readdirSync(app, { withFileTypes: true }).filter(e => e.isDirectory() && e.name !== "api").map(e => e.name);
+    const rooms = dirs.filter(n => hasPage(path.join(app, n)));
+    expect(rooms.filter(n => /^[([]/.test(n)), "route groups / dynamic roots need a new rule").toEqual([]);
+    expect(rooms.filter(n => !(APP_ROUTE_ROOTS as readonly string[]).includes(n))).toEqual([]);
+    expect(APP_ROUTE_ROOTS.filter(n => !dirs.includes(n))).toEqual([]);
+  });
+});
 
 describe("public auth route ownership", () => {
   it("keeps every public auth workflow outside the authenticated shell", () => {

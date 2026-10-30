@@ -29,6 +29,14 @@ export const HEADLINE = "Living market intelligence.";
 export const PROMISE =
   "WM Pro follows the price territories that matter — as they form, as price returns to them, how the market responds, what they leave in memory — and carries them into your review and your education. One market, one truth, read the same way everywhere.";
 
+/**
+ * THE SAME PROMISE IN PLAIN WORDS (guest audit 2026-10-25): /login is the first page most visitors
+ * see, and "price territories followed from formation to memory" read as jargon to a newcomer.
+ * The sign-in door says what the product does with no term a newcomer must already know.
+ */
+export const PLAIN_PROMISE =
+  "WM Pro marks the spots on your chart where price moved fast, shows what happened each time price came back to them, and keeps your trades and your lessons right beside them.";
+
 /** The life of a price territory — the thing WM Pro follows (§57). */
 export const TERRITORY_LIFE: readonly { readonly stage: string; readonly line: string }[] = [
   { stage: "Formation", line: "Where price moved so fast one side barely traded — recorded the moment the bar closes, never before." },

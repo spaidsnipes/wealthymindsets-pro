@@ -2,7 +2,6 @@ import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { buyButtonState } from "@/lib/billing/buyButtonState";
-import { passportPromo, passportPromoLine } from "@/lib/pricing/passportPromo";
 
 /**
  * GUEST AUDIT 2026-10-25 (390 / 834 / desktop, signed out). Three things a first-time visitor met on /pricing:
@@ -20,14 +19,10 @@ describe("pricing tells a guest the prices first", () => {
     expect(PRICING).toContain('href="#plans"');
     expect(PRICING).toContain('<div id="plans"');
   });
-  it("the holiday special is said at the top, from the one promo owner, only while the offer is honoured", () => {
-    expect(PRICING).toContain("{PASSPORT_PROMO && offerHonoured ? (");
-    expect(PRICING).toContain('data-testid="holiday-special-banner"');
-    const line = passportPromoLine(passportPromo(undefined, Date.UTC(2026, 9, 25)));
-    expect(line).toContain("Holiday special");
-    expect(line).toContain("$10 (half off)");
-    expect(line).toContain("December 25, 2026");
-    expect(passportPromoLine(passportPromo(undefined, Date.UTC(2026, 11, 27)))).toBeNull();
+  it("no offer is said anywhere on the page: the holiday special is retired (Founder 2026-10-30)", () => {
+    expect(PRICING).not.toContain("holiday-special-banner");
+    expect(PRICING).not.toContain("passport-intro-offer");
+    expect(PRICING.toLowerCase()).not.toMatch(/half off|holiday|first month|free month|discount|coupon/);
   });
   it("no trials anywhere on the page (Founder 2026-10-25)", () => {
     expect(PRICING.toLowerCase()).not.toContain("trial");

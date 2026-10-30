@@ -33,7 +33,7 @@ import { clsx } from "clsx";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { WMSBar } from "@/components/wms/WMSBar";
 import { HeaderPnL } from "@/components/layout/HeaderPnL";
-import { isPublicAuthPath, isPublicInfoPath } from "@/lib/authRoutes";
+import { isPublicAuthPath, isPublicInfoPath, isUnknownAppPath } from "@/lib/authRoutes";
 import { useCapitalObservation, useCapitalReach } from "@/lib/experience/useActiveScene";
 import { WMExperienceShell } from "@/components/experience/WMExperienceShell";
 import { isFounderRoomRoute } from "@/lib/routing/founderRoomRoutes";
@@ -285,7 +285,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   }, [openSearch]);
 
   // Skip shell on auth pages — MUST be after all hooks to keep hook order stable
-  if (isPublicAuthPath(pathname) || (isPublicInfoPath(pathname) && !user)) {
+  // A guest on an address that is no room reads the not-found page bare: no rail, no feeds.
+  if (isPublicAuthPath(pathname) || ((isPublicInfoPath(pathname) || isUnknownAppPath(pathname)) && !user)) {
     // A public INFORMATION page is a long document, and <body> is inline
     // overflow:hidden (app/layout.tsx). MEASURED 2026-10-06 at 390x844:
     // /pricing's last control at y 2163 and /welcome's at 1205 could not be
@@ -295,7 +296,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
     // /login is 919-983 px tall with 0 scrollers, so on a phone with the
     // keyboard open (390x420) the submit button sat at y 542-585 and could
     // not be reached — a friend of the Founder could not sign in on his phone.
-    if (isPublicInfoPath(pathname) || isPublicAuthPath(pathname)) {
+    if (isPublicInfoPath(pathname) || isPublicAuthPath(pathname) || isUnknownAppPath(pathname)) {
       return (
         <div data-scroll-owner="public-info" style={{ height: "100%", overflowX: "hidden", overflowY: "auto", overscrollBehaviorY: "contain" }}>
           {children}

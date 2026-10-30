@@ -1,50 +1,28 @@
 /**
- * HOLIDAY SPECIAL (Founder final ruling 2026-10-25; supersedes the open-ended intro offer of 2026-10-06):
- * the first month of WM Pro Premium ($20, the Passport tier) is $10, half off, through December 25, 2026,
- * 11:59 PM CT. Then the standard price. The same holiday special runs on WAVEMOTION Creator.
+ * NO OFFERS (Founder rule, confirmed 2026-10-30): no free months, no trials, no discounts anywhere in ATH.
+ * The Oct 25 holiday special (WM Pro Premium first month $20 → $10 through Dec 25 2026) is RETIRED, the same
+ * day it was retired on WAVEMOTION (HOLIDAY_OPEN=false) and WOW (HOLIDAY50 refused, trial codes 410).
  *
- * The deadline is code, so the offer disappears by itself: on or after it, passportPromo() is inactive, the
- * pricing card drops the line and checkout stops applying the coupon (passportIntroCoupon). The optional
- * NEXT_PUBLIC_PASSPORT_PROMO_ENDS (ISO date, end of that day in US Central) can only END it earlier, never later.
- * The mechanism is unchanged: the Founder's Stripe coupon WM_STRIPE_COUPON_PASSPORT_INTRO (50% off, once).
+ * This file is the one owner of that rule for WM Pro:
+ *   - PASSPORT_PROMO_OPEN is a closed constant. Nothing reads an env var or a date to reopen it.
+ *   - Checkout applies no coupon and refuses, before Stripe is asked, any body that asks for an offer.
+ *   - The pricing page says no offer.
+ * Members already on a discounted first month are untouched: their Stripe subscription carries its own
+ * one-time coupon, and nothing here reads, edits or cancels an existing subscription.
  */
-export const PASSPORT_STANDARD_MONTHLY = 20;
-export const PASSPORT_PROMO_FIRST_MONTH = PASSPORT_STANDARD_MONTHLY / 2;
-/** Dec 25 2026 11:59:59 PM CST (UTC−6). */
-export const HOLIDAY_ENDS_AT = Date.UTC(2026, 11, 26, 5, 59, 59);
-export const HOLIDAY_DEADLINE_LABEL = "December 25, 2026, 11:59 PM CT";
+export const PASSPORT_PROMO_OPEN = false as const;
 
-export type PassportPromo =
-  | { readonly active: false }
-  | { readonly active: true; readonly firstMonth: number; readonly thenMonthly: number; readonly endsLabel: string; readonly endsAt: number };
+/** Body fields that ask for a price other than the plan's own. None is honoured; asking is refused. */
+export const OFFER_FIELDS = ["promo", "promoCode", "promo_code", "promotion_code", "promotionCode", "coupon", "couponCode", "discount", "discounts", "offer", "trial", "trial_period_days", "trialDays"] as const;
 
-/** Last millisecond of a calendar day in America/Chicago, as epoch ms. */
-function endOfChicagoDay(y: number, m: number, d: number): number {
-  const noon = Date.UTC(y, m - 1, d, 12);
-  const hour = Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", hour: "numeric", hourCycle: "h23" }).format(noon));
-  const offsetHours = 12 - hour; // 6 in winter (CST), 5 in summer (CDT)
-  return Date.UTC(y, m - 1, d + 1, offsetHours) - 1;
-}
+/** The plain words a member reads when a checkout asks for an offer. */
+export const OFFER_RETIRED = {
+  error: "WM Pro has no discounts, trials or free months. Each plan is its listed price. Nothing was charged.",
+  code: "OFFER_RETIRED",
+} as const;
 
-export function passportPromo(endsIso: string | undefined | null, nowMs: number = Date.now()): PassportPromo {
-  let endsAt = HOLIDAY_ENDS_AT, endsLabel = HOLIDAY_DEADLINE_LABEL;
-  const raw = endsIso?.trim();
-  if (raw) {
-    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
-    if (!m) return { active: false }; // a malformed date never extends an offer
-    const configured = endOfChicagoDay(Number(m[1]), Number(m[2]), Number(m[3]));
-    if (!Number.isFinite(configured)) return { active: false };
-    if (configured < endsAt) {
-      endsAt = configured;
-      const day = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
-      endsLabel = `${day}, 11:59 PM CT`;
-    }
-  }
-  if (!Number.isFinite(nowMs) || nowMs > endsAt) return { active: false };
-  return { active: true, firstMonth: PASSPORT_PROMO_FIRST_MONTH, thenMonthly: PASSPORT_STANDARD_MONTHLY, endsLabel, endsAt };
-}
-
-export function passportPromoLine(p: PassportPromo): string | null {
-  if (!p.active) return null;
-  return `Holiday special: your first month of WM Pro Premium is $${p.firstMonth} (half off) when you subscribe by ${p.endsLabel}. Then $${p.thenMonthly}/month until you cancel.`;
+/** True when a checkout body names any offer field (any value, even empty): the server refuses it. */
+export function bodyAsksForOffer(body: Record<string, unknown> | null | undefined): boolean {
+  if (!body || typeof body !== "object") return false;
+  return OFFER_FIELDS.some(k => Object.prototype.hasOwnProperty.call(body, k));
 }

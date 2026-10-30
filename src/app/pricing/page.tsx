@@ -7,13 +7,11 @@ import { buyButtonState } from "@/lib/billing/buyButtonState";
 import type { BillingTier, PaidTier } from "@/lib/billing/tiers";
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
-import { passportPromo, passportPromoLine } from "@/lib/pricing/passportPromo";
 import { SellingStory } from "@/components/marketing/SellingStory";
 import { PRODUCT_LINE } from "@/lib/marketing/sellingStory";
 import { WORLD_PASS_BUY_URL } from "@/lib/billing/worldPass";
 
-// Holiday special (Founder 2026-10-25): WM Pro Premium first month half off through Dec 25 2026 11:59 PM CT; gone after.
-const PASSPORT_PROMO = passportPromoLine(passportPromo(process.env.NEXT_PUBLIC_PASSPORT_PROMO_ENDS));
+// NO OFFERS (Founder 2026-10-30): every plan at its listed price (the rule lives in lib/pricing).
 
 /**
  * PRICING — the Founder's prices (Garden 18 ATHOS order §9, 2026-10-05).
@@ -31,7 +29,7 @@ const GOLD = "#c9a55c", INK = "#ede6d3", MUTED = "#a89c80", LINE = "rgba(201,165
 // Thumb targets (phone audit 2026-10-06: the footer's inline links were 15 px tall at 375 px).
 const TAP = { display: "inline-flex", alignItems: "center", justifyContent: "center", minHeight: 44, minWidth: 44, padding: "0 4px", color: GOLD } as const;
 
-type Tier = { id?: PaidTier; name: string; price: string; tagline: string; includes: string[]; limits: string[]; cta: { label: string; href?: string }; offer?: string | null; worldPassLink?: boolean };
+type Tier = { id?: PaidTier; name: string; price: string; tagline: string; includes: string[]; limits: string[]; cta: { label: string; href?: string }; worldPassLink?: boolean };
 
 const TIERS: Tier[] = [
   {
@@ -61,7 +59,6 @@ const TIERS: Tier[] = [
       "Have the World Pass with WM Pro as your Premium app? You already have this — don't buy it twice",
     ],
     cta: { label: "Not on sale yet" },
-    offer: PASSPORT_PROMO,
     worldPassLink: true,
   },
   {
@@ -81,7 +78,7 @@ export default function PricingPage() {
   // WHAT IS ON SALE is the server's to say. The public read carries booleans and one word; the member's own
   // standing (their tier) is read only when signed in. Until both are known every paid button stays "Not on sale yet".
   const { user } = useAuth();
-  const [sale, setSale] = useState<{ mode: "NOT_CONFIGURED" | "TEST" | "LIVE"; tiers: Record<string, boolean>; passportIntro?: boolean } | null>(null);
+  const [sale, setSale] = useState<{ mode: "NOT_CONFIGURED" | "TEST" | "LIVE"; tiers: Record<string, boolean> } | null>(null);
   const [memberTier, setMemberTier] = useState<BillingTier | null>(null);
   // What the member's World Pass (owned by WOW OS) covers here; the two never stack.
   const [pass, setPass] = useState<{ grants: PaidTier | null; chosenApp: string | null; paidAlso: boolean } | null>(null);
@@ -91,7 +88,7 @@ export default function PricingPage() {
     let live = true;
     fetch("/api/billing/tiers", { cache: "no-store" })
       .then(r => (r.ok ? r.json() : null))
-      .then(j => { if (live && j && typeof j.mode === "string" && j.tiers && typeof j.tiers === "object") setSale({ mode: j.mode, tiers: j.tiers, passportIntro: j.passportIntro === true }); })
+      .then(j => { if (live && j && typeof j.mode === "string" && j.tiers && typeof j.tiers === "object") setSale({ mode: j.mode, tiers: j.tiers }); })
       .catch(() => { /* stays "Not on sale yet" */ });
     return () => { live = false; };
   }, []);
@@ -111,10 +108,6 @@ export default function PricingPage() {
     return () => { live = false; };
   }, [user]);
   const anyOnSale = !!sale && sale.mode !== "NOT_CONFIGURED" && Object.values(sale.tiers).some(Boolean);
-  // An offer on a plan that is ON SALE shows only when checkout will charge it (the server says so);
-  // before sale it reads as the announced launch offer.
-  const passportOnSale = !!sale && sale.mode !== "NOT_CONFIGURED" && sale.tiers.PASSPORT === true;
-  const offerHonoured = !passportOnSale || sale?.passportIntro === true;
   /** Start Stripe Checkout (the body names the tier and nothing else) or open Manage billing; the server answers with the URL. */
   const go = async (path: "checkout" | "portal", tier?: PaidTier) => {
     if (busy) return;
@@ -151,10 +144,7 @@ export default function PricingPage() {
         )}
         {/* THE PRICES BEFORE THE PROSE (guest audit 2026-10-25): at 390px the first price stood three
             screens down, under the story. The story keeps its place above the tiers (§57); this one line
-            names every plan and jumps to them, and the holiday special is said where a visitor lands. */}
-        {PASSPORT_PROMO && offerHonoured ? (
-          <p data-testid="holiday-special-banner" style={{ marginTop: 14, padding: "10px 14px", borderRadius: 8, border: `1px solid ${GOLD}`, background: "rgba(201,165,92,0.10)", color: INK, fontSize: 14, lineHeight: 1.5, maxWidth: 720 }}>{PASSPORT_PROMO}</p>
-        ) : null}
+            names every plan and jumps to them. */}
         <nav aria-label="Plans at a glance" data-testid="plans-at-a-glance" style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 14 }}>
           {PLANS_AT_A_GLANCE.map((t) => (
             <a key={t.name} href="#plans" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, padding: "0 12px", borderRadius: 8, border: `1px solid ${LINE}`, color: INK, fontSize: 13, textDecoration: "none" }}>
@@ -185,9 +175,6 @@ export default function PricingPage() {
                   <span style={{ color: MUTED, fontSize: 13 }}> / month</span>
                 </div>
                 <p style={{ color: MUTED, fontSize: 13, margin: "6px 0 0" }}>{t.tagline}</p>
-                {t.offer && offerHonoured ? (
-                  <p data-testid="passport-intro-offer" style={{ margin: "10px 0 0", padding: "8px 10px", borderRadius: 8, border: `1px solid ${GOLD}`, background: "rgba(201,165,92,0.10)", color: INK, fontSize: 13, lineHeight: 1.5 }}>{t.offer}</p>
-                ) : null}
               </div>
               <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.6 }}>
                 {t.includes.map((x) => <li key={x}>{x}</li>)}

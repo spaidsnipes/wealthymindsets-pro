@@ -283,7 +283,7 @@ const BROKERS: Broker[] = [
     id:"ftmo", name:"FTMO", category:"prop",
     logo:"F", color:"#26A65B",
     desc:"The world's leading funded trader program — up to $200K",
-    features:["Forex + Futures","Up to $200K","90% split","Free trial"],
+    features:["Forex + Futures","Up to $200K","90% split","FTMO Challenge"],
     signInUrl:"https://trader.ftmo.com/",
     signUpUrl:"https://ftmo.com/en/",
   },

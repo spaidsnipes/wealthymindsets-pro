@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   HEADLINE, OPERATING_LOOP, PRODUCT_KIND, PRODUCT_KIND_TITLE, PRODUCT_LINE, PRODUCT_NAME, PRODUCT_NAME_TITLE,
-  PROMISE, TERRITORY_LIFE, WHAT_IS_LIVE,
+  PLAIN_PROMISE, PROMISE, TERRITORY_LIFE, WHAT_IS_LIVE,
 } from "./sellingStory";
 
 const read = (p: string) => readFileSync(p, "utf8");
@@ -11,7 +11,7 @@ const COMPONENT = "src/components/marketing/SellingStory.tsx";
 
 /** Every sentence the selling story puts in front of a visitor. */
 const STORY = [
-  PRODUCT_LINE, HEADLINE, PROMISE,
+  PRODUCT_LINE, HEADLINE, PROMISE, PLAIN_PROMISE,
   ...TERRITORY_LIFE.flatMap(t => [t.stage, t.line]),
   ...OPERATING_LOOP.flatMap(s => [s.step, s.line]),
   ...WHAT_IS_LIVE.flatMap(w => [w.label, w.line]),
@@ -97,6 +97,14 @@ describe("§57 — every public selling page reads the one story", () => {
     expect(s).toContain("{PRODUCT_NAME_TITLE}");
     expect(s).toContain('data-testid="login-phone-product-line"');
     expect(s).not.toMatch(/const FEATURES = \[/);
+  });
+  it("login speaks plain words, desktop and phone (guest audit 2026-10-25)", () => {
+    const s = read(PAGES.login);
+    expect(s).toContain('<SellingStory variant="compact" withProductLine={false} plainWords />');
+    expect(s).toContain("{PLAIN_PROMISE}");
+    expect(s).not.toMatch(/territor|formation to memory/i);
+    expect(PLAIN_PROMISE).not.toMatch(/territor|formation|interaction|liquidity|imbalance|FVG|confluence/i);
+    expect(offenders(PLAIN_PROMISE)).toEqual([]);
   });
 });
 

@@ -8,11 +8,12 @@
  *   variant="compact" /pricing and /login's marketing side — line, promise,
  *                     loop as a single quiet sentence, what is live
  *   withProductLine   false where the page's own h1 already names the product (/login)
+ *   plainWords        the promise with no term a newcomer must know (/login, guest audit 2026-10-25)
  */
 import React from "react";
 import { WM } from "@/lib/design/wmTokens";
 import {
-  HEADLINE, OPERATING_LOOP, PRODUCT_KIND, PRODUCT_NAME, PROMISE, TERRITORY_LIFE, WHAT_IS_LIVE,
+  HEADLINE, OPERATING_LOOP, PLAIN_PROMISE, PRODUCT_KIND, PRODUCT_NAME, PROMISE, TERRITORY_LIFE, WHAT_IS_LIVE,
 } from "@/lib/marketing/sellingStory";
 
 const SERIF = "Georgia, 'Times New Roman', serif";
@@ -43,7 +44,7 @@ function TerritoryStrip() {
   );
 }
 
-export function SellingStory({ variant = "full", withProductLine = true }: { variant?: "full" | "compact"; withProductLine?: boolean }) {
+export function SellingStory({ variant = "full", withProductLine = true, plainWords = false }: { variant?: "full" | "compact"; withProductLine?: boolean; plainWords?: boolean }) {
   const full = variant === "full";
   return (
     <section data-testid="selling-story" data-variant={variant} aria-labelledby="selling-story-line" style={{ color: WM.text.hero, minWidth: 0 }}>
@@ -52,7 +53,7 @@ export function SellingStory({ variant = "full", withProductLine = true }: { var
         {withProductLine ? <span style={{ display: "block", fontSize: full ? 13 : 12, letterSpacing: "0.28em", color: WM.gold.hero }}>{PRODUCT_NAME}</span> : null}
         {HEADLINE}
       </h2>
-      <p style={{ color: WM.text.body, fontSize: 14, lineHeight: 1.65, margin: 0, maxWidth: 720 }}>{PROMISE}</p>
+      <p style={{ color: WM.text.body, fontSize: 14, lineHeight: 1.65, margin: 0, maxWidth: 720 }}>{plainWords ? PLAIN_PROMISE : PROMISE}</p>
 
       {full ? (
         <div style={{ marginTop: 20 }}>

@@ -73,20 +73,20 @@ describe("GET /api/billing/tiers — public, booleans and one word", () => {
     mocks.who = null;
     const res = await get();
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ mode: "NOT_CONFIGURED", tiers: { APP: false, PASSPORT: false, OS: false }, passportIntro: false });
+    expect(await res.json()).toEqual({ mode: "NOT_CONFIGURED", tiers: { APP: false, PASSPORT: false, OS: false } });
   });
 
   it("configured → only the tiers with a price id are on sale; no id, no key information in the body", async () => {
     configure();
     const res = await get();
     const text = await res.text();
-    expect(JSON.parse(text)).toEqual({ mode: "TEST", tiers: { APP: false, PASSPORT: true, OS: false }, passportIntro: false });
+    expect(JSON.parse(text)).toEqual({ mode: "TEST", tiers: { APP: false, PASSPORT: true, OS: false } });
     noSecret(text);
   });
 
   it("a price id set while billing is NOT configured still sells nothing", async () => {
     vi.stubEnv("WM_STRIPE_PRICE_PASSPORT", "price_passport001");
-    expect(await (await get()).json()).toEqual({ mode: "NOT_CONFIGURED", tiers: { APP: false, PASSPORT: false, OS: false }, passportIntro: false });
+    expect(await (await get()).json()).toEqual({ mode: "NOT_CONFIGURED", tiers: { APP: false, PASSPORT: false, OS: false } });
   });
 });
 
@@ -140,35 +140,34 @@ describe("POST /api/billing/checkout", () => {
     expect(session.params.get("subscription_data[metadata][passport_id_ref]")).toBe(USER);
   });
 
-  it("THE PASSPORT INTRO OFFER IS CHARGED AS SHOWN: the configured coupon rides Passport checkout only, and the public read says so", async () => {
-    vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-12-26T05:59:00Z")); // inside the holiday special
-    configure({ WM_STRIPE_PRICE_APP: "price_app0000001", WM_STRIPE_COUPON_PASSPORT_INTRO: "wm_intro_half" }); stripeWith();
-    expect((await checkout({ tier: "PASSPORT" })).status).toBe(201);
-    const pass = sent.filter(s => s.path === "checkout/sessions").at(-1)!;
-    expect(pass.params.get("discounts[0][coupon]")).toBe("wm_intro_half");
-    expect(pass.params.get("metadata[wm_offer]")).toBe("PASSPORT_INTRO");
-    expect(JSON.parse(await (await (await import("./tiers/route")).GET(new Request("https://wealthymindsetspro.com/api/billing/tiers", { headers: { "cf-connecting-ip": "203.0.113.9" } }))).text())).toMatchObject({ passportIntro: true });
-    sent = [];
-    expect((await checkout({ tier: "APP" })).status).toBe(201);
-    expect(sent.find(s => s.path === "checkout/sessions")!.params.get("discounts[0][coupon]")).toBeNull();
-    vi.useRealTimers();
-  });
-
-  it("…the holiday special ends by itself after Dec 25 2026 11:59 PM CT: no coupon, no promise", async () => {
-    vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-12-26T06:00:01Z"));
+  it("NO OFFERS (Founder 2026-10-30): even with the old intro coupon still configured, Passport checkout is the full price", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-11-15T18:00:00Z")); // inside the retired holiday window
     try {
-      configure({ WM_STRIPE_COUPON_PASSPORT_INTRO: "wm_intro_half" }); stripeWith();
-      expect((await checkout({ tier: "PASSPORT" })).status).toBe(201);
-      expect(sent.find(s => s.path === "checkout/sessions")!.params.get("discounts[0][coupon]")).toBeNull();
-      expect(JSON.parse(await (await (await import("./tiers/route")).GET(new Request("https://wealthymindsetspro.com/api/billing/tiers", { headers: { "cf-connecting-ip": "203.0.113.9" } }))).text())).toMatchObject({ passportIntro: false });
+      configure({ WM_STRIPE_PRICE_APP: "price_app0000001", WM_STRIPE_COUPON_PASSPORT_INTRO: "wm_intro_half", NEXT_PUBLIC_PASSPORT_PROMO_ENDS: "2026-12-25" }); stripeWith();
+      for (const tier of ["PASSPORT", "APP"]) {
+        sent = [];
+        expect((await checkout({ tier })).status).toBe(201);
+        const session = sent.find(s => s.path === "checkout/sessions")!;
+        expect(session.params.get("discounts[0][coupon]")).toBeNull();
+        expect(session.params.get("metadata[wm_offer]")).toBeNull();
+        expect(session.params.get("allow_promotion_codes")).toBeNull();
+        expect(session.params.get("subscription_data[trial_period_days]")).toBeNull();
+        expect([...session.params.keys()].some(k => /discount|coupon|promotion|trial/i.test(k))).toBe(false);
+      }
+      const read = JSON.parse(await (await (await import("./tiers/route")).GET(new Request("https://wealthymindsetspro.com/api/billing/tiers", { headers: { "cf-connecting-ip": "203.0.113.9" } }))).text());
+      expect(read).not.toHaveProperty("passportIntro");
     } finally { vi.useRealTimers(); }
   });
 
-  it("…an ENDED offer applies no coupon, and the public read stops promising it", async () => {
-    configure({ WM_STRIPE_COUPON_PASSPORT_INTRO: "wm_intro_half", NEXT_PUBLIC_PASSPORT_PROMO_ENDS: "2020-01-01" }); stripeWith();
-    expect((await checkout({ tier: "PASSPORT" })).status).toBe(201);
-    expect(sent.find(s => s.path === "checkout/sessions")!.params.get("discounts[0][coupon]")).toBeNull();
-    expect(JSON.parse(await (await (await import("./tiers/route")).GET(new Request("https://wealthymindsetspro.com/api/billing/tiers", { headers: { "cf-connecting-ip": "203.0.113.9" } }))).text())).toMatchObject({ passportIntro: false });
+  it("…a checkout that asks for a promo, coupon or trial is refused (410) before Stripe is asked", async () => {
+    configure({ WM_STRIPE_COUPON_PASSPORT_INTRO: "wm_intro_half" }); stripeWith();
+    for (const extra of [{ promo: "HOLIDAY50" }, { coupon: "wm_intro_half" }, { promotion_code: "promo_123" }, { trial_period_days: 30 }, { discount: 50 }]) {
+      sent = [];
+      const res = await checkout({ tier: "PASSPORT", ...extra });
+      expect(res.status).toBe(410);
+      expect((await res.json() as { code: string }).code).toBe("OFFER_RETIRED");
+      expect(sent).toEqual([]);
+    }
   });
 
   it("a tier with no price id configured is not on sale (503), and Stripe is not asked", async () => {

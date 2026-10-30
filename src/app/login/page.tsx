@@ -12,7 +12,7 @@ import { useSearchParams } from "next/navigation";
 import WmWordmark from "@/components/brand/WmWordmark";
 import { WM } from "@/lib/design/wmTokens";
 import { SellingStory } from "@/components/marketing/SellingStory";
-import { HEADLINE, PRODUCT_KIND_TITLE, PRODUCT_NAME_TITLE } from "@/lib/marketing/sellingStory";
+import { HEADLINE, PLAIN_PROMISE, PRODUCT_KIND_TITLE, PRODUCT_NAME_TITLE } from "@/lib/marketing/sellingStory";
 import { authFailureMessage, authLinkErrorMessage } from "@/lib/auth/authLinkError";
 
 /**
@@ -311,7 +311,7 @@ function LoginPage() {
             </span>
           </h1>
 
-          <SellingStory variant="compact" withProductLine={false} />
+          <SellingStory variant="compact" withProductLine={false} plainWords />
         </div>
       </div>
 
@@ -341,7 +341,7 @@ function LoginPage() {
             <WmWordmark size="compact" subtitle="TRADING OPERATING SYSTEM" className="wm-login-wordmark" />
             {/* Phones never see the left panel: the product line in one sentence, and the door to the full story. */}
             <p data-testid="login-phone-product-line" className="mt-3 text-[13px] leading-relaxed" style={{ color: WM.text.body }}>
-              <span style={{ color: WM.text.hero }}>{HEADLINE}</span> Price territories followed from formation to memory — into your review and your education.
+              <span style={{ color: WM.text.hero }}>{HEADLINE}</span> {PLAIN_PROMISE}
             </p>
             <Link href="/welcome" className="inline-flex min-h-11 items-center text-[12px] font-bold" style={{ color: WM.gold.mark }}>See how it works →</Link>
           </div>

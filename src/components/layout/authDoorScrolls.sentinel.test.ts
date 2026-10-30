@@ -7,7 +7,8 @@ import { describe, expect, it } from "vitest";
 // could not be reached (2026-10-06). The bare auth branch must own a scroller.
 describe("auth doors scroll on a phone", () => {
   const src = readFileSync(join(__dirname, "MainLayout.tsx"), "utf8");
+  // A guest on an address that is no room (not-found, guest audit 2026-10-25) shares the same scroller.
   it("the public auth paths render inside the overflow-y:auto scroller", () => {
-    expect(src).toMatch(/if \(isPublicInfoPath\(pathname\) \|\| isPublicAuthPath\(pathname\)\) \{\s*return \(\s*<div data-scroll-owner="public-info"[^>]*overflowY: "auto"/);
+    expect(src).toMatch(/if \(isPublicInfoPath\(pathname\) \|\| isPublicAuthPath\(pathname\) \|\| isUnknownAppPath\(pathname\)\) \{\s*return \(\s*<div data-scroll-owner="public-info"[^>]*overflowY: "auto"/);
   });
 });
