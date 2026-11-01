@@ -350,3 +350,14 @@ describe("Supermax §9 — the course covers the Founder's list, and every lesso
     expect(FVG_LESSONS.find(l => l.id === "fvg-14")!.body[0]).toMatch(/^A bullish territory is traded through/);
   });
 });
+
+describe("plain-words FVG (ⓘ doorway) never sells the fill", () => {
+  it("states the FVG_3C shape and that a gap does not have to fill (Founder 2026-10-31 overclaim fix)", async () => {
+    const { TOOL_SIMPLE } = await import("./toolSimple");
+    const simple = TOOL_SIMPLE.FVG_IMBALANCE.simple;
+    expect(simple.length).toBeGreaterThan(40);
+    expect(simple).not.toMatch(/\b(often|usually|tends? to|will|must|always)\b[^.]{0,30}\b(come back|fill)/i);
+    expect(simple).toMatch(/does not have to fill/);
+    expect(simple).toMatch(/third one's low sits above the first one's high/);
+  });
+});
