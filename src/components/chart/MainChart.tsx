@@ -8282,9 +8282,12 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
       // Only reallocate the backing store when the size actually changes.
       // (Setting canvas.width/height ALWAYS clears + reallocates the buffer, so
       // doing it per-frame was a 60fps GPU-texture thrash that caused zoom jank.)
+      // 2026-10-31 pan/zoom jitter: rangeVer (bumped on every visible-range change) re-runs this effect,
+      // which reset lastCW/lastCH to -1, so EVERY pan/zoom step re-assigned canvas.width/height — a clear
+      // plus GPU re-upload and a blank frame mid-pan. Compare with the canvas's own backing size instead,
+      // which survives effect re-runs.
       if (cw !== lastCW || ch !== lastCH || dpr !== lastDpr) {
-        canvas.width  = cw;
-        canvas.height = ch;
+        if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; }
         canvas.style.width  = W + "px";
         canvas.style.height = H + "px";
         lastCW = cw; lastCH = ch; lastDpr = dpr;
