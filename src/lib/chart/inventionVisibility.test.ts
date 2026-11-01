@@ -68,3 +68,18 @@ describe("plain status words for tool rows (plate 23, L18)", () => {
     expect(Object.values(VISIBILITY_WORDS).some(w => /AVAILABLE/i.test(w))).toBe(false);
   });
 });
+
+describe("Locate Invention reads what was painted (2026-10-31 BTC audit)", () => {
+  it("absorption shelves and per-bar imbalance stacks read VISIBLE when painted", async () => {
+    const { compileInventionVisibility, parseInventionVisibility } = await import("./inventionVisibility");
+    const v = parseInventionVisibility(compileInventionVisibility({ absorption: "DRAWN", absorptionZones: "3", absorptionDepthForm: "SHELF+EFFORT_TICKS", imbalanceStack: "NO_STACK", imbalanceStackBars: "RUNS:10|BARS:98" }));
+    expect(v.ABSORPTION).toBe("VISIBLE");
+    expect(v.IMBALANCE_STACK).toBe("VISIBLE");
+    const quiet = parseInventionVisibility(compileInventionVisibility({ absorption: "MEASURED_NO_ZONES", absorptionZones: "0", imbalanceStack: "NO_STACK", imbalanceStackBars: "RUNS:0|BARS:40" }));
+    expect(quiet.IMBALANCE_STACK).toBe("NO_EVENT");
+    expect(quiet.ABSORPTION).toBe("NO_EVENT");
+    expect(parseInventionVisibility(compileInventionVisibility({ absorption: "UNMEASURED" })).ABSORPTION).toBe("MISSING_EVIDENCE");
+    const off = parseInventionVisibility(compileInventionVisibility({ absorption: "OFF", imbalanceStack: "OFF" }));
+    expect(off.ABSORPTION).toBe("DISABLED");
+  });
+});

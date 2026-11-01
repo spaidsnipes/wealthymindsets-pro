@@ -35,18 +35,19 @@ export function visibilityOf(receipt: string | undefined, offCamera?: string, fa
   const r = receipt.toUpperCase();
   const beyond = !!offCamera && /ABOVE:[1-9]|BELOW:[1-9]|UP:[1-9]|DOWN:[1-9]/.test(offCamera);
   if (UNSUPPORTED.test(r)) return "UNSUPPORTED";
+  if (/^UNMEASURED/.test(r)) return "MISSING_EVIDENCE";
   // A named silence about the DATA (nothing usable arrived) comes before any "ON:" reading.
   if (/SILENT|SILENCE|REFUSED|WAITING|WITHHELD/.test(r) && MISSING.test(r)) return "MISSING_EVIDENCE";
   // Switched on, pipeline fine, nothing qualifying on this camera — or beyond its edge.
-  if (/NO_CURRENT|NO_EVENT|NO_AGREEMENT|:NONE$|^NONE$|^ON:0$|^DRAWN:0\b|POS0:NEG0|^0$/.test(r)) return beyond ? "OFF_CAMERA" : "NO_EVENT";
+  if (/NO_CURRENT|NO_EVENT|NO_AGREEMENT|:NONE$|^NONE$|^ON:0$|^DRAWN:0\b|POS0:NEG0|^0$|^RUNS:0\b|NO_ZONES/.test(r)) return beyond ? "OFF_CAMERA" : "NO_EVENT";
   if (/SILENT|SILENCE|REFUSED/.test(r)) return "NO_EVENT";
   // Painted: a count, a DRAWN/MEASURED word, an ON: grade, a mark list ("CALL_OI@29725->…"), a slab.
-  if (/^ON:|DRAWN|^MEASURED|^[1-9]\d*$|^SLAB:|^OPTFLOW:|^PRESSURE:|@\d/.test(r)) return "VISIBLE";
+  if (/^ON:|DRAWN|^MEASURED|^[1-9]\d*$|^SLAB:|^OPTFLOW:|^PRESSURE:|^RUNS:[1-9]|@\d/.test(r)) return "VISIBLE";
   return "NO_EVENT";
 }
 
 /** The inventions this compiler reads, each by its receipt key(s) on the overlay dataset. */
-export const INVENTION_RECEIPTS: readonly { readonly id: string; readonly key: string; readonly offCamera?: string; readonly fault?: string }[] = [
+export const INVENTION_RECEIPTS: readonly { readonly id: string; readonly key: string; readonly offCamera?: string; readonly fault?: string; readonly alt?: string }[] = [
   { id: "BRICK_WALLS", key: "brickWalls", offCamera: "brickWallsOffCamera", fault: "derivativesPressureFault" },
   { id: "DERIVATIVES_PRESSURE", key: "derivativesPressure", offCamera: "derivativesPressureOffCamera", fault: "derivativesPressureFault" },
   { id: "GAMMA_HEATMAP", key: "gammaHeatmap" },
@@ -68,8 +69,11 @@ export const INVENTION_RECEIPTS: readonly { readonly id: string; readonly key: s
   { id: "LIQUIDITY_WEATHER", key: "liquidityWeather" },
   { id: "OPTIONS_FLOW", key: "optionFlow" },
   { id: "VALUE_CANDLE", key: "valueCandle" },
-  { id: "IMBALANCE_STACK", key: "imbalanceStack" },
-  { id: "ABSORPTION", key: "absorptionDepthForm" },
+  // 2026-10-31 (headless BTC audit): the per-bar stacks (imbalanceStackBars RUNS:10) and the absorption
+  // shelves (absorption DRAWN, 2–3 zones) were PAINTED while Locate Invention said "No event right now" —
+  // it read the tape-ladder word (NO_STACK) and the depth-form word (SHELF+EFFORT_TICKS) only.
+  { id: "IMBALANCE_STACK", key: "imbalanceStack", alt: "imbalanceStackBars" },
+  { id: "ABSORPTION", key: "absorption" },
 ];
 
 /** Every listed invention's state, in the receipt order, as "ID:STATE|…". */
@@ -77,7 +81,9 @@ export function compileInventionVisibility(ds: VisibilityReceipts): string {
   const faultAll = ds.paintFault;
   return INVENTION_RECEIPTS.map(e => {
     const fault = (e.fault && ds[e.fault]) || faultAll;
-    return `${e.id}:${visibilityOf(ds[e.key], e.offCamera ? ds[e.offCamera] : undefined, fault)}`;
+    const main = visibilityOf(ds[e.key], e.offCamera ? ds[e.offCamera] : undefined, fault);
+    const alt = e.alt && main !== "VISIBLE" && main !== "RENDER_FAULT" && main !== "DISABLED" ? visibilityOf(ds[e.alt], undefined, fault) : null;
+    return `${e.id}:${alt === "VISIBLE" ? alt : main}`;
   }).join("|");
 }
 
