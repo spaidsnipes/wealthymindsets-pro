@@ -51,7 +51,7 @@ const TOOL_FAMILY: Readonly<Record<string, EvidenceFamilyId>> = {
   ANATOMY_CARDS: "PARTICIPATION", IMBALANCE_STACK: "PARTICIPATION", DELTA_DIVERGENCE: "PARTICIPATION",
   EFFORT_MARK: "PARTICIPATION", DELTA_LEVELS: "PARTICIPATION",
   LIQUIDITY_WEATHER: "LIQUIDITY", LIQUIDITY_LIFECYCLE: "LIQUIDITY",
-  // Brick Walls are options open-interest strikes (Cboe delayed, INFERRED),
+  // Brick Walls are options open-interest strikes (tastytrade chain since 2026-10-12, INFERRED),
   // not resting orders in the book: serving SPY 5m 2026-10-07 listed them
   // under "Liquidity · from resting orders in the book" beside a chip reading
   // "Cboe delayed · INFERRED". Same family as Derivatives Pressure — one source.

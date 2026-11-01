@@ -71,11 +71,11 @@ export interface InventionEducation {
 }
 
 /** WALLS & GAMMA shared words (2026-10-10) — one copy, every member reads it. */
-const OI_EVIDENCE = "Options open interest by strike — Cboe delayed (prior-session OI) for listed underlyings; BTC / ETH from Deribit public (current OI).";
+const OI_EVIDENCE = "Options open interest by strike — the tastytrade options chain for listed underlyings (open interest is the exchange's last daily count); BTC / ETH from Deribit public (current OI).";
 const OI_FULL = "Whole chain for this underlying, OI as of its source's clock (named on the glass).";
 const OI_PARTIAL = "Only the contracts nearest price were heard (futures options) — labelled.";
 const OI_SILENT = "No chain for this market, or no strike holding ≥5% of its side's OI near price — it draws nothing and says why.";
-const GEX_EVIDENCE = "Per contract: open interest and gamma (Cboe's own gamma) or the contract's own IV (Deribit mark IV → Black–Scholes, r = 4%, q = 0). GEX = Γ × OI × multiplier × S² × 0.01 ($ per 1% move; 100 shares per listed option, 1 coin per Deribit option).";
+const GEX_EVIDENCE = "Per contract: open interest and gamma (the chain's own published gamma) or the contract's own IV (Deribit mark IV → Black–Scholes, r = 4%, q = 0). GEX = Γ × OI × multiplier × S² × 0.01 ($ per 1% move; 100 shares per listed option, 1 coin per Deribit option).";
 const GEX_GRAMMAR = "Sign is an ASSUMPTION: dealers long calls, short puts (calls +, puts −). Positive = the modelled hedges lean against a move; negative = they go with it.";
 const GEX_FULL = "Whole chain, every contract in range carries gamma or its own IV, chain as of its source's clock.";
 const GEX_PARTIAL = "Some contracts carry no gamma or IV (excluded, counted), or only the strikes nearest price were heard — labelled with the reason.";
@@ -437,22 +437,22 @@ export const INVENTION_EDUCATION: Readonly<Record<ProfileId, InventionEducation>
   },
   DERIVATIVES_PRESSURE: {
     question: "Where does options positioning put the zero-gamma level and the walls for this underlying?",
-    needs: "OPTIONS", evidence: "An options chain with open interest (Cboe delayed; BTC/ETH from Deribit public).",
+    needs: "OPTIONS", evidence: "An options chain with open interest (tastytrade chain, ±4% of price; BTC/ETH from Deribit public).",
     appears: "A pressure field, the zero-gamma front, walls with observed tests, and the implied expected move.",
     grammar: "Above zero-gamma the modelled dealer book is long gamma (its hedges lean against the move); below it, short gamma (its hedges go with the move). It is INFERRED from open interest, not observed orders.",
     full: "Fresh chain for this underlying.",
-    partial: "Chain is delayed — positioning trails the market, said in the label.",
+    partial: "Only the contracts within ±4% of price were read (near-money subset) — the zero-gamma flip is withheld and the label says so.",
     degraded: "No chain for this market — unavailable on this feed.", silence: "No chain for this market — unavailable on this feed.",
     firstTouch: "Derivatives pressure — modelled dealer gamma from open interest; inferred, not observed orders.",
     canon: "Garden 15/16 Market Sense · Derivatives Pressure",
   },
   BRICK_WALLS: {
     question: "Which strikes near price hold the most open interest, and has price tested them?",
-    needs: "OPTIONS", evidence: "Options open interest for this underlying — delayed where the venue delays it, and on futures only the contracts nearest price.",
+    needs: "OPTIONS", evidence: "Options open interest for this underlying (the exchange's last daily count) — on futures and stocks only the contracts nearest price.",
     appears: "Masonry walls at strike prices — bricks, a crack at each observed test, breach and scar.",
     grammar: "More bricks = more open interest. Each crack is a test that held; a breach leaves a scar. Inferred positioning, not orders.",
     full: "Fresh chain and observed tests on this chart.",
-    partial: "Chain delayed or mapped from an index (NDX/SPX onto NQ/ES) — labelled.",
+    partial: "Only the contracts nearest price were read, or walls mapped from an index (NDX/SPX onto NQ/ES) — labelled.",
     degraded: "No chain for this market — no walls. While the chain loads it is silent (no chain yet); with a chain but no wall event at the current strikes it stays silent too.", silence: "No chain for this market — no walls. While the chain loads it is silent (no chain yet); with a chain but no wall event at the current strikes it stays silent too.",
     firstTouch: "Brick wall — a strike with large open interest (inferred positioning); cracks are observed tests.",
     canon: "Garden 16 §20 Brick Walls",

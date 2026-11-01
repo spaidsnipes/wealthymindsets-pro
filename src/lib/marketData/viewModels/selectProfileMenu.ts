@@ -794,10 +794,10 @@ const CATALOGUE: readonly ProfileSpec[] = [
       Garden 15 §2–§7 / Garden 16 §20: the options-positioning world on the
       one chart — damping fortification and amplifying currents as a price
       field, the zero-gamma transition front, defensive walls built of bricks
-      whose cracks are observed tests, and the IV expected move. Cboe delayed
-      open interest (prior session); dealer side is an assumption → INFERRED.
+      whose cracks are observed tests, and the IV expected move. tastytrade
+      live chain (2026-10-12 live-only order; OI is the exchange's daily count); dealer side is an assumption → INFERRED.
     */
-    what: "where dealer hedging is expected to damp or amplify moves — pressure field, zero-gamma front, brick walls with observed tests, and the IV expected move (Cboe delayed; BTC / ETH from Deribit public — INFERRED)",
+    what: "where dealer hedging is expected to damp or amplify moves — pressure field, zero-gamma front, brick walls with observed tests, and the IV expected move (tastytrade options chain, open interest = the exchange's last daily count; BTC / ETH from Deribit public — INFERRED)",
     gesture: "TOGGLE",
     owner: "src/lib/marketData/viewModels/selectDerivativesPressure.ts",
     levels: ["Pressure climate", "Zero-gamma front", "Acceleration pockets", "Expected move"],
@@ -811,7 +811,7 @@ const CATALOGUE: readonly ProfileSpec[] = [
       courses, cracks at observed tests, breach, scar; OFF clears it from the
       glass without touching the evidence, the wall lifecycle or any other lens.
     */
-    what: "dealer-defended strikes as masonry walls at their price — bricks, cracks at each observed test, breach and scar (Cboe delayed; futures from tastytrade; BTC / ETH from Deribit public — INFERRED). Beside them: call / put open-interest ticks, NDX / SPX walls mapped onto NQ / ES, and Options Flow — the largest option prints on price (your tastytrade session)",
+    what: "dealer-defended strikes as masonry walls at their price — bricks, cracks at each observed test, breach and scar (tastytrade options chain, open interest = the exchange's last daily count; futures: the contracts nearest price; BTC / ETH from Deribit public — INFERRED). Beside them: call / put open-interest ticks, NDX / SPX walls mapped onto NQ / ES, and Options Flow — the largest option prints on price (your tastytrade session)",
     gesture: "TOGGLE",
     owner: "src/lib/marketData/viewModels/selectDerivativesPressure.ts",
     levels: ["Pressure walls", "Open-interest ticks", "Index walls mapped", "Options flow"],
@@ -826,7 +826,7 @@ const CATALOGUE: readonly ProfileSpec[] = [
   {
     id: "CALL_WALL",
     label: "Call Wall",
-    what: "the strikes where CALL open interest concentrates — observed positioning (Cboe delayed; BTC / ETH Deribit public), not resistance and not gamma",
+    what: "the strikes where CALL open interest concentrates — observed positioning (tastytrade options chain, open interest = the exchange's last daily count; BTC / ETH Deribit public), not resistance and not gamma",
     gesture: "TOGGLE",
     owner: "src/lib/marketData/viewModels/selectOptionsBarrierEvidence.ts",
     levels: ["Call OI concentration"],
@@ -834,7 +834,7 @@ const CATALOGUE: readonly ProfileSpec[] = [
   {
     id: "PUT_WALL",
     label: "Put Wall",
-    what: "the strikes where PUT open interest concentrates — observed positioning (Cboe delayed; BTC / ETH Deribit public), not support and not gamma",
+    what: "the strikes where PUT open interest concentrates — observed positioning (tastytrade options chain, open interest = the exchange's last daily count; BTC / ETH Deribit public), not support and not gamma",
     gesture: "TOGGLE",
     owner: "src/lib/marketData/viewModels/selectOptionsBarrierEvidence.ts",
     levels: ["Put OI concentration"],

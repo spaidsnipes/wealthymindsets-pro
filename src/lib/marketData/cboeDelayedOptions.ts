@@ -42,9 +42,9 @@ export function positioningSourceWords(source: OptionsPositioningSource): { read
   return source === "DERIBIT_PUBLIC"
     ? { name: "Deribit public", oi: "OI current" }
     : source === "TASTYTRADE_LIVE"
-      // Futures options (2026-10-01): open interest is the exchange's
-      // settlement figure, published once a session.
-      ? { name: "tastytrade futures options", oi: "OI prior session" }
+      // Futures AND equity/index options (2026-10-01; equities 2026-10-12): open interest is the
+      // exchange's settlement figure, published once a session. Not "futures" — SPY reads this too.
+      ? { name: "tastytrade options", oi: "OI prior session" }
       : { name: "Cboe delayed", oi: "OI prior session" };
 }
 
