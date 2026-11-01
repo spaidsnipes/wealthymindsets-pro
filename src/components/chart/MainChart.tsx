@@ -11616,7 +11616,10 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
           const basisD = weakestAggressorProvenance(sawP, sawI, sawU);
           const chipD = aggressorProvenanceNote(basisD)?.chip;
           const sidesShown = pickD.filter(p => p.r.viaSides).length;
-          const tagD = `Δ${chipD ? ` · ${chipD}` : ""}${sidesShown ? ` · ${sidesShown === pickD.length ? "" : "older "}bars: provider bid / ask` : ""}${strideD > 1 ? ` · 1 IN ${strideD} BARS` : ""}${fpUsdCellsRef.current && effectiveFP === "bid-ask" ? " · cells: $ traded" : ""}`;
+          // NO SILENT CELLS (immaculate audit 2026-10-31, phone 390): bid × ask was ON, the grid kept its numbers for
+          // NEAR, and nothing on the glass said why the cells were blank. The row's own tag says it, in both forms.
+          const fpCellsWaitNear = effectiveFP === "bid-ask" && !fpNumbers ? " · ZOOM IN FOR NUMBERS" : "";
+          const tagD = `Δ${chipD ? ` · ${chipD}` : ""}${sidesShown ? ` · ${sidesShown === pickD.length ? "" : "older "}bars: provider bid / ask` : ""}${strideD > 1 ? ` · 1 IN ${strideD} BARS` : ""}${fpUsdCellsRef.current && effectiveFP === "bid-ask" ? " · cells: $ traded" : ""}${fpCellsWaitNear}`;
           ctx.font = marketFont("OBJECT_NAME");
           let tagShown = tagD;
           let tagW = ctx.measureText(tagD).width + 4; const tagY = yD - 20;
@@ -11639,7 +11642,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
           let tagX = clearX(tagW);
           let tagBacked = false;
           if (tagX == null) {
-            const shortD = `Δ${chipD ? ` · ${chipD}` : ""}${strideD > 1 ? ` · 1 IN ${strideD} BARS` : ""}`;
+            const shortD = `Δ${chipD ? ` · ${chipD}` : ""}${strideD > 1 ? ` · 1 IN ${strideD} BARS` : ""}${fpCellsWaitNear}`;
             const shortW = ctx.measureText(shortD).width + 4;
             const xs = clearX(shortW);
             if (xs != null) { tagShown = shortD; tagW = shortW; tagX = xs; }
