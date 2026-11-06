@@ -41,6 +41,8 @@ import { fxFuturesDoor } from "@/lib/chart/fxFuturesDoor";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 import { VOLUME_READING_SENSES } from "@/lib/chart/senseEventStates";
 import { hasNoCentralVolume, needsTradedVolumeWords } from "@/lib/chart/volumeTruth";
+import { fusionNextStep, fusionRefusalWords } from "./fuseProfiles";
+import { riskNextStep } from "./selectRiskOnPrice";
 
 export const PROFILE_MENU_VERSION = 1;
 
@@ -105,7 +107,24 @@ export type ProfileAvailability =
   | "WAITING_FOR_BARS"
   | "WAITING_FOR_PRINTS"
   | "NEEDS_SIDED_TAPE"
-  | "REFUSED_BY_DATA";
+  | "REFUSED_BY_DATA"
+  /**
+   * The data can carry it; the trader has one step left (draw a position,
+   * switch on a second profile of the same volume unit…). Not a data refusal
+   * and not "available": Garden 19 review (Codex 01a1426c, 2026-10-16) found
+   * Fusion and Risk on Price reading "available" in the menu while the glass
+   * printed a faint refusal. The row now names the step.
+   */
+  | "NEEDS_YOUR_STEP";
+
+/** A species that needs one act from the trader, in the menu's own words. */
+export interface SpeciesStep {
+  readonly kind: "STEP";
+  /** Short state words for the row chip, e.g. "draw a Long / Short Position". */
+  readonly words: string;
+  /** The full sentence: why it draws nothing, and the next step. */
+  readonly note: string;
+}
 
 /**
  * NOT ALL FOUR ARE THE SAME GESTURE, AND THE MENU MAY NOT PRETEND THEY ARE.
@@ -270,7 +289,7 @@ export interface ProfileMenuInput {
    * a sentence. Without this the row read READY over an empty chart — the
    * "READY label" Garden Pass 12 names as the thing that is not an invention.
    */
-  readonly speciesRefusal?: Readonly<Partial<Record<ProfileId, string>>>;
+  readonly speciesRefusal?: Readonly<Partial<Record<ProfileId, string | SpeciesStep>>>;
 }
 
 export interface ProfileMenuVM {
@@ -957,8 +976,15 @@ export function selectProfileMenu(input: ProfileMenuInput): ProfileMenuVM {
           ? "no stock prints have reached this chart yet — sides are inferred (quote test, tick rule) once they flow"
           : "this tape has not stated an aggressor side — the split cannot be drawn from volume alone";
     } else if (input.speciesRefusal?.[spec.id]) {
-      availability = "REFUSED_BY_DATA";
-      availabilityNote = input.speciesRefusal[spec.id]!;
+      const r = input.speciesRefusal[spec.id]!;
+      if (typeof r === "string") {
+        availability = "REFUSED_BY_DATA";
+        availabilityNote = r;
+      } else {
+        availability = "NEEDS_YOUR_STEP";
+        availabilityNote = r.note;
+        stateWords = r.words;
+      }
     } else {
       availability = "READY";
       availabilityNote = "ready to draw from the bars on screen";
@@ -1007,7 +1033,7 @@ export function selectProfileMenu(input: ProfileMenuInput): ProfileMenuVM {
     const waiting = silent.some(e => e.availability === "WAITING_FOR_BARS");
     const waitingForPrints = silent.some(e => e.availability === "WAITING_FOR_PRINTS");
     const untaped = silent.some(e => e.availability === "NEEDS_SIDED_TAPE");
-    const refused = silent.filter(e => e.availability === "REFUSED_BY_DATA");
+    const refused = silent.filter(e => e.availability === "REFUSED_BY_DATA" || e.availability === "NEEDS_YOUR_STEP");
     /*
       CAUGHT ON THE SERVING CHART, NOT BY A TEST.
 
@@ -1057,6 +1083,8 @@ export function selectProfileMenu(input: ProfileMenuInput): ProfileMenuVM {
           ? `${silentCount} silent · waiting for prints`
           : silent.every(e => e.availability === "NEEDS_SIDED_TAPE")
             ? `${silentCount} silent · aggressor tape required`
+            : silent.every(e => e.availability === "NEEDS_YOUR_STEP")
+              ? `${silentCount} silent · needs a step from you`
             : silent.every(e => e.availability === "REFUSED_BY_DATA")
               ? `${silentCount} silent · refused by the data`
               : `${silentCount} silent · mixed missing inputs`,
@@ -1107,3 +1135,34 @@ export function profileSpeciesRefusals(vms: {
   else if (se === "NO_VOLUME") out.SESSION = "the session's bars carry no volume";
   return out;
 }
+
+/**
+ * The species that are switched on, can be fed, and still draw nothing
+ * because the TRADER has one act left — Profile Fusion with an unlawful pair,
+ * Risk on Price with no bracketable position. Merged into `speciesRefusal`
+ * as `SpeciesStep`s so every door (Profiles, Tools finder, W wings) names the
+ * step instead of reading "available" over an empty glass (Garden 19 review,
+ * Codex 01a1426c, 2026-10-16). Data refusals stay plain sentences.
+ */
+export function profileSpeciesSteps(x: {
+  readonly fusion?: { readonly on: boolean; readonly refusal: string | null; readonly fused: boolean } | null;
+  readonly riskOnPrice?: { readonly on: boolean; readonly reason: string | null } | null;
+}): Partial<Record<ProfileId, string | SpeciesStep>> {
+  const out: Partial<Record<ProfileId, string | SpeciesStep>> = {};
+  const f = x.fusion;
+  if (f?.on && !f.fused) {
+    // No pair reported at all while fusion is on = fewer than two profiles drawn.
+    const reason = f.refusal ?? "NEEDS_TWO_SOURCES";
+    const step = fusionNextStep(reason);
+    if (step) out.PROFILE_FUSION = { kind: "STEP", words: step.short, note: `${capitalise(fusionRefusalWords(reason) ?? reason)}. ${step.full}` };
+    else out.PROFILE_FUSION = `refused: ${fusionRefusalWords(reason)}`;
+  }
+  const r = x.riskOnPrice;
+  if (r?.on && r.reason && r.reason !== "BRACKETED") {
+    const step = riskNextStep(r.reason as Parameters<typeof riskNextStep>[0]);
+    if (step) out.RISK_ON_PRICE = { kind: "STEP", words: step.short, note: step.full };
+  }
+  return out;
+}
+
+const capitalise = (t: string) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);

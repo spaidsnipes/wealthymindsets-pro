@@ -76,6 +76,33 @@ export const RISK_REFUSALS: readonly string[] = [
   "FILL — nothing was executed; this is your plan on price",
 ];
 
+/**
+ * THE NEXT STEP for each unbracketed reason (Garden 19 review, Codex
+ * 01a1426c, 2026-10-16: Risk on Price "reporting that no position bracket was
+ * drawn" while the menu said available). One owner: the menu row, the active
+ * tools list and the glass say the same step. `short` is the row chip and the
+ * glass; `full` is the menu / Inspect sentence.
+ */
+export const RISK_NEXT_STEP: Readonly<Record<Exclude<RiskOnPriceVM["reason"], "BRACKETED">, { readonly short: string; readonly full: string }>> = {
+  NO_POSITION_DRAWN: {
+    short: "draw a Long / Short Position",
+    full: "No position is drawn on this chart — Draw › Long / Short Position, place entry, target and stop, and Risk on Price brackets it on the price axis",
+  },
+  NO_STOP_ON_DRAWING: {
+    short: "give the position a stop",
+    full: "The position drawing has no stop — drag its stop handle to the losing side of the entry; nothing is bracketed without one",
+  },
+  STOP_ON_WRONG_SIDE: {
+    short: "move the stop past the entry",
+    full: "The stop sits on the reward side of the entry — drag it below the entry for a long, above it for a short",
+  },
+};
+
+export function riskNextStep(reason: RiskOnPriceVM["reason"] | null | undefined): { readonly short: string; readonly full: string } | null {
+  if (!reason || reason === "BRACKETED") return null;
+  return RISK_NEXT_STEP[reason] ?? null;
+}
+
 const touches = (b: RiskBar, level: number) => b.low <= level && level <= b.high;
 
 export function selectRiskOnPrice(

@@ -613,7 +613,7 @@ import { fusionSourceFor, pickLawfulFusionPair, type FusionSourceInputs } from "
 import { profileEstWord, profileLevelTag } from "@/lib/marketData/viewModels/profileEvidenceWord";
 import { rankPoolsForGlass, type LiquidityLifecycleVM } from "@/lib/marketData/viewModels/selectLiquidityLifecycle";
 import { selectContradiction, type ContradictionInput, type ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
-import { selectRiskOnPrice, planFromDrawing, type PositionPlanInput, type RiskOnPriceVM } from "@/lib/marketData/viewModels/selectRiskOnPrice";
+import { selectRiskOnPrice, planFromDrawing, riskNextStep, type PositionPlanInput, type RiskOnPriceVM } from "@/lib/marketData/viewModels/selectRiskOnPrice";
 import { selectRiskEconomics, snapToTick } from "@/lib/marketData/contractEconomics";
 import { instrumentEconomics } from "@/lib/marketData/contractEconomics";
 import { loadPaperSnapshot, PAPER_KEY } from "@/lib/paperTrade";
@@ -29000,15 +29000,20 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
             // bracketed, the glass says why — including when no position is
             // drawn at all, which used to leave the layer indistinguishable
             // from a broken one.
+            // Garden 19 review (Codex 01a1426c): the silence was a faint 9px
+            // line while the menu said "available". It now names the trader's
+            // NEXT STEP (one owner: riskNextStep) at the market type floor.
+            const stepR = riskNextStep(rv.reason);
             const silentR = !plansR.length
               ? "RISK ON PRICE · no position drawn — Draw › Long / Short Position to bracket its risk"
               : rv.reason === "NO_STOP_ON_DRAWING"
-              ? "RISK ON PRICE · the position drawing has no stop — nothing to bracket"
-              : "RISK ON PRICE · the stop sits on the reward side — not bracketed";
+              ? `RISK ON PRICE · the position drawing has no stop → ${stepR?.short ?? "give it a stop"}`
+              : `RISK ON PRICE · the stop sits on the reward side → ${stepR?.short ?? "move the stop"}`;
             ctx.save();
-            ctx.globalAlpha = att.alpha("riskOnPrice");
-            ctx.font = fontR(700, 9);
-            ctx.fillStyle = "rgba(200,192,174,0.85)";
+            // A named next step is a word the governor lets speak, not a ghost (ON_MEANS_SEEN floor).
+            ctx.globalAlpha = Math.max(0.85, att.alpha("riskOnPrice"));
+            ctx.font = marketFont("OBJECT_NAME");
+            ctx.fillStyle = "rgba(232,226,212,0.95)";
             ctx.textAlign = "left"; ctx.textBaseline = "middle";
             const rowY = takeSilenceRow(silentR);
             ctx.fillText(fitSilence(silentR), silenceX, rowY);

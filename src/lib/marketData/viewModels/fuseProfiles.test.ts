@@ -122,7 +122,7 @@ describe("§23 · only a LAWFUL pair fuses — every refusal is named", () => {
     expect(fusionRefusalWords("TIME_OVERLAP")).toContain("counted twice");
     expect(fusionRefusalWords(null)).toBeNull();
     expect(fusionRefusalCaption(["COMPOSITE", "LIVING"], "TIME_OVERLAP"))
-      .toBe("FUSION REFUSED · COMPOSITE + LIVING · parents share bars — their volume would be counted twice");
+      .toBe("FUSION REFUSED · COMPOSITE + LIVING · parents share bars — their volume would be counted twice → pick profiles over separate time");
   });
 
   it("the fused object's caption says DERIVED, names both parents, and carries CANDLE-EST when either parent is estimated", () => {

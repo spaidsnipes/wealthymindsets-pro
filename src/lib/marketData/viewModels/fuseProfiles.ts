@@ -146,6 +146,40 @@ export const FUSION_REFUSAL_WORDS: Readonly<Record<FusionRefusal, string>> = {
   NO_OVERLAP: "price ranges do not overlap",
 };
 
+/**
+ * THE NEXT STEP (Garden 19 review, Codex 01a1426c, 2026-10-16: "Fusion
+ * refusing profiles with mismatched volume units… need clear, readable next
+ * steps instead of a faint message while the menu says available").
+ *
+ * Only the refusals the TRADER can cure by changing the stack carry a step.
+ * Instrument / no volume / no price overlap are facts about the data — no
+ * step is invented for them. `short` rides the glass caption; `full` is the
+ * menu and Inspect sentence.
+ */
+export const FUSION_NEXT_STEP: Readonly<Partial<Record<FusionRefusal, { readonly short: string; readonly full: string }>>> = {
+  NEEDS_TWO_SOURCES: {
+    short: "switch on a second profile",
+    full: "Switch on a second profile (Living, Composite or Visible Range) — fusion adds two drawn profiles",
+  },
+  UNIT_MISMATCH: {
+    short: "fuse two bar-volume profiles",
+    full: "Living is counting tape prints while Composite and Visible Range count bar volume, and the two units cannot be added — fuse Composite with Visible Range, or switch Living off",
+  },
+  WINDOW_UNKNOWN: {
+    short: "fuse two bar-volume profiles",
+    full: "A tape-built Living Profile carries no time window, so double counting cannot be ruled out — fuse Composite with Visible Range",
+  },
+  TIME_OVERLAP: {
+    short: "pick profiles over separate time",
+    full: "The two profiles share bars, so their volume would be counted twice — zoom the camera into the current session so Visible Range and Composite cover separate bars",
+  },
+};
+
+export function fusionNextStep(reason: string | null | undefined): { readonly short: string; readonly full: string } | null {
+  if (!reason) return null;
+  return (FUSION_NEXT_STEP as Record<string, { short: string; full: string }>)[reason] ?? null;
+}
+
 export function fusionRefusalWords(reason: string | null | undefined): string | null {
   if (!reason) return null;
   return (FUSION_REFUSAL_WORDS as Record<string, string>)[reason] ?? reason.replace(/_/g, " ").toLowerCase();
@@ -160,7 +194,8 @@ export function fusedCaption(f: Pick<FusedProfileObject, "sources" | "evidence">
 
 /** A refused pair says so on the glass, with the pair and the reason — never a silent lane. */
 export function fusionRefusalCaption(pair: readonly string[], reason: string): string {
-  return `FUSION REFUSED · ${pair.map(speciesWord).join(" + ")} · ${fusionRefusalWords(reason)}`;
+  const step = fusionNextStep(reason);
+  return `FUSION REFUSED · ${pair.map(speciesWord).join(" + ")} · ${fusionRefusalWords(reason)}${step ? ` → ${step.short}` : ""}`;
 }
 
 /** Smallest positive gap between adjacent distinct row prices (0 when one row). */
