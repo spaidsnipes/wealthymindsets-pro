@@ -4,6 +4,7 @@ import { edgeAllows, tooManyRequests } from "@/lib/edgeRateLimit";
 import { supabaseResendSignup, useSupabase } from "@/lib/auth";
 import { CANONICAL_URL as CONFIGURED_URL } from "@/lib/canonicalUrl";
 import { supabaseConfigStatus, notConfiguredBody } from "@/lib/supabaseConfigStatus";
+import { classifyAuthEmailRefusal } from "@/lib/auth/authEmailRefusal";
 
 export async function POST(req: Request) {
   const { email } = await req.json().catch(() => ({})) as Record<string, string>;
@@ -33,9 +34,18 @@ export async function POST(req: Request) {
   }
 
   try {
-    // Keep the response generic. Supabase enforces its resend cooldown, while
-    // this route avoids disclosing whether a particular account exists.
-    await supabaseResendSignup(normalizedEmail, `${CONFIGURED_URL}/login?confirmed=1`);
+    // Keep the response generic about the PERSON: this route never discloses
+    // whether a particular account exists. But the answer is no longer thrown
+    // away (shift 1106 — friends' login): a refusal by the project's MAIL
+    // SENDER (built-in SMTP limited to org members, or its hourly cap) is a
+    // fact about the project, and saying "sent" over it left friends waiting
+    // for a confirmation mail that never left.
+    const answered = await supabaseResendSignup(normalizedEmail, `${CONFIGURED_URL}/login?confirmed=1`);
+    const refusal = answered && !answered.ok ? classifyAuthEmailRefusal(answered.status ?? 0, answered.data) : null;
+    if (refusal) {
+      console.error(`[resend-confirmation] ${refusal.edge}`);
+      return NextResponse.json({ error: refusal.message, edge: refusal.edge }, { status: refusal.httpStatus });
+    }
   } catch {
     // A generic success response also prevents transport details or account
     // existence from leaking through this public recovery endpoint.

@@ -247,7 +247,7 @@ export async function supabaseResendSignup(email: string, redirectTo?: string) {
     headers: { "Content-Type": "application/json", apikey: SB_KEY() },
     body: JSON.stringify({ email, type: "signup" }),
   });
-  return { ok: res.ok, data: await supabaseJson(res, url) as Record<string, unknown> };
+  return { ok: res.ok, status: res.status, data: await supabaseJson(res, url) as Record<string, unknown> };
 }
 
 /**

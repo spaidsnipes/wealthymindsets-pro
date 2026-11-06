@@ -27,7 +27,7 @@ describe("POST /api/auth/resend-confirmation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedUseSupabase.mockReturnValue(true);
-    mockedResend.mockResolvedValue({ ok: true, data: {} });
+    mockedResend.mockResolvedValue({ ok: true, status: 200, data: {} });
   });
 
   it("normalizes the email and requests the durable confirmation redirect", async () => {

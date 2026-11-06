@@ -17,6 +17,8 @@
  * an empty `identities` array and no email is sent; saying "check your email"
  * there leaves the person waiting for nothing.
  */
+import { classifyAuthEmailRefusal } from "./authEmailRefusal";
+
 export type SignupOutcome =
   | { kind: "SESSION"; user: { id: string; email?: string }; accessToken: string }
   | { kind: "VERIFICATION_REQUIRED"; user: { id: string; email?: string } }
@@ -40,6 +42,9 @@ export function interpretSignupResponse(status: number, data: unknown): SignupOu
 
   if (!user || !str(user.id)) {
     if (!message && !code) return { kind: "MALFORMED" };
+    // The project's MAIL SENDER refused (friends' sign-up, shift 1106) — named, never GoTrue's raw sentence.
+    const mail = classifyAuthEmailRefusal(status, data);
+    if (mail?.kind === "SENDER_RESTRICTED") return { kind: "REJECTED", httpStatus: mail.httpStatus, message: mail.message };
     if (/rate_limit/.test(code) || status === 429) {
       return {
         kind: "REJECTED",
