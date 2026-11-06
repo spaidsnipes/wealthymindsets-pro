@@ -158,7 +158,7 @@ import {
 import { coinbaseProduct, RECENT_TICK_RETENTION, useWebSocket, type LiveFlushListener, type Tick } from "@/hooks/useWebSocket";
 import { trimPrintDedupe } from "@/lib/chart/printDedupe";
 import { chartFeedReading, priceSourceBadge, resolveChartSurfaceBadge } from "@/lib/priceSource";
-import { useProvenSessionClosure } from "@/lib/marketData/useProvenSessionClosure";
+import { useQuoteSessionClosure } from "@/lib/marketData/useProvenSessionClosure";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
 import { selectChartCloseLabel } from "@/lib/marketData/selectChartCloseLabel";
@@ -3661,8 +3661,12 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
   const { liveBar, closedLiveBars, ticker, recentTicks, tapeSource, source, connected, quoteRefusal, lastObservedAtMs } = useWebSocket({ symbol, timeframe, onLiveFlush: liveFlushRef });
   // Canon "CLOSED IS NOT DELAYED" — closure outranks the provider verdict, so
   // the chart chrome cannot claim an active session on a closed one (§8).
-  // `null` until mount and on every weekday: provider labelling is unchanged.
-  const sessionOpen = useProvenSessionClosure(symbol);
+  // THE ROOM'S ONE SESSION OWNER (truth bug 2026-11-05): this read proven
+  // closure while ChartsDashboard's header read the quote session, so on a US
+  // equity's overnight the header said SESSION CLOSED while this strip, its
+  // countdown and the LIVE pill said a bar was forming. Same owner, same feed
+  // evidence now (quoteSessionClosure → overnightFeedCarried).
+  const sessionOpen = useQuoteSessionClosure(symbol, { source, lastObservedAtMs }).sessionOpen;
 
   // ── Tick accumulator: EVERY real executed trade (no synthetic / quote-poll noise) ──
   // Map<barTime, Map<priceRounded, {bid, ask}>>

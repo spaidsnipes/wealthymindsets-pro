@@ -58,7 +58,7 @@ import { quoteRoundIsCurrent } from "@/lib/marketData/quoteSymbolFence";
  * reason.
  */
 import { resolveQuoteDayChange } from "@/lib/marketData/resolveQuoteDayChange";
-import { adoptReferenceClose, tapeOutranksQuote, type HeldReference, type ReferenceRank } from "@/lib/marketData/dayReferenceClose";
+import { adoptReferenceClose, streamOutranksQuotePoll, type HeldReference, type ReferenceRank } from "@/lib/marketData/dayReferenceClose";
 import { tapeProtocolChannel } from "@/lib/marketData/tapeProtocol";
 import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
 
@@ -1856,6 +1856,19 @@ export function useWebSocket({ symbol, timeframe, onLiveFlush }: { symbol: strin
         if (!quoteRoundIsCurrent(symbol, activeSymbolRef.current, disposed)) return;
         if (!answer) return;
         answered = answer.kind !== "refused";
+        // A LIVE STREAM OUTRANKS THE POLL'S REFUSAL, exactly as it outranks the
+        // poll's answer below (truth bug, TSLA 15m, 2026-11-05 23:14 CT). The
+        // IEX quote is refused outside regular hours by calendar; that refusal
+        // is a fact about the POLLED lane, not about the tastytrade prints the
+        // chart is drawing. Attaching it ("QUOTE NOT CERTIFIED — Alpaca's IEX
+        // quote is stale…") beside a live forming bar was one of the three
+        // contradictory voices — and with no signed tape it also zeroed the
+        // live price every poll. The refusal is cleared, never held, while a
+        // stream speaks.
+        if (answer.kind === "refused" && streamOutranksQuotePoll(tastyLiveAtRef.current, tradeHeardAtRef.current, Date.now())) {
+          setState(prev2 => (prev2.quoteRefusal === null ? prev2 : { ...prev2, quoteRefusal: null }));
+          return;
+        }
         if (answer.kind === "refused") {
           // RETRACTION, not omission. Every price consumer in this codebase
           // already spells "I have no price" as `price > 0` being false —
@@ -1890,7 +1903,7 @@ export function useWebSocket({ symbol, timeframe, onLiveFlush }: { symbol: strin
         // …and so does ANY live trade tape (Coinbase, Binance, Finnhub): the
         // poll's price is older than the prints, and printing it between them
         // was the header flicker (BTC 5m, 2026-10-24: 80739.71 ↔ 80860.01).
-        if ((tastyLiveAtRef.current != null && Date.now() - tastyLiveAtRef.current < 15_000) || tapeOutranksQuote(tradeHeardAtRef.current, Date.now())) {
+        if (streamOutranksQuotePoll(tastyLiveAtRef.current, tradeHeardAtRef.current, Date.now())) {
           if (q.hasReferenceClose && Number.isFinite(q.change)) { prevCloseRef.current = adoptReference(q.price - q.change, "VENDOR"); republishDayChange(); }
           setState(prev2 => ({ ...prev2, quoteRefusal: null }));
           return;

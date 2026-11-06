@@ -77,3 +77,18 @@ export function changeFromReference(price: number, held: HeldReference | null): 
 export function tapeOutranksQuote(tapeHeardAtMs: number | null, nowMs: number): boolean {
   return tapeHeardAtMs != null && tapeHeardAtMs > 0 && nowMs - tapeHeardAtMs < TAPE_OUTRANKS_QUOTE_MS;
 }
+
+/** How long a tastytrade stream event keeps the polled quote lane from speaking. */
+export const TASTY_STREAM_OUTRANKS_POLL_MS = 15_000;
+
+/**
+ * ONE RULE FOR BOTH OUTCOMES OF A QUOTE POLL (2026-11-05): while the tastytrade
+ * stream or a live trade tape is speaking, the poll's ANSWER may not move the
+ * price and its REFUSAL may not retract it or explain it. The answer arm had
+ * this rule; the refusal arm did not, so "QUOTE NOT CERTIFIED — IEX stale"
+ * stood beside a live forming bar. PURE.
+ */
+export function streamOutranksQuotePoll(tastyLiveAtMs: number | null, tapeHeardAtMs: number | null, nowMs: number): boolean {
+  const tasty = tastyLiveAtMs != null && tastyLiveAtMs > 0 && nowMs - tastyLiveAtMs >= 0 && nowMs - tastyLiveAtMs < TASTY_STREAM_OUTRANKS_POLL_MS;
+  return tasty || tapeOutranksQuote(tapeHeardAtMs, nowMs);
+}

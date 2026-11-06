@@ -369,7 +369,7 @@ function CommandDeckInner() {
   const sessionOpen = useProvenSessionClosure(symbol);
   // The quote feed's session (night shift 2026-10-07) — see /charts: a US
   // equity's overnight / weekend tape is quiet by design, never STALE PIPELINE.
-  const quoteSession = useQuoteSessionClosure(symbol);
+  const quoteSession = useQuoteSessionClosure(symbol, { source: wsFeed.source, lastObservedAtMs: wsFeed.lastObservedAtMs });
   // THE DECK'S OWN CANDLES, PUBLISHED.
   //
   // `DeckMarketChart` fetches ~120 real candles from /api/yahoo and, until

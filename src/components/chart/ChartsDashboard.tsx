@@ -171,7 +171,7 @@ import type { MarketFidelityReading } from "@/lib/marketData/marketFidelityAlgeb
 // which accept-site stamp the plaque names, and refuses rather than defaults.
 // The decision rail's Honesty Plaque is fed from here and from nowhere else.
 import { readCanvasHonesty, readCanvasUngraded } from "@/lib/marketData/readCanvasHonesty";
-import { useFeedEvaluationClock, useProvenSessionClosure, useQuoteSessionClosure, useSessionClockDate } from "@/lib/marketData/useProvenSessionClosure";
+import { useFeedEvaluationClock, useQuoteSessionClosure, useSessionClockDate } from "@/lib/marketData/useProvenSessionClosure";
 import { quoteAgeMs, quoteFreshness } from "@/lib/os/osChrome";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
@@ -1761,16 +1761,16 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     if (ticker.price === 0) setTickerOwner(symbol);
   }, [symbol, ticker.price]);
   const optionSpot = identifiedOptionSpot(symbol, tickerOwner, ticker.price);
-  // Canon "CLOSED IS NOT DELAYED" — a proven-closed session outranks the
-  // provider verdict, so the /charts chrome cannot print ACTIVE DEGRADED on a
-  // Saturday. `null` until mount and on every weekday, so provider labelling
-  // is untouched the rest of the time.
-  const sessionOpen = useProvenSessionClosure(symbol);
-  // The QUOTE FEED's session (night shift 2026-10-07): a US equity's overnight
-  // and weekend hours, where our tape is quiet by design, join proven closure
-  // for every grader of the quote feed — masthead, symbol-row badge, capability
-  // report — so a quiet overnight tape never reads STALE PIPELINE.
-  const quoteSession = useQuoteSessionClosure(symbol);
+  // ONE SESSION OWNER FOR THE WHOLE ROOM (truth bug, TSLA 15m, 2026-11-05
+  // 23:14 CT). This room read the QUOTE session (overnight = closed) while
+  // MainChart read PROVEN closure (overnight = unknown), so at night one screen
+  // said SESSION CLOSED — LAST VERIFIED in the header while the chart's own
+  // countdown and pill spoke of a forming bar. Both now read
+  // `useQuoteSessionClosure` with their feed's provider-stamped evidence:
+  // a US equity's overnight hours are closed UNLESS this feed is carrying
+  // overnight prints (see quoteSessionClosure / overnightFeedCarried).
+  const quoteSession = useQuoteSessionClosure(symbol, { source, lastObservedAtMs });
+  const sessionOpen = quoteSession.sessionOpen;
   // Read at component level, never inside the REGIME chip's render callback —
   // a hook called from inside JSX is the React #310 defect. `null` until mount,
   // which is exactly what selectRegimeBadge treats as "no period word yet".

@@ -34,9 +34,16 @@ export function useProvenSessionClosure(symbol: string): false | null {
  * US equity's overnight and weekend hours, where a quiet tape is expected.
  * Same hydration discipline as `useProvenSessionClosure`.
  */
-export function useQuoteSessionClosure(symbol: string): { readonly sessionOpen: false | null; readonly detail: string | null } {
+export function useQuoteSessionClosure(
+  symbol: string,
+  feed?: { readonly source: string | null | undefined; readonly lastObservedAtMs: number | null | undefined } | null,
+): { readonly sessionOpen: false | null; readonly detail: string | null } {
   const now = useSessionClockDate();
-  return quoteSessionClosure(symbol, now);
+  // The feed's evidence is graded on the shared sampled clock (0 until mount,
+  // which overnightFeedCarried reads as "no evidence"), so the chart header,
+  // the chart strip and the deck all answer the session question identically.
+  const feedNow = useFeedEvaluationClock();
+  return quoteSessionClosure(symbol, now, feed ? { source: feed.source, lastObservedAtMs: feed.lastObservedAtMs, nowMs: feedNow } : null);
 }
 
 /**
