@@ -120,7 +120,10 @@ describe("every painting layer has an attention tier", () => {
   });
 
   it("(f) the governor hears the ONE feed verdict — a stale tape demotes the present", () => {
-    expect(CHART).toContain("feedState: feedStateRef.current,");
+    // Held since 2026-11-06 (governorFeedHold.ts): the ONE verdict, through the stale hold, so a re-render on a quiet
+    // tape cannot flip the whole glass to STALE_DIM and back ("blinking lamp").
+    expect(CHART).toContain("const feedHeld = holdGovernorFeed(governorFeedHoldRef.current, feedStateRef.current, Date.now());");
+    expect(CHART).toContain("feedState: governedFeed,");
     expect(CHART).not.toContain("feedState: null,");
     expect(CHART).toMatch(/feedStateRef\.current = candleStatus\.state === "STALE" \? "STALE" : candleStatus\.state === "LIVE" \? "LIVE" : null;/);
   });

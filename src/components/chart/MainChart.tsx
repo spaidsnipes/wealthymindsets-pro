@@ -70,6 +70,7 @@ import { createLongPress } from "@/lib/chart/longPress";
 import { clampBubbleScale, clampWallThickness, footprintNumberPx, lawfulOrderLineLooks, lawfulSettings, volumeInk } from "@/lib/chart/appearanceLaw";
 import { drawingSpeciesAlpha, inksDistinct, layerDialOpacity, layerLineWeight } from "@/lib/chart/appearanceLaw";
 import { speciesInkReading } from "@/lib/chart/speciesInkReading";
+import { holdGovernorFeed, type GovernorFeedHold } from "@/lib/chart/governorFeedHold";
 import { DEFAULT_CHART_SETTINGS, FLOW_COLOR_DEFAULTS, VOLUME_COLOR_PICKER_DEFAULTS } from "./ChartSettingsModal";
 import { currentProofScene, proofCaptureOpen, proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { inspectedBarMark } from "@/lib/chart/inspectedBarMark";
@@ -3455,6 +3456,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
   // reads it: STALE demotes the present to the STALE ceiling; LIVE is LIVE;
   // anything else (delayed, closed, awaiting) is not a claim about freshness.
   const feedStateRef = useRef<"LIVE" | "STALE" | null>(null);
+  const governorFeedHoldRef = useRef<GovernorFeedHold>({ staleSince: null });
   const [freshVer, setFreshVer] = useState(0); // periodic freshness recheck when ticks stop
   useEffect(() => { const t = setInterval(() => setFreshVer(v => v + 1), 10000); return () => clearInterval(t); }, []);
   // Delta Bubble level cap. The legal values, the key, the event name and the
@@ -9178,6 +9180,11 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
           attSelection = { kind: "BUBBLE", key: selectedBubbleKey, onCamera: bub != null && inPlot(bub.x, bub.y), inspecting };
         }
       } catch (err) { layerFault("ATTENTION_FOCUS", err); /* camera mid-transition: no focus this frame */ }
+      // THE GLASS DIMS FOR A STALE TAPE THAT HAS HELD, never per render (P0 2026-11-02 "blinking lamp"; governorFeedHold.ts).
+      const feedHeld = holdGovernorFeed(governorFeedHoldRef.current, feedStateRef.current, Date.now());
+      governorFeedHoldRef.current = feedHeld.hold;
+      const governedFeed = feedHeld.governed;
+      canvas.dataset.governorFeed = `${feedStateRef.current ?? "UNKNOWN"}>${governedFeed ?? "UNKNOWN"}`;
       let att = selectAttentionGovernor({
         density: semanticDensity,
         // The trader's per-tool THICKNESS: the layer about to paint sets the overlay's line weight.
@@ -9201,7 +9208,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
         // The fused object's parents step back — the trader's Pick · Fuse pair,
         // or the pair Profile Fusion fused on its own (the object's sources).
         fusedParents: fusionObjectRef.current ? (stackPrefsRef.current.fusion ?? fusionObjectRef.current.sources.map(s => s.species as StackSpecies)) : [],
-        feedState: feedStateRef.current,
+        feedState: governedFeed,
         selection: attSelection,
         posture: roomPostureRef.current,
         roles: rolesByLayerRef.current,
