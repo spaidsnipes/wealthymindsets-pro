@@ -507,6 +507,7 @@ import { HEAT_SMOKE_LAYER_WEIGHT } from "@/lib/marketData/viewModels/selectHeatL
 import type { LiquidityWeatherVM } from "@/lib/marketData/viewModels/selectLiquidityWeather";
 import { HEAVY_RATIO, selectLiquidityWeatherFromBars } from "@/lib/marketData/viewModels/selectLiquidityWeather";
 import { constrainWeatherLens, weatherLensBarSpan, isWeatherLensBezel, isInsideWeatherLens, LENS_DRAG_SLOP } from "@/lib/chart/weatherLensDrag";
+import { apertureFromPlacement, clearWeatherLensPlacement, lensStore, placementFromAperture, readWeatherLensPlacement, writeWeatherLensPlacement, type WeatherLensPlacement } from "@/lib/chart/weatherLensPlacement";
 import type { EffortMark, EffortMarkVerdict } from "@/lib/marketData/effortMarkGeometry";
 import type { DeltaLevelsGlass } from "@/lib/marketData/viewModels/selectDeltaLevelsGlass";
 import type { LivingProfileGlass } from "@/lib/marketData/viewModels/selectLivingProfileGlass";
@@ -2700,6 +2701,23 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
   weatherApertureReadRef.current = onWeatherApertureRead;
   const weatherPublishedRef = useRef<LiquidityWeatherVM | null>(null);
   const [weatherDetached, setWeatherDetached] = useState(false);
+  /*
+    THE PLACEMENT PERSISTS (shift 1106, weatherLensPlacement): a hand-placed
+    loupe is remembered per symbol as a market point (bar time + price), so a
+    reload, a timeframe switch or a toggle puts it back where the trader left
+    it. Restored on the first frame whose bars hold that point; "Return lens
+    to live" forgets it.
+  */
+  const weatherRestoreRef = useRef<WeatherLensPlacement | null>(null);
+  const persistWeatherApertureRef = useRef<() => void>(() => {});
+  persistWeatherApertureRef.current = () => {
+    const a = weatherApertureRef.current;
+    if (!a) return;
+    const p = placementFromAperture(a, barsRef.current ?? [], String(timeframe));
+    if (p) writeWeatherLensPlacement(lensStore(), String(symbol), p);
+  };
+  const forgetWeatherPlacementRef = useRef<() => void>(() => {});
+  forgetWeatherPlacementRef.current = () => { weatherRestoreRef.current = null; clearWeatherLensPlacement(lensStore(), String(symbol)); };
   useEffect(() => {
     weatherApertureRef.current = null;
     weatherGrabRef.current = null;
@@ -2707,6 +2725,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
     weatherPublishedRef.current = null;
     weatherApertureReadRef.current?.(null);
     setWeatherDetached(false);
+    weatherRestoreRef.current = liquidityWeatherOnChart ? readWeatherLensPlacement(lensStore(), String(symbol)) : null;
   }, [symbol, timeframe, liquidityWeatherOnChart]);
   const weatherSelectedRef = useRef(false);
   weatherSelectedRef.current = weatherSelected;
@@ -7674,6 +7693,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
       e.stopImmediatePropagation();
       nativePointer = null;
       weatherGrabRef.current = null;
+      persistWeatherApertureRef.current();
       if (host.hasPointerCapture(e.pointerId)) host.releasePointerCapture(e.pointerId);
       host.style.cursor = "";
     };
@@ -7693,7 +7713,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
       if (weatherGrabRef.current || (e.type === "touchstart" && isWeatherLensBezel(x, y, hit))) e.stopImmediatePropagation();
     };
     // Put the glass back on the live bars: double-click inside it, or Escape.
-    const toLive = () => { weatherApertureRef.current = null; weatherSampleCacheRef.current = null; setWeatherDetached(false); };
+    const toLive = () => { weatherApertureRef.current = null; weatherSampleCacheRef.current = null; setWeatherDetached(false); forgetWeatherPlacementRef.current(); };
     const dbl = (e: MouseEvent) => {
       if (!mayRunAnalyticalHandler("WEATHER")) return;
       const hit = weatherLensHitRef.current;
@@ -19274,6 +19294,16 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
       ══════════════════════════════════════════════════════════════════════ */
       try {
         let sampledWeather = liquidityWeatherRef.current;
+        // A remembered placement comes back once the bars that hold it are loaded.
+        if (!weatherApertureRef.current && weatherRestoreRef.current && layerOnRef.current.weather && !weatherGrabRef.current) {
+          const restored = apertureFromPlacement(weatherRestoreRef.current, barsRef.current ?? [], String(timeframe));
+          if (restored) {
+            weatherApertureRef.current = restored;
+            weatherRestoreRef.current = null;
+            queueMicrotask(() => setWeatherDetached(true));
+            canvas.dataset.weatherLensRestored = "RESTORED";
+          }
+        }
         const aperture = weatherApertureRef.current;
         if (aperture && layerOnRef.current.weather && !lensFixtureWeatherRef.current) {
           const sourceBars = barsRef.current ?? [];
@@ -33515,24 +33545,30 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
               onPointerUp={e => {
                 e.stopPropagation();
                 weatherGrabRef.current = null;
+                persistWeatherApertureRef.current();
                 if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
                 e.currentTarget.style.cursor = "grab";
               }}
               onPointerCancel={e => { e.stopPropagation(); weatherGrabRef.current = null; e.currentTarget.style.cursor = "grab"; }}
               onLostPointerCapture={() => { weatherGrabRef.current = null; }}
               onClick={e => e.stopPropagation()}
-              onDoubleClick={e => { e.stopPropagation(); weatherApertureRef.current = null; weatherSampleCacheRef.current = null; setWeatherDetached(false); }}
+              onDoubleClick={e => { e.stopPropagation(); weatherApertureRef.current = null; weatherSampleCacheRef.current = null; setWeatherDetached(false); forgetWeatherPlacementRef.current(); }}
               onKeyDown={e => {
                 if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) return;
                 e.preventDefault(); e.stopPropagation();
                 const hit = weatherLensHitRef.current, chart = chartRef.current, series = candleRef.current;
                 if (!hit || !chart || !series) return;
-                const logical = chart.timeScale().coordinateToLogical(hit.cx + (e.key === "ArrowRight" ? 12 : e.key === "ArrowLeft" ? -12 : 0));
-                const price = series.coordinateToPrice(hit.cy + (e.key === "ArrowDown" ? 12 : e.key === "ArrowUp" ? -12 : 0));
-                if (logical != null && price != null) { weatherApertureRef.current = { logical: +logical, price: +price, rx: hit.rx, ry: hit.ry }; setWeatherDetached(true); }
+                // Arrow keys obey the same bounds as the hand (they used to walk the glass off the pane).
+                const host = containerRef.current;
+                let axisK = 60, bottomK = host?.clientHeight ?? 0;
+                try { axisK = chart.priceScale("right").width(); bottomK = (chart as any).paneSize?.(0)?.height ?? bottomK; } catch { /* current plot bounds */ }
+                const c = constrainWeatherLens(hit.cx + (e.key === "ArrowRight" ? 12 : e.key === "ArrowLeft" ? -12 : 0), hit.cy + (e.key === "ArrowDown" ? 12 : e.key === "ArrowUp" ? -12 : 0), hit.rx, hit.ry, (host?.clientWidth ?? 0) - axisK, bottomK, 64);
+                const logical = chart.timeScale().coordinateToLogical(c.x);
+                const price = series.coordinateToPrice(c.y);
+                if (logical != null && price != null) { weatherApertureRef.current = { logical: +logical, price: +price, rx: hit.rx, ry: hit.ry }; setWeatherDetached(true); persistWeatherApertureRef.current(); }
               }}
             >DRAG LENS</button>
-            {weatherDetached && <button type="button" className="hidden md:block" data-weather-lens-control="live" data-analytical-layer="weather-lens" data-testid="weather-lens-live" onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); weatherApertureRef.current = null; weatherSampleCacheRef.current = null; setWeatherDetached(false); }} style={{ position: "absolute", right: 76, bottom: 42, zIndex: 22, color: "#d8cfb8", background: "#17140e", border: "1px solid #9e8245", borderRadius: 10, fontSize: 10, padding: "4px 9px" }}>Return lens to live</button>}
+            {weatherDetached && <button type="button" className="hidden md:block" data-weather-lens-control="live" data-analytical-layer="weather-lens" data-testid="weather-lens-live" onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); weatherApertureRef.current = null; weatherSampleCacheRef.current = null; setWeatherDetached(false); forgetWeatherPlacementRef.current(); }} style={{ position: "absolute", right: 76, bottom: 42, zIndex: 22, color: "#d8cfb8", background: "#17140e", border: "1px solid #9e8245", borderRadius: 10, fontSize: 10, padding: "4px 9px" }}>Return lens to live</button>}
           </>
         )}
         <canvas
