@@ -164,6 +164,7 @@ import LeftSidebar from "./LeftSidebar";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { ANALYTIC_CADENCE_MS, priceIsUnknown, publicationTapeIsEmpty, ticksAreEmpty, useCadencedValue } from "@/hooks/useCadencedValue";
 import { chartFeedReading, resolveChartSurfaceBadge } from "@/lib/priceSource";
+import { derivativesPressureStanding } from "@/lib/marketData/derivativesPressureStanding";
 import { CANONICAL_FIDELITY_LABELS } from "@/lib/marketData/canonicalFidelityLabels";
 import type { MarketFidelityReading } from "@/lib/marketData/marketFidelityAlgebra";
 // THE ONE OWNER of this surface's honesty reading: it performs the sanctioned
@@ -4366,7 +4367,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             : !derivativesPressureVM
               ? "Active · reading options positioning"
               : !derivativesPressureVM.drawn
-                ? derivativesPressureVM.reason === "NO_CHAIN" ? "Unavailable on this feed" : `Active · ${derivativesPressureVM.reason.replace(/_/g, " ").toLowerCase()}`
+                ? derivativesPressureVM.reason === "NO_CHAIN"
+                  // One owner for why (derivativesPressureStanding): "loading" is not "unavailable".
+                  ? `Active · ${derivativesPressureStanding(derivativesReceipt?.edge, symbol).short.toLowerCase()}`
+                  : `Active · ${derivativesPressureVM.reason.replace(/_/g, " ").toLowerCase()}`
                 : derivativesPressureVM.walls.length === 0
                   ? "Active · no current wall event"
                   : `Active · ${derivativesPressureVM.walls.length} wall${derivativesPressureVM.walls.length === 1 ? "" : "s"}`}

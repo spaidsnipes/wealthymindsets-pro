@@ -158,6 +158,7 @@ import {
 import { coinbaseProduct, RECENT_TICK_RETENTION, useWebSocket, type LiveFlushListener, type Tick } from "@/hooks/useWebSocket";
 import { trimPrintDedupe } from "@/lib/chart/printDedupe";
 import { chartFeedReading, priceSourceBadge, resolveChartSurfaceBadge } from "@/lib/priceSource";
+import { derivativesPressureStanding } from "@/lib/marketData/derivativesPressureStanding";
 import { useQuoteSessionClosure } from "@/lib/marketData/useProvenSessionClosure";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
@@ -20611,7 +20612,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
             // owner's own line below already names the reason — a second line here
             // said it twice. This one speaks only where that line cannot.)
             if (wallsOn && dp.drawn && !dp.walls.length) sayBrickWallsSilence("no wall event on this camera");
-            else if (wallsOn && !dp.drawn && !att.speaks("derivativesPressure")) sayBrickWallsSilence(`no options walls here — ${String(dp.reason).toLowerCase().replace(/_/g, " ")}`);
+            else if (wallsOn && !dp.drawn && !att.speaks("derivativesPressure")) sayBrickWallsSilence(dp.reason === "NO_CHAIN" ? derivativesPressureStanding(dp.receipt.replace("PRESSURE:SILENT:", ""), symbol).sentence : `no options walls here — ${String(dp.reason).toLowerCase().replace(/_/g, " ")}`);
             const dpSpeaks = att.speaks("derivativesPressure");
             const tsD = chart.timeScale();
             let axisWD = 60;
@@ -21782,7 +21783,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
             } else if (dpSpeaks) {
               const lensName = fieldOn ? "DERIVATIVES PRESSURE" : "BRICK WALLS";
               const words = dp.reason === "NO_CHAIN"
-                ? `${lensName} · no option positioning for ${symbol} (${dp.receipt.replace("PRESSURE:SILENT:", "").replace(/_/g, " ").toLowerCase()})`
+                ? `${lensName} · ${derivativesPressureStanding(dp.receipt.replace("PRESSURE:SILENT:", ""), symbol).sentence}`
                 : dp.reason === "AFTER_REPLAY_CLOCK"
                   ? `${lensName} · withheld in replay — this positioning was published after the replay clock`
                   : `${lensName} · ${dp.reason.replace(/_/g, " ").toLowerCase()} (${dp.contracts} contracts)`;

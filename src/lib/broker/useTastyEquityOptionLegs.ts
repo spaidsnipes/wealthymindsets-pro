@@ -17,29 +17,44 @@ import { isOwnerRefusal } from "@/lib/broker/ownerRefusal";
 import { owned, readOwned, UNOWNED, type Owned } from "@/lib/marketData/symbolOwned";
 
 export function useTastyEquityOptionLegs(symbol: string, enabled: boolean, price: number | null): readonly Leg[] | null {
+  return useTastyEquityOptionLegsRead(symbol, enabled, price).legs;
+}
+
+/**
+ * The legs AND why there are none (shift 2026-11-05): the owner refusal and
+ * transport failure used to be swallowed here, so a guest's stock chart said
+ * LOADING — rendered as "Unavailable" and "(loading)" — forever.
+ */
+export function useTastyEquityOptionLegsRead(symbol: string, enabled: boolean, price: number | null): { readonly legs: readonly Leg[] | null; readonly edge: string | null } {
   const sym = enabled ? symbol.toUpperCase().replace(/^\^/, "") : "";
   // Stored WITH the symbol they were read for (a switch never prices the
   // previous symbol's chain).
   const key = sym || null;
   const [ownedChain, setOwnedChain] = useState<Owned<FuturesOptionChain>>(UNOWNED);
   const [ownedAnchor, setOwnedAnchor] = useState<Owned<number>>(UNOWNED);
+  const [ownedEdge, setOwnedEdge] = useState<Owned<string>>(UNOWNED);
   const chain = readOwned(ownedChain, key);
   const anchor = readOwned(ownedAnchor, key);
+  const edge = readOwned(ownedEdge, key);
   useEffect(() => {
-    setOwnedChain(UNOWNED); setOwnedAnchor(UNOWNED);
+    setOwnedChain(UNOWNED); setOwnedAnchor(UNOWNED); setOwnedEdge(UNOWNED);
     if (!sym) return;
     let alive = true;
     fetch(`/api/broker/tastytrade/chain?symbol=${encodeURIComponent(sym)}`, { cache: "no-store" })
       .then(async r => ({ status: r.status, j: await r.json().catch(() => null) }))
       .then(({ status, j }) => {
-        if (!alive || isOwnerRefusal(j, status) || j?.state !== "OK") return;
+        if (!alive) return;
+        // Same words as the futures lane (useTastyFuturesPositioning).
+        if (isOwnerRefusal(j, status)) { setOwnedEdge(owned(key, "NEEDS_A_CONNECTED_BROKER")); return; }
+        if (j?.state !== "OK") { setOwnedEdge(owned(key, j?.state === "NOT_CONFIGURED" ? "TASTYTRADE_NOT_CONNECTED" : `CHAIN_${status}`)); return; }
         setOwnedChain(owned(key, readEquityOptionChain(j.data)));
       })
-      .catch(() => { /* no list: Options Flow stays silent for this symbol */ });
+      .catch(() => { if (alive) setOwnedEdge(owned(key, "TRANSPORT")); });
     return () => { alive = false; };
   }, [sym]);
   useEffect(() => { if (chain && price && price > 0 && anchor == null) setOwnedAnchor(owned(key, price)); }, [chain, price, anchor, key]);
-  return useMemo(() => (chain && anchor ? pickPositioningLegs(chain, anchor) : null), [chain, anchor]);
+  const legs = useMemo(() => (chain && anchor ? pickPositioningLegs(chain, anchor) : null), [chain, anchor]);
+  return useMemo(() => ({ legs, edge: edge ?? null }), [legs, edge]);
 }
 
 /**
@@ -51,14 +66,15 @@ export function useTastyEquityOptionLegs(symbol: string, enabled: boolean, price
  * no receipt, said as LOADING / a named edge; never a delayed one.
  */
 export function useTastyEquityPositioning(symbol: string, enabled: boolean, price: number | null): FuturesPositioning | null {
-  const legs = useTastyEquityOptionLegs(symbol, enabled, price);
+  const { legs, edge } = useTastyEquityOptionLegsRead(symbol, enabled, price);
   const streamers = useMemo(() => (legs ?? []).map(l => l.streamer), [legs]);
   const snap = useTastyQuotes(streamers);
   const live = useMemo(() => {
     if (!enabled) return null;
+    if (edge) return { receipt: null, edge };
     if (!legs) return { receipt: null, edge: "LOADING" };
     const p = positioningFromLegs(legs, snap.quotes, symbol, price);
     return p.receipt ? { ...p, receipt: { ...p.receipt, underlying: symbol.toUpperCase().replace(/^\^/, "") } } : p;
-  }, [enabled, legs, snap, symbol, price]);
+  }, [enabled, legs, edge, snap, symbol, price]);
   return useHeldPositioning(live);
 }
