@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { WOW_DOCK_SRC, loadWowDock, shouldLoadWowDock } from "./wowDock";
+import { WOW_DOCK_SRC, loadWowDock, openWowDock, shouldLoadWowDock } from "./wowDock";
 
 describe("WOW dock on WM Pro", () => {
   it("is WOW OS's one dock, never a WM Pro copy", () => {
@@ -10,7 +10,7 @@ describe("WOW dock on WM Pro", () => {
     expect(shouldLoadWowDock({ signedIn: true, checking: true })).toBe(false);
     expect(shouldLoadWowDock({ signedIn: false, checking: false })).toBe(false);
   });
-  it("adds the script once, left corner, above the music bar", () => {
+  it("adds the script once, no floating button, left side above the bottom bars", () => {
     const added: Array<Record<string, string>> = [];
     let present = false;
     const env = {
@@ -23,6 +23,13 @@ describe("WOW dock on WM Pro", () => {
     };
     expect(loadWowDock(env as never)).toBe(true);
     expect(loadWowDock(env as never)).toBe(false);
-    expect(added).toEqual([{ "data-app": "WM Pro", "data-side": "left", "data-bottom": "64", "data-wow-dock-loader": "", src: "https://thewow.online/wow-dock.js" }]);
+    expect(added).toEqual([{ "data-app": "WM Pro", "data-launcher": "none", "data-side": "left", "data-bottom": "64", "data-wow-dock-loader": "", src: "https://thewow.online/wow-dock.js" }]);
+  });
+  it("opens the dock from WM Pro's own menus, or says it could not", () => {
+    const opened: string[] = [];
+    expect(openWowDock("lounge", { WOWDock: { open: (r: string) => opened.push(r) } })).toBe(true);
+    expect(opened).toEqual(["lounge"]);
+    expect(openWowDock("lounge", {})).toBe(false);
+    expect(openWowDock("lounge", undefined)).toBe(false);
   });
 });

@@ -16,6 +16,8 @@ import { Settings as SettingsIcon } from "lucide-react";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 import { WM_DESTINATIONS, type WmDestination } from "@/lib/routing/wmDestinations";
 import { openSettings } from "@/components/layout/shellPanelDoors";
+import { openWowDock } from "@/lib/wow/wowDock";
+import { openWowWorld } from "@/lib/passport/openWowWorld";
 
 interface Tab {
   readonly id: string;
@@ -127,6 +129,16 @@ function MobileMoreSheet({ onClose }: { onClose: () => void }): React.ReactEleme
                 </Link>
               );
             })}
+            {sec.title === "Community" ? (
+              // The shared WOW dock (lib/wow/wowDock.ts) has no floating button on WM Pro — it sat
+              // on the chart's timeframe row at 390px — so the phone opens it from here.
+              <button type="button" className="wm-mobile-more-row" data-testid="mobile-wow-dock-door"
+                onClick={() => { onClose(); if (!openWowDock("lounge")) openWowWorld("/lounge"); }}>
+                <span aria-hidden="true" style={{ width: 20, textAlign: "center", fontWeight: 900, fontSize: 13 }}>W</span>
+                <span className="wm-mobile-more-label">WOW dock · Lounge, Radio, Music, TV</span>
+                <span aria-hidden="true" className="wm-mobile-more-chev">›</span>
+              </button>
+            ) : null}
             {sec.title === "Account" ? (
               // Settings is the shell's drawer, opened where the trader stands (a link to
               // /settings → /charts?settings=open is read only when the shell first mounts).

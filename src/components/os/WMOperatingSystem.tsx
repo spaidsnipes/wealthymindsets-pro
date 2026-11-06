@@ -42,6 +42,7 @@
 
 import { MorningAlignmentDoor } from "@/components/os/MorningAlignmentDoor";
 import { openWowWorld } from "@/lib/passport/openWowWorld";
+import { openWowDock } from "@/lib/wow/wowDock";
 import { ToolsSlot } from "@/components/chart/orderFlowToolsSlot";
 import * as React from "react";
 import { MobileTabBar } from "@/components/mobile/MobileTabBar";
@@ -353,6 +354,30 @@ function WowAcademyDoor(): React.ReactElement {
     >
       <span style={{ ...EYEBROW, color: GOLD }}>WOW Academy ↗</span>
       <span style={{ fontSize: 11, color: MUTED, lineHeight: "15px" }}>A+ Student of the Game, live classrooms, Book Club.</span>
+    </button>
+  );
+}
+
+/**
+ * THE WOW DOCK DOOR (2026-11-06). The shared WOW dock (lib/wow/wowDock.ts) carries no floating
+ * button on WM Pro — it sat on chart controls — so it opens from here: the Lounge, Radio, Music,
+ * TV and your Passport in a side panel, chart still in view. If the dock has not loaded, the
+ * WOW OS Lounge opens in its own tab instead.
+ */
+function WowDockDoor(): React.ReactElement {
+  return (
+    <button
+      type="button"
+      data-testid="os-wow-dock-door"
+      onClick={() => { if (!openWowDock("lounge")) openWowWorld("/lounge"); }}
+      style={{
+        display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2, width: "calc(100% - 20px)",
+        margin: "0 10px 4px", padding: "10px 12px", background: "transparent", cursor: "pointer", textAlign: "left",
+        border: `1px solid ${RULE}`, borderRadius: 2,
+      }}
+    >
+      <span style={{ ...EYEBROW, color: GOLD }}>WOW dock</span>
+      <span style={{ fontSize: 11, color: MUTED, lineHeight: "15px" }}>Lounge, Radio, Music, TV — beside your chart.</span>
     </button>
   );
 }
@@ -2504,6 +2529,7 @@ export function WMOperatingSystem({
                 <RailLink key={d.href} href={d.href} label={d.label} activeHref={activeHref} quiet />
               ))}
               <WowWorldDoor />
+              <WowDockDoor />
               <WowAcademyDoor />
             </>
           )}
