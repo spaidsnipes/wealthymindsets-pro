@@ -11,6 +11,7 @@ import { Toaster } from "react-hot-toast";
 import { ServiceWorkerRegistrar } from "@/components/pwa/ServiceWorkerRegistrar";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { AthosSpaidbotLauncher } from "@/components/spaidbot/AthosSpaidbotLauncher";
+import { WowDockLoader } from "@/components/wow/WowDockLoader";
 import { CANONICAL_URL } from "@/lib/canonicalUrl";
 import { WM_BRAND } from "@/lib/brand/brandCanon";
 
@@ -116,6 +117,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </RadioProvider>
           {/* ATHOS "Ask Spaidbot" — public signed-out doors ONLY (allow-list in lib/spaidbot/athosSpaidbot.ts). */}
           <AthosSpaidbotLauncher />
+          {/* WOW dock — Passport, Lounge, Radio, Music, TV from WOW OS without leaving WM Pro (signed-in only; lib/wow/wowDock.ts). */}
+          <WowDockLoader />
         </AuthProvider>
 
         {/* Toast notifications (above music player bar) */}
