@@ -62,6 +62,26 @@ export function liveBarStartSec(tSec: number, intervalSec: number): number {
 }
 
 /**
+ * THE END OF THE BAR FORMING AT `tSec` — the start of the next one, on the
+ * SAME calendar `liveBarStartSec` keeps (shift 1106 timeframe sweep). The
+ * countdown used `floor(now / sec) * sec + sec`, so the 1W clock counted to an
+ * epoch THURSDAY while the week's bar closes Monday 00:00 UTC; 1M / 1Q counted
+ * 30 / 91 days. One owner for where a bar starts and where it ends.
+ */
+export function liveBarEndSec(tSec: number, intervalSec: number): number {
+  const start = liveBarStartSec(tSec, intervalSec);
+  if (intervalSec === MONTH_SEC) {
+    const d = new Date(start * 1000);
+    return Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1) / 1000;
+  }
+  if (intervalSec === QUARTER_SEC) {
+    const d = new Date(start * 1000);
+    return Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 3, 1) / 1000;
+  }
+  return start + intervalSec;
+}
+
+/**
  * Applies an arrival to the forward-only render bar.
  *
  * This is not historical reconciliation. Events older than the last accepted

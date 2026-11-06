@@ -28,7 +28,7 @@ import { INDICATOR_CONFIG, resolveParams, visibleAtTf, type IndicatorSettings } 
 import { parseExchangeSymbol } from "@/lib/exchanges";
 import { canonicalAssetClass, canonicalInstrumentId, cryptoBaseTicker, marketClockET } from "@/lib/marketData/canonicalIdentity";
 import { DataVersionGuard } from "@/lib/chartContext";
-import { liveBarIsStale, liveBarStartSec, shouldFoldChartLiveBar } from "@/lib/marketData/liveBarPolicy";
+import { liveBarEndSec, liveBarIsStale, liveBarStartSec, shouldFoldChartLiveBar } from "@/lib/marketData/liveBarPolicy";
 import { foldClosedLiveBars, foldFormingBar, liveDespikeApplies } from "@/lib/marketData/liveBarFold";
 import { barsFromPrints } from "@/lib/marketData/printBars";
 /** The parent hears the forming bar at most this often (a new bar: at once). */
@@ -4460,11 +4460,14 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
       }
       const sec = getIntervalSec(timeframe);
       const now = Date.now() / 1000;
-      const remaining = Math.floor(now / sec) * sec + sec - now;
+      // One bar owner (shift 1106): the 1W clock counted to an epoch Thursday on the raw floor.
+      const barEnd = liveBarEndSec(now, sec);
+      const remaining = barEnd - now;
+      const span = barEnd - liveBarStartSec(now, sec);
       const c = chartBarCountdown(remaining, sec, f.live, f.label, f.closed);
       countdownRef.current = c.kind === "MARKET_CLOSED" ? "" : c.glyph;
       closeFlashRef.current = c.closing;
-      progressRef.current = Math.max(0, Math.min(1, 1 - remaining / sec));
+      progressRef.current = Math.max(0, Math.min(1, 1 - remaining / span));
       const el = countdownGlyphRef.current;
       if (el && el.textContent !== c.glyph) el.textContent = c.glyph;
     }, 250);
@@ -4477,8 +4480,8 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
 
     const tick = () => {
       const now       = Date.now() / 1000;
-      const barStart  = Math.floor(now / sec) * sec;
-      const barEnd    = barStart + sec;
+      const barStart  = liveBarStartSec(now, sec);
+      const barEnd    = liveBarEndSec(now, sec);
       const remaining = barEnd - now;
       setRemainingSec(remaining);
       // TICK BARS have no interval: the span the recency reading measures is
@@ -4489,7 +4492,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
       const tickLastT = tickBuilderRef.current && barsRef.current.length ? Number(barsRef.current[barsRef.current.length - 1].time) : null;
       setIntervalSec(tickLastT != null && Number.isFinite(tickLastT) ? Math.max(1, Math.ceil(now - tickLastT) + 1) : sec);
       setNowMs(now * 1000);
-      progressRef.current = Math.max(0, Math.min(1, (now - barStart) / sec));
+      progressRef.current = Math.max(0, Math.min(1, (now - barStart) / Math.max(1, barEnd - barStart)));
     };
 
     tick();
