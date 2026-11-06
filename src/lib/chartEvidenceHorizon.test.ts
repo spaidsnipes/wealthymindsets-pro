@@ -10,16 +10,13 @@ const chart = fs.readFileSync(
   path.join(process.cwd(), "src/components/chart/MainChart.tsx"),
   "utf8",
 );
-const vault = fs.readFileSync(
-  path.join(process.cwd(), "src/components/chart/NectarVaultChip.tsx"),
-  "utf8",
-);
+// The retained-evidence (Nectar vault) chip left the chart on 2026-11-06 (Founder A-3: "internal").
+// Its CSS seat rules stay harmless; only the live tape chip's horizon is pinned now.
 
 describe("desktop chart evidence horizon", () => {
   it("keeps live and retained evidence on one desktop horizon", () => {
     expect(chart).toContain('className="wm-live-session-chip"');
     expect(chart).toContain('top: 42, left: "50%"');
-    expect(vault).toContain('className="wm-nectar-vault-chip"');
     expect(css).toMatch(
       /@media \(min-width: 1024px\)[\s\S]*?\.wm-nectar-vault-chip\s*\{[\s\S]*?top: 42px !important;/,
     );
@@ -29,7 +26,6 @@ describe("desktop chart evidence horizon", () => {
   });
 
   it("retires both persistent desktop card shells without removing either owner", () => {
-    expect(vault).toContain('className="wm-nectar-vault-chip__summary"');
     const desktop = css.match(/@media \(min-width: 1024px\)\s*\{[\s\S]*?\n\}/)?.[0] ?? "";
     expect(desktop).toMatch(/\.wm-live-session-chip\s*\{[\s\S]*?border: 0 !important;/);
     expect(desktop).toMatch(/\.wm-live-session-chip\s*\{[\s\S]*?box-shadow: none !important;/);
@@ -45,7 +41,5 @@ describe("desktop chart evidence horizon", () => {
 
   it("preserves both canonical evidence owners", () => {
     expect(chart).toContain("getSessionNectarSnapshot()");
-    expect(vault).toContain("getKnownSessionSymbols()");
-    expect(vault).toContain("subscribeSessionSymbolStore");
   });
 });

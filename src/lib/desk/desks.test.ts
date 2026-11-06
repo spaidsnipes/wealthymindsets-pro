@@ -103,6 +103,7 @@ describe("one evidence chip per desk, not per screen (2026-10-01)", () => {
     const shell = readFileSync2("src/components/desk/DeskShell.tsx", "utf8");
     expect(shell).toContain("<MainChart showEvidenceVault={false}");
     const chart = readFileSync2("src/components/chart/MainChart.tsx", "utf8");
-    expect(chart).toContain("{showEvidenceVault ? <NectarVaultChip activeSymbol={normalizeSym(symbol)} /> : null}");
+    // Since 2026-11-06 no chart mounts it at all (Nectar is internal — cleanGlass.test.ts).
+    expect(chart).not.toContain("<NectarVaultChip");
   });
 });

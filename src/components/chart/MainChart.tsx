@@ -730,7 +730,7 @@ import type { VpColumnAttempt, VpColumnGeometry, VpDeclineReason } from "@/lib/v
 import type { DrawingStyle, LogicalPt, DrawStyle, ChartDrawing } from "@/types/chart";
 import { DEFAULT_DRAWING_STYLE } from "@/types/chart";
 import { showAlertToast } from "./AlertsPanel";
-import { NectarVaultChip } from "./NectarVaultChip";
+import { paintsOnGlass } from "@/lib/chart/cleanGlass";
 
 /* ── Types ─────────────────────────────────────────────── */
 /*
@@ -14332,7 +14332,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
       // speaks only in Delta / Aggressive-Passive, which carry no seam.
       const fpModeH = (canvas.dataset.footprint ?? "").split(":")[0];
       const seamOwnsTape = fpModeH !== "delta" && fpModeH !== "aggressive-passive";
-      try { if (horizon && horizon.sym === symbol && footprintEnabled && !seamOwnsTape && att.paints("tapeHorizon")) {
+      try { if (horizon && horizon.sym === symbol && footprintEnabled && !seamOwnsTape && att.paints("tapeHorizon") && paintsOnGlass("NECTAR_HORIZON")) {
         try {
           const horizonBarSec = tapeHorizonBarStart(horizon.startedAtSec, getIntervalSec(timeframe));
           const xRaw = chart.timeScale().timeToCoordinate(horizonBarSec as any);
@@ -29268,8 +29268,10 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
             for (let hx = hx0 - (bot - top); hx < bx; hx += 9) { ctx.beginPath(); ctx.moveTo(hx, bot); ctx.lineTo(hx + (bot - top), top); ctx.stroke(); }
             ctx.restore();
             ctx.save();
-            ctx.strokeStyle = "rgba(212,175,55,0.8)"; ctx.lineWidth = 1.25; ctx.setLineDash([5, 4]);
-            ctx.beginPath(); ctx.moveTo(bx + 0.5, top); ctx.lineTo(bx + 0.5, bot); ctx.stroke(); ctx.setLineDash([]);
+            if (paintsOnGlass("ORDER_FLOW_SEAM_LINE")) {
+              ctx.strokeStyle = "rgba(212,175,55,0.8)"; ctx.lineWidth = 1.25; ctx.setLineDash([5, 4]);
+              ctx.beginPath(); ctx.moveTo(bx + 0.5, top); ctx.lineTo(bx + 0.5, bot); ctx.stroke(); ctx.setLineDash([]);
+            }
             ctx.font = `600 13px ${MARKET_SANS}`; ctx.textBaseline = "middle"; ctx.textAlign = "left";
             const seamChip = (text: string, x: number, y: number) => {
               const w = Math.ceil(ctx.measureText(text).width) + 18, h = 24;
@@ -29297,61 +29299,19 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
             // once; the chip's words wait until the start has held 15 s.
             const seamNow = Date.now();
             if (seamStartRef.current.t !== firstSided.t) seamStartRef.current = { t: firstSided.t, since: seamNow };
+            // CLEAN GLASS (Founder A-3 2026-11-02, "Order Flow from 7 p.m. … why that shit there"): the chip's words left the
+            // glass; the start is stated in canvas.dataset.tapeCoverage below. The hatch above still marks the bar-totals side.
             if (seamNow - seamStartRef.current.since >= 15_000) {
-              seamChip(`Order flow from ${new Date(firstSided.t * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`, bx + 8, top + 8);
+              if (paintsOnGlass("ORDER_FLOW_START_WORDS")) seamChip(`Tape from ${new Date(firstSided.t * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`, bx + 8, top + 8);
             } else canvas.dataset.tapeCoverageSettling = "1";
             if (seamNow - seamStartRef.current.since >= 15_000) delete canvas.dataset.tapeCoverageSettling;
             ctx.restore();
             canvas.dataset.tapeCoverageWords = "SEAM";
           } else if (startsInView && firstSided) {
-            const bx = firstSided.x - bsp * 0.6;
-            ctx.save();
-            ctx.strokeStyle = "rgba(200,192,174,0.45)";
-            ctx.setLineDash([3, 4]);
-            ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.moveTo(bx, 28); ctx.lineTo(bx, H - 34); ctx.stroke();
-            ctx.setLineDash([]);
-            const when = new Date(firstSided.t * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
-            const wordsFull = candleSidesT
-              ? `ORDER FLOW FROM ${when} — earlier bars: candle totals`
-              : `ORDER FLOW FROM ${when} — earlier bars: candle totals`;
-            ctx.font = marketFont("OBJECT_NAME");
-            ctx.textBaseline = "bottom";
-            // A phone plot cannot hold the full line (it ran under the price axis, "…earlier bars car"):
-            // the short form keeps the same truth words (BAR TOTALS ONLY / CARRY NONE).
-            // Phone (serving 8075518 at 375px): even the short form ran past the plot ("… BAR TOTALS ON").
-            // Shorter forms keep the same truth; the dashed seam itself marks where the tape begins.
-            const whenShort = new Date(firstSided.t * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-            const words = [
-              wordsFull,
-              `ORDER FLOW FROM ${when}`,
-              candleSidesT ? `TAPE ${whenShort} · TOTALS BEFORE` : `TAPE ${whenShort} · NONE BEFORE`,
-              `FLOW FROM ${whenShort}`,
-            ].find(w => ctx.measureText(w).width <= plotRight - 12) ?? `FLOW FROM ${whenShort}`;
-            const tw = ctx.measureText(words).width;
-            // Clamped to the PLOT, not the canvas: the canvas runs under the price axis.
-            const tx = Math.max(6, Math.min(bx - tw - 6, plotRight - tw - 6));
-            // ITS ROW MAY BE TAKEN (serving NQ1! saved view at 1180, 16f363a:
-            // this line printed over "VAL EST" / "POC EST" and a price on the
-            // foot row). It steps up a row at a time past the chips and words
-            // already there; with no free row it is said in the silence stack.
-            const tapeBusy = [...floatingChips, ...wordGate.rects()];
-            const tapeRow = [0, 1, 2, 3].map(k => H - 50 - k * 16).find(y0 => !tapeBusy.some(q => tx - 3 < q.x + q.w && tx + tw + 3 > q.x && y0 < q.y + q.h && y0 + 14 > q.y));
-            if (tapeRow === undefined) {
-              const yS = takeSilenceRow(words);
-              ctx.fillStyle = "rgba(200,192,174,0.85)"; ctx.textBaseline = "middle";
-              ctx.fillText(fitSilence(words), silenceX, yS);
-              if (yS > 0) floatingChips.push({ x: silenceX, y: yS - 7, w: tw, h: 14 });
-              canvas.dataset.tapeCoverageWords = "SILENCE_STACK";
-            } else {
-            ctx.fillStyle = "rgba(11,10,8,0.82)";
-            if (chipBox(words, { x: tx - 3, y: tapeRow, w: tw + 6, h: 14 })) ctx.fillRect(tx - 3, tapeRow, tw + 6, 14);
-            ctx.fillStyle = "rgba(200,192,174,0.92)";
-            ctx.fillText(words, tx, tapeRow + 13);
-            floatingChips.push({ x: tx - 3, y: tapeRow, w: tw + 6, h: 14 });
-            canvas.dataset.tapeCoverageWords = `ROW:${Math.round((H - 50 - tapeRow) / 16)}`;
-            }
-            ctx.restore();
+            // CLEAN GLASS (Founder A-3 2026-11-02: "Order Flow from 7 p.m. CST, early bars … why that shit there"): the
+            // dashed seam and its "ORDER FLOW FROM … — earlier bars" row left the side of the chart. Where the tape begins
+            // is stated below in canvas.dataset.tapeCoverage; the bars before it carry no cells, which says the same.
+            canvas.dataset.tapeCoverageWords = paintsOnGlass("ORDER_FLOW_START_WORDS") ? "ROW" : "OFF_GLASS";
           }
           canvas.dataset.tapeCoverage = firstSided
             ? `FROM:${firstSided.t}|SIDED_BARS:${sidedBars}|${startsInView ? "STARTS_IN_VIEW" : "COVERS_VIEW"}`
@@ -33420,9 +33380,9 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
           );
         })()}
 
-        {/* Retained evidence stays reachable without laying a persistent data
-            strip across price action. The disclosure opens only on intent. */}
-        {showEvidenceVault ? <NectarVaultChip activeSymbol={normalizeSym(symbol)} /> : null}
+        {/* CLEAN GLASS (Founder A-3 2026-11-02: "why it says four symbols … Nectar … That's something that's internal"):
+            the retained-evidence chip is off the chart for every viewer (paintsOnGlass("NECTAR_VAULT_CHIP") is false).
+            The Vault room (/nectar) still holds it. `showEvidenceVault` stays an accepted prop so callers need no change. */}
 
         {/* ── Big-Trade comic speech-bubble tooltip (🫧 hover) ─────── */}
         {bubbleTip && (() => {

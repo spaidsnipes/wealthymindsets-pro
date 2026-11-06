@@ -307,7 +307,7 @@ const RAW_CENSUS: readonly CensusEntry[] = [
 
   // ── INTERNAL ORGANS (registry §B — never a consumer room) ──────────────
   { id: "F02", name: "Hive / Nectar", family: "F02 Hive", status: "INTERNAL", owner: "src/app/nectar/page.tsx", surface: route("/nectar"), plate: null },
-  { id: "F25", name: "Vault continuity", family: "F25 Vault", status: "INTERNAL", owner: "src/components/chart/NectarVaultChip.tsx", surface: { kind: "NONE" }, plate: null },
+  { id: "F25", name: "Vault continuity", family: "F25 Vault", status: "INTERNAL", owner: "src/lib/marketData/sessionSymbolStore.ts", surface: { kind: "NONE" }, plate: null }, // its chart chip left the consumer glass (Founder A-3 2026-11-02: "internal")
   { id: "F26", name: "Chaos Gym", family: "F26 internal", status: "INTERNAL", owner: null, surface: { kind: "NONE" }, plate: null },
 ];
 
