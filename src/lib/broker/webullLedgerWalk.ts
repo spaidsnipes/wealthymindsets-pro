@@ -36,6 +36,17 @@ export interface AccountWalk {
   readonly lastYearEmpty: boolean;
   /** With `fromMonth`: the month to continue from, or null when the year is done. */
   readonly nextMonth?: number | null;
+  /**
+   * COMPLETENESS EVIDENCE (shift 2026-11-05, §30). `splits` = windows halved
+   * because they answered SPLIT_AT+ rows. `dayWindowsAtCap` = ONE-DAY windows
+   * that still answered SPLIT_AT+ rows: they cannot be halved further, so they
+   * rest on Webull's cursor, which was measured NOT to recover truncated rows.
+   * A non-zero count means that day may be incomplete — the report says so.
+   * `throttled` = HTTP 429 answers absorbed by the backoff.
+   */
+  readonly splits?: number;
+  readonly dayWindowsAtCap?: readonly string[];
+  readonly throttled?: number;
 }
 
 const ymd = (d: Date) => d.toISOString().slice(0, 10);
@@ -85,7 +96,8 @@ export async function walkWebullHistory(
   const backoff = opts.backoffMs ?? [3_000, 6_000, 12_000, 20_000, 30_000, 45_000];
   const orders: LedgerOrder[] = [];
   const seen = new Set<string>();
-  let windows = 0, pages = 0;
+  let windows = 0, pages = 0, splits = 0, throttled = 0;
+  const dayWindowsAtCap: string[] = [];
 
   const ask = async (s: string, e: string, cursor: string | null) => {
     if (pages >= budget) throw new Stop("PAGE_BUDGET", `Stopped after ${budget} pages.`);
@@ -93,6 +105,7 @@ export async function walkWebullHistory(
     pages++;
     let r = await page(s, e, cursor);
     for (let i = 0; !r.ok && /\b429\b|TOO_MANY/i.test(r.reason ?? "") && i < backoff.length; i++) {
+      throttled++;
       await sleep(backoff[i]);
       r = await page(s, e, cursor);
     }
@@ -118,7 +131,9 @@ export async function walkWebullHistory(
     windows++;
     let payload = await ask(s, e, null);
     const days = Math.round((Date.parse(e) - Date.parse(s)) / 86_400_000);
+    if (rowsOf(payload).length >= SPLIT_AT && days <= 1) dayWindowsAtCap.push(s);
     if (rowsOf(payload).length >= SPLIT_AT && days > 1) {
+      splits++;
       const mid = ymd(new Date(Date.parse(s) + Math.floor(days / 2) * 86_400_000));
       await readWindow(mid, e);
       await readWindow(s, mid);
@@ -165,7 +180,7 @@ export async function walkWebullHistory(
         await opts.cache.put(probeKey, rowsOf(probe).length ? "1" : "0", ymd(end) > ymd(opts.today) ? 600 : 86_400).catch(() => {});
       }
       lastYearEmpty = opts.onlyMonth == null && !resumable && rowsOf(probe).length === 0;
-      if (opts.probeOnly) return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: "YEAR_DONE", reason: null, cachedMonths, lastYearEmpty };
+      if (opts.probeOnly) return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: "YEAR_DONE", reason: null, cachedMonths, lastYearEmpty, splits, dayWindowsAtCap, throttled };
       if (lastYearEmpty) {
         quiet++;
       } else {
@@ -204,21 +219,21 @@ export async function walkWebullHistory(
           }
           mEnd = mStart;
           if (resumable && opts.deadlineAt != null && Date.now() > opts.deadlineAt && ymd(mEnd) > s) {
-            return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: "YEAR_DONE", reason: null, cachedMonths, lastYearEmpty: false, nextMonth: mi + 1 };
+            return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: "YEAR_DONE", reason: null, cachedMonths, lastYearEmpty: false, nextMonth: mi + 1, splits, dayWindowsAtCap, throttled };
           }
         }
-        if (resumable) return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: "YEAR_DONE", reason: null, cachedMonths, lastYearEmpty: false, nextMonth: null };
+        if (resumable) return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: "YEAR_DONE", reason: null, cachedMonths, lastYearEmpty: false, nextMonth: null, splits, dayWindowsAtCap, throttled };
         // Anything the probe saw that the months somehow did not (never expected) still counts.
         take(probe);
       }
       yearsDone++;
-      if (s <= floor) return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: "FLOOR", reason: null, cachedMonths, lastYearEmpty };
-      if (opts.maxYears != null && yearsDone >= opts.maxYears) return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: "YEAR_DONE", reason: null, cachedMonths, lastYearEmpty };
-      if (quiet >= quietNeeded) return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: "QUIET_YEARS", reason: null, cachedMonths, lastYearEmpty };
+      if (s <= floor) return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: "FLOOR", reason: null, cachedMonths, lastYearEmpty, splits, dayWindowsAtCap, throttled };
+      if (opts.maxYears != null && yearsDone >= opts.maxYears) return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: "YEAR_DONE", reason: null, cachedMonths, lastYearEmpty, splits, dayWindowsAtCap, throttled };
+      if (quiet >= quietNeeded) return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: "QUIET_YEARS", reason: null, cachedMonths, lastYearEmpty, splits, dayWindowsAtCap, throttled };
       end = new Date(start);
     }
   } catch (e) {
-    if (e instanceof Stop) return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: e.why, reason: e.detail, cachedMonths, lastYearEmpty };
+    if (e instanceof Stop) return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: e.why, reason: e.detail, cachedMonths, lastYearEmpty, splits, dayWindowsAtCap, throttled };
     throw e;
   }
 }
