@@ -68,7 +68,8 @@ import { GLASS_NAME_MIN_PX, installTypeFloor } from "@/lib/chart/typeFloor";
 import { partitionVolumeIndicators } from "@/lib/chart/volumeIndicatorTruth";
 import { createLongPress } from "@/lib/chart/longPress";
 import { clampBubbleScale, clampWallThickness, footprintNumberPx, lawfulOrderLineLooks, lawfulSettings, volumeInk } from "@/lib/chart/appearanceLaw";
-import { drawingSpeciesAlpha, inksDistinct, lawfulSpeciesInks, layerDialOpacity, layerLineWeight, SPECIES_INK_DEFAULTS } from "@/lib/chart/appearanceLaw";
+import { drawingSpeciesAlpha, inksDistinct, layerDialOpacity, layerLineWeight } from "@/lib/chart/appearanceLaw";
+import { speciesInkReading } from "@/lib/chart/speciesInkReading";
 import { DEFAULT_CHART_SETTINGS, FLOW_COLOR_DEFAULTS, VOLUME_COLOR_PICKER_DEFAULTS } from "./ChartSettingsModal";
 import { currentProofScene, proofCaptureOpen, proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { inspectedBarMark } from "@/lib/chart/inspectedBarMark";
@@ -3662,7 +3663,8 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
           val: val ?? VP_DEFAULT_TRIPLETS.val,
         };
         const pv = vpColorsRef.current.poc;
-        const speciesInks = lawfulSpeciesInks({ ...SPECIES_INK_DEFAULTS, ...((speciesInkSrcRef.current && typeof speciesInkSrcRef.current === "object") ? speciesInkSrcRef.current as Record<string, unknown> : {}) }, {
+        // ONE INK READING (P0 2026-11-02, speciesInkReading.ts): choices first, house defaults only where they do not twin a choice.
+        const speciesInks = speciesInkReading(speciesInkSrcRef.current, {
           field: chartSettingsRef.current?.background ?? MARKET_FIELD_DEFAULT,
           poc: [`rgb(${pv[0]},${pv[1]},${pv[2]})`, `rgb(${PROFILE_INK_AT_REST.rgb("POC")})`],
         }).inks;

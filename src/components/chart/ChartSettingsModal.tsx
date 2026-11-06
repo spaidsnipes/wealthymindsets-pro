@@ -8,8 +8,9 @@ import { motion, AnimatePresence, useDragControls } from "framer-motion";
 import { X, Settings, Info, BarChart2 } from "lucide-react";
 import { DialogBehaviour } from "@/components/ui/DialogFrame";
 import { applyGammaHeatPreset, rgbTripletOf, applyProfilePreset, lawfulOrderLineLooks, ORDER_LINE_ALPHA_FLOOR, PROFILE_PRESET_RED_GREEN, type OrderLineDash } from "@/lib/chart/appearanceLaw";
-import { INVENTION_DIALS, INVENTION_DIAL_LABEL, lawfulInventionOpacity, type InventionDialKey, PROFILE_SPECIES, PROFILE_SPECIES_LABEL, SPECIES_INK_KEYS, lawfulSpeciesInks, lawfulSpeciesOpacity, type ProfileSpeciesKey } from "@/lib/chart/appearanceLaw";
+import { INVENTION_DIALS, INVENTION_DIAL_LABEL, lawfulInventionOpacity, type InventionDialKey, PROFILE_SPECIES, PROFILE_SPECIES_LABEL, SPECIES_INK_KEYS, lawfulSpeciesOpacity, type ProfileSpeciesKey } from "@/lib/chart/appearanceLaw";
 import { PROFILE_INK_AT_REST } from "@/lib/chart/profileFamilyInk";
+import { speciesInkPocs, speciesInkReading } from "@/lib/chart/speciesInkReading";
 
 import {
   CANDLE_DOWN_DEFAULT,
@@ -370,13 +371,15 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
     <AnimatePresence>
       {open && (
         <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+          {/* Backdrop — CLEAR (P0, Founder 2026-11-02: "while adjusting Structure Profile colors, chart indicators …
+              dimmed, became dark, faded behind the chart … covered by a shadow … like a blinking lamp"). This sheet
+              chooses how the chart LOOKS; a 60% black veil measured the chart beside it at 40% of its own luminance
+              (BTC 1m, 2026-11-06), so every colour was judged in the dark and the glass flashed back on close. The
+              backdrop still catches the outside click that closes the sheet; it no longer darkens what is chosen. */}
+          <div
+            data-testid="chart-settings-backdrop"
             onClick={onClose}
-            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 800 }}
+            style={{ position: "fixed", inset: 0, background: "transparent", zIndex: 800 }}
           />
 
           <motion.div
@@ -637,14 +640,15 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                   <details data-profile-species-inks style={{ marginTop: 4 }}>
                     <summary style={{ fontSize: 12, color: "#c0b8a0", cursor: "pointer", minHeight: 32, display: "flex", alignItems: "center" }}>Profile colour · each species</summary>
                     {(() => {
-                      const law = lawfulSpeciesInks(s.profileSpeciesInk, { field: s.background, poc: `rgb(${PROFILE_INK_AT_REST.rgb("POC")})` });
+                      // ONE INK READING with the chart (P0 2026-11-02): a row shows the ink the glass paints, never a stand-in.
+                      const law = speciesInkReading(s.profileSpeciesInk, { field: s.background ?? MARKET_FIELD_DEFAULT, poc: speciesInkPocs(typeof localStorage === "undefined" ? null : localStorage) });
                       const why = { INVALID: "not a colour", FIELD: "too close to the chart background", POC: "too close to the POC", TWIN: "too close to another species" } as const;
                       const restHex = `#${PROFILE_INK_AT_REST.role.VALUE.map(n => n.toString(16).padStart(2, "0")).join("")}`;
                       return (
                         <>
                           {SPECIES_INK_KEYS.map(sp => (
                             <div key={sp} data-species-ink={sp} data-settings-section={`species:${sp}`} className="wm-settings-anchor">
-                              <ColorSwatch value={s.profileSpeciesInk?.[sp] ?? restHex} label={PROFILE_SPECIES_LABEL[sp]}
+                              <ColorSwatch value={s.profileSpeciesInk?.[sp] ?? law.shown[sp] ?? restHex} label={PROFILE_SPECIES_LABEL[sp]}
                                 onChange={v => set({ profileSpeciesInk: { ...(s.profileSpeciesInk ?? {}), [sp]: v } })} />
                               {law.refused[sp] && (
                                 <div role="status" style={{ fontSize: 11, color: "#E0B46A", margin: "-2px 0 4px" }}>
