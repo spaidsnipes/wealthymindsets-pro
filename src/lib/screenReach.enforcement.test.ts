@@ -239,11 +239,6 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
     note:
       "Attached protection (Founder P0, 2026-10-10): the tastytrade OTOCO payload (entry + target + stop, OCO between the exits) and its mapping onto the existing server gate. Unreached ON PURPOSE: no route or component may post a bracket until tastytrade's complex-order dry run is proved on the owner's account, and its own test fails if anything imports it. The ticket meanwhile reads the ledger's BRACKET row (NOT_BUILT) and says attached protection is not available. Delete this entry when the dry-run route imports it.",
   },
-  "src/lib/broker/ledgerCompleteness.ts": {
-    reason: "AWAITING_SURFACE",
-    note:
-      "§30 broker-history import completeness report (shift 2026-11-05): per-account COMPLETE_FOR_WINDOW_READ / INCOMPLETE with named gaps, rows read vs unique, fills with no fill time, fees UNREPORTED, positions held at end, EXECUTED_HISTORY-only (refuses replay / simulation / backtest), Model 1/2 from saved marks or UNAVAILABLE. Proved offline end to end by brokerHistoryImport.e2e.test.ts. Unreached because the Broker Ledger walks month by month through /api/broker/webull/ledger and the route does not yet return the walk's splits / throttled / dayWindowsAtCap, so the page cannot build an AccountWalk to hand it. What a trader loses meanwhile: the page shows the coverage line but not the per-day truncation flag. Delete this entry when WebullLifetimeLedger.tsx renders the report.",
-  },
   "src/lib/broker/BrokerAdapter.ts": {
     reason: "TYPE_ONLY",
     note:

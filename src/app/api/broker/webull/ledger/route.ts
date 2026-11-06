@@ -140,7 +140,12 @@ export async function GET(request: Request): Promise<Response> {
     stoppedBecause: w.stoppedBecause,
     reason: w.reason,
     pages: w.pages,
+    windows: w.windows,
     cachedMonths: w.cachedMonths,
+    // §30 completeness evidence (shift 2026-11-05): read by ledgerCompletenessReport on the page.
+    splits: w.splits ?? 0,
+    throttled: w.throttled ?? 0,
+    dayWindowsAtCap: w.dayWindowsAtCap ?? [],
     orders: w.orders.map(o => ({ ...o, accountId: tail })),
   }, { headers: NO_STORE });
 }

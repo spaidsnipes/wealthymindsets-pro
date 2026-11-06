@@ -12,6 +12,7 @@
  *   · older fills carry no fill time; fees itemised or unstated; ms or ISO times.
  * No network. No broker session. Nothing is written anywhere.
  */
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { SPLIT_AT, walkWebullHistory, type AccountWalk, type HistoryPage } from "./webullLedgerWalk";
 import { ledgerCompletenessReport, EVIDENCE_KIND_LABEL } from "./ledgerCompleteness";
@@ -187,5 +188,22 @@ describe("§30 broker-history import — end to end against the recorded-shape f
     for (const kind of ["REPLAY", "SIMULATION", "BACKTEST"] as const) {
       expect(() => ledgerCompletenessReport({ walks: [], nowMs: NOW.getTime(), savedModelMarks: null, kind })).toThrow(/EXECUTED_HISTORY only/);
     }
+  });
+});
+
+describe("§30 on the screen — the Broker Ledger reads the one report owner", () => {
+  it("the route returns the walk's completeness evidence", () => {
+    const route = readFileSync("src/app/api/broker/webull/ledger/route.ts", "utf8");
+    for (const f of ["splits: w.splits", "throttled: w.throttled", "dayWindowsAtCap: w.dayWindowsAtCap", "windows: w.windows"]) expect(route).toContain(f);
+  });
+  it("WebullLifetimeLedger renders verdict, gaps, duplicates, unreported fees and the Model 1/2 state from ledgerCompletenessReport", () => {
+    const ui = readFileSync("src/components/journal/WebullLifetimeLedger.tsx", "utf8");
+    expect(ui).toContain("ledgerCompletenessReport({");
+    for (const id of ["ledger-completeness", "ledger-completeness-gaps", "ledger-completeness-orders", "ledger-completeness-fills", "ledger-completeness-models"]) expect(ui).toContain(`data-testid="${id}"`);
+    expect(ui).toMatch(/duplicates removed/);
+    expect(ui).toMatch(/fees UNREPORTED \(not \$0\)/);
+    expect(ui).toMatch(/UNAVAILABLE<\/b> — \{r\.models\.why\}/);
+    // Saved marks only — the page reads the trader's own key, nothing else.
+    expect(ui).toContain("parseModels(window.localStorage.getItem(EPISODE_MODELS_KEY))");
   });
 });
