@@ -1,6 +1,6 @@
 "use client";
 
-import { lastSpotRoute, SPOT_ROUTE_EVENT, spotRouteFor, spotRouteNotice } from "@/lib/marketData/spotFuturesRoute";
+import { lastSpotRoute, relatedMarketTag, SPOT_ROUTE_EVENT, spotRouteFor, spotRouteNotice } from "@/lib/marketData/spotFuturesRoute";
 import { nearestLiveZone } from "@/lib/experience/decisionLifecycle";
 import { type InventionVisibility, parseInventionVisibility } from "@/lib/chart/inventionVisibility";
 import { createPortal } from "react-dom";
@@ -2255,14 +2255,16 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [spotNotice, setSpotNotice] = React.useState<string | null>(null);
   // An INVERSE route keeps one quiet tag after the notice steps aside (2026-10-19): "INVERSE OF USDCAD" — the chart
   // moves opposite to the pair the trader asked for, and that fact may not vanish with an 8-second notice.
-  const [spotInverseOf, setSpotInverseOf] = React.useState<string | null>(null);
+  // Shift 1106: every routed future (not only an inverse one) keeps "RELATED MARKET · NOT SPOT <pair>" for as long as it is
+  // on the chart, across reloads — the 8-second notice was the only word, so the substitution went silent.
+  const [spotRelatedTag, setSpotRelatedTag] = React.useState<string | null>(null);
   React.useEffect(() => {
     const read = () => {
       const r = lastSpotRoute();
       const route = r ? spotRouteFor(r.from) : null;
       const routedHere = !!(r && route && r.to === symbol);
       setSpotNotice(routedHere && Date.now() - r!.at < 10 * 60_000 ? spotRouteNotice(r!.from, route!) : null);
-      setSpotInverseOf(routedHere && route!.inverse ? r!.from : null);
+      setSpotRelatedTag(routedHere ? relatedMarketTag(r!.from, route!) : null);
     };
     read();
     window.addEventListener(SPOT_ROUTE_EVENT, read);
@@ -6311,7 +6313,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         <div className="wm-chart-market-summary" style={{ display: "flex", alignItems: "center", gap: 8, marginRight: 16, flexShrink: 0 }}>
           <span style={{ color: "#E2E8F0", fontWeight: 700, fontSize: 14 }}>{symbol}</span>
           {/* Phone only: the chart legend (which carries it on wider glass) is not shown here. */}
-          {spotInverseOf ? <span data-testid="spot-route-inverse-tag" className="sm:hidden rounded border border-wm-gold/50 px-1 text-[13px] font-bold text-wm-gold">INVERSE OF {spotInverseOf}</span> : null}
+          {spotRelatedTag ? <span data-testid="spot-route-related-tag" className="sm:hidden rounded border border-wm-gold/50 px-1 text-[13px] font-bold text-wm-gold">{spotRelatedTag}</span> : null}
           {(() => {
             // Truth guard: header must never paint a change value without a real
             // reference close. Before this, the header would render whatever the
@@ -7807,7 +7809,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       paperTradesVisible={paperTradesOn}
                       onRequestFullscreen={handleRequestFullscreen}
                       showFidelityChrome={false}
-                      identityNote={spotInverseOf ? `INVERSE OF ${spotInverseOf}` : null}
+                      identityNote={spotRelatedTag}
                     />
                     </ErrorBoundary>
                     {/*

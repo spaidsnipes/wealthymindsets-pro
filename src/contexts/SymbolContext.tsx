@@ -1,6 +1,6 @@
 "use client";
 
-import { noteSpotRoute, spotRouteFor } from "@/lib/marketData/spotFuturesRoute";
+import { clearSpotRoute, lastSpotRoute, noteSpotRoute, spotRouteFor } from "@/lib/marketData/spotFuturesRoute";
 import { proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { normalizeMarketSurfaceSymbol } from "@/lib/routing/marketSurfaceQuery";
 import { resolveEnteredSymbol } from "@/lib/marketData/futuresNotation";
@@ -76,7 +76,11 @@ export function deepLinkSymbol(pathname: string, search: string): string | null 
 /** L14 (2026-10-16): a spot pair with no live source opens its CME future, and the chart says so. */
 function routeSpot(sym: string): string {
   const r = spotRouteFor(sym);
-  if (!r) return sym;
+  if (!r) {
+    // Another market chosen: the "related market" provenance ends with it (shift 1106).
+    if (lastSpotRoute()?.to !== sym) clearSpotRoute();
+    return sym;
+  }
   noteSpotRoute(sym, r.future);
   return r.future;
 }
