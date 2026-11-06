@@ -20,6 +20,7 @@ import { readAppSettings, writeAppSettings } from "@/lib/settings/appSettingsSto
 
 import { adoptProofSceneSearch, currentProofScene, parseProofScene, pickNewestClosedBar, pickProofSelectObject, proofSceneHoldsWrites, proofSceneHoldsDecisionTag, proofSceneHoldsZones, proofSceneValue, proofSelectReceipt, proofSelectObjectVerdict, type ProofSelectKind, proofVerifyOnly } from "@/lib/chart/proofScene";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { listenForWatchlist } from "@/lib/os/watchlistDoor";
 import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { repairChartPreferences } from "@/lib/chartPreferenceRepair";
@@ -435,6 +436,8 @@ import { selectGammaExposure, type GammaExposureVM } from "@/lib/marketData/gamm
 import { INDEX_FOR_FUTURES, epochToNyLocal, mappedFuturesRoot, selectIndexFuturesMapping, type IndexFuturesMappingVM } from "@/lib/marketData/viewModels/selectIndexFuturesMapping";
 import { tastyCandleSeconds } from "@/lib/marketData/adapters/tastytradeCandles";
 import { onArmFromSheet, onSheetOpened, onToolChange, SHEET_RETURN_IDLE, type SheetReturnState } from "@/lib/chart/drawGestureSheetReturn";
+import { STANDARD_FALLBACK_TIMEFRAME, inventionSwitchAllowed, inventionsOverCap, timeframeAllowed, upgradeWords } from "@/lib/billing/planEntitlements";
+import { usePlanEntitlements } from "@/lib/billing/usePlanEntitlements";
 // ON-DEMAND PANELS LOAD ON DEMAND (2026-10-04): each mounts only when its
 // door opens, yet all six (~7,500 lines) shipped in /charts' first load —
 // about 1 MB compressed for a guest on a phone. Same components, fetched when
@@ -823,6 +826,25 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     seededUrlTimeframe.current = requested;
     setTimeframe(requested);
   }, [initialTimeframe]);
+
+  /*
+    PLAN GATES (Founder pricing 2026-11-06). The server decides what this member's plan unlocks
+    (GET /api/billing/standing → entitlements; lib/billing/planEntitlements). The $10 plan holds the
+    standard timeframe set and up to 3 inventions at once; Premium unlocks every timeframe and invention.
+    An unknown plan (still reading / read failed) gates nothing. A refused choice says why, once, with
+    the plan that unlocks it — no countdowns, no scarcity.
+  */
+  const planEntitlements = usePlanEntitlements();
+  const [planNotice, setPlanNotice] = useState<string | null>(null);
+  const chooseTimeframe = useCallback((tf: string) => {
+    if (!timeframeAllowed(planEntitlements, tf)) { setPlanNotice(upgradeWords("TIMEFRAME", tf)); return; }
+    setTimeframe(tf);
+  }, [planEntitlements]);
+  useEffect(() => {
+    if (timeframeAllowed(planEntitlements, timeframe)) return;
+    setPlanNotice(upgradeWords("TIMEFRAME", timeframe));
+    setTimeframe(STANDARD_FALLBACK_TIMEFRAME);
+  }, [planEntitlements, timeframe]);
 
   /**
    * B-201 · URL WRITEBACK — the riser records what was actually built on it.
@@ -4164,6 +4186,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   GAMMA_CONCENTRATION: wallsGamma.GAMMA_CONCENTRATION,
   };
   const onProfileMenuToggle = (id: ProfileId) => {
+                  // PLAN GATE: switching one ON past the plan's cap is refused with the plan that unlocks it.
+                  if (!inventionSwitchAllowed(planEntitlements, profileMenuActive, id, !profileMenuActive[id])) { setPlanNotice(upgradeWords("INVENTION_CAP")); return; }
                   if (id === "FIXED_RANGE") setFixedVPActive(v => !v);
                   else if (id === "SESSION") setSessionVPChart(v => !v);
                   else if (id === "ABSORPTION") setAbsorptionAnatomy(v => !v);
@@ -4668,6 +4692,16 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     },
     [],
   );
+
+  // PLAN GATE, AFTER THE FACT: a saved view, a desk, a restored layout or a downgraded plan can hold more
+  // inventions than the plan allows. The first ones in the switch map stay on; the rest are switched off once
+  // and the trader is told why (the same words the refused switch says).
+  const inventionsOverPlan = inventionsOverCap(planEntitlements, profileMenuActive).join(",");
+  useEffect(() => {
+    if (!inventionsOverPlan) return;
+    applyArrangementSwitches(Object.fromEntries(inventionsOverPlan.split(",").map(id => [id, false])) as Partial<Record<ProfileId, boolean>>);
+    setPlanNotice(upgradeWords("INVENTION_CAP"));
+  }, [inventionsOverPlan, applyArrangementSwitches]);
 
   /*
     A LATEST-VALUE REF, NOT A CACHE.
@@ -7540,6 +7574,16 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                           className="shrink-0 rounded px-2" style={{ minHeight: 28, color: "#d4af37", border: "1px solid rgba(212,175,55,0.4)" }}>✕</button>
                       </div>
                     ) : null}
+                    {planNotice ? (
+                      <div data-testid="plan-gate-notice" role="status"
+                        className="absolute left-1/2 top-12 z-[80] flex max-w-[92%] -translate-x-1/2 items-center gap-2 rounded-md border px-3 py-1.5"
+                        style={{ borderColor: "rgba(212,175,55,0.7)", background: "rgba(12,10,8,0.94)", color: "#F3EBDD", font: "500 14px/1.3 ui-sans-serif, system-ui, sans-serif" }}>
+                        <span>{planNotice}</span>
+                        <Link href="/pricing" className="shrink-0 rounded px-2 inline-flex items-center" style={{ minHeight: 44, color: "#d4af37", border: "1px solid rgba(212,175,55,0.4)" }}>See plans</Link>
+                        <button type="button" aria-label="Dismiss" onClick={() => setPlanNotice(null)}
+                          className="shrink-0 rounded px-2" style={{ minHeight: 44, minWidth: 44, color: "#d4af37", border: "1px solid rgba(212,175,55,0.4)" }}>✕</button>
+                      </div>
+                    ) : null}
                     {lensFixture || attentionFixture ? (
                       <div data-testid="lens-fixture-banner" role="status"
                         className="pointer-events-none absolute left-1/2 top-2 z-[80] -translate-x-1/2 rounded-md border border-amber-400/60 bg-black/80 px-3 py-1 text-[11px] font-bold tracking-wide text-amber-200">
@@ -7565,8 +7609,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                          The compare pane below mirrors this same `timeframe`
                          and does not own it, and the 5m/15m panes are pinned to
                          a literal by design — a chip in any of those three
-                         would be a control claiming authority it lacks. */
-                      setTimeframe={setTimeframe}
+                         would be a control claiming authority it lacks.
+                         PLAN GATE (2026-11-06): the chip's choice passes the plan's timeframe gate first. */
+                      setTimeframe={chooseTimeframe}
                       footprintType={footprintType}
                       footprintEnabled={footprintEnabled} bigTradesOverlay={bigTradesSimul && bigTradesOverlay}
                       candleType={candleType}

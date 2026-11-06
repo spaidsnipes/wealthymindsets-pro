@@ -78,7 +78,7 @@ const TIERS: Tier[] = [
       "Priority support & dedicated account manager",
       "Custom referral landing page",
       "Weekly Creator calls (group)",
-      "WM PRO subscription included ($50 value)",
+      "WM PRO subscription included ($30 value)",
     ],
   },
   {

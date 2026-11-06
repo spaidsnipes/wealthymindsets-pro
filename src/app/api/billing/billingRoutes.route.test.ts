@@ -31,7 +31,7 @@ const newKv = () => { const store = new Map<string, string>(); return { store, g
 
 beforeEach(() => {
   vi.resetModules(); vi.unstubAllEnvs();
-  for (const k of ["STRIPE_SECRET_KEY", "WM_STRIPE_WEBHOOK_SECRET", "WM_BILLING_LIVE", "WM_STRIPE_PRICE_APP", "WM_STRIPE_PRICE_PASSPORT", "WM_STRIPE_PRICE_OS", "WM_STRIPE_COUPON_PASSPORT_INTRO", "NEXT_PUBLIC_PASSPORT_PROMO_ENDS"]) vi.stubEnv(k, "");
+  for (const k of ["STRIPE_SECRET_KEY", "WM_STRIPE_WEBHOOK_SECRET", "WM_BILLING_LIVE", "WM_STRIPE_PRICE_APP", "WM_STRIPE_PRICE_PASSPORT", "WM_STRIPE_PRICE_OS", "WM_STRIPE_PRICE_AUTOTRADE", "WM_STRIPE_COUPON_PASSPORT_INTRO", "NEXT_PUBLIC_PASSPORT_PROMO_ENDS"]) vi.stubEnv(k, "");
   mocks.who = { sub: USER, email: EMAIL };
   mocks.kv = newKv();
   sent = []; logs.length = 0;
@@ -52,9 +52,16 @@ const post = (path: string, body: unknown, headers: Record<string, string> = {})
 const checkout = async (body: unknown = { tier: "PASSPORT" }, headers?: Record<string, string>) => (await import("./checkout/route")).POST(post("checkout", body, headers));
 const noSecret = (text: string) => { expect(text).not.toContain(KEY); expect(text).not.toContain(WH); expect(text).not.toMatch(/sk_test_|whsec_|price_passport001|STRIPE_SECRET_KEY|WM_STRIPE/); };
 
+/** The prices this Stripe knows (2026-11-06: checkout reads the tier's price back and refuses any amount but the page's). */
+const PRICE_BOOK: Record<string, number> = { price_app0000001: 1000, price_passport001: 2000, price_auto0000001: 3000, price_os00000001: 5000 };
+const priceAnswer = (s: Sent) => {
+  const id = s.path.slice("prices/".length);
+  return id in PRICE_BOOK ? { body: { id, active: true, currency: "usd", unit_amount: PRICE_BOOK[id], recurring: { interval: "month", interval_count: 1 } } } : { status: 404, body: { error: { type: "invalid_request_error" } } };
+};
 /** A Stripe that knows one customer search answer and returns a session. */
 function stripeWith(o: { tagged?: unknown[]; byEmail?: unknown[]; stored?: unknown; sessionLive?: boolean } = {}) {
   stripe = s => {
+    if (s.method === "GET" && s.path.startsWith("prices/")) return priceAnswer(s);
     if (s.method === "GET" && s.path === "customers/search") return { body: { data: o.tagged ?? [] } };
     if (s.method === "GET" && s.path === "customers") return { body: { data: o.byEmail ?? [] } };
     if (s.method === "GET" && s.path.startsWith("customers/")) return o.stored ? { body: o.stored } : { status: 404, body: { error: { type: "invalid_request_error" } } };
@@ -219,7 +226,7 @@ describe("POST /api/billing/checkout", () => {
     // The second time, the stored id is read back and reused — no search, no create.
     sent = []; stripeWith({ stored: { id: "cus_NEW00001", metadata: { passport_id_ref: USER } } });
     expect((await checkout()).status).toBe(201);
-    expect(sent.map(s => `${s.method} ${s.path}`)).toEqual(["GET customers/cus_NEW00001", "POST checkout/sessions"]);
+    expect(sent.map(s => `${s.method} ${s.path}`)).toEqual(["GET prices/price_passport001", "GET customers/cus_NEW00001", "POST checkout/sessions"]);
   });
 
   it("the session's idempotency key is the member and the tier — not the clock", async () => {
@@ -245,7 +252,7 @@ describe("POST /api/billing/checkout", () => {
   it("a session in the wrong mode is not handed out; Stripe's failure is plain words; no store → nothing sells", async () => {
     configure(); stripeWith({ sessionLive: true });
     expect((await checkout()).status).toBe(503);
-    configure(); stripe = s => (s.path === "checkout/sessions" ? { status: 402, body: { error: { type: "card_error", message: `No such price: 'price_passport001' (key ${KEY})` } } } : s.path === "customers/search" ? { body: { data: [{ id: "cus_PASSPORT1", metadata: { passport_id_ref: USER } }] } } : { body: { data: [] } });
+    configure(); stripe = s => (s.path.startsWith("prices/") ? priceAnswer(s) : s.path === "checkout/sessions" ? { status: 402, body: { error: { type: "card_error", message: `No such price: 'price_passport001' (key ${KEY})` } } } : s.path === "customers/search" ? { body: { data: [{ id: "cus_PASSPORT1", metadata: { passport_id_ref: USER } }] } } : { body: { data: [] } });
     const failed = await checkout();
     expect(failed.status).toBe(502);
     noSecret(await failed.text());
@@ -269,6 +276,22 @@ describe("POST /api/billing/checkout", () => {
     const res = await POST(post("checkout", { tier: "PASSPORT" }));
     expect(res.status).toBe(429);
     expect(res.headers.get("retry-after")).toBeTruthy();
+  });
+
+  it("THE PAGE'S PRICE IS THE CHARGE (2026-11-06): a configured price whose amount is not the page's is refused before any session", async () => {
+    // The retired $50 price wired as the $30 Auto-Trading price → refused; no customer, no session.
+    configure({ WM_STRIPE_PRICE_AUTOTRADE: "price_os00000001" }); stripeWith();
+    const res = await checkout({ tier: "OS" });
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ code: "TIER_NOT_ON_SALE" });
+    expect(sent.map(s => `${s.method} ${s.path}`)).toEqual(["GET prices/price_os00000001"]);
+    // An unreadable price is refused too.
+    sent = []; configure({ WM_STRIPE_PRICE_AUTOTRADE: "price_unknown00001" }); stripeWith();
+    expect((await checkout({ tier: "OS" })).status).toBe(503);
+    expect(sent.some(s => s.path === "checkout/sessions")).toBe(false);
+    // The right $30 price sells.
+    sent = []; configure({ WM_STRIPE_PRICE_AUTOTRADE: "price_auto0000001" }); stripeWith();
+    expect((await checkout({ tier: "OS" })).status).toBe(201);
   });
 });
 
@@ -388,6 +411,19 @@ describe("GET /api/billing/standing and POST /api/billing/portal", () => {
     expect(await (await standing()).json()).toMatchObject({ tier: "FREE", status: null });
   });
 
+  it("standing carries the SERVER's entitlements (Founder pricing 2026-11-06): FREE/APP capped at 3 + standard timeframes; Premium all; the Founders get everything by Passport id", async () => {
+    configure();
+    expect((await (await standing()).json()).entitlements).toEqual({ tier: "FREE", maxActiveInventions: 3, timeframes: "STANDARD", autoTrading: false, grantedBy: "PLAN" });
+    mocks.kv!.store.set(`billing:v1:user:${USER}`, JSON.stringify({ ...ACTIVE, tier: "APP" }));
+    expect((await (await standing()).json()).entitlements).toMatchObject({ tier: "APP", maxActiveInventions: 3, timeframes: "STANDARD", autoTrading: false });
+    mocks.kv!.store.set(`billing:v1:user:${USER}`, JSON.stringify(ACTIVE));
+    expect((await (await standing()).json()).entitlements).toMatchObject({ tier: "PASSPORT", maxActiveInventions: null, timeframes: "ALL", autoTrading: false });
+    mocks.kv!.store.set(`billing:v1:user:${USER}`, JSON.stringify({ ...ACTIVE, tier: "OS" }));
+    expect((await (await standing()).json()).entitlements).toMatchObject({ tier: "OS", maxActiveInventions: null, timeframes: "ALL", autoTrading: true });
+    mocks.who = { sub: "0d77521c-d5fe-41c3-ab24-a9c86221933d", email: "king@wm.test" };
+    expect((await (await standing()).json()).entitlements).toMatchObject({ tier: "OS", autoTrading: true, grantedBy: "FOUNDER" });
+  });
+
   it("standing while NOT configured: FREE, nothing on sale — even with a stored record", async () => {
     mocks.kv!.store.set(`billing:v1:user:${USER}`, JSON.stringify(ACTIVE));
     expect(await (await standing()).json()).toMatchObject({ mode: "NOT_CONFIGURED", tiers: { APP: false, PASSPORT: false, OS: false }, tier: "FREE", status: null });
@@ -433,7 +469,7 @@ describe("the World Pass (owned by WOW OS) on the routes — never sold twice, n
   });
 
   it("checkout refuses a tier the pass already covers — nothing goes to Stripe; OS above it is still sold", async () => {
-    configure({ WM_STRIPE_PRICE_OS: "price_os00000001" });
+    configure({ WM_STRIPE_PRICE_AUTOTRADE: "price_auto0000001" });
     seedPass();
     const res = await checkout({ tier: "PASSPORT" });
     expect(res.status).toBe(409);

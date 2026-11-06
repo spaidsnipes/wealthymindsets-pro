@@ -109,10 +109,11 @@ describe("§57 — every public selling page reads the one story", () => {
 });
 
 describe("pricing stays the Founder's — tiers and prices locked", () => {
-  it("four tiers, $0 / $10 / $20 / $50, names and sale state unchanged", () => {
+  // Founder pricing decision 2026-11-06: only WM Pro's prices changed — the top tier is $30 "WM Pro Auto-Trading" (was $50 "WM Pro OS").
+  it("four tiers, $0 / $10 / $20 / $30, names and sale state unchanged", () => {
     const s = read(PAGES.pricing);
     const tiers = [...s.matchAll(/name: "([^"]+)", price: "(\$\d+)"/g)].map(m => [m[1], m[2]]);
-    expect(tiers).toEqual([["Free · Guest", "$0"], ["WM Pro App · Basic", "$10"], ["WM Pro Premium", "$20"], ["WM Pro OS", "$50"]]);
+    expect(tiers).toEqual([["Free · Guest", "$0"], ["WM Pro App · Basic", "$10"], ["WM Pro Premium", "$20"], ["WM Pro Auto-Trading", "$30"]]);
     expect(s.match(/cta: \{ label: "Not on sale yet" \}/g)?.length).toBe(3);
     expect(s).toContain("Paid plans are not on sale yet.");
   });

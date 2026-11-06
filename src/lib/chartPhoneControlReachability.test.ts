@@ -327,7 +327,10 @@ describe("phone chart control reachability", () => {
     // Exactly one pane owns it. The compare pane mirrors `timeframe` and the
     // 5m/15m panes are pinned to literals; a chip in any of those would claim
     // authority it does not have.
-    expect(dashboard.match(/setTimeframe=\{setTimeframe\}/g)?.length ?? 0).toBe(1);
+    // 2026-11-06 (Founder pricing): the one setter now passes the plan's timeframe gate first (chooseTimeframe →
+    // planEntitlements.timeframeAllowed → setTimeframe). Still exactly one pane is handed it.
+    expect(dashboard.match(/setTimeframe=\{chooseTimeframe\}/g)?.length ?? 0).toBe(1);
+    expect(dashboard.match(/setTimeframe=\{setTimeframe\}/g)?.length ?? 0).toBe(0);
   });
 });
 

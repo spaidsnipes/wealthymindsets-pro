@@ -1,7 +1,9 @@
 /**
  * WM PRO BILLING — THE TIER MAP (Garden 19 Supermax §11; Founder rulings 2026-10-09).
  *
- * Four tiers, as the pricing page states them: $0 / $10 / $20 / $50 a month.
+ * Four tiers, as the pricing page states them: $0 / $10 / $20 / $30 a month (Founder pricing decision
+ * 2026-11-06: only WM Pro's prices changed — the top tier is now $30 "WM Pro Auto-Trading"; what each tier
+ * unlocks is planEntitlements.ts).
  * WM Pro is its own purchasable product on the SAME Stripe account as the
  * Passport / World Pass, with ONE Stripe customer per Passport identity.
  *
@@ -10,7 +12,7 @@
  * whose NAME is fixed here. No variable set → that tier is not on sale.
  *
  * BUNDLES. Owning another product on the account grants no WM Pro tier unless
- * its price id is listed in `BILLING_BUNDLES`. The slot is typed and EMPTY.
+ * its price id is listed in `BILLING_BUNDLES` (today: only WM Pro's own retired $50 OS price).
  * The World Pass is NOT a bundle here: WOW OS owns that record and WM Pro reads
  * it (worldPass.ts / worldPassRead.ts) — Premium if WM Pro is the chosen app,
  * Basic otherwise — never inferred from a Stripe price.
@@ -40,20 +42,27 @@ export const TIER_SPEC: Readonly<Record<BillingTier, TierSpec>> = {
   // Founder 2026-10-24: the ONE World Pass is sold on WOW OS. This tier is "WM Pro Premium" on its own (same
   // price, same Stripe price id, existing subscribers untouched); the id/env stay PASSPORT for those records.
   PASSPORT: { tier: "PASSPORT", name: "WM Pro Premium", monthlyCents: 2_000, priceEnv: "WM_STRIPE_PRICE_PASSPORT", rank: 2 },
-  OS: { tier: "OS", name: "WM Pro OS", monthlyCents: 5_000, priceEnv: "WM_STRIPE_PRICE_OS", rank: 3 },
+  // Founder 2026-11-06: the top tier is $30 "WM Pro Auto-Trading" (was $50 "WM Pro OS"). Tier id stays OS for
+  // existing records. A Stripe price's amount cannot change, so the $30 price reads a NEW env name: until the
+  // Founder creates it, this tier is honestly "Not on sale yet" — a $30 promise is never charged $50.
+  OS: { tier: "OS", name: "WM Pro Auto-Trading", monthlyCents: 3_000, priceEnv: "WM_STRIPE_PRICE_AUTOTRADE", rank: 3 },
 };
 
 /** The $20 / month tier is the standard one (Founder, 2026-10-09). */
 export const STANDARD_TIER: PaidTier = "PASSPORT";
 
-/** A price id from another product on the account that also grants a WM Pro tier. EMPTY until the Founder names one. */
+/** A price id that is not a tier's on-sale price but still grants a WM Pro tier (another product, or a retired WM Pro price). */
 export interface BillingBundle {
   /** Name of the env var holding the OTHER product's Stripe price id. */
   readonly priceEnv: string;
   readonly grants: PaidTier;
   readonly note: string;
 }
-export const BILLING_BUNDLES: readonly BillingBundle[] = [];
+export const BILLING_BUNDLES: readonly BillingBundle[] = [
+  // Not sold any more (archived nowhere — Founder: "archive nothing"): a member already paying the retired $50
+  // OS price keeps the OS tier their subscription events name. Checkout never sells this price.
+  { priceEnv: "WM_STRIPE_PRICE_OS", grants: "OS", note: "retired $50 WM Pro OS price (2026-11-06); existing subscribers keep OS" },
+];
 
 export type BillingEnv = Readonly<Record<string, string | undefined>>;
 

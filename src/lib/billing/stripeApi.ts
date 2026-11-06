@@ -119,3 +119,21 @@ export async function chargeLink(env: BillingEnv, chargeId: string | null, fetch
   const sub = idOf(inv.subscription) ?? idOf(((inv.parent as Record<string, unknown> | undefined)?.subscription_details as Record<string, unknown> | undefined)?.subscription);
   return { subscriptionId: sub, customerId: idOf(got.data.customer), read: true };
 }
+
+/**
+ * THE PAGE'S PRICE IS THE CHARGE (Founder pricing decision 2026-11-06). Before a checkout is created the tier's
+ * configured Stripe price is read back: it must be active, USD, monthly and exactly the amount the pricing page
+ * prints (`TIER_SPEC.monthlyCents`). Anything else — a stale id still pointing at an old amount, an unreadable
+ * price — is refused before Stripe is asked to charge. Returns a short operator reason, or null when it matches.
+ */
+export async function priceMismatch(env: BillingEnv, priceId: string, expectedCents: number, fetchImpl?: FetchLike): Promise<string | null> {
+  const got = await stripeCall(env, `prices/${encodeURIComponent(priceId)}`, { fetchImpl });
+  if (!got.ok) return `price unreadable HTTP ${got.status}`;
+  const p = got.data;
+  const recurring = (p.recurring ?? {}) as Record<string, unknown>;
+  if (p.active !== true) return "price inactive";
+  if (p.currency !== "usd") return "price not USD";
+  if (recurring.interval !== "month" || (recurring.interval_count ?? 1) !== 1) return "price not monthly";
+  if (p.unit_amount !== expectedCents) return `price amount ${String(p.unit_amount)} != page ${expectedCents}`;
+  return null;
+}

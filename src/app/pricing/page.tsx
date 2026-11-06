@@ -10,13 +10,16 @@ import { usePublishOsStanding } from "@/components/os/osStandingContext";
 import { SellingStory } from "@/components/marketing/SellingStory";
 import { PRODUCT_LINE } from "@/lib/marketing/sellingStory";
 import { WORLD_PASS_BUY_URL } from "@/lib/billing/worldPass";
+import { PAY_PER_TRADE, STANDARD_INVENTION_CAP, STANDARD_TIMEFRAMES } from "@/lib/billing/planEntitlements";
 
 // NO OFFERS (Founder 2026-10-30): every plan at its listed price (the rule lives in lib/pricing).
 
 /**
  * PRICING — the Founder's prices (Garden 18 ATHOS order §9, 2026-10-05).
  *
- * Free / $10 / $20 / $50 per month. Each paid tier INCLUDES the one below it —
+ * Free / $10 / $20 / $30 per month (Founder pricing decision 2026-11-06 — only WM Pro's prices changed;
+ * the free Passport sign-in and the World Pass are untouched; what each plan unlocks is the ONE owner
+ * lib/billing/planEntitlements). Each paid tier INCLUDES the one below it —
  * one charge, never stacked. A button that cannot take payment must not look
  * like it can: a paid tier's button is live ONLY when the server says that
  * tier is on sale (GET /api/billing/tiers — a price id is configured and
@@ -31,17 +34,25 @@ const TAP = { display: "inline-flex", alignItems: "center", justifyContent: "cen
 
 type Tier = { id?: PaidTier; name: string; price: string; tagline: string; includes: string[]; limits: string[]; cta: { label: string; href?: string }; worldPassLink?: boolean };
 
+/** The standard clock timeframes, as the $10 card names them (range presets aside). */
+const STANDARD_TF_WORDS = STANDARD_TIMEFRAMES.filter(t => !["3M", "6M", "1Y", "2Y", "5Y"].includes(t)).join(", ");
+
 const TIERS: Tier[] = [
   {
     name: "Free · Guest", price: "$0", tagline: "Look around before you commit to anything.",
-    includes: ["Guest tour and education preview", "Sample data, labelled as simulated", "Public features and a limited safe workspace"],
+    includes: ["Free WOW Passport sign-in — one login for every ATH app", "Guest tour and education preview", "Sample data, labelled as simulated", "Public features and a limited safe workspace"],
     limits: ["No personal account data", "No live execution"],
     cta: { label: "Create a free account", href: "/login?mode=signup" },
   },
   {
     id: "APP", name: "WM Pro App · Basic", price: "$10", tagline: "The chart and workspace, on your own account.",
-    includes: ["WM Pro app access", "Core chart and workspace", "Your saved views and journal on this account"],
-    limits: ["Market-data source and any exchange charges are shown per market", "Capability limits are stated, not hidden"],
+    includes: [
+      "WM Pro app access on your Passport",
+      `Up to ${STANDARD_INVENTION_CAP} inventions on the chart at once`,
+      `Standard timeframes: ${STANDARD_TF_WORDS}`,
+      "Your saved views and journal on this account",
+    ],
+    limits: ["Seconds, trade-count (tick) and custom timeframes are in Premium", "Market-data source and any exchange charges are shown per market"],
     cta: { label: "Not on sale yet" },
   },
   {
@@ -49,10 +60,12 @@ const TIERS: Tier[] = [
     // "WM Pro Premium" on its own — same $20 price, same Stripe price, existing subscribers' billing untouched — and it
     // points to the World Pass so nobody pays $20 twice. Tier id / env stay PASSPORT (existing records).
     id: "PASSPORT", name: "WM Pro Premium", price: "$20",
-    tagline: "WM Pro at Premium, on its own. Want the whole ATH ecosystem too? The World Pass includes this.",
+    tagline: "Every invention and every timeframe. Want the whole ATH ecosystem too? The World Pass includes this.",
     includes: [
       "Everything in WM Pro App — one $20 charge, not $20 + $10",
-      "WM Pro Premium on your account — the same Premium the World Pass gives when WM Pro is your Premium app",
+      `Every invention on the chart at once — no ${STANDARD_INVENTION_CAP}-invention limit`,
+      "Every timeframe: seconds, trade-count (tick) and custom timeframes",
+      "The same Premium the World Pass gives when WM Pro is your Premium app",
     ],
     limits: [
       "WM Pro alone: this is not the World Pass and opens no other app's tier",
@@ -62,9 +75,19 @@ const TIERS: Tier[] = [
     worldPassLink: true,
   },
   {
-    id: "OS", name: "WM Pro OS", price: "$50", tagline: "The full operating system.",
-    includes: ["Everything in WM Pro Premium — one $50 charge, not $50 + $20 + $10", "The supported invention, tool and profile suite", "Decision → Journal → Review learning loop", "Broker connections — in BETA, opening to members as each broker is supported", "SpaidBot analysis with a stated monthly allowance"],
-    limits: ["Not unlimited AI", "Exchange data and broker capabilities depend on your broker and markets", "No autonomous trading — every order is yours to confirm"],
+    // Founder 2026-11-06: $30 (was $50 "WM Pro OS"). Tier id stays OS for existing records.
+    id: "OS", name: "WM Pro Auto-Trading", price: "$30", tagline: "Premium, plus Spaidbot automated trading.",
+    includes: [
+      "Everything in WM Pro Premium — one $30 charge, not $30 + $20 + $10",
+      "Spaidbot automated trading: your strategy, run by the bot",
+      "Built in stages — strategy, then backtest, then paper, then live",
+      "Broker connections — in BETA, opening to members as each broker is supported",
+    ],
+    limits: [
+      "Automated trading is opening in stages; it is not live for members yet",
+      "Live automated orders only after you approve each broker account — your limits and kill switch stay yours",
+      "Exchange data and broker capabilities depend on your broker and markets",
+    ],
     cta: { label: "Not on sale yet" },
   },
 ];
@@ -132,6 +155,7 @@ export default function PricingPage() {
         <p style={{ color: MUTED, fontSize: 15, lineHeight: 1.6, maxWidth: 720, margin: 0 }}>
           Monthly, in US dollars. Each tier includes everything in the one before it — you are charged once, for one tier.
           Whatever your tier, your open positions, protection, working orders and export stay reachable.
+          Sign in with your free WOW Passport — one login for every ATH app; these plans are WM Pro&apos;s own.
         </p>
         {anyOnSale ? (
           <p role="status" data-testid="billing-status" data-mode={sale!.mode} style={{ marginTop: 14, border: `1px solid ${LINE}`, borderRadius: 8, padding: "10px 14px", color: GOLD, fontSize: 13, maxWidth: 720 }}>
@@ -216,6 +240,12 @@ export default function PricingPage() {
             </section>
           ))}
         </div>
+
+        {/* PAY PER TRADE (Founder 2026-11-06): on every paid plan. The amount is his to set — until then this says so. */}
+        <p data-testid="pay-per-trade" style={{ marginTop: 16, border: `1px solid ${LINE}`, borderRadius: 8, padding: "10px 14px", color: INK, fontSize: 13, lineHeight: 1.6, maxWidth: 820 }}>
+          <strong>Pay per trade, on every plan.</strong> When Spaidbot&apos;s automated trades open, each bot-placed trade can also be paid per trade on any paid plan.
+          {PAY_PER_TRADE.amountCents === null ? " The per-trade price is not set yet, and nothing is charged per trade today." : ` $${(PAY_PER_TRADE.amountCents / 100).toFixed(2)} per bot-placed trade.`}
+        </p>
 
         {/* THE WORLD PASS, MADE OBVIOUS (Founder 2026-10-24, final with corrections: the ecosystem pass). */}
         <section data-testid="world-pass-value" aria-label="What the $20 World Pass gets you" style={{ marginTop: 20, padding: "16px 18px", borderRadius: 12, border: `1px solid ${GOLD}`, background: "rgba(201,165,92,0.08)", maxWidth: 820 }}>

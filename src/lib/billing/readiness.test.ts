@@ -15,11 +15,11 @@ const NOW = Date.UTC(2026, 9, 10, 0, 20, 0);
 const kvOf = () => { const m = new Map<string, string>(); return { m, kv: { get: async (k: string) => m.get(k) ?? null, put: async (k: string, v: string) => { m.set(k, v); } } as BillingKv }; };
 
 describe("billingReadiness", () => {
-  it("nothing set: NOT_CONFIGURED, 0 of 6 names, nothing on sale, no webhook, no records — and it says why", () => {
+  it("nothing set: NOT_CONFIGURED, 0 of 7 names (2026-11-06: + the $30 Auto-Trading price name), nothing on sale, no webhook, no records — and it says why", () => {
     const r = billingReadiness({}, { store: "READ", lastWebhook: null, counts: {} }, NOW);
     expect(r.mode).toBe("NOT_CONFIGURED");
-    expect(r.names).toEqual(["STRIPE_SECRET_KEY", "WM_STRIPE_WEBHOOK_SECRET", "WM_BILLING_LIVE", "WM_STRIPE_PRICE_APP", "WM_STRIPE_PRICE_PASSPORT", "WM_STRIPE_PRICE_OS"].map(name => ({ name, present: false })));
-    expect(r.line).toBe("billing: NOT_CONFIGURED — no Stripe secret key is set · 0 of 6 setup names present · nothing on sale · no verified webhook event yet · no billing records");
+    expect(r.names).toEqual(["STRIPE_SECRET_KEY", "WM_STRIPE_WEBHOOK_SECRET", "WM_BILLING_LIVE", "WM_STRIPE_PRICE_APP", "WM_STRIPE_PRICE_PASSPORT", "WM_STRIPE_PRICE_AUTOTRADE", "WM_STRIPE_PRICE_OS"].map(name => ({ name, present: false })));
+    expect(r.line).toBe("billing: NOT_CONFIGURED — no Stripe secret key is set · 0 of 7 setup names present · nothing on sale · no verified webhook event yet · no billing records");
     expect(r.asOf).toBe("2026-10-10T00:20:00.000Z");
   });
 
@@ -28,14 +28,14 @@ describe("billingReadiness", () => {
     const r = billingReadiness(env, { store: "READ", lastWebhook: { atMs: NOW - 60_000, type: "checkout.session.completed", outcome: "ACTIVATED", livemode: false }, counts: { "test:active": 2, "test:none": 1 } }, NOW);
     expect(r.mode).toBe("TEST");
     expect(r.names.filter(n => n.present).map(n => n.name)).toEqual(["STRIPE_SECRET_KEY", "WM_STRIPE_WEBHOOK_SECRET", "WM_STRIPE_PRICE_PASSPORT"]);
-    expect(r.line).toBe("billing: TEST · 3 of 6 setup names present · on sale: PASSPORT · last verified webhook: checkout.session.completed → ACTIVATED · 2 test active, 1 test none");
+    expect(r.line).toBe("billing: TEST · 3 of 7 setup names present · on sale: PASSPORT · last verified webhook: checkout.session.completed → ACTIVATED · 2 test active, 1 test none");
     const text = JSON.stringify(r);
     for (const secret of [KEY, WH, "sk_test_", "whsec_", "price_passport001", "kkkk", "wwww"]) expect(text, secret).not.toContain(secret);
   });
 
   it("each reason nothing sells is said in operator words; a store that is not bound is said", () => {
     expect(billingReadiness({ STRIPE_SECRET_KEY: "sk_live_" + "L".repeat(24), WM_STRIPE_WEBHOOK_SECRET: WH }, { store: "NO_STORE", lastWebhook: null, counts: {} }, NOW).line)
-      .toBe("billing: NOT_CONFIGURED — a LIVE key is set but live billing is not armed · 2 of 6 setup names present · nothing on sale · no verified webhook event yet · record store not bound");
+      .toBe("billing: NOT_CONFIGURED — a LIVE key is set but live billing is not armed · 2 of 7 setup names present · nothing on sale · no verified webhook event yet · record store not bound");
     expect(billingReadiness({ STRIPE_SECRET_KEY: KEY }, { store: "UNREADABLE", lastWebhook: null, counts: {} }, NOW).reason).toBe("no webhook signing secret is set");
   });
 });

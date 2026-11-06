@@ -18,16 +18,18 @@ import { signStripePayload, verifyStripeSignature } from "./webhookSignature";
 
 const read = (f: string) => readFileSync(path.join(process.cwd(), "src/lib/billing", f), "utf8");
 const KEY_TEST = "sk_test_" + "x".repeat(24), KEY_LIVE = "sk_live_" + "y".repeat(24), WH = "whsec_" + "z".repeat(24);
-const PRICES = { WM_STRIPE_PRICE_APP: "price_app0000001", WM_STRIPE_PRICE_PASSPORT: "price_passport001", WM_STRIPE_PRICE_OS: "price_os00000001" };
+// 2026-11-06 (Founder pricing): the $30 Auto-Trading price reads WM_STRIPE_PRICE_AUTOTRADE; WM_STRIPE_PRICE_OS is the retired $50 price.
+const PRICES = { WM_STRIPE_PRICE_APP: "price_app0000001", WM_STRIPE_PRICE_PASSPORT: "price_passport001", WM_STRIPE_PRICE_AUTOTRADE: "price_auto0000001" };
 const ENV = { STRIPE_SECRET_KEY: KEY_TEST, WM_STRIPE_WEBHOOK_SECRET: WH, ...PRICES };
 
 describe("the tier map — the client never chooses a price", () => {
-  it("four tiers at the page's prices; $20 is the standard; each paid tier names ONE env var for its price id", () => {
+  it("four tiers at the page's prices ($0 / $10 / $20 / $30, Founder 2026-11-06); $20 is the standard; each paid tier names ONE env var for its price id", () => {
     expect(Object.values(TIER_SPEC).map(t => [t.tier, t.monthlyCents, t.priceEnv])).toEqual([
-      ["FREE", 0, null], ["APP", 1000, "WM_STRIPE_PRICE_APP"], ["PASSPORT", 2000, "WM_STRIPE_PRICE_PASSPORT"], ["OS", 5000, "WM_STRIPE_PRICE_OS"],
+      ["FREE", 0, null], ["APP", 1000, "WM_STRIPE_PRICE_APP"], ["PASSPORT", 2000, "WM_STRIPE_PRICE_PASSPORT"], ["OS", 3000, "WM_STRIPE_PRICE_AUTOTRADE"],
     ]);
+    expect(TIER_SPEC.OS.name).toBe("WM Pro Auto-Trading");
     expect(STANDARD_TIER).toBe("PASSPORT");
-    expect(billingPriceEnvNames()).toEqual(["WM_STRIPE_PRICE_APP", "WM_STRIPE_PRICE_PASSPORT", "WM_STRIPE_PRICE_OS"]);
+    expect(billingPriceEnvNames()).toEqual(["WM_STRIPE_PRICE_APP", "WM_STRIPE_PRICE_PASSPORT", "WM_STRIPE_PRICE_AUTOTRADE", "WM_STRIPE_PRICE_OS"]);
   });
 
   it("a request names a tier and nothing else: a price id, an amount, FREE or junk is not a tier", () => {
@@ -42,9 +44,12 @@ describe("the tier map — the client never chooses a price", () => {
     for (const junk of ["", "  ", "prod_abc12345", "20", "price_", "https://x", "price_ab cd1234"]) expect(tierPriceId("PASSPORT", { WM_STRIPE_PRICE_PASSPORT: junk }), junk).toBeNull();
   });
 
-  it("only WM Pro's own price ids grant a tier; the bundle slot is typed and EMPTY", () => {
-    expect(BILLING_BUNDLES).toEqual([]);
-    expect(tierForPriceId("price_os00000001", ENV)).toBe("OS");
+  it("only WM Pro's own price ids grant a tier; the one bundle is the retired $50 OS price (existing subscribers keep OS)", () => {
+    expect(BILLING_BUNDLES.map(b => [b.priceEnv, b.grants])).toEqual([["WM_STRIPE_PRICE_OS", "OS"]]);
+    expect(tierForPriceId("price_auto0000001", ENV)).toBe("OS");
+    expect(tierForPriceId("price_os00000001", { ...ENV, WM_STRIPE_PRICE_OS: "price_os00000001" })).toBe("OS");
+    // The retired price is never SOLD: it is not any tier's on-sale price.
+    expect(tiersOnSale({ WM_STRIPE_PRICE_OS: "price_os00000001" })).toEqual([]);
     expect(tierForPriceId("price_worldpass001", ENV)).toBeNull();         // another product on the same account
     expect(tierForPriceId(undefined, ENV)).toBeNull();
   });
@@ -171,7 +176,7 @@ describe("the entitlement reducer", () => {
   });
 
   it("a plan change is read from the subscription's price id — only one of WM Pro's own", () => {
-    const r = reduceBillingEvent(active(), ev({ id: "e2", type: "customer.subscription.updated", createdSec: 2000, subscriptionId: SUB, customerId: CUS, subscriptionStatus: "active", priceId: "price_os00000001" }), ctx).record;
+    const r = reduceBillingEvent(active(), ev({ id: "e2", type: "customer.subscription.updated", createdSec: 2000, subscriptionId: SUB, customerId: CUS, subscriptionStatus: "active", priceId: "price_auto0000001" }), ctx).record;
     expect(r.tier).toBe("OS");
     const unknown = reduceBillingEvent(r, ev({ id: "e3", type: "customer.subscription.updated", createdSec: 3000, subscriptionId: SUB, customerId: CUS, subscriptionStatus: "active", priceId: "price_someoneelse1" }), ctx).record;
     expect(unknown.tier).toBe("OS");

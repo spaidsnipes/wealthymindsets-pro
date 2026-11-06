@@ -76,9 +76,11 @@ describe("1 · APPLY — one desk door, five kinds of desk", () => {
   });
 
   it("the lock is never bypassed: the raw setter bundle is reached only through applyRespectingLocks", () => {
-    // `applyArrangementSwitches(` appears once — inside applyRespectingLocks.
-    // A layout path that called it directly would override a locked lane.
-    expect(DASHBOARD.match(/applyArrangementSwitches\(/g) ?? []).toHaveLength(1);
+    // `applyArrangementSwitches(` appears once inside applyRespectingLocks — a layout path that called it directly
+    // would override a locked lane. 2026-11-06 (Founder pricing): ONE second call is allowed and pinned — the plan
+    // gate's trim, which only ever switches inventions OFF (a plan's cap outranks a lane lock) and is no layout path.
+    expect(DASHBOARD.match(/applyArrangementSwitches\(/g) ?? []).toHaveLength(2);
+    expect(DASHBOARD).toMatch(/if \(!inventionsOverPlan\) return;\s*applyArrangementSwitches\(Object\.fromEntries\(inventionsOverPlan\.split\(","\)\.map\(id => \[id, false\]\)\)/);
     expect(DASHBOARD).toMatch(
       /const applyRespectingLocks = \([^)]*\) =>\s*applyArrangementSwitches\(withoutLocked\(s, profileStackPrefs\)\);/,
     );

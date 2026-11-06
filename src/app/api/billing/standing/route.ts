@@ -8,6 +8,7 @@ import { publicProxyLimit } from "@/lib/publicProxyLimit";
 import { requireAuth } from "@/lib/requireAuth";
 import { combinedTier, worldPassCovers, worldPassTier, WORLD_PASS_BUY_URL } from "@/lib/billing/worldPass";
 import { currentWorldPass } from "@/lib/billing/worldPassRead";
+import { entitlementsFor } from "@/lib/billing/planEntitlements";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,8 @@ export const dynamic = "force-dynamic";
  * the tier their record grants now, its status, when the paid period ends, and
  * which tiers are on sale. A guest is 401. Read only (it may refresh the cached
  * World Pass read from WOW OS; `?worldPass=refresh` — the pricing page — forces it).
+ *
+ * `entitlements` is what that tier unlocks (planEntitlements.ts): invention cap, timeframes, auto-trading.
  *
  * `tier` is what the member HAS: the higher of their own WM Pro tier (`ownTier`) and
  * what their World Pass covers (`worldPass.grants`), never the two added up.
@@ -42,12 +45,16 @@ export async function GET(request: Request) {
   const serverLive = standing.mode === "NOT_CONFIGURED" ? null : standing.live;
   const ownTier = memberTierOf(record, serverLive);
   const grants = worldPassTier(pass, serverLive);
+  const tier = combinedTier(ownTier, grants);
   return NextResponse.json(
     {
       mode: standing.mode,
       tiers,
-      tier: combinedTier(ownTier, grants),
+      tier,
       ownTier,
+      // WHAT THE MEMBER MAY USE (Founder pricing 2026-11-06), decided HERE from the tier above + the member's own
+      // Passport id (Founders / partner grants). The chart obeys this answer; it never names its own tier.
+      entitlements: entitlementsFor({ tier, userId: auth.user.sub, env: process.env }),
       // The one World Pass lives on WOW OS. `paidAlso`: the member also pays WM Pro for a tier the pass covers (cancel it; never stacked).
       worldPass: pass && pass.livemode === serverLive ? { status: pass.status, chosenApp: pass.chosenApp, grants, currentPeriodEnd: pass.currentPeriodEnd, fetchedAt: pass.fetchedAt, paidAlso: worldPassCovers(grants, ownTier) } : null,
       worldPassUrl: WORLD_PASS_BUY_URL,

@@ -4,8 +4,8 @@ import { NextResponse } from "next/server";
 import { billingKv, loadEntitlement, saveEntitlement } from "@/lib/billing/billingStore";
 import { BILLING_PRODUCT, PASSPORT_REF_KEY, emptyEntitlement } from "@/lib/billing/entitlement";
 import { BILLING_NOT_ON_SALE, billingStanding } from "@/lib/billing/standing";
-import { resolveCustomer, stripeCall } from "@/lib/billing/stripeApi";
-import { paidTierByName, tierPriceId } from "@/lib/billing/tiers";
+import { priceMismatch, resolveCustomer, stripeCall } from "@/lib/billing/stripeApi";
+import { TIER_SPEC, paidTierByName, tierPriceId } from "@/lib/billing/tiers";
 import { OFFER_RETIRED, bodyAsksForOffer } from "@/lib/pricing/passportPromo";
 import { requestIsSameOrigin } from "@/lib/broker/credentialProbeGate";
 import { CANONICAL_URL } from "@/lib/canonicalUrl";
@@ -60,6 +60,13 @@ export async function POST(request: Request) {
   // NEVER STACKED WITH THE WORLD PASS: a tier the member's World Pass (WOW OS) already covers is not sold again.
   if (worldPassCovers(worldPassTier(await currentWorldPass(auth.user.sub, kv), standing.live), tier)) {
     return refuse({ error: "You're covered by your World Pass — this plan is already included. Nothing was charged.", code: "COVERED_BY_WORLD_PASS" }, 409);
+  }
+
+  // THE PAGE'S PRICE IS THE CHARGE (2026-11-06): the configured Stripe price must be exactly the listed monthly amount.
+  const mismatch = await priceMismatch(process.env, priceId, TIER_SPEC[tier].monthlyCents);
+  if (mismatch) {
+    console.warn(`[wm:billing] checkout refused tier=${tier} reason=${mismatch}`);
+    return refuse({ error: "That plan is not on sale yet. Nothing was charged.", code: "TIER_NOT_ON_SALE" }, 503);
   }
 
   // ONE customer per Passport identity across the shared account — found before it is ever created.
