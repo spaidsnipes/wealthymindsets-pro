@@ -226,7 +226,13 @@ async function connect() {
   // belongs to the previous identity and must not open a socket now.
   // (A newer identity's subscriber waited behind this connect: it gets its own now.)
   if (asked !== identity) { if (wanted() && !ws && !retryTimer) void connect(); return; }
-  if (status === 403) { emit({ stream: "NOT_OWNER", reason: tok?.error ?? "tastytrade market data belongs to its owner only." }); return; }
+  if (status === 403) {
+    // A member who JUST connected (or re-tested) may be refused while the saved grant reaches the
+    // server (shift 1106 — friends' tastytrade connect): that refusal is a wait, not a verdict.
+    if (memberGrantSettling(Date.now(), grantSettleUntil)) { scheduleRetry(MEMBER_GRANT_SETTLING_WORDS); return; }
+    emit({ stream: "NOT_OWNER", reason: tok?.error ?? "tastytrade market data belongs to its owner only." });
+    return;
+  }
   if (tok?.state === "NOT_CONFIGURED") { emit({ stream: "NOT_CONNECTED", reason: "tastytrade is not connected on this deployment." }); return; }
   if (tok?.state !== "OK" || !tok.token || !tok.dxlinkUrl) { void status; scheduleRetry(tastyStreamReasonWords("TOKEN")); return; }
   if (!wanted()) return;
@@ -465,7 +471,24 @@ const onStore = (l: () => void) => { listeners.add(l); return () => { listeners.
  * the open socket, and ask again for whatever is already subscribed, so a
  * NOT_OWNER stream becomes the member's own (or a member's stream ends).
  */
-export function reopenTastyStream(): void {
+/*
+ * THE GRANT SETTLES (shift 1106 — friends' tastytrade connect, diagnosed from code). A member's grant
+ * is written to Workers KV by the connect POST and read back by quote-token on the very next request.
+ * KV is eventually consistent and caches lookups (a MISS included) for up to 60 s by default, and the
+ * Brokers card's own status GET reads the same key just before the connect. So the first quote-token
+ * after a successful connect can still answer 403 — and this stream used to LATCH that 403 as
+ * NOT_OWNER ("These broker accounts belong to another user") with no retry until a page reload.
+ * After a connect / re-test the 403 is retried with the usual backoff for MEMBER_GRANT_SETTLE_MS.
+ */
+export const MEMBER_GRANT_SETTLE_MS = 75_000;
+export const MEMBER_GRANT_SETTLING_WORDS = "Your tastytrade connection was saved — WM Pro is opening its live feed now.";
+let grantSettleUntil = 0;
+export function memberGrantSettling(nowMs: number, settleUntilMs: number): boolean {
+  return Number.isFinite(nowMs) && nowMs < settleUntilMs;
+}
+
+export function reopenTastyStream(opts?: { readonly grantJustSaved?: boolean }): void {
+  grantSettleUntil = opts?.grantJustSaved ? Date.now() + MEMBER_GRANT_SETTLE_MS : 0;
   dropIdentity();
   if (wanted()) void connect();
   else emit({ stream: "IDLE", reason: null });

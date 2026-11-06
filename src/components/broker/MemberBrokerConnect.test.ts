@@ -36,7 +36,9 @@ describe("member broker doors (Garden 19 §25)", () => {
   });
 
   it("connect/disconnect re-ask the shared stream so the member's OWN feed (and LIVE chip) follows", () => {
-    expect(src.match(/reopenTastyStream\(\)/g)?.length).toBeGreaterThanOrEqual(2);
+    // Shift 1106: connect + re-test open the grant's settle window; disconnect re-asks plainly.
+    expect(src.match(/reopenTastyStream\(\{ grantJustSaved: true \}\)/g)?.length).toBe(2);
+    expect(src.match(/reopenTastyStream\(\)/g)?.length).toBeGreaterThanOrEqual(1);
   });
 
   it("members (GUEST audience) get their own connect card; the owner keeps the deployment wire", () => {
