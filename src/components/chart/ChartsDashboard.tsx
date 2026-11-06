@@ -1,6 +1,6 @@
 "use client";
 
-import { lastSpotRoute, SPOT_ROUTE_EVENT, spotRouteFor, spotRouteNotice } from "@/lib/marketData/spotFuturesRoute";
+import { lastSpotRoute, relatedMarketTag, SPOT_ROUTE_EVENT, spotRouteFor, spotRouteNotice } from "@/lib/marketData/spotFuturesRoute";
 import { nearestLiveZone } from "@/lib/experience/decisionLifecycle";
 import { type InventionVisibility, parseInventionVisibility } from "@/lib/chart/inventionVisibility";
 import { createPortal } from "react-dom";
@@ -63,7 +63,7 @@ import { OrderFlowToolsSlot, ToolsSlot, publishOrderFlowTools, publishToolsSlot 
 import { ChartArrangementBar } from "./ChartArrangementBar";
 // The arrangement compiler, imported for the WORKSPACE door. `ChartArrangementBar`
 // imports the SAME two functions for the Tools door — one owner, two call sites.
-import { selectProfileMenu, profileSpeciesRefusals, type ProfileId } from "@/lib/marketData/viewModels/selectProfileMenu";
+import { selectProfileMenu, profileSpeciesRefusals, profileSpeciesSteps, type ProfileId } from "@/lib/marketData/viewModels/selectProfileMenu";
 import {
   arrangementSwitches,
   captureArrangement,
@@ -164,6 +164,7 @@ import LeftSidebar from "./LeftSidebar";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { ANALYTIC_CADENCE_MS, priceIsUnknown, publicationTapeIsEmpty, ticksAreEmpty, useCadencedValue } from "@/hooks/useCadencedValue";
 import { chartFeedReading, resolveChartSurfaceBadge } from "@/lib/priceSource";
+import { derivativesPressureStanding } from "@/lib/marketData/derivativesPressureStanding";
 import { CANONICAL_FIDELITY_LABELS } from "@/lib/marketData/canonicalFidelityLabels";
 import type { MarketFidelityReading } from "@/lib/marketData/marketFidelityAlgebra";
 // THE ONE OWNER of this surface's honesty reading: it performs the sanctioned
@@ -171,7 +172,7 @@ import type { MarketFidelityReading } from "@/lib/marketData/marketFidelityAlgeb
 // which accept-site stamp the plaque names, and refuses rather than defaults.
 // The decision rail's Honesty Plaque is fed from here and from nowhere else.
 import { readCanvasHonesty, readCanvasUngraded } from "@/lib/marketData/readCanvasHonesty";
-import { useFeedEvaluationClock, useProvenSessionClosure, useQuoteSessionClosure, useSessionClockDate } from "@/lib/marketData/useProvenSessionClosure";
+import { useFeedEvaluationClock, useQuoteSessionClosure, useSessionClockDate } from "@/lib/marketData/useProvenSessionClosure";
 import { quoteAgeMs, quoteFreshness } from "@/lib/os/osChrome";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
@@ -433,6 +434,7 @@ import { anyGammaPart, anyWallsGamma, parseWallsGamma, WALLS_GAMMA_PARTS, type W
 import { selectGammaExposure, type GammaExposureVM } from "@/lib/marketData/gammaExposure";
 import { INDEX_FOR_FUTURES, epochToNyLocal, mappedFuturesRoot, selectIndexFuturesMapping, type IndexFuturesMappingVM } from "@/lib/marketData/viewModels/selectIndexFuturesMapping";
 import { tastyCandleSeconds } from "@/lib/marketData/adapters/tastytradeCandles";
+import { onArmFromSheet, onSheetOpened, onToolChange, SHEET_RETURN_IDLE, type SheetReturnState } from "@/lib/chart/drawGestureSheetReturn";
 // ON-DEMAND PANELS LOAD ON DEMAND (2026-10-04): each mounts only when its
 // door opens, yet all six (~7,500 lines) shipped in /charts' first load —
 // about 1 MB compressed for a guest on a phone. Same components, fetched when
@@ -939,6 +941,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
    * toolbar owned privately could not be reached by it.
    */
   const [chartEquipmentOpen, setChartEquipmentOpen] = useState(false);
+  // A draw gesture armed from the sheet owes the sheet a return (drawGestureSheetReturn).
+  const sheetReturnRef = useRef<SheetReturnState>(SHEET_RETURN_IDLE);
   // Garden 18 §IX: the context strip's Indicators button asks ChartToolbar to open its own picker.
   const [indicatorsRequest, setIndicatorsRequest] = useState(0);
   // Garden 18 §LXXXI: the futures-options sidecar, opened from the context strip.
@@ -1761,16 +1765,16 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     if (ticker.price === 0) setTickerOwner(symbol);
   }, [symbol, ticker.price]);
   const optionSpot = identifiedOptionSpot(symbol, tickerOwner, ticker.price);
-  // Canon "CLOSED IS NOT DELAYED" — a proven-closed session outranks the
-  // provider verdict, so the /charts chrome cannot print ACTIVE DEGRADED on a
-  // Saturday. `null` until mount and on every weekday, so provider labelling
-  // is untouched the rest of the time.
-  const sessionOpen = useProvenSessionClosure(symbol);
-  // The QUOTE FEED's session (night shift 2026-10-07): a US equity's overnight
-  // and weekend hours, where our tape is quiet by design, join proven closure
-  // for every grader of the quote feed — masthead, symbol-row badge, capability
-  // report — so a quiet overnight tape never reads STALE PIPELINE.
-  const quoteSession = useQuoteSessionClosure(symbol);
+  // ONE SESSION OWNER FOR THE WHOLE ROOM (truth bug, TSLA 15m, 2026-11-05
+  // 23:14 CT). This room read the QUOTE session (overnight = closed) while
+  // MainChart read PROVEN closure (overnight = unknown), so at night one screen
+  // said SESSION CLOSED — LAST VERIFIED in the header while the chart's own
+  // countdown and pill spoke of a forming bar. Both now read
+  // `useQuoteSessionClosure` with their feed's provider-stamped evidence:
+  // a US equity's overnight hours are closed UNLESS this feed is carrying
+  // overnight prints (see quoteSessionClosure / overnightFeedCarried).
+  const quoteSession = useQuoteSessionClosure(symbol, { source, lastObservedAtMs });
+  const sessionOpen = quoteSession.sessionOpen;
   // Read at component level, never inside the REGIME chip's render callback —
   // a hook called from inside JSX is the React #310 defect. `null` until mount,
   // which is exactly what selectRegimeBadge treats as "no period word yet".
@@ -2251,14 +2255,16 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [spotNotice, setSpotNotice] = React.useState<string | null>(null);
   // An INVERSE route keeps one quiet tag after the notice steps aside (2026-10-19): "INVERSE OF USDCAD" — the chart
   // moves opposite to the pair the trader asked for, and that fact may not vanish with an 8-second notice.
-  const [spotInverseOf, setSpotInverseOf] = React.useState<string | null>(null);
+  // Shift 1106: every routed future (not only an inverse one) keeps "RELATED MARKET · NOT SPOT <pair>" for as long as it is
+  // on the chart, across reloads — the 8-second notice was the only word, so the substitution went silent.
+  const [spotRelatedTag, setSpotRelatedTag] = React.useState<string | null>(null);
   React.useEffect(() => {
     const read = () => {
       const r = lastSpotRoute();
       const route = r ? spotRouteFor(r.from) : null;
       const routedHere = !!(r && route && r.to === symbol);
       setSpotNotice(routedHere && Date.now() - r!.at < 10 * 60_000 ? spotRouteNotice(r!.from, route!) : null);
-      setSpotInverseOf(routedHere && route!.inverse ? r!.from : null);
+      setSpotRelatedTag(routedHere ? relatedMarketTag(r!.from, route!) : null);
     };
     read();
     window.addEventListener(SPOT_ROUTE_EVENT, read);
@@ -2955,7 +2961,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   useEffect(() => { setAnatomyMode(readAnatomyMode()); }, []);
   // The VP columns the paint actually drew, with their levels (MainChart reports on change).
   const [vpDrawnLevels, setVpDrawnLevels] = useState<VpDrawnLevels>({});
-  const profileSpeciesRefusalVM = React.useMemo(
+  const profileDataRefusalVM = React.useMemo(
     () => profileSpeciesRefusals({
       composite: compositeProfileVM, tpo: tpoProfileVM, structure: structureProfileVM, memory: profileMemoryVM,
       visibleRange: visibleRangeRefusal ? { reason: visibleRangeRefusal } : null,
@@ -3270,6 +3276,19 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       prev && prev.drawn === vm.drawn && prev.reason === vm.reason && prev.entry === vm.entry
         && prev.stop === vm.stop && prev.target === vm.target && prev.state === vm.state ? prev : vm);
   }, []);
+  // Garden 19 review (Codex 01a1426c): the data refusals PLUS the trader's
+  // missing step — Fusion with an unlawful pair, Risk on Price with nothing
+  // to bracket — so no door reads "available" over an empty glass.
+  const profileSpeciesRefusalVM = React.useMemo(
+    () => ({
+      ...profileDataRefusalVM,
+      ...profileSpeciesSteps({
+        fusion: { on: profileFusionOn, refusal: fusion.refusal, fused: fusion.fused != null },
+        riskOnPrice: { on: riskOnPriceOn, reason: riskPlan?.reason ?? null },
+      }),
+    }),
+    [profileDataRefusalVM, profileFusionOn, fusion.refusal, fusion.fused, riskOnPriceOn, riskPlan?.reason],
+  );
   const [riskReceipt, setRiskReceipt] = useState<RiskReceipt | null>(null);
   const [riskTearNote, setRiskTearNote] = useState<string | null>(null);
   const riskReceiptOwner = canvasUser?.id ?? null;
@@ -4195,6 +4214,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                     // the sheet and the release dropped a lone anchor — a 1-bar
                     // "drag across at least 5" refusal that never committed.
                     // Arming puts the sheet down; the trader drags on the market.
+                    // Garden 19 review (Codex 01a1426c): the sheet RETURNS once the
+                    // range is placed or the gesture is cancelled — the trader picked
+                    // this from the panel and keeps their place (drawGestureSheetReturn).
+                    sheetReturnRef.current = onArmFromSheet(sheetReturnRef.current, arming && chartEquipmentOpen).state;
                     if (arming) setChartEquipmentOpen(false);
                   }
                 };
@@ -4366,7 +4389,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             : !derivativesPressureVM
               ? "Active · reading options positioning"
               : !derivativesPressureVM.drawn
-                ? derivativesPressureVM.reason === "NO_CHAIN" ? "Unavailable on this feed" : `Active · ${derivativesPressureVM.reason.replace(/_/g, " ").toLowerCase()}`
+                ? derivativesPressureVM.reason === "NO_CHAIN"
+                  // One owner for why (derivativesPressureStanding): "loading" is not "unavailable".
+                  ? `Active · ${derivativesPressureStanding(derivativesReceipt?.edge, symbol).short.toLowerCase()}`
+                  : `Active · ${derivativesPressureVM.reason.replace(/_/g, " ").toLowerCase()}`
                 : derivativesPressureVM.walls.length === 0
                   ? "Active · no current wall event"
                   : `Active · ${derivativesPressureVM.walls.length} wall${derivativesPressureVM.walls.length === 1 ? "" : "s"}`}
@@ -5183,6 +5209,19 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
      desktop-only and does not pretend to have fixed that. */
   useEffect(() => {
     announceEquipmentStage("chart-tools", chartEquipmentOpen ? "drawer" : "closed");
+  }, [chartEquipmentOpen]);
+  // THE SHEET RETURN (Garden 19 review, Codex 01a1426c): a draw gesture armed
+  // from Chart tools hands the chart back, then the panel comes back when the
+  // gesture ends — placed (onDrawingComplete → cursor), Escape, or re-pick.
+  const sheetReturnPrevToolRef = useRef<string>(drawingTool);
+  useEffect(() => {
+    const r = onToolChange(sheetReturnRef.current, sheetReturnPrevToolRef.current, drawingTool);
+    sheetReturnPrevToolRef.current = drawingTool;
+    sheetReturnRef.current = r.state;
+    if (r.reopenSheet) setChartEquipmentOpen(true);
+  }, [drawingTool]);
+  useEffect(() => {
+    if (chartEquipmentOpen) sheetReturnRef.current = onSheetOpened(sheetReturnRef.current);
   }, [chartEquipmentOpen]);
 
   // And the same for the seven-control primary rail: measured at 375px it was
@@ -6274,7 +6313,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         <div className="wm-chart-market-summary" style={{ display: "flex", alignItems: "center", gap: 8, marginRight: 16, flexShrink: 0 }}>
           <span style={{ color: "#E2E8F0", fontWeight: 700, fontSize: 14 }}>{symbol}</span>
           {/* Phone only: the chart legend (which carries it on wider glass) is not shown here. */}
-          {spotInverseOf ? <span data-testid="spot-route-inverse-tag" className="sm:hidden rounded border border-wm-gold/50 px-1 text-[13px] font-bold text-wm-gold">INVERSE OF {spotInverseOf}</span> : null}
+          {spotRelatedTag ? <span data-testid="spot-route-related-tag" className="sm:hidden rounded border border-wm-gold/50 px-1 text-[13px] font-bold text-wm-gold">{spotRelatedTag}</span> : null}
           {(() => {
             // Truth guard: header must never paint a change value without a real
             // reference close. Before this, the header would render whatever the
@@ -7770,7 +7809,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       paperTradesVisible={paperTradesOn}
                       onRequestFullscreen={handleRequestFullscreen}
                       showFidelityChrome={false}
-                      identityNote={spotInverseOf ? `INVERSE OF ${spotInverseOf}` : null}
+                      identityNote={spotRelatedTag}
                     />
                     </ErrorBoundary>
                     {/*

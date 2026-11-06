@@ -441,15 +441,73 @@ export function isUsCashIndexSymbol(symbol: string): boolean {
  * Futures, FX and crypto are untouched: when their market is open a quiet tape
  * IS a fault, and only proven closure (weekend, Globex break) changes that.
  */
-export function quoteSessionClosure(symbol: string, at: Date | null): { readonly sessionOpen: false | null; readonly detail: string | null } {
+export function quoteSessionClosure(
+  symbol: string,
+  at: Date | null,
+  feed?: QuoteSessionFeedEvidence | null,
+): { readonly sessionOpen: false | null; readonly detail: string | null } {
   if (!at) return { sessionOpen: null, detail: null };
   if (provenSessionClosure(symbol, at) === false) return { sessionOpen: false, detail: "session closed" };
   const cls = canonicalAssetClass(symbol);
   if (cls !== "equity" && cls !== "etf" && cls !== "options") return { sessionOpen: null, detail: null };
   const r = readMarketSession({ symbol, assetClass: cls, clock: marketClockET(at), isUsCashIndex: US_CASH_INDICES.has(symbol.trim().toUpperCase()) });
-  if (r?.verdict === "OVERNIGHT") return { sessionOpen: false, detail: "overnight · listed exchanges closed, off-exchange prints not carried" };
+  if (r?.verdict === "OVERNIGHT") {
+    // FEED CAPABILITY, NOT THE SCHEDULE ALONE (TSLA 15m, 2026-11-05 23:14 CT).
+    // The schedule says the LISTED session is shut; it cannot say whether THIS
+    // feed carries the overnight venues. When a streaming feed has just
+    // delivered a provider-stamped print, it does — and calling that session
+    // "closed" put SESSION CLOSED — LAST VERIFIED in the header above a chart
+    // whose countdown and pill (graded on the same print) said a bar was
+    // forming. Evidence opens nothing: it only withholds the closure claim.
+    if (overnightFeedCarried(feed)) return { sessionOpen: null, detail: "overnight · off-exchange prints arriving on this feed" };
+    return { sessionOpen: false, detail: "overnight · listed exchanges closed, off-exchange prints not carried" };
+  }
   if (r?.verdict === "CLOSED") return { sessionOpen: false, detail: "session closed" };
   return { sessionOpen: null, detail: null };
+}
+
+/**
+ * What the CHART'S OWN FEED has observed, for `quoteSessionClosure`'s overnight
+ * rule. `lastObservedAtMs` must be the PROVIDER's stamp of the newest accepted
+ * print (useWebSocket's `lastObservedAtMs`) — never a receipt time, never a
+ * replay camera's bar time.
+ */
+export interface QuoteSessionFeedEvidence {
+  readonly source: string | null | undefined;
+  readonly lastObservedAtMs: number | null | undefined;
+  readonly nowMs: number;
+}
+
+/**
+ * A print this recent proves the feed is carrying the overnight session. Thin
+ * off-exchange tape can go minutes between prints, so the budget is wider than
+ * the 15 s live-quote budget — it decides only whether "closed" may be SAID,
+ * never whether the quote is LIVE (chartFeedReading still grades that on 15 s).
+ */
+export const OVERNIGHT_FEED_CARRY_MS = 10 * 60_000;
+
+/**
+ * Streaming feeds that can carry overnight equity prints. Polled REST quotes
+ * (yahoo, finnhub) and the IEX quote (alpaca — no extended-hours prints, and
+ * not asked outside regular hours) can never stand as overnight evidence: a
+ * delayed snapshot re-delivered at night is not the overnight venue trading.
+ */
+const OVERNIGHT_CAPABLE_SOURCES: ReadonlySet<string> = new Set(["tastytrade", "webull", "moomoo", "longbridge", "polygon"]);
+
+export function overnightFeedCarried(feed: QuoteSessionFeedEvidence | null | undefined): boolean {
+  if (!feed) return false;
+  if (!OVERNIGHT_CAPABLE_SOURCES.has(String(feed.source ?? ""))) return false;
+  const t = feed.lastObservedAtMs;
+  if (typeof t !== "number" || !Number.isFinite(t) || t <= 0) return false;
+  if (!Number.isFinite(feed.nowMs) || feed.nowMs <= 0) return false;
+  const age = feed.nowMs - t;
+  // A stamp from the future (beyond a 5 s clock skew) is not evidence; nor is an old one.
+  if (age < -5_000 || age > OVERNIGHT_FEED_CARRY_MS) return false;
+  // The print itself must sit inside the overnight window — a post-market
+  // print at 19:59 ET does not prove the overnight venues are carried.
+  // (The listed-equity schedule is the only one with an OVERNIGHT verdict.)
+  const r = readMarketSession({ symbol: "", assetClass: "equity", clock: marketClockET(new Date(t)), isUsCashIndex: false });
+  return r?.verdict === "OVERNIGHT";
 }
 
 /**

@@ -50,6 +50,9 @@ const lower = (s: string) => s.toLowerCase();
  * the menu's availability: the receipt is what the frame actually painted.
  */
 export function activeToolWords(entry: Pick<ProfileMenuEntry, "availability" | "availabilityNote" | "stateWords">, receipt: string | undefined): { paint: ActiveToolPaint; words: string } {
+  // The trader's own missing step outranks a quiet receipt ("nothing on this
+  // camera"): the glass is empty because of an act only the trader can do.
+  if (entry.availability === "NEEDS_YOUR_STEP") return { paint: "QUIET", words: `ON — your step: ${entry.stateWords ?? "see the tool's note"}` };
   if (receipt) {
     if (senseNeedsTradedVolume(receipt)) return { paint: "BLOCKED", words: "ON — needs traded volume" };
     if (receipt === SENSE_NO_EVENT) return { paint: "QUIET", words: "ON — nothing on this camera" };

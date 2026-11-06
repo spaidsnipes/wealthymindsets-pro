@@ -258,9 +258,13 @@ describe("closed-session precedence — call-site Sentinel (canon §8)", () => {
       "components/chart/ChartsDashboard.tsx",
       "components/chart/MainChart.tsx",
     ];
+    // 2026-11-05: both read the ONE room owner, useQuoteSessionClosure (proven
+    // closure + the quote session + feed evidence). A second hook here is how
+    // the header said SESSION CLOSED above a strip that said a bar was forming.
     for (const rel of wired) {
       const content = readFileSync(resolve(SRC_ROOT, rel), "utf8");
-      expect(content).toContain("useProvenSessionClosure");
+      expect(content).toContain("useQuoteSessionClosure");
+      expect(content, rel).not.toMatch(/\buseProvenSessionClosure\(/);
     }
   });
 

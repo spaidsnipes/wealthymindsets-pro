@@ -62,20 +62,59 @@ export function spotLegsFor(symbol: string): readonly string[] | null {
   return [a, b].filter(c => c !== "USD" && c in LEG_FUTURE).map(c => LEG_FUTURE[c]);
 }
 
-/** "XAUUSD has no live spot source here — showing GC1!, the COMEX gold future (its own price and session)." */
+/** "XAUUSD has no live spot source here — showing GC1!, the COMEX gold future: a RELATED MARKET … not spot XAUUSD." */
 export function spotRouteNotice(from: string, r: SpotRoute): string {
   const k = bare(from);
-  if (r.inverse) return `${k} has no live spot source here — showing ${r.future}, the ${r.name}, quoted the other way (USD per ${k.slice(3)}): when ${r.future} rises, ${k} falls.`;
-  return `${k} has no live spot source here — showing ${r.future}, the ${r.name} (its own price and session).`;
+  if (r.inverse) return `${k} has no live spot source here — showing ${r.future}, the ${r.name}, a RELATED MARKET quoted the other way (USD per ${k.slice(3)}): when ${r.future} rises, ${k} falls. Its volume is the future's, not spot ${k}'s.`;
+  return `${k} has no live spot source here — showing ${r.future}, the ${r.name}: a RELATED MARKET with its own price, session and volume, not spot ${k}.`;
 }
 
-/* The last route taken, so the chart can say what happened (one line, dismissable). */
-let lastRoute: { readonly from: string; readonly to: string; readonly at: number } | null = null;
+/**
+ * THE ROUTE IS NEVER SILENT (shift 1106; Drive FX canon — Broker/API
+ * Detanglement §1E/§4E/§6: "EURUSD spot … CME 6E … cannot be treated as
+ * equivalent"; the future is RELATED-MARKET evidence with provenance).
+ *
+ * The 8-second notice used to be the ONLY word: after it stepped aside, after
+ * ten minutes, or after a reload (the route lived in memory while the chart
+ * symbol was saved as 6E1!), the trader sat on a CME future with nothing saying
+ * it stood in for the spot pair they asked for. This tag stays for as long as
+ * the routed future is on the chart, on every width.
+ */
+export function relatedMarketTag(from: string, r: SpotRoute): string {
+  const k = bare(from);
+  return r.inverse ? `RELATED MARKET · INVERSE OF ${k}` : `RELATED MARKET · NOT SPOT ${k}`;
+}
+
+/* The last route taken, so the chart can say what happened. Kept across a reload (the chart symbol is saved as the future). */
+export interface SpotRouteRecord { readonly from: string; readonly to: string; readonly at: number }
+export const SPOT_ROUTE_KEY = "wm_spot_route_v1";
+let lastRoute: SpotRouteRecord | null = null;
 export const SPOT_ROUTE_EVENT = "wm-spot-route";
+const routeStore = (): Pick<Storage, "getItem" | "setItem" | "removeItem"> | null => {
+  try { return typeof window !== "undefined" ? window.localStorage : null; } catch { return null; }
+};
 export function noteSpotRoute(from: string, to: string): void {
   lastRoute = { from: bare(from), to, at: Date.now() };
+  try { routeStore()?.setItem(SPOT_ROUTE_KEY, JSON.stringify(lastRoute)); } catch { /* storage blocked */ }
   try { window.dispatchEvent(new CustomEvent(SPOT_ROUTE_EVENT)); } catch { /* no window */ }
 }
-export function lastSpotRoute(): { readonly from: string; readonly to: string; readonly at: number } | null {
-  return lastRoute;
+/** The trader chose a market that is not this route's future: the provenance ends. */
+export function clearSpotRoute(): void {
+  const had = lastRoute != null;
+  lastRoute = null;
+  try { routeStore()?.removeItem(SPOT_ROUTE_KEY); } catch { /* storage blocked */ }
+  if (had) { try { window.dispatchEvent(new CustomEvent(SPOT_ROUTE_EVENT)); } catch { /* no window */ } }
+}
+export function lastSpotRoute(): SpotRouteRecord | null {
+  if (lastRoute) return lastRoute;
+  try {
+    const raw = routeStore()?.getItem(SPOT_ROUTE_KEY);
+    if (!raw) return null;
+    const v = JSON.parse(raw) as SpotRouteRecord;
+    if (v && typeof v.from === "string" && typeof v.to === "string" && Number.isFinite(v.at) && spotRouteFor(v.from)?.future === v.to) {
+      lastRoute = v;
+      return v;
+    }
+  } catch { /* unreadable → no route */ }
+  return null;
 }

@@ -25,6 +25,6 @@ describe("L14 · spot forex and metals open their CME future", () => {
     expect(spotLegsFor("EURUSD")).toBeNull();
   });
   it("says what happened in one line", () => {
-    expect(spotRouteNotice("XAUUSD", spotRouteFor("XAUUSD")!)).toBe("XAUUSD has no live spot source here — showing GC1!, the COMEX gold future (its own price and session).");
+    expect(spotRouteNotice("XAUUSD", spotRouteFor("XAUUSD")!)).toBe("XAUUSD has no live spot source here — showing GC1!, the COMEX gold future: a RELATED MARKET with its own price, session and volume, not spot XAUUSD.");
   });
 });

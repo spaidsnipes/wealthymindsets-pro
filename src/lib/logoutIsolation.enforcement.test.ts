@@ -50,6 +50,7 @@ const OWNER_SCOPED_KEYS = new Set<string>([
   "wm-journal", "wm_execution_guardrails_v1", "wm_price_alerts", "wm_story_review_v1", "wm-pine-scripts",
   "wm_research_heat_archive_v1", "wm_alpaca_disconnected", "wm_alpaca_proxy", "wm_lounge_bookmarks",
   "wm_desks_v1", "wm_desk_active_v1",
+  "wm_spot_route_v1", "wm_weatherLensPlacement_v1", // shift 1106: spot-route provenance + hand-placed Weather loupe
   "wm:journal-capture-handoff:v1",
   "wm:management-plan:v1",
   "wm:prop-evaluation:v1", // Founder order §7: the owner's prop-evaluation desk (kept per owner id; purged at sign-out)

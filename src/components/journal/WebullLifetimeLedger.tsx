@@ -21,7 +21,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ledgerCoverageLine, reconstructEpisodes, summarizeLedger, WEBULL_PAIRING_TRUTH, type Episode, type LedgerOrder, type LedgerSummary } from "@/lib/broker/webullLedger";
 import { formatMoney } from "@/lib/marketData/contractEconomics";
 import { guardStat } from "@/lib/journal/statGuard";
-import { SPLIT_AT } from "@/lib/broker/webullLedgerWalk";
+import { SPLIT_AT, type AccountWalk } from "@/lib/broker/webullLedgerWalk";
+import { ledgerCompletenessReport, type CompletenessReport } from "@/lib/broker/ledgerCompleteness";
+import { EPISODE_MODELS_KEY, parseModels } from "@/lib/journal/episodeModel";
 import { StoryReviewRow } from "@/components/journal/BrokerTruthToday";
 import { LedgerPersonalEdge } from "@/components/journal/LedgerPersonalEdge";
 import { TradeReplay } from "@/components/journal/TradeReplay";
@@ -44,7 +46,13 @@ const LINE = "rgba(139,106,41,0.25)";
 const UP = "#7fd1a8";
 const DOWN = "#e0786b";
 
-interface AccountRow { tail: string; accountType: string | null; orders: number; filled: number; askedBackTo: string; stoppedBecause: string; reason: string | null }
+interface AccountRow {
+  tail: string; accountType: string | null; orders: number; filled: number; askedBackTo: string; stoppedBecause: string; reason: string | null;
+  /** §30 completeness evidence, summed over every step the page asked (route → walk). */
+  windows: number; pages: number; cachedMonths: number; splits: number; throttled: number; dayWindowsAtCap: string[]; nextMonth: number | null;
+  /** Raw rows as the steps returned them, before the cross-step dedupe. */
+  raw: LedgerOrder[];
+}
 /** guest audit 2026-10-04: client-only state for the owner gate's refusal. */
 const NOT_CONNECTED = "NOT_CONNECTED";
 interface LedgerAnswer { partial?: boolean; state: string; reason?: string; asOf?: string; truth?: string; accounts?: AccountRow[]; orderCount?: number; summary?: LedgerSummary; episodes?: Episode[] }
@@ -203,7 +211,7 @@ function EpisodeRow({ e, all, conds, tags, asOf }: { e: Episode; all: readonly E
   );
 }
 
-interface StepAnswer { nextMonth?: number | null; state: string; reason?: string; asOf?: string; yearEmpty?: boolean; askedBackTo?: string; stoppedBecause?: string; pages?: number; cachedMonths?: number; orders?: LedgerOrder[] }
+interface StepAnswer { nextMonth?: number | null; state: string; reason?: string; asOf?: string; yearEmpty?: boolean; askedBackTo?: string; stoppedBecause?: string; pages?: number; windows?: number; cachedMonths?: number; splits?: number; throttled?: number; dayWindowsAtCap?: string[]; orders?: LedgerOrder[] }
 
 export function WebullLifetimeLedger() {
   const [data, setData] = useState<LedgerAnswer | null>(null);
@@ -255,7 +263,8 @@ export function WebullLifetimeLedger() {
         setData({ state: "OK", asOf: new Date().toISOString(), truth: `ACTUAL BROKER RESULT (fills, prices, stated fees) · ${WEBULL_PAIRING_TRUTH}`, accounts: [...rows], orderCount: all.length, summary: summarizeLedger(episodes), episodes, partial: !final });
       };
       for (const acct of list.accounts) {
-        const row: AccountRow = { tail: acct.tail, accountType: acct.accountType, orders: 0, filled: 0, askedBackTo: "", stoppedBecause: "QUIET_YEARS", reason: null };
+        const row: AccountRow = { tail: acct.tail, accountType: acct.accountType, orders: 0, filled: 0, askedBackTo: "", stoppedBecause: "QUIET_YEARS", reason: null,
+          windows: 0, pages: 0, cachedMonths: 0, splits: 0, throttled: 0, dayWindowsAtCap: [], nextMonth: null, raw: [] };
         rows.push(row);
         let quiet = 0;
         outer: for (let k = 0; quiet < 2 && k <= 15; k++) {
@@ -269,10 +278,14 @@ export function WebullLifetimeLedger() {
             const step: StepAnswer = await get<StepAnswer>(`?account=${acct.index}&yearsBack=${k}&from=${m}`);
             if (step.state !== "OK") { row.stoppedBecause = "REFUSED"; row.reason = step.reason ?? step.state; break outer; }
             all.push(...(step.orders ?? []));
+            row.raw.push(...(step.orders ?? []));
+            row.windows += step.windows ?? 0; row.pages += step.pages ?? 0; row.cachedMonths += step.cachedMonths ?? 0;
+            row.splits += step.splits ?? 0; row.throttled += step.throttled ?? 0;
+            for (const d of step.dayWindowsAtCap ?? []) if (!row.dayWindowsAtCap.includes(d)) row.dayWindowsAtCap.push(d);
             row.orders += step.orders?.length ?? 0;
             row.filled += (step.orders ?? []).filter(o => o.status === "FILLED").length;
             row.askedBackTo = step.askedBackTo ?? row.askedBackTo;
-            if (step.stoppedBecause === "REFUSED" || step.stoppedBecause === "PAGE_BUDGET") { row.stoppedBecause = step.stoppedBecause; row.reason = step.reason ?? null; break outer; }
+            if (step.stoppedBecause === "REFUSED" || step.stoppedBecause === "PAGE_BUDGET") { row.stoppedBecause = step.stoppedBecause; row.reason = step.reason ?? null; row.nextMonth = step.nextMonth ?? null; break outer; }
             publish(false);
             m = step.nextMonth ?? null;
           }
@@ -316,6 +329,20 @@ export function WebullLifetimeLedger() {
     return () => { alive = false; };
   }, [data]);
   const s = data?.summary;
+  // §30 COMPLETENESS (shift 2026-11-05): the one report owner, read over exactly the
+  // rows the steps returned. Only once the read is whole — a partial read is said above.
+  // Model 1/2 from the trader's SAVED marks only (re-read on each finished load).
+  const completeness = useMemo<CompletenessReport | null>(() => {
+    if (!data || data.state !== "OK" || data.partial || !data.accounts?.length) return null;
+    let marks: ReturnType<typeof parseModels> | null = null;
+    try { marks = parseModels(window.localStorage.getItem(EPISODE_MODELS_KEY)); } catch { marks = null; }
+    const walks: AccountWalk[] = data.accounts.map(a => ({
+      accountId: a.tail, orders: a.raw, windows: a.windows, pages: a.pages, askedBackTo: a.askedBackTo,
+      stoppedBecause: a.stoppedBecause as AccountWalk["stoppedBecause"], reason: a.reason, cachedMonths: a.cachedMonths,
+      lastYearEmpty: false, nextMonth: a.nextMonth, splits: a.splits, throttled: a.throttled, dayWindowsAtCap: a.dayWindowsAtCap,
+    }));
+    return ledgerCompletenessReport({ walks, rowsRead: data.accounts.reduce((n, a) => n + a.raw.length, 0), nowMs: Date.now(), savedModelMarks: marks });
+  }, [data]);
   const symbols = useMemo(() => [...new Set((data?.episodes ?? []).map(e => e.symbol))].sort(), [data]);
 
   return (
@@ -376,6 +403,8 @@ export function WebullLifetimeLedger() {
             <div>First fill Webull returned: {day(s.firstFillAt)} · last: {day(s.lastFillAt)}. Earlier trading, if any, was not returned by Webull's order history and is not shown.</div>
             <div data-testid="ledger-read-method">Read month by month; any window that answers with {SPLIT_AT} or more rows is split in half until whole, because Webull silently truncates long windows. Webull&apos;s end date is exclusive, so WM asks to tomorrow and today is included.</div>
           </div>
+
+          {completeness ? <CompletenessBlock r={completeness} /> : null}
 
           {!data.partial ? (
             <nav aria-label="Ledger sections" data-testid="ledger-jump" style={{ position: "sticky", top: 0, zIndex: 2, display: "flex", flexWrap: "wrap", gap: 6, padding: "4px 0", background: "#0b0a08", boxShadow: "0 6px 8px -6px rgba(0,0,0,0.9)" }}>
@@ -456,5 +485,36 @@ export function WebullLifetimeLedger() {
       <FounderAnalytics episodes={data?.state === "OK" && !data.partial ? data.episodes ?? [] : []} ttAccounts={ttAccounts} />
       <TastytradeLedger onAccounts={setTtAccounts} />
     </section>
+  );
+}
+
+/** §30 — how complete this read is, in the report owner's own words (ledgerCompletenessReport). */
+export function CompletenessBlock({ r }: { r: CompletenessReport }) {
+  const incomplete = r.verdict === "INCOMPLETE";
+  return (
+    <div data-testid="ledger-completeness" data-verdict={r.verdict} data-kind={r.kind}
+      style={{ fontSize: 11, lineHeight: 1.6, color: MUTED, border: `1px solid ${incomplete ? "rgba(240,180,41,0.45)" : LINE}`, borderRadius: 6, padding: "6px 10px" }}>
+      <div style={{ color: incomplete ? "#f0b429" : GOLD, fontWeight: 700, letterSpacing: 0.6 }}>
+        {incomplete ? "INCOMPLETE" : "COMPLETE FOR THE WINDOW READ"} <span style={{ color: MUTED, fontWeight: 400 }}>· {r.kindLabel} · never &ldquo;since the account opened&rdquo;</span>
+      </div>
+      {r.accounts.map(a => (
+        <div key={a.accountTail} data-testid="ledger-completeness-account" data-verdict={a.verdict}>
+          {a.accountTail}: {a.windows} windows · {a.pages} pages · {a.splits} halved · {a.throttled} slowed by Webull · {a.cachedMonths} months from the kept copy
+          {a.gaps.length ? <span data-testid="ledger-completeness-gaps" style={{ color: "#f0b429" }}> · GAPS: {a.gaps.join("; ")}</span> : null}
+        </div>
+      ))}
+      <div data-testid="ledger-completeness-orders">{r.rowsRead} rows read → {r.uniqueOrders} unique orders ({r.duplicatesRemoved} duplicates removed) · {r.filledOrders} filled</div>
+      <div data-testid="ledger-completeness-fills">
+        {r.fillTimeMissing} fill{r.fillTimeMissing === 1 ? "" : "s"} without a fill time (placement time stands in) · {r.feesUnreported} with fees UNREPORTED (not $0) · stated fees {usd(r.feesReportedTotal, false)} · {r.timezone}
+      </div>
+      <div data-testid="ledger-completeness-positions">
+        {r.positions.closed} closed round trips · {r.positions.open} open · {r.positions.unsettled} unsettled (not in realised P&amp;L)
+      </div>
+      <div data-testid="ledger-completeness-models" data-state={r.models.state}>
+        {r.models.state === "UNAVAILABLE"
+          ? <>Model 1 / Model 2: <b style={{ color: INK }}>UNAVAILABLE</b> — {r.models.why}</>
+          : <>Model 1 / Model 2: from {r.models.marked} saved mark{r.models.marked === 1 ? "" : "s"} — {r.models.rows.map(m => `${m.model} ${m.n} trades, net ${usd(m.net)}`).join(" · ")}</>}
+      </div>
+    </div>
   );
 }

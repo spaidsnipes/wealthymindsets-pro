@@ -254,7 +254,7 @@ export function MemberTastytradeConnect({ color }: { color: string }) {
       setStatus(j); setOpen(false); setTouched(false);
       // The open stream asks again and gets THIS member's token; futures
       // contracts the guest could not resolve are asked for again too.
-      forgetTastyFrontMonths(); reopenTastyStream();
+      forgetTastyFrontMonths(); reopenTastyStream({ grantJustSaved: true });
     } catch {
       setError("Your phone could not reach WM. Check your connection and try again — nothing was saved.");
     } finally {
@@ -269,7 +269,7 @@ export function MemberTastytradeConnect({ color }: { color: string }) {
       const r = await fetch(MEMBER_TASTY_ENDPOINT, { method: "PUT", cache: "no-store" });
       const j = await r.json().catch(() => null);
       if (!r.ok) { setError(j?.error ?? j?.reason ?? `Could not test the connection (HTTP ${r.status}).`); return; }
-      setStatus(j); forgetTastyFrontMonths(); reopenTastyStream();
+      setStatus(j); forgetTastyFrontMonths(); reopenTastyStream({ grantJustSaved: true });
     } catch {
       setError("Your phone could not reach WM. Check your connection and try again.");
     } finally { setBusy(false); }

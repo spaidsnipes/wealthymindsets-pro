@@ -39,3 +39,32 @@ describe("Garden 19 §28 — the inspected bar's candle readings", () => {
     expect(s.value).toMatch(/LONDON|NEW YORK|London|New York/);
   });
 });
+
+describe("census G19.DELTA_RATIO + G19.FAILED_AGG — read from the keel's own evidence", () => {
+  const row = (id: string, o: object = {}) => selectBarCandleReadings({ ...base, ...o }).find(r => r.id === id);
+  it("delta ratio = |bar delta| ÷ bar volume (registry formula), with coverage named when the tape saw part of the bar", () => {
+    const r = row("DELTA_RATIO")!; // bar 30: volume 5000, tape 300 / 900 → |−600| / 5000
+    expect(r.value).toMatch(/^0\.12 · \|−600\| of 5,000 traded/);
+    expect(r.value).toMatch(/signed evidence saw 24% of this bar's volume/);
+    expect(r.klass).toBe("PARTIAL");
+    const full = row("DELTA_RATIO", { tapeTotals: { buy: 1000, sell: 4000 } })!;
+    expect(full.klass).toBe("FULL");
+    expect(full.value).toMatch(/^0\.60 /);
+    expect(row("DELTA_RATIO", { tapeTotals: null, providerSides: { buy: 4000, sell: 1000 } })!.klass).toBe("PARTIAL");
+  });
+  it("no signed evidence, spot FX or a forming bar → no ratio and no failed-aggression verdict (silence, never guessed)", () => {
+    for (const o of [{ tapeTotals: null }, { noCentralVolume: true }, { forming: true }, { keelOn: false }]) {
+      expect(row("DELTA_RATIO", o)).toBeUndefined();
+      expect(row("FAILED_AGGRESSION", o)).toBeUndefined();
+    }
+  });
+  it("failed aggression is the keel's own verdict: a strong winner the bar did not follow", () => {
+    // Bar 30 closes +1.5 from open (30 % 3 === 0). Buyers 0.8 of sided volume, bar went their way → not failed.
+    expect(row("FAILED_AGGRESSION", { tapeTotals: { buy: 4500, sell: 500 } })!.value).toMatch(/^No — buyers won/);
+    // Sellers 0.8 of sided volume, bar closed UP → failed.
+    const f = row("FAILED_AGGRESSION", { tapeTotals: { buy: 500, sell: 4500 } })!;
+    expect(f.value).toMatch(/^YES — sellers won 0\.80/);
+    expect(f.klass).toBe("FULL");
+    expect(row("FAILED_AGGRESSION", { tapeTotals: { buy: 1010, sell: 1000 } })!.value).toMatch(/^No — no side won/);
+  });
+});

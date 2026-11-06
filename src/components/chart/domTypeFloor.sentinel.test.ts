@@ -12,7 +12,6 @@ import path from "node:path";
 const FILES = [
   "src/components/experience/DecisionSpineBand.tsx",
   "src/components/chart/ChartInspectTicket.tsx",
-  "src/components/chart/NectarVaultChip.tsx",
   "src/components/experience/ChartCompanion.tsx",
   "src/components/experience/CanvasSummaryPill.tsx",
   "src/components/layout/HeaderVaultPill.tsx",

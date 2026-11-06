@@ -66,6 +66,7 @@ const AVAILABILITY_DOT: Record<ProfileMenuEntry["availability"], string> = {
   WAITING_FOR_PRINTS: "#8B8FA8",
   NEEDS_SIDED_TAPE: "#F0B429",
   REFUSED_BY_DATA: "#F0B429",
+  NEEDS_YOUR_STEP: "#d4af37",
 };
 
 export function ProfilesMenu({
@@ -227,9 +228,11 @@ export function ProfilesMenu({
                 const notEntitled = vm.entries.filter(e => e.availability === "READY" && stateDetail?.[e.id] === SENSE_NOT_ENTITLED).length;
                 const broken = vm.entries.filter(e => e.availability === "READY" && stateDetail?.[e.id] === SENSE_BROKEN).length;
                 const available = vm.readyCount - refusedByReceipt - notEntitled - broken;
-                const unavailable = vm.entries.length - vm.readyCount - waiting + refusedByReceipt;
-                if (unavailable === 0 && waiting === 0 && notEntitled === 0 && broken === 0) return `All ${vm.entries.length} available`;
-                return `Degraded · ${available} available${unavailable > 0 ? ` · ${unavailable} unavailable on this feed` : ""}${notEntitled > 0 ? ` · ${notEntitled} not entitled` : ""}${broken > 0 ? ` · ${broken} broken / not wired` : ""}${waiting > 0 ? ` · ${waiting} waiting for data` : ""}`;
+                // A row waiting on the TRADER's step is neither available nor a feed gap.
+                const yourStep = vm.entries.filter(e => e.availability === "NEEDS_YOUR_STEP").length;
+                const unavailable = vm.entries.length - vm.readyCount - waiting - yourStep + refusedByReceipt;
+                if (unavailable === 0 && waiting === 0 && notEntitled === 0 && broken === 0 && yourStep === 0) return `All ${vm.entries.length} available`;
+                return `Degraded · ${available} available${unavailable > 0 ? ` · ${unavailable} unavailable on this feed` : ""}${notEntitled > 0 ? ` · ${notEntitled} not entitled` : ""}${broken > 0 ? ` · ${broken} broken / not wired` : ""}${waiting > 0 ? ` · ${waiting} waiting for data` : ""}${yourStep > 0 ? ` · ${yourStep} need a step from you` : ""}`;
               })()}
             </div>
           </div>
@@ -262,6 +265,9 @@ export function ProfilesMenu({
                   ? "Waiting for bars"
                   : entry.availability === "WAITING_FOR_PRINTS"
                     ? "Waiting for prints"
+                    // Garden 19: the trader's next act, said in the row — never "available" over an empty glass.
+                    : entry.availability === "NEEDS_YOUR_STEP"
+                      ? `${entry.active ? "On" : "Off"} · your step: ${entry.stateWords ?? "see why"}`
                     // A fact about the MARKET (spot FX has no traded volume), not this feed.
                     : entry.stateWords
                       ? `Not possible here · ${lc(entry.stateWords)}`

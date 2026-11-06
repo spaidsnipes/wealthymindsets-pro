@@ -13,12 +13,13 @@ import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   PROFILE_PALETTE_KEYS, PROFILE_PRESET_RED_GREEN, applyProfilePreset, LINE_WEIGHT_STEPS, lawfulLineWeight,
-  INVENTION_DIAL_LABEL, PROFILE_SPECIES_LABEL, SPECIES_INK_DEFAULTS, lawfulInventionOpacity, lawfulSpeciesInks,
+  INVENTION_DIAL_LABEL, PROFILE_SPECIES_LABEL, lawfulInventionOpacity,
   lawfulSpeciesOpacity, type InventionDialKey, type ProfileSpeciesKey,
 } from "@/lib/chart/appearanceLaw";
 import type { ChartSettings } from "./ChartSettingsModal";
 import { PROFILE_INK_AT_REST } from "@/lib/chart/profileFamilyInk";
-import { VP_DOWN_DEFAULT, VP_POC_DEFAULT, VP_UP_DEFAULT, VP_VALUE_AREA_DEFAULT } from "@/lib/chart/marketFieldMaterial";
+import { MARKET_FIELD_DEFAULT, VP_DOWN_DEFAULT, VP_POC_DEFAULT, VP_UP_DEFAULT, VP_VALUE_AREA_DEFAULT } from "@/lib/chart/marketFieldMaterial";
+import { speciesInkPocs, speciesInkReading } from "@/lib/chart/speciesInkReading";
 
 /** Species whose BODY is painted in its stored ink (MainChart pkFamily.species). TPO's tiles are its period ramp. */
 export const COLOUR_SPECIES: readonly ProfileSpeciesKey[] = ["LIVING", "STRUCTURE", "FUSION", "MEMORY", "DNA", "VISIBLE_RANGE", "COMPOSITE"];
@@ -67,8 +68,9 @@ export function ToolStylePopover({ target, settings, onChange, onClose, onMore }
     else if (inv) set({ inventionWeight: { ...(settings.inventionWeight ?? {}), [inv]: lawfulLineWeight(w) } });
   };
   const colourable = species != null && COLOUR_SPECIES.includes(species);
-  const current = species ? settings.profileSpeciesInk?.[species] ?? SPECIES_INK_DEFAULTS[species] ?? FAMILY_GOLD : FAMILY_GOLD;
-  const law = species ? lawfulSpeciesInks(settings.profileSpeciesInk, { field: settings.background, poc: `rgb(${PROFILE_INK_AT_REST.rgb("POC")})` }) : null;
+  // ONE INK READING with the chart (P0 2026-11-02): same law, same defaults, same POC pair — a refusal shows here too.
+  const law = species ? speciesInkReading(settings.profileSpeciesInk, { field: settings.background ?? MARKET_FIELD_DEFAULT, poc: speciesInkPocs(typeof localStorage === "undefined" ? null : localStorage) }) : null;
+  const current = species ? settings.profileSpeciesInk?.[species] ?? (law?.shown as Partial<Record<string, string>> | undefined)?.[species] ?? FAMILY_GOLD : FAMILY_GOLD;
   const refused = species ? law?.refused[species] : undefined;
   const setInk = (hex: string) => { if (species) set({ profileSpeciesInk: { ...(settings.profileSpeciesInk ?? {}), [species]: hex } }); };
 
@@ -82,7 +84,7 @@ export function ToolStylePopover({ target, settings, onChange, onClose, onMore }
   return createPortal(
     <div ref={ref} role="dialog" aria-label={`${label} style`} data-testid="tool-style-popover" data-section={target.section}
       style={{ position: "fixed", left, top, width: W, zIndex: 2147483000, background: "#14110c", border: "1px solid rgba(212,175,55,0.55)",
-        borderRadius: 12, boxShadow: "0 18px 48px rgba(0,0,0,0.6)", padding: "12px 14px", color: "#EDE6D3", font: "500 13px/1.35 ui-sans-serif, system-ui, sans-serif" }}>
+        borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.35)", padding: "12px 14px", color: "#EDE6D3", font: "500 13px/1.35 ui-sans-serif, system-ui, sans-serif" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
         <span style={{ font: "700 14px Georgia, serif", color: "#F3D78A" }}>{label} · style</span>
         <button type="button" aria-label="Close" onClick={onClose} style={{ background: "none", border: "none", color: "#a99f86", fontSize: 18, cursor: "pointer", minWidth: 32, minHeight: 32 }}>×</button>

@@ -873,6 +873,7 @@ export function educationTruthLines(input: {
   const e = input.entry;
   if (e) {
     if (e.availability === "WAITING_FOR_BARS" || e.availability === "WAITING_FOR_PRINTS") verdict = "WAITING";
+    else if (e.availability === "NEEDS_YOUR_STEP") verdict = "NEEDS YOUR INPUT";
     else if (e.availability !== "READY") verdict = "UNAVAILABLE HERE";
     const note = e.availabilityNote.charAt(0).toUpperCase() + e.availabilityNote.slice(1);
     // The state words are the chip's short form of the note; print them only

@@ -249,8 +249,10 @@ const RAW_CENSUS: readonly CensusEntry[] = [
   // serving `barDeltaKeels` receipts). Phone erasure still FAILS on salience (GARDEN19-ERASURE-TESTS).
   { id: "G19.BAR_DELTA", name: "Bar delta (signed aggressor volume per bar) · Delta Keel", family: "F06 Order Flow", status: "BUILT", owner: "src/lib/chart/barDeltaKeel.ts",
     surface: inst("DELTA_KEEL"), plate: null, aliases: ["delta keel", "keel", "bar delta"] },
-  { id: "G19.DELTA_RATIO", name: "Delta ratio (|bar delta| ÷ bar volume)", family: "F06 Order Flow", status: "NOT_BUILT", owner: null, surface: { kind: "NONE" }, plate: null,
-    gap: "registry formula (H-701 refinement); no owner" },
+  // 2026-11-05 shift: the keel owner already held the signed evidence; Inspect now prints the
+  // registry's own formula (abs(bar delta) ÷ bar volume) and names coverage when the tape saw part of the bar.
+  { id: "G19.DELTA_RATIO", name: "Delta ratio (|bar delta| ÷ bar volume)", family: "F06 Order Flow", status: "BUILT", owner: "src/lib/chart/barCandleReadings.ts",
+    surface: ctx("Delta Keel on → select a bar → Inspect · ACROSS THE CANDLES"), plate: null, aliases: ["delta ratio"] },
   // §34 audit 2026-10-08: bar-relative participation is carried by the Relative Volume Tone
   // (9173189, certificate C-03). Still PARTIAL for one named leg: spot FX has no TICK ACTIVITY carrier.
   { id: "G19.RVOL", name: "Relative volume · Relative Market Energy (RME) · Relative Volume Tone", family: "Participation sense", status: "PARTIAL", owner: "src/lib/chart/relativeVolume.ts",
@@ -259,8 +261,9 @@ const RAW_CENSUS: readonly CensusEntry[] = [
   { id: "G19.CVD_REL", name: "CVD ⇄ price relationship (agreement / divergence per bar)", family: "Aggression sense", status: "PARTIAL", owner: "src/components/chart/MainChart.tsx",
     surface: inst("CVD_NOTCH"), plate: "PROPOSED G19-P02 (docs/canon/proposed-garden19)",
     gap: "Per-bar half rides the Delta Keel's hollow; the cumulative half reaches the candle only as the PROPOSED CVD Notch (default off, src/lib/chart/cvdRelationship.ts, 2026-10-08) — waits for the Founder's CVD / Delta relationship plate. The Tape CVD pane stays under the chart" },
-  { id: "G19.FAILED_AGG", name: "Failed aggression", family: "F06 Order Flow", status: "NOT_BUILT", owner: null, surface: { kind: "NONE" }, plate: null,
-    gap: "registry §C/§E and the order-flow plate pack; no owner" },
+  // 2026-11-05 shift: barDeltaKeel's `failed` verdict (hollow keel on the glass) now reads in Inspect.
+  { id: "G19.FAILED_AGG", name: "Failed aggression", family: "F06 Order Flow", status: "BUILT", owner: "src/lib/chart/barDeltaKeel.ts",
+    surface: ctx("hollow Delta Keel on the glass · select the bar → Inspect · Failed aggression"), plate: null, aliases: ["failed aggression", "failure to displace"] },
   { id: "G19.CLC", name: "CLC — Clean Level Close family (Wick Test · Weak Close · Clean Close · +Volume · +CVD Agreement · Break and Hold · Failed Hold · Reclaim · Rejection)",
     family: "F16 Decision", status: "NOT_BUILT", owner: null, surface: { kind: "NONE" }, plate: null,
     gap: "Manifestation Map §13 'CLC IS A FAMILY'; no owner", aliases: ["clc", "clean close", "wick test"] },
@@ -304,7 +307,7 @@ const RAW_CENSUS: readonly CensusEntry[] = [
 
   // ── INTERNAL ORGANS (registry §B — never a consumer room) ──────────────
   { id: "F02", name: "Hive / Nectar", family: "F02 Hive", status: "INTERNAL", owner: "src/app/nectar/page.tsx", surface: route("/nectar"), plate: null },
-  { id: "F25", name: "Vault continuity", family: "F25 Vault", status: "INTERNAL", owner: "src/components/chart/NectarVaultChip.tsx", surface: { kind: "NONE" }, plate: null },
+  { id: "F25", name: "Vault continuity", family: "F25 Vault", status: "INTERNAL", owner: "src/lib/marketData/sessionSymbolStore.ts", surface: { kind: "NONE" }, plate: null }, // its chart chip left the consumer glass (Founder A-3 2026-11-02: "internal")
   { id: "F26", name: "Chaos Gym", family: "F26 internal", status: "INTERNAL", owner: null, surface: { kind: "NONE" }, plate: null },
 ];
 

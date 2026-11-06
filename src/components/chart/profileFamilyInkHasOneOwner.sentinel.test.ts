@@ -265,7 +265,9 @@ describe("one palette, one loader, one resolution", () => {
     // carries the per-species body inks, made lawful (appearanceLaw.lawfulSpeciesInks)
     // in the same load, after the palette.
     expect(loader).toContain("profileInkRef.current = resolveProfileInk({ ...vpColorsRef.current, species: speciesInks }, profileStrength ?? parseProfileStrength(localStorage.getItem(PROFILE_STRENGTH_STORAGE_KEY)));");
-    expect(loader.indexOf("const speciesInks = lawfulSpeciesInks(")).toBeGreaterThan(loader.indexOf("vpColorsRef.current = {"));
+    // 2026-11-06 (P0 Structure Profile colours): the species inks read through speciesInkReading — the law plus
+    // house defaults that yield to choices — the one owner the style card and Chart Settings read too.
+    expect(loader.indexOf("const speciesInks = speciesInkReading(")).toBeGreaterThan(loader.indexOf("vpColorsRef.current = {"));
     // Scoped Desk strength must flow through this same owner and update when
     // the selected View changes; storage remains the ordinary chart fallback.
     expect(CODE).toMatch(/removeEventListener\("wm-vp-colors", load\);\s*\}, \[profileStrength, speciesInkKey\]\);/);

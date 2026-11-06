@@ -110,9 +110,8 @@ describe("truth lines have one home; level chips and the WAIT plate ask first; s
     expect(CHART).toContain('onTop(spotZ.rect, "SELECTION");');
     expect(CHART).toContain('onTop(spotRect, "INSPECT");');
   });
-  it("the tape-coverage line steps up past what is on its row, else the silence stack", () => {
-    expect(CHART).toContain("const tapeRow = [0, 1, 2, 3].map(k => H - 50 - k * 16).find(");
-    expect(CHART).toContain('canvas.dataset.tapeCoverageWords = "SILENCE_STACK";');
+  it("the tape-coverage words are off the glass (Founder A-3 2026-11-02 clean glass), stated in the dataset", () => {
+    expect(CHART).toContain('canvas.dataset.tapeCoverageWords = paintsOnGlass("ORDER_FLOW_START_WORDS") ? "ROW" : "OFF_GLASS";');
   });
 });
 

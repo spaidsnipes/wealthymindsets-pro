@@ -63,6 +63,8 @@ const OWNER_SCOPED_KEYS: readonly string[] = [
   "wm-pine-scripts",      // the trader's own indicator code
   "wm_research_heat_archive_v1", // saved heat snapshots with the trader's notes
   "wm_last_symbol",       // last market opened (sessionSymbolStore did not actually clear it)
+  "wm_spot_route_v1",     // the spot pair the last market was routed from (rides wm_last_symbol, shift 1106)
+  "wm_weatherLensPlacement_v1", // where the trader hand-placed the Weather loupe, per symbol (shift 1106)
   "wm_alpaca_disconnected", // "your Alpaca account is disconnected" device flag
   "wm_alpaca_proxy",      // tape relay override — a stored host labelled LIVE
   "wm_lounge_bookmarks",  // the trader's saved lounge posts

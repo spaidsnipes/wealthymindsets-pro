@@ -489,7 +489,7 @@ export function selectChartArrangement(
       const waiting = mute.some(e => e.availability === "WAITING_FOR_BARS");
       const waitingForPrints = mute.some(e => e.availability === "WAITING_FOR_PRINTS");
       const untaped = mute.some(e => e.availability === "NEEDS_SIDED_TAPE");
-      const refused = mute.some(e => e.availability === "REFUSED_BY_DATA");
+      const refused = mute.some(e => e.availability === "REFUSED_BY_DATA" || e.availability === "NEEDS_YOUR_STEP");
       const causes = [waiting, waitingForPrints, untaped, refused].filter(Boolean).length;
       const why = causes > 1
         ? "Some are waiting for market observations; the rest need a sided tape or data this chart does not hold"

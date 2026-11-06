@@ -28,7 +28,7 @@ import { INDICATOR_CONFIG, resolveParams, visibleAtTf, type IndicatorSettings } 
 import { parseExchangeSymbol } from "@/lib/exchanges";
 import { canonicalAssetClass, canonicalInstrumentId, cryptoBaseTicker, marketClockET } from "@/lib/marketData/canonicalIdentity";
 import { DataVersionGuard } from "@/lib/chartContext";
-import { liveBarIsStale, liveBarStartSec, shouldFoldChartLiveBar } from "@/lib/marketData/liveBarPolicy";
+import { liveBarEndSec, liveBarIsStale, liveBarStartSec, shouldFoldChartLiveBar } from "@/lib/marketData/liveBarPolicy";
 import { foldClosedLiveBars, foldFormingBar, liveDespikeApplies } from "@/lib/marketData/liveBarFold";
 import { barsFromPrints } from "@/lib/marketData/printBars";
 /** The parent hears the forming bar at most this often (a new bar: at once). */
@@ -68,7 +68,10 @@ import { GLASS_NAME_MIN_PX, installTypeFloor } from "@/lib/chart/typeFloor";
 import { partitionVolumeIndicators } from "@/lib/chart/volumeIndicatorTruth";
 import { createLongPress } from "@/lib/chart/longPress";
 import { clampBubbleScale, clampWallThickness, footprintNumberPx, lawfulOrderLineLooks, lawfulSettings, volumeInk } from "@/lib/chart/appearanceLaw";
-import { drawingSpeciesAlpha, inksDistinct, lawfulSpeciesInks, layerDialOpacity, layerLineWeight, SPECIES_INK_DEFAULTS } from "@/lib/chart/appearanceLaw";
+import { drawingSpeciesAlpha, inksDistinct, layerDialOpacity, layerLineWeight } from "@/lib/chart/appearanceLaw";
+import { speciesInkReading } from "@/lib/chart/speciesInkReading";
+import { holdGovernorFeed, type GovernorFeedHold } from "@/lib/chart/governorFeedHold";
+import { EMPTY_LIFE_LEDGER, EMPTY_SEEN_LEDGER, burstProgress, landingScale, rubbleChunks, stepFirstSeen, stepLifeTransitions, type LifeLedger, type SeenLedger } from "@/lib/chart/eventMotion";
 import { DEFAULT_CHART_SETTINGS, FLOW_COLOR_DEFAULTS, VOLUME_COLOR_PICKER_DEFAULTS } from "./ChartSettingsModal";
 import { currentProofScene, proofCaptureOpen, proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { inspectedBarMark } from "@/lib/chart/inspectedBarMark";
@@ -158,7 +161,8 @@ import {
 import { coinbaseProduct, RECENT_TICK_RETENTION, useWebSocket, type LiveFlushListener, type Tick } from "@/hooks/useWebSocket";
 import { trimPrintDedupe } from "@/lib/chart/printDedupe";
 import { chartFeedReading, priceSourceBadge, resolveChartSurfaceBadge } from "@/lib/priceSource";
-import { useProvenSessionClosure } from "@/lib/marketData/useProvenSessionClosure";
+import { derivativesPressureStanding } from "@/lib/marketData/derivativesPressureStanding";
+import { useQuoteSessionClosure } from "@/lib/marketData/useProvenSessionClosure";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
 import { selectChartCloseLabel } from "@/lib/marketData/selectChartCloseLabel";
@@ -506,6 +510,7 @@ import { HEAT_SMOKE_LAYER_WEIGHT } from "@/lib/marketData/viewModels/selectHeatL
 import type { LiquidityWeatherVM } from "@/lib/marketData/viewModels/selectLiquidityWeather";
 import { HEAVY_RATIO, selectLiquidityWeatherFromBars } from "@/lib/marketData/viewModels/selectLiquidityWeather";
 import { constrainWeatherLens, weatherLensBarSpan, isWeatherLensBezel, isInsideWeatherLens, LENS_DRAG_SLOP } from "@/lib/chart/weatherLensDrag";
+import { apertureFromPlacement, clearWeatherLensPlacement, lensStore, placementFromAperture, readWeatherLensPlacement, writeWeatherLensPlacement, type WeatherLensPlacement } from "@/lib/chart/weatherLensPlacement";
 import type { EffortMark, EffortMarkVerdict } from "@/lib/marketData/effortMarkGeometry";
 import type { DeltaLevelsGlass } from "@/lib/marketData/viewModels/selectDeltaLevelsGlass";
 import type { LivingProfileGlass } from "@/lib/marketData/viewModels/selectLivingProfileGlass";
@@ -612,7 +617,7 @@ import { fusionSourceFor, pickLawfulFusionPair, type FusionSourceInputs } from "
 import { profileEstWord, profileLevelTag } from "@/lib/marketData/viewModels/profileEvidenceWord";
 import { rankPoolsForGlass, type LiquidityLifecycleVM } from "@/lib/marketData/viewModels/selectLiquidityLifecycle";
 import { selectContradiction, type ContradictionInput, type ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
-import { selectRiskOnPrice, planFromDrawing, type PositionPlanInput, type RiskOnPriceVM } from "@/lib/marketData/viewModels/selectRiskOnPrice";
+import { selectRiskOnPrice, planFromDrawing, riskNextStep, type PositionPlanInput, type RiskOnPriceVM } from "@/lib/marketData/viewModels/selectRiskOnPrice";
 import { selectRiskEconomics, snapToTick } from "@/lib/marketData/contractEconomics";
 import { instrumentEconomics } from "@/lib/marketData/contractEconomics";
 import { loadPaperSnapshot, PAPER_KEY } from "@/lib/paperTrade";
@@ -728,7 +733,7 @@ import type { VpColumnAttempt, VpColumnGeometry, VpDeclineReason } from "@/lib/v
 import type { DrawingStyle, LogicalPt, DrawStyle, ChartDrawing } from "@/types/chart";
 import { DEFAULT_DRAWING_STYLE } from "@/types/chart";
 import { showAlertToast } from "./AlertsPanel";
-import { NectarVaultChip } from "./NectarVaultChip";
+import { paintsOnGlass } from "@/lib/chart/cleanGlass";
 
 /* ── Types ─────────────────────────────────────────────── */
 /*
@@ -2488,6 +2493,8 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
   // columns): a tap on one selects ITS bar, through the Wisdom line's owner.
   // §20: the walls of the last compilation, so one that leaves shows its exit.
   const wallExitLedgerRef = useRef<WallExitLedger>(EMPTY_WALL_LEDGER);
+  const wallLifeLedgerRef = useRef<LifeLedger>(EMPTY_LIFE_LEDGER);
+  const bigTradeSeenRef = useRef<SeenLedger>(EMPTY_SEEN_LEDGER);
   const barMarkHitsRef = useRef<{ x: number; y: number; w: number; h: number; time: number }[]>([]);
   // C-05 marks travel through a ref: they change on bar close, and the paint
   // loop must not be torn down for them.
@@ -2699,6 +2706,23 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
   weatherApertureReadRef.current = onWeatherApertureRead;
   const weatherPublishedRef = useRef<LiquidityWeatherVM | null>(null);
   const [weatherDetached, setWeatherDetached] = useState(false);
+  /*
+    THE PLACEMENT PERSISTS (shift 1106, weatherLensPlacement): a hand-placed
+    loupe is remembered per symbol as a market point (bar time + price), so a
+    reload, a timeframe switch or a toggle puts it back where the trader left
+    it. Restored on the first frame whose bars hold that point; "Return lens
+    to live" forgets it.
+  */
+  const weatherRestoreRef = useRef<WeatherLensPlacement | null>(null);
+  const persistWeatherApertureRef = useRef<() => void>(() => {});
+  persistWeatherApertureRef.current = () => {
+    const a = weatherApertureRef.current;
+    if (!a) return;
+    const p = placementFromAperture(a, barsRef.current ?? [], String(timeframe));
+    if (p) writeWeatherLensPlacement(lensStore(), String(symbol), p);
+  };
+  const forgetWeatherPlacementRef = useRef<() => void>(() => {});
+  forgetWeatherPlacementRef.current = () => { weatherRestoreRef.current = null; clearWeatherLensPlacement(lensStore(), String(symbol)); };
   useEffect(() => {
     weatherApertureRef.current = null;
     weatherGrabRef.current = null;
@@ -2706,6 +2730,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
     weatherPublishedRef.current = null;
     weatherApertureReadRef.current?.(null);
     setWeatherDetached(false);
+    weatherRestoreRef.current = liquidityWeatherOnChart ? readWeatherLensPlacement(lensStore(), String(symbol)) : null;
   }, [symbol, timeframe, liquidityWeatherOnChart]);
   const weatherSelectedRef = useRef(false);
   weatherSelectedRef.current = weatherSelected;
@@ -3434,6 +3459,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
   // reads it: STALE demotes the present to the STALE ceiling; LIVE is LIVE;
   // anything else (delayed, closed, awaiting) is not a claim about freshness.
   const feedStateRef = useRef<"LIVE" | "STALE" | null>(null);
+  const governorFeedHoldRef = useRef<GovernorFeedHold>({ staleSince: null });
   const [freshVer, setFreshVer] = useState(0); // periodic freshness recheck when ticks stop
   useEffect(() => { const t = setInterval(() => setFreshVer(v => v + 1), 10000); return () => clearInterval(t); }, []);
   // Delta Bubble level cap. The legal values, the key, the event name and the
@@ -3642,7 +3668,8 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
           val: val ?? VP_DEFAULT_TRIPLETS.val,
         };
         const pv = vpColorsRef.current.poc;
-        const speciesInks = lawfulSpeciesInks({ ...SPECIES_INK_DEFAULTS, ...((speciesInkSrcRef.current && typeof speciesInkSrcRef.current === "object") ? speciesInkSrcRef.current as Record<string, unknown> : {}) }, {
+        // ONE INK READING (P0 2026-11-02, speciesInkReading.ts): choices first, house defaults only where they do not twin a choice.
+        const speciesInks = speciesInkReading(speciesInkSrcRef.current, {
           field: chartSettingsRef.current?.background ?? MARKET_FIELD_DEFAULT,
           poc: [`rgb(${pv[0]},${pv[1]},${pv[2]})`, `rgb(${PROFILE_INK_AT_REST.rgb("POC")})`],
         }).inks;
@@ -3661,8 +3688,12 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
   const { liveBar, closedLiveBars, ticker, recentTicks, tapeSource, source, connected, quoteRefusal, lastObservedAtMs } = useWebSocket({ symbol, timeframe, onLiveFlush: liveFlushRef });
   // Canon "CLOSED IS NOT DELAYED" — closure outranks the provider verdict, so
   // the chart chrome cannot claim an active session on a closed one (§8).
-  // `null` until mount and on every weekday: provider labelling is unchanged.
-  const sessionOpen = useProvenSessionClosure(symbol);
+  // THE ROOM'S ONE SESSION OWNER (truth bug 2026-11-05): this read proven
+  // closure while ChartsDashboard's header read the quote session, so on a US
+  // equity's overnight the header said SESSION CLOSED while this strip, its
+  // countdown and the LIVE pill said a bar was forming. Same owner, same feed
+  // evidence now (quoteSessionClosure → overnightFeedCarried).
+  const sessionOpen = useQuoteSessionClosure(symbol, { source, lastObservedAtMs }).sessionOpen;
 
   // ── Tick accumulator: EVERY real executed trade (no synthetic / quote-poll noise) ──
   // Map<barTime, Map<priceRounded, {bid, ask}>>
@@ -4436,11 +4467,14 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
       }
       const sec = getIntervalSec(timeframe);
       const now = Date.now() / 1000;
-      const remaining = Math.floor(now / sec) * sec + sec - now;
+      // One bar owner (shift 1106): the 1W clock counted to an epoch Thursday on the raw floor.
+      const barEnd = liveBarEndSec(now, sec);
+      const remaining = barEnd - now;
+      const span = barEnd - liveBarStartSec(now, sec);
       const c = chartBarCountdown(remaining, sec, f.live, f.label, f.closed);
       countdownRef.current = c.kind === "MARKET_CLOSED" ? "" : c.glyph;
       closeFlashRef.current = c.closing;
-      progressRef.current = Math.max(0, Math.min(1, 1 - remaining / sec));
+      progressRef.current = Math.max(0, Math.min(1, 1 - remaining / span));
       const el = countdownGlyphRef.current;
       if (el && el.textContent !== c.glyph) el.textContent = c.glyph;
     }, 250);
@@ -4453,8 +4487,8 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
 
     const tick = () => {
       const now       = Date.now() / 1000;
-      const barStart  = Math.floor(now / sec) * sec;
-      const barEnd    = barStart + sec;
+      const barStart  = liveBarStartSec(now, sec);
+      const barEnd    = liveBarEndSec(now, sec);
       const remaining = barEnd - now;
       setRemainingSec(remaining);
       // TICK BARS have no interval: the span the recency reading measures is
@@ -4465,7 +4499,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
       const tickLastT = tickBuilderRef.current && barsRef.current.length ? Number(barsRef.current[barsRef.current.length - 1].time) : null;
       setIntervalSec(tickLastT != null && Number.isFinite(tickLastT) ? Math.max(1, Math.ceil(now - tickLastT) + 1) : sec);
       setNowMs(now * 1000);
-      progressRef.current = Math.max(0, Math.min(1, (now - barStart) / sec));
+      progressRef.current = Math.max(0, Math.min(1, (now - barStart) / Math.max(1, barEnd - barStart)));
     };
 
     tick();
@@ -7669,6 +7703,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
       e.stopImmediatePropagation();
       nativePointer = null;
       weatherGrabRef.current = null;
+      persistWeatherApertureRef.current();
       if (host.hasPointerCapture(e.pointerId)) host.releasePointerCapture(e.pointerId);
       host.style.cursor = "";
     };
@@ -7688,7 +7723,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
       if (weatherGrabRef.current || (e.type === "touchstart" && isWeatherLensBezel(x, y, hit))) e.stopImmediatePropagation();
     };
     // Put the glass back on the live bars: double-click inside it, or Escape.
-    const toLive = () => { weatherApertureRef.current = null; weatherSampleCacheRef.current = null; setWeatherDetached(false); };
+    const toLive = () => { weatherApertureRef.current = null; weatherSampleCacheRef.current = null; setWeatherDetached(false); forgetWeatherPlacementRef.current(); };
     const dbl = (e: MouseEvent) => {
       if (!mayRunAnalyticalHandler("WEATHER")) return;
       const hit = weatherLensHitRef.current;
@@ -9148,6 +9183,11 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
           attSelection = { kind: "BUBBLE", key: selectedBubbleKey, onCamera: bub != null && inPlot(bub.x, bub.y), inspecting };
         }
       } catch (err) { layerFault("ATTENTION_FOCUS", err); /* camera mid-transition: no focus this frame */ }
+      // THE GLASS DIMS FOR A STALE TAPE THAT HAS HELD, never per render (P0 2026-11-02 "blinking lamp"; governorFeedHold.ts).
+      const feedHeld = holdGovernorFeed(governorFeedHoldRef.current, feedStateRef.current, Date.now());
+      governorFeedHoldRef.current = feedHeld.hold;
+      const governedFeed = feedHeld.governed;
+      canvas.dataset.governorFeed = `${feedStateRef.current ?? "UNKNOWN"}>${governedFeed ?? "UNKNOWN"}`;
       let att = selectAttentionGovernor({
         density: semanticDensity,
         // The trader's per-tool THICKNESS: the layer about to paint sets the overlay's line weight.
@@ -9171,7 +9211,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
         // The fused object's parents step back — the trader's Pick · Fuse pair,
         // or the pair Profile Fusion fused on its own (the object's sources).
         fusedParents: fusionObjectRef.current ? (stackPrefsRef.current.fusion ?? fusionObjectRef.current.sources.map(s => s.species as StackSpecies)) : [],
-        feedState: feedStateRef.current,
+        feedState: governedFeed,
         selection: attSelection,
         posture: roomPostureRef.current,
         roles: rolesByLayerRef.current,
@@ -11193,6 +11233,11 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
         let discsYieldedToForming = 0;
         /** Inscriptions withheld because the forming candle's column runs through their words. */
         let inscriptionsYieldedToForming = 0;
+        // A BIG TRADE LANDS WHEN IT IS HEARD (Founder A-3 2026-11-02, eventMotion.ts): a disc first seen after the first
+        // look, for a print executed in the last 15 s, lands (ease-out-back); history and hydrate never do.
+        const nowWallBT = Date.now();
+        bigTradeSeenRef.current = stepFirstSeen(bigTradeSeenRef.current, `${symbol}|${timeframe}`, bigDiscs.map(d => d.spawnKey), nowWallBT);
+        let discsLanding = 0;
         for (const b of [...bigDiscs].sort((a, z) => Math.abs(z.value) - Math.abs(a.value))) {
           const buy = b.side === "buy";
           const selB = selDiscKey != null && b.spawnKey === selDiscKey;
@@ -11244,8 +11289,11 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
           try { barSecBT = getIntervalSec(timeframe); } catch { /* keep 60 */ }
           const arriving = btNewest != null && Number(btNewest.time) - b.anchorTime <= 3 * barSecBT;
           const breath = arriving ? wob : 1;
-          const Rx = Math.max(0.1, b.r * breath);
-          const Ry = Math.max(0.1, b.r / breath);
+          const landAge = nowWallBT - b.born < 15_000 ? bigTradeSeenRef.current.ageOf(b.spawnKey, nowWallBT) : null;
+          const land = landingScale(landAge, motionOnRef.current);
+          if (land !== 1) discsLanding++;
+          const Rx = Math.max(0.1, b.r * breath * land);
+          const Ry = Math.max(0.1, (b.r / breath) * land);
 
           ctx.save();
           if (formingCut) { ctx.clip(formingCut, "evenodd"); discsYieldedToForming++; }
@@ -11350,6 +11398,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
         canvas.dataset.bigTradeOverlaps = String(countCircleOverlaps(drawnDiscs));
         canvas.dataset.bigTradesDrawn = String(bigDrawn);
         canvas.dataset.bigTradeFormingCut = formingCut ? `YIELDS:${discsYieldedToForming}|NEWEST:${1 + newestCutBars}` : "NONE";
+        canvas.dataset.bigTradeLanding = String(discsLanding);
         canvas.dataset.bigTradeInscribed = inscriptionsYieldedToForming > 0 ? `${bigInscribed}|YIELDED_FORMING:${inscriptionsYieldedToForming}` : String(bigInscribed);
         canvas.dataset.bigTradeQuieted = String(bubblesQuieted);
         canvas.dataset.responsePaths = String(responsePaths);
@@ -11468,7 +11517,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
         // The count and status speak for an OFF layer; every other receipt
         // described pixels that are no longer on the glass.
         for (const k of ["bigTradeBubbleIdentity", "bigTradeBubbleTop", "bigTradeBubbleOldest",
-          "bigTradeFormingCut", "bigTradesDrawn", "bigTradeInscribed", "bigTradeQuieted", "responsePaths",
+          "bigTradeFormingCut", "bigTradeLanding", "bigTradesDrawn", "bigTradeInscribed", "bigTradeQuieted", "responsePaths",
           "bigTradeCallout", "bigTradeCalloutSlot", "bigTradeAheadOfBars", "bigTradeClusters", "bigTradeOverlaps"] as const) delete canvas.dataset[k];
       } } catch (err) { layerFault("BIG_TRADES", err); }
 
@@ -14304,7 +14353,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
       // speaks only in Delta / Aggressive-Passive, which carry no seam.
       const fpModeH = (canvas.dataset.footprint ?? "").split(":")[0];
       const seamOwnsTape = fpModeH !== "delta" && fpModeH !== "aggressive-passive";
-      try { if (horizon && horizon.sym === symbol && footprintEnabled && !seamOwnsTape && att.paints("tapeHorizon")) {
+      try { if (horizon && horizon.sym === symbol && footprintEnabled && !seamOwnsTape && att.paints("tapeHorizon") && paintsOnGlass("NECTAR_HORIZON")) {
         try {
           const horizonBarSec = tapeHorizonBarStart(horizon.startedAtSec, getIntervalSec(timeframe));
           const xRaw = chart.timeScale().timeToCoordinate(horizonBarSec as any);
@@ -19269,6 +19318,16 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
       ══════════════════════════════════════════════════════════════════════ */
       try {
         let sampledWeather = liquidityWeatherRef.current;
+        // A remembered placement comes back once the bars that hold it are loaded.
+        if (!weatherApertureRef.current && weatherRestoreRef.current && layerOnRef.current.weather && !weatherGrabRef.current) {
+          const restored = apertureFromPlacement(weatherRestoreRef.current, barsRef.current ?? [], String(timeframe));
+          if (restored) {
+            weatherApertureRef.current = restored;
+            weatherRestoreRef.current = null;
+            queueMicrotask(() => setWeatherDetached(true));
+            canvas.dataset.weatherLensRestored = "RESTORED";
+          }
+        }
         const aperture = weatherApertureRef.current;
         if (aperture && layerOnRef.current.weather && !lensFixtureWeatherRef.current) {
           const sourceBars = barsRef.current ?? [];
@@ -20607,7 +20666,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
             // owner's own line below already names the reason — a second line here
             // said it twice. This one speaks only where that line cannot.)
             if (wallsOn && dp.drawn && !dp.walls.length) sayBrickWallsSilence("no wall event on this camera");
-            else if (wallsOn && !dp.drawn && !att.speaks("derivativesPressure")) sayBrickWallsSilence(`no options walls here — ${String(dp.reason).toLowerCase().replace(/_/g, " ")}`);
+            else if (wallsOn && !dp.drawn && !att.speaks("derivativesPressure")) sayBrickWallsSilence(dp.reason === "NO_CHAIN" ? derivativesPressureStanding(dp.receipt.replace("PRESSURE:SILENT:", ""), symbol).sentence : `no options walls here — ${String(dp.reason).toLowerCase().replace(/_/g, " ")}`);
             const dpSpeaks = att.speaks("derivativesPressure");
             const tsD = chart.timeScale();
             let axisWD = 60;
@@ -20874,6 +20933,10 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
               })();
               let brickSpritesReused = 0, brickSpritesDrawn = 0;
               delete ds.brickWallSprites;
+              // A WALL BREAKS ON THE GLASS WHEN IT BREAKS IN THE DATA (Founder A-3 2026-11-02, eventMotion.ts): the
+              // lifecycle ledger fires a burst only for a BREAKING / BROKEN transition watched live — never on load.
+              const nowWL = Date.now();
+              wallLifeLedgerRef.current = stepLifeTransitions(wallLifeLedgerRef.current, `${symbol}|${dp.source}`, wallsOn ? dp.walls.map(w => ({ id: w.strike, life: w.life })) : [], nowWL);
               for (const w of wallsOn ? dp.walls : []) {
                 const yc = yOfD(w.strike);
                 if (yc == null) continue;
@@ -21152,6 +21215,33 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
                   ctx.strokeRect(x0 - 3, top - depth - 3, len + 4, wallH + depth + 6);
                   ctx.lineWidth = 1;
                   painted.push(`SELECTED@${w.strike}`);
+                }
+                {
+                  // THE BREAK, AS IT HAPPENS (eventMotion.ts): bricks thrown from the breach (BREAKING) or along the
+                  // collapsing wall (BROKEN), under gravity, fading in BREAK_BURST_MS; a brief flash on the masonry.
+                  const brk = wallLifeLedgerRef.current.events.find(e => e.id === w.strike);
+                  const bp = brk ? burstProgress(brk.atMs, nowWL, motionOnRef.current) : null;
+                  if (brk && bp != null) {
+                    ctx.save();
+                    ctx.fillStyle = `rgba(255,214,150,${0.35 * (1 - bp) * baseA})`;
+                    ctx.fillRect(x0, top - depth, len, wallH + depth);
+                    const spots = breaking ? [gapMid] : [x0 + len * 0.25, x0 + len * 0.5, x0 + len * 0.75];
+                    spots.forEach((sx, si) => {
+                      for (const ch of rubbleChunks(w.strike + si * 7, bp, breaking ? 12 : 7)) {
+                        ctx.save();
+                        ctx.globalAlpha = ch.alpha * baseA;
+                        ctx.translate(sx + ch.dx, top + wallH / 2 + ch.dy);
+                        ctx.rotate(ch.rot);
+                        ctx.fillStyle = "rgba(196,120,72,1)";
+                        ctx.fillRect(-ch.size / 2, -ch.size * 0.35, ch.size, ch.size * 0.7);
+                        ctx.fillStyle = "rgba(246,226,176,0.7)";
+                        ctx.fillRect(-ch.size / 2, -ch.size * 0.35, ch.size, 1);
+                        ctx.restore();
+                      }
+                    });
+                    ctx.restore();
+                    painted.push(`BURST@${w.strike}:${brk.from}>${brk.to}:${Math.round(bp * 100)}`);
+                  }
                 }
                 if (breaking) {
                   // The breach: rubble fallen below the gap, jagged edges.
@@ -21778,7 +21868,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
             } else if (dpSpeaks) {
               const lensName = fieldOn ? "DERIVATIVES PRESSURE" : "BRICK WALLS";
               const words = dp.reason === "NO_CHAIN"
-                ? `${lensName} · no option positioning for ${symbol} (${dp.receipt.replace("PRESSURE:SILENT:", "").replace(/_/g, " ").toLowerCase()})`
+                ? `${lensName} · ${derivativesPressureStanding(dp.receipt.replace("PRESSURE:SILENT:", ""), symbol).sentence}`
                 : dp.reason === "AFTER_REPLAY_CLOCK"
                   ? `${lensName} · withheld in replay — this positioning was published after the replay clock`
                   : `${lensName} · ${dp.reason.replace(/_/g, " ").toLowerCase()} (${dp.contracts} contracts)`;
@@ -28995,15 +29085,20 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
             // bracketed, the glass says why — including when no position is
             // drawn at all, which used to leave the layer indistinguishable
             // from a broken one.
+            // Garden 19 review (Codex 01a1426c): the silence was a faint 9px
+            // line while the menu said "available". It now names the trader's
+            // NEXT STEP (one owner: riskNextStep) at the market type floor.
+            const stepR = riskNextStep(rv.reason);
             const silentR = !plansR.length
               ? "RISK ON PRICE · no position drawn — Draw › Long / Short Position to bracket its risk"
               : rv.reason === "NO_STOP_ON_DRAWING"
-              ? "RISK ON PRICE · the position drawing has no stop — nothing to bracket"
-              : "RISK ON PRICE · the stop sits on the reward side — not bracketed";
+              ? `RISK ON PRICE · the position drawing has no stop → ${stepR?.short ?? "give it a stop"}`
+              : `RISK ON PRICE · the stop sits on the reward side → ${stepR?.short ?? "move the stop"}`;
             ctx.save();
-            ctx.globalAlpha = att.alpha("riskOnPrice");
-            ctx.font = fontR(700, 9);
-            ctx.fillStyle = "rgba(200,192,174,0.85)";
+            // A named next step is a word the governor lets speak, not a ghost (ON_MEANS_SEEN floor).
+            ctx.globalAlpha = Math.max(0.85, att.alpha("riskOnPrice"));
+            ctx.font = marketFont("OBJECT_NAME");
+            ctx.fillStyle = "rgba(232,226,212,0.95)";
             ctx.textAlign = "left"; ctx.textBaseline = "middle";
             const rowY = takeSilenceRow(silentR);
             ctx.fillText(fitSilence(silentR), silenceX, rowY);
@@ -29225,8 +29320,10 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
             for (let hx = hx0 - (bot - top); hx < bx; hx += 9) { ctx.beginPath(); ctx.moveTo(hx, bot); ctx.lineTo(hx + (bot - top), top); ctx.stroke(); }
             ctx.restore();
             ctx.save();
-            ctx.strokeStyle = "rgba(212,175,55,0.8)"; ctx.lineWidth = 1.25; ctx.setLineDash([5, 4]);
-            ctx.beginPath(); ctx.moveTo(bx + 0.5, top); ctx.lineTo(bx + 0.5, bot); ctx.stroke(); ctx.setLineDash([]);
+            if (paintsOnGlass("ORDER_FLOW_SEAM_LINE")) {
+              ctx.strokeStyle = "rgba(212,175,55,0.8)"; ctx.lineWidth = 1.25; ctx.setLineDash([5, 4]);
+              ctx.beginPath(); ctx.moveTo(bx + 0.5, top); ctx.lineTo(bx + 0.5, bot); ctx.stroke(); ctx.setLineDash([]);
+            }
             ctx.font = `600 13px ${MARKET_SANS}`; ctx.textBaseline = "middle"; ctx.textAlign = "left";
             const seamChip = (text: string, x: number, y: number) => {
               const w = Math.ceil(ctx.measureText(text).width) + 18, h = 24;
@@ -29254,61 +29351,19 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
             // once; the chip's words wait until the start has held 15 s.
             const seamNow = Date.now();
             if (seamStartRef.current.t !== firstSided.t) seamStartRef.current = { t: firstSided.t, since: seamNow };
+            // CLEAN GLASS (Founder A-3 2026-11-02, "Order Flow from 7 p.m. … why that shit there"): the chip's words left the
+            // glass; the start is stated in canvas.dataset.tapeCoverage below. The hatch above still marks the bar-totals side.
             if (seamNow - seamStartRef.current.since >= 15_000) {
-              seamChip(`Order flow from ${new Date(firstSided.t * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`, bx + 8, top + 8);
+              if (paintsOnGlass("ORDER_FLOW_START_WORDS")) seamChip(`Tape from ${new Date(firstSided.t * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`, bx + 8, top + 8);
             } else canvas.dataset.tapeCoverageSettling = "1";
             if (seamNow - seamStartRef.current.since >= 15_000) delete canvas.dataset.tapeCoverageSettling;
             ctx.restore();
             canvas.dataset.tapeCoverageWords = "SEAM";
           } else if (startsInView && firstSided) {
-            const bx = firstSided.x - bsp * 0.6;
-            ctx.save();
-            ctx.strokeStyle = "rgba(200,192,174,0.45)";
-            ctx.setLineDash([3, 4]);
-            ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.moveTo(bx, 28); ctx.lineTo(bx, H - 34); ctx.stroke();
-            ctx.setLineDash([]);
-            const when = new Date(firstSided.t * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
-            const wordsFull = candleSidesT
-              ? `ORDER FLOW FROM ${when} — earlier bars: candle totals`
-              : `ORDER FLOW FROM ${when} — earlier bars: candle totals`;
-            ctx.font = marketFont("OBJECT_NAME");
-            ctx.textBaseline = "bottom";
-            // A phone plot cannot hold the full line (it ran under the price axis, "…earlier bars car"):
-            // the short form keeps the same truth words (BAR TOTALS ONLY / CARRY NONE).
-            // Phone (serving 8075518 at 375px): even the short form ran past the plot ("… BAR TOTALS ON").
-            // Shorter forms keep the same truth; the dashed seam itself marks where the tape begins.
-            const whenShort = new Date(firstSided.t * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-            const words = [
-              wordsFull,
-              `ORDER FLOW FROM ${when}`,
-              candleSidesT ? `TAPE ${whenShort} · TOTALS BEFORE` : `TAPE ${whenShort} · NONE BEFORE`,
-              `FLOW FROM ${whenShort}`,
-            ].find(w => ctx.measureText(w).width <= plotRight - 12) ?? `FLOW FROM ${whenShort}`;
-            const tw = ctx.measureText(words).width;
-            // Clamped to the PLOT, not the canvas: the canvas runs under the price axis.
-            const tx = Math.max(6, Math.min(bx - tw - 6, plotRight - tw - 6));
-            // ITS ROW MAY BE TAKEN (serving NQ1! saved view at 1180, 16f363a:
-            // this line printed over "VAL EST" / "POC EST" and a price on the
-            // foot row). It steps up a row at a time past the chips and words
-            // already there; with no free row it is said in the silence stack.
-            const tapeBusy = [...floatingChips, ...wordGate.rects()];
-            const tapeRow = [0, 1, 2, 3].map(k => H - 50 - k * 16).find(y0 => !tapeBusy.some(q => tx - 3 < q.x + q.w && tx + tw + 3 > q.x && y0 < q.y + q.h && y0 + 14 > q.y));
-            if (tapeRow === undefined) {
-              const yS = takeSilenceRow(words);
-              ctx.fillStyle = "rgba(200,192,174,0.85)"; ctx.textBaseline = "middle";
-              ctx.fillText(fitSilence(words), silenceX, yS);
-              if (yS > 0) floatingChips.push({ x: silenceX, y: yS - 7, w: tw, h: 14 });
-              canvas.dataset.tapeCoverageWords = "SILENCE_STACK";
-            } else {
-            ctx.fillStyle = "rgba(11,10,8,0.82)";
-            if (chipBox(words, { x: tx - 3, y: tapeRow, w: tw + 6, h: 14 })) ctx.fillRect(tx - 3, tapeRow, tw + 6, 14);
-            ctx.fillStyle = "rgba(200,192,174,0.92)";
-            ctx.fillText(words, tx, tapeRow + 13);
-            floatingChips.push({ x: tx - 3, y: tapeRow, w: tw + 6, h: 14 });
-            canvas.dataset.tapeCoverageWords = `ROW:${Math.round((H - 50 - tapeRow) / 16)}`;
-            }
-            ctx.restore();
+            // CLEAN GLASS (Founder A-3 2026-11-02: "Order Flow from 7 p.m. CST, early bars … why that shit there"): the
+            // dashed seam and its "ORDER FLOW FROM … — earlier bars" row left the side of the chart. Where the tape begins
+            // is stated below in canvas.dataset.tapeCoverage; the bars before it carry no cells, which says the same.
+            canvas.dataset.tapeCoverageWords = paintsOnGlass("ORDER_FLOW_START_WORDS") ? "ROW" : "OFF_GLASS";
           }
           canvas.dataset.tapeCoverage = firstSided
             ? `FROM:${firstSided.t}|SIDED_BARS:${sidedBars}|${startsInView ? "STARTS_IN_VIEW" : "COVERS_VIEW"}`
@@ -33377,9 +33432,9 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
           );
         })()}
 
-        {/* Retained evidence stays reachable without laying a persistent data
-            strip across price action. The disclosure opens only on intent. */}
-        {showEvidenceVault ? <NectarVaultChip activeSymbol={normalizeSym(symbol)} /> : null}
+        {/* CLEAN GLASS (Founder A-3 2026-11-02: "why it says four symbols … Nectar … That's something that's internal"):
+            the retained-evidence chip is off the chart for every viewer (paintsOnGlass("NECTAR_VAULT_CHIP") is false).
+            The Vault room (/nectar) still holds it. `showEvidenceVault` stays an accepted prop so callers need no change. */}
 
         {/* ── Big-Trade comic speech-bubble tooltip (🫧 hover) ─────── */}
         {bubbleTip && (() => {
@@ -33505,24 +33560,30 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
               onPointerUp={e => {
                 e.stopPropagation();
                 weatherGrabRef.current = null;
+                persistWeatherApertureRef.current();
                 if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
                 e.currentTarget.style.cursor = "grab";
               }}
               onPointerCancel={e => { e.stopPropagation(); weatherGrabRef.current = null; e.currentTarget.style.cursor = "grab"; }}
               onLostPointerCapture={() => { weatherGrabRef.current = null; }}
               onClick={e => e.stopPropagation()}
-              onDoubleClick={e => { e.stopPropagation(); weatherApertureRef.current = null; weatherSampleCacheRef.current = null; setWeatherDetached(false); }}
+              onDoubleClick={e => { e.stopPropagation(); weatherApertureRef.current = null; weatherSampleCacheRef.current = null; setWeatherDetached(false); forgetWeatherPlacementRef.current(); }}
               onKeyDown={e => {
                 if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) return;
                 e.preventDefault(); e.stopPropagation();
                 const hit = weatherLensHitRef.current, chart = chartRef.current, series = candleRef.current;
                 if (!hit || !chart || !series) return;
-                const logical = chart.timeScale().coordinateToLogical(hit.cx + (e.key === "ArrowRight" ? 12 : e.key === "ArrowLeft" ? -12 : 0));
-                const price = series.coordinateToPrice(hit.cy + (e.key === "ArrowDown" ? 12 : e.key === "ArrowUp" ? -12 : 0));
-                if (logical != null && price != null) { weatherApertureRef.current = { logical: +logical, price: +price, rx: hit.rx, ry: hit.ry }; setWeatherDetached(true); }
+                // Arrow keys obey the same bounds as the hand (they used to walk the glass off the pane).
+                const host = containerRef.current;
+                let axisK = 60, bottomK = host?.clientHeight ?? 0;
+                try { axisK = chart.priceScale("right").width(); bottomK = (chart as any).paneSize?.(0)?.height ?? bottomK; } catch { /* current plot bounds */ }
+                const c = constrainWeatherLens(hit.cx + (e.key === "ArrowRight" ? 12 : e.key === "ArrowLeft" ? -12 : 0), hit.cy + (e.key === "ArrowDown" ? 12 : e.key === "ArrowUp" ? -12 : 0), hit.rx, hit.ry, (host?.clientWidth ?? 0) - axisK, bottomK, 64);
+                const logical = chart.timeScale().coordinateToLogical(c.x);
+                const price = series.coordinateToPrice(c.y);
+                if (logical != null && price != null) { weatherApertureRef.current = { logical: +logical, price: +price, rx: hit.rx, ry: hit.ry }; setWeatherDetached(true); persistWeatherApertureRef.current(); }
               }}
             >DRAG LENS</button>
-            {weatherDetached && <button type="button" className="hidden md:block" data-weather-lens-control="live" data-analytical-layer="weather-lens" data-testid="weather-lens-live" onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); weatherApertureRef.current = null; weatherSampleCacheRef.current = null; setWeatherDetached(false); }} style={{ position: "absolute", right: 76, bottom: 42, zIndex: 22, color: "#d8cfb8", background: "#17140e", border: "1px solid #9e8245", borderRadius: 10, fontSize: 10, padding: "4px 9px" }}>Return lens to live</button>}
+            {weatherDetached && <button type="button" className="hidden md:block" data-weather-lens-control="live" data-analytical-layer="weather-lens" data-testid="weather-lens-live" onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); weatherApertureRef.current = null; weatherSampleCacheRef.current = null; setWeatherDetached(false); forgetWeatherPlacementRef.current(); }} style={{ position: "absolute", right: 76, bottom: 42, zIndex: 22, color: "#d8cfb8", background: "#17140e", border: "1px solid #9e8245", borderRadius: 10, fontSize: 10, padding: "4px 9px" }}>Return lens to live</button>}
           </>
         )}
         <canvas

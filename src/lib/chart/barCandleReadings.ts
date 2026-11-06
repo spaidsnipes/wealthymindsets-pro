@@ -14,14 +14,14 @@
  * precedent. A switched-off reading is not printed (it is not on the glass).
  */
 import { atrSeries, effortResponseWords, readEffortResponseField, type FieldBar } from "@/lib/chart/effortResponseField";
-import { FAIL_MIN_RATIO, readKeels } from "@/lib/chart/barDeltaKeel";
+import { FAIL_MAX_BODY_ATR, FAIL_MIN_RATIO, readKeels } from "@/lib/chart/barDeltaKeel";
 import { SESSION_BAND_LABEL, sessionsAt } from "@/lib/chart/sessionBands";
 import type { EvidenceClass } from "@/lib/chart/inspectEvidence";
 
 export const ER_INSPECT_WINDOW = 100;
 
 export interface CandleReadingRow {
-  readonly id: "EFFORT_RESPONSE" | "DELTA_KEEL" | "SESSION";
+  readonly id: "EFFORT_RESPONSE" | "DELTA_KEEL" | "DELTA_RATIO" | "FAILED_AGGRESSION" | "SESSION";
   readonly label: string;
   readonly klass: EvidenceClass;
   /** The reading in words + the numbers the canvas withholds. */
@@ -103,6 +103,8 @@ export function selectBarCandleReadings(i: BarCandleReadingsInput): CandleReadin
           value,
           basis: ev.basis === "TAPE" ? "captured signed prints for this bar (the ladder row the DELTA line reads)" : "the provider's own bid / ask volume per bar — sides as the provider reports them, not this room's tape",
         });
+        out.push(deltaRatioRow(ev, bar.volume));
+        out.push(failedAggressionRow(k, ratio, ev.basis));
       }
     }
   }
@@ -116,4 +118,61 @@ export function selectBarCandleReadings(i: BarCandleReadingsInput): CandleReadin
     });
   }
   return out;
+}
+
+/**
+ * DELTA RATIO — census G19.DELTA_RATIO, the registry's own formula (Invention
+ * Registry, ORDER-FLOW / DELTA EVIDENCE LADDER): `abs(bar delta) / bar volume`.
+ * Read from the SAME signed evidence the keel reads (one owner — never a second
+ * classifier). The denominator is the BAR's traded volume; when the signed
+ * evidence covers less than that volume (the tape began mid-bar, or prints
+ * arrived unsigned) the ratio is still the registry's, and the row says how
+ * much of the bar the signed evidence saw instead of rounding it into FULL.
+ */
+export function deltaRatioRow(
+  ev: { readonly buy: number; readonly sell: number; readonly basis: "TAPE" | "SIDES" },
+  barVolume: number | null | undefined,
+): CandleReadingRow {
+  const label = "Delta ratio";
+  const sided = ev.buy + ev.sell;
+  const delta = ev.buy - ev.sell;
+  const vol = typeof barVolume === "number" && Number.isFinite(barVolume) && barVolume > 0 ? barVolume : null;
+  if (vol == null) {
+    return { id: "DELTA_RATIO", label, klass: "SILENT", value: "This bar carries no traded volume — the registry ratio |delta| ÷ bar volume has no denominator.", basis: "barDeltaKeel evidence · bar volume" };
+  }
+  const r = Math.min(1, Math.abs(delta) / vol);
+  const coverage = Math.min(1, sided / vol);
+  const covered = coverage >= 0.95;
+  return {
+    id: "DELTA_RATIO", label,
+    klass: ev.basis === "TAPE" && covered ? "FULL" : "PARTIAL",
+    value: `${r.toFixed(2)} · |${delta >= 0 ? "+" : "−"}${Math.abs(delta).toLocaleString("en-US")}| of ${vol.toLocaleString("en-US")} traded` +
+      (covered ? "" : ` · signed evidence saw ${Math.round(coverage * 100)}% of this bar's volume`),
+    basis: `abs(bar delta) ÷ bar volume (registry formula), delta from ${ev.basis === "TAPE" ? "captured signed prints" : "the provider's bar sides"}`,
+  };
+}
+
+/**
+ * FAILED AGGRESSION — census G19.FAILED_AGG. The keel owner already decides it
+ * (`Keel.failed`: |delta ratio| ≥ FAIL_MIN_RATIO and the bar closed against the
+ * winning side or moved under FAIL_MAX_BODY_ATR × ATR) and the glass already
+ * draws it as the HOLLOW keel. This row is that same verdict in words, so the
+ * failure is findable in Inspect — never a second classifier.
+ */
+export function failedAggressionRow(
+  k: { readonly ratio: number; readonly failed: boolean } | null | undefined,
+  ratio: number,
+  basis: "TAPE" | "SIDES",
+): CandleReadingRow {
+  const label = "Failed aggression";
+  const klass: EvidenceClass = basis === "TAPE" ? "FULL" : "PARTIAL";
+  if (!k) return { id: "FAILED_AGGRESSION", label, klass, value: `No — no side won by 5% or more (ratio ${ratio >= 0 ? "+" : "−"}${Math.abs(ratio).toFixed(2)})`, basis: "barDeltaKeel" };
+  if (!k.failed) {
+    return { id: "FAILED_AGGRESSION", label, klass, value: `No — ${k.ratio > 0 ? "buyers" : "sellers"} won and the bar moved their way (or the win was under ${FAIL_MIN_RATIO})`, basis: "barDeltaKeel · Keel.failed" };
+  }
+  return {
+    id: "FAILED_AGGRESSION", label, klass,
+    value: `YES — ${k.ratio > 0 ? "buyers" : "sellers"} won ${Math.abs(k.ratio).toFixed(2)} of the sided volume and price did not follow (the hollow keel on the glass)`,
+    basis: `barDeltaKeel · |ratio| ≥ ${FAIL_MIN_RATIO} with a body against the winner or under ${FAIL_MAX_BODY_ATR} ATR`,
+  };
 }
