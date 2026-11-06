@@ -71,6 +71,7 @@ import { clampBubbleScale, clampWallThickness, footprintNumberPx, lawfulOrderLin
 import { drawingSpeciesAlpha, inksDistinct, layerDialOpacity, layerLineWeight } from "@/lib/chart/appearanceLaw";
 import { speciesInkReading } from "@/lib/chart/speciesInkReading";
 import { holdGovernorFeed, type GovernorFeedHold } from "@/lib/chart/governorFeedHold";
+import { EMPTY_LIFE_LEDGER, EMPTY_SEEN_LEDGER, burstProgress, landingScale, rubbleChunks, stepFirstSeen, stepLifeTransitions, type LifeLedger, type SeenLedger } from "@/lib/chart/eventMotion";
 import { DEFAULT_CHART_SETTINGS, FLOW_COLOR_DEFAULTS, VOLUME_COLOR_PICKER_DEFAULTS } from "./ChartSettingsModal";
 import { currentProofScene, proofCaptureOpen, proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { inspectedBarMark } from "@/lib/chart/inspectedBarMark";
@@ -2492,6 +2493,8 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
   // columns): a tap on one selects ITS bar, through the Wisdom line's owner.
   // §20: the walls of the last compilation, so one that leaves shows its exit.
   const wallExitLedgerRef = useRef<WallExitLedger>(EMPTY_WALL_LEDGER);
+  const wallLifeLedgerRef = useRef<LifeLedger>(EMPTY_LIFE_LEDGER);
+  const bigTradeSeenRef = useRef<SeenLedger>(EMPTY_SEEN_LEDGER);
   const barMarkHitsRef = useRef<{ x: number; y: number; w: number; h: number; time: number }[]>([]);
   // C-05 marks travel through a ref: they change on bar close, and the paint
   // loop must not be torn down for them.
@@ -11230,6 +11233,11 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
         let discsYieldedToForming = 0;
         /** Inscriptions withheld because the forming candle's column runs through their words. */
         let inscriptionsYieldedToForming = 0;
+        // A BIG TRADE LANDS WHEN IT IS HEARD (Founder A-3 2026-11-02, eventMotion.ts): a disc first seen after the first
+        // look, for a print executed in the last 15 s, lands (ease-out-back); history and hydrate never do.
+        const nowWallBT = Date.now();
+        bigTradeSeenRef.current = stepFirstSeen(bigTradeSeenRef.current, `${symbol}|${timeframe}`, bigDiscs.map(d => d.spawnKey), nowWallBT);
+        let discsLanding = 0;
         for (const b of [...bigDiscs].sort((a, z) => Math.abs(z.value) - Math.abs(a.value))) {
           const buy = b.side === "buy";
           const selB = selDiscKey != null && b.spawnKey === selDiscKey;
@@ -11281,8 +11289,11 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
           try { barSecBT = getIntervalSec(timeframe); } catch { /* keep 60 */ }
           const arriving = btNewest != null && Number(btNewest.time) - b.anchorTime <= 3 * barSecBT;
           const breath = arriving ? wob : 1;
-          const Rx = Math.max(0.1, b.r * breath);
-          const Ry = Math.max(0.1, b.r / breath);
+          const landAge = nowWallBT - b.born < 15_000 ? bigTradeSeenRef.current.ageOf(b.spawnKey, nowWallBT) : null;
+          const land = landingScale(landAge, motionOnRef.current);
+          if (land !== 1) discsLanding++;
+          const Rx = Math.max(0.1, b.r * breath * land);
+          const Ry = Math.max(0.1, (b.r / breath) * land);
 
           ctx.save();
           if (formingCut) { ctx.clip(formingCut, "evenodd"); discsYieldedToForming++; }
@@ -11387,6 +11398,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
         canvas.dataset.bigTradeOverlaps = String(countCircleOverlaps(drawnDiscs));
         canvas.dataset.bigTradesDrawn = String(bigDrawn);
         canvas.dataset.bigTradeFormingCut = formingCut ? `YIELDS:${discsYieldedToForming}|NEWEST:${1 + newestCutBars}` : "NONE";
+        canvas.dataset.bigTradeLanding = String(discsLanding);
         canvas.dataset.bigTradeInscribed = inscriptionsYieldedToForming > 0 ? `${bigInscribed}|YIELDED_FORMING:${inscriptionsYieldedToForming}` : String(bigInscribed);
         canvas.dataset.bigTradeQuieted = String(bubblesQuieted);
         canvas.dataset.responsePaths = String(responsePaths);
@@ -11505,7 +11517,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
         // The count and status speak for an OFF layer; every other receipt
         // described pixels that are no longer on the glass.
         for (const k of ["bigTradeBubbleIdentity", "bigTradeBubbleTop", "bigTradeBubbleOldest",
-          "bigTradeFormingCut", "bigTradesDrawn", "bigTradeInscribed", "bigTradeQuieted", "responsePaths",
+          "bigTradeFormingCut", "bigTradeLanding", "bigTradesDrawn", "bigTradeInscribed", "bigTradeQuieted", "responsePaths",
           "bigTradeCallout", "bigTradeCalloutSlot", "bigTradeAheadOfBars", "bigTradeClusters", "bigTradeOverlaps"] as const) delete canvas.dataset[k];
       } } catch (err) { layerFault("BIG_TRADES", err); }
 
@@ -20921,6 +20933,10 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
               })();
               let brickSpritesReused = 0, brickSpritesDrawn = 0;
               delete ds.brickWallSprites;
+              // A WALL BREAKS ON THE GLASS WHEN IT BREAKS IN THE DATA (Founder A-3 2026-11-02, eventMotion.ts): the
+              // lifecycle ledger fires a burst only for a BREAKING / BROKEN transition watched live — never on load.
+              const nowWL = Date.now();
+              wallLifeLedgerRef.current = stepLifeTransitions(wallLifeLedgerRef.current, `${symbol}|${dp.source}`, wallsOn ? dp.walls.map(w => ({ id: w.strike, life: w.life })) : [], nowWL);
               for (const w of wallsOn ? dp.walls : []) {
                 const yc = yOfD(w.strike);
                 if (yc == null) continue;
@@ -21199,6 +21215,33 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
                   ctx.strokeRect(x0 - 3, top - depth - 3, len + 4, wallH + depth + 6);
                   ctx.lineWidth = 1;
                   painted.push(`SELECTED@${w.strike}`);
+                }
+                {
+                  // THE BREAK, AS IT HAPPENS (eventMotion.ts): bricks thrown from the breach (BREAKING) or along the
+                  // collapsing wall (BROKEN), under gravity, fading in BREAK_BURST_MS; a brief flash on the masonry.
+                  const brk = wallLifeLedgerRef.current.events.find(e => e.id === w.strike);
+                  const bp = brk ? burstProgress(brk.atMs, nowWL, motionOnRef.current) : null;
+                  if (brk && bp != null) {
+                    ctx.save();
+                    ctx.fillStyle = `rgba(255,214,150,${0.35 * (1 - bp) * baseA})`;
+                    ctx.fillRect(x0, top - depth, len, wallH + depth);
+                    const spots = breaking ? [gapMid] : [x0 + len * 0.25, x0 + len * 0.5, x0 + len * 0.75];
+                    spots.forEach((sx, si) => {
+                      for (const ch of rubbleChunks(w.strike + si * 7, bp, breaking ? 12 : 7)) {
+                        ctx.save();
+                        ctx.globalAlpha = ch.alpha * baseA;
+                        ctx.translate(sx + ch.dx, top + wallH / 2 + ch.dy);
+                        ctx.rotate(ch.rot);
+                        ctx.fillStyle = "rgba(196,120,72,1)";
+                        ctx.fillRect(-ch.size / 2, -ch.size * 0.35, ch.size, ch.size * 0.7);
+                        ctx.fillStyle = "rgba(246,226,176,0.7)";
+                        ctx.fillRect(-ch.size / 2, -ch.size * 0.35, ch.size, 1);
+                        ctx.restore();
+                      }
+                    });
+                    ctx.restore();
+                    painted.push(`BURST@${w.strike}:${brk.from}>${brk.to}:${Math.round(bp * 100)}`);
+                  }
                 }
                 if (breaking) {
                   // The breach: rubble fallen below the gap, jagged edges.
