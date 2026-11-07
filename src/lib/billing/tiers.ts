@@ -58,10 +58,20 @@ export interface BillingBundle {
   readonly grants: PaidTier;
   readonly note: string;
 }
+/**
+ * FOUNDER DECISION — what FOUNDING 500 unlocks in WM Pro (founding contract 2026-11-06: "the app's PREMIUM
+ * level by default", listed as a Founder decision). ONE constant: change it here and the FOUNDING 500 price,
+ * the FOUNDING 100 trial (founding.ts) and the pricing copy's meaning all follow.
+ */
+export const FOUNDING_500_GRANTS_TIER: PaidTier = "PASSPORT";
+
 export const BILLING_BUNDLES: readonly BillingBundle[] = [
   // Not sold any more (archived nowhere — Founder: "archive nothing"): a member already paying the retired $50
   // OS price keeps the OS tier their subscription events name. Checkout never sells this price.
   { priceEnv: "WM_STRIPE_PRICE_OS", grants: "OS", note: "retired $50 WM Pro OS price (2026-11-06); existing subscribers keep OS" },
+  // FOUNDING 500 ($10/month, Founder 2026-11-06): its own price, sold ONLY by /api/billing/founding/checkout
+  // (behind WM_FOUNDING_LIVE), never by the tier checkout. A member on it holds FOUNDING_500_GRANTS_TIER.
+  { priceEnv: "WM_STRIPE_PRICE_FOUNDING", grants: FOUNDING_500_GRANTS_TIER, note: "FOUNDING 500 $10/month price; grants Premium (Founder decision)" },
 ];
 
 export type BillingEnv = Readonly<Record<string, string | undefined>>;

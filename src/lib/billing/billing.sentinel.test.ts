@@ -29,7 +29,7 @@ describe("the tier map — the client never chooses a price", () => {
     ]);
     expect(TIER_SPEC.OS.name).toBe("WM Pro Auto-Trading");
     expect(STANDARD_TIER).toBe("PASSPORT");
-    expect(billingPriceEnvNames()).toEqual(["WM_STRIPE_PRICE_APP", "WM_STRIPE_PRICE_PASSPORT", "WM_STRIPE_PRICE_AUTOTRADE", "WM_STRIPE_PRICE_OS"]);
+    expect(billingPriceEnvNames()).toEqual(["WM_STRIPE_PRICE_APP", "WM_STRIPE_PRICE_PASSPORT", "WM_STRIPE_PRICE_AUTOTRADE", "WM_STRIPE_PRICE_OS", "WM_STRIPE_PRICE_FOUNDING"]);
   });
 
   it("a request names a tier and nothing else: a price id, an amount, FREE or junk is not a tier", () => {
@@ -45,7 +45,10 @@ describe("the tier map — the client never chooses a price", () => {
   });
 
   it("only WM Pro's own price ids grant a tier; the one bundle is the retired $50 OS price (existing subscribers keep OS)", () => {
-    expect(BILLING_BUNDLES.map(b => [b.priceEnv, b.grants])).toEqual([["WM_STRIPE_PRICE_OS", "OS"]]);
+    // + FOUNDING 500 (Founder 2026-11-06): its $10 price grants Premium (FOUNDING_500_GRANTS_TIER, a Founder decision).
+    expect(BILLING_BUNDLES.map(b => [b.priceEnv, b.grants])).toEqual([["WM_STRIPE_PRICE_OS", "OS"], ["WM_STRIPE_PRICE_FOUNDING", "PASSPORT"]]);
+    expect(tierForPriceId("price_founding0001", { ...ENV, WM_STRIPE_PRICE_FOUNDING: "price_founding0001" })).toBe("PASSPORT");
+    expect(tiersOnSale({ WM_STRIPE_PRICE_FOUNDING: "price_founding0001" })).toEqual([]);   // never sold by the tier checkout
     expect(tierForPriceId("price_auto0000001", ENV)).toBe("OS");
     expect(tierForPriceId("price_os00000001", { ...ENV, WM_STRIPE_PRICE_OS: "price_os00000001" })).toBe("OS");
     // The retired price is never SOLD: it is not any tier's on-sale price.

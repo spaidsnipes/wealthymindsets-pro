@@ -11,6 +11,7 @@ import { SellingStory } from "@/components/marketing/SellingStory";
 import { PRODUCT_LINE } from "@/lib/marketing/sellingStory";
 import { WORLD_PASS_BUY_URL } from "@/lib/billing/worldPass";
 import { PAY_PER_TRADE, STANDARD_INVENTION_CAP, STANDARD_TIMEFRAMES } from "@/lib/billing/planEntitlements";
+import { FoundingOffers, readFoundingOffer, type FoundingOffer } from "@/components/billing/FoundingOffers";
 
 // NO OFFERS (Founder 2026-10-30): every plan at its listed price (the rule lives in lib/pricing).
 
@@ -102,6 +103,8 @@ export default function PricingPage() {
   // standing (their tier) is read only when signed in. Until both are known every paid button stays "Not on sale yet".
   const { user } = useAuth();
   const [sale, setSale] = useState<{ mode: "NOT_CONFIGURED" | "TEST" | "LIVE"; tiers: Record<string, boolean> } | null>(null);
+  // The Founder's 2026-11-06 offer block: the server sends this ONLY while its flag is on; absent → nothing renders.
+  const [founding, setFounding] = useState<FoundingOffer | null>(null);
   const [memberTier, setMemberTier] = useState<BillingTier | null>(null);
   // What the member's World Pass (owned by WOW OS) covers here; the two never stack.
   const [pass, setPass] = useState<{ grants: PaidTier | null; chosenApp: string | null; paidAlso: boolean } | null>(null);
@@ -111,7 +114,10 @@ export default function PricingPage() {
     let live = true;
     fetch("/api/billing/tiers", { cache: "no-store" })
       .then(r => (r.ok ? r.json() : null))
-      .then(j => { if (live && j && typeof j.mode === "string" && j.tiers && typeof j.tiers === "object") setSale({ mode: j.mode, tiers: j.tiers }); })
+      .then(j => {
+        if (live && j && typeof j.mode === "string" && j.tiers && typeof j.tiers === "object") setSale({ mode: j.mode, tiers: j.tiers });
+        if (live) setFounding(readFoundingOffer(j?.founding));
+      })
       .catch(() => { /* stays "Not on sale yet" */ });
     return () => { live = false; };
   }, []);
@@ -240,6 +246,8 @@ export default function PricingPage() {
             </section>
           ))}
         </div>
+
+        {founding ? <FoundingOffers offer={founding} signedIn={!!user} /> : null}
 
         {/* PAY PER TRADE (Founder 2026-11-06): on every paid plan. The amount is his to set — until then this says so. */}
         <p data-testid="pay-per-trade" style={{ marginTop: 16, border: `1px solid ${LINE}`, borderRadius: 8, padding: "10px 14px", color: INK, fontSize: 13, lineHeight: 1.6, maxWidth: 820 }}>

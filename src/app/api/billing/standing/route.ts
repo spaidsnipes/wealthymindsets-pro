@@ -9,6 +9,8 @@ import { requireAuth } from "@/lib/requireAuth";
 import { combinedTier, worldPassCovers, worldPassTier, WORLD_PASS_BUY_URL } from "@/lib/billing/worldPass";
 import { currentWorldPass } from "@/lib/billing/worldPassRead";
 import { entitlementsFor } from "@/lib/billing/planEntitlements";
+import { foundingGrantFrom, foundingGrantTier, foundingLive, passportUuid, type FoundingGrant } from "@/lib/billing/founding";
+import { entitlementsFor as passportEntitlementsFor } from "@/lib/billing/foundingPassport";
 
 export const dynamic = "force-dynamic";
 
@@ -20,8 +22,9 @@ export const dynamic = "force-dynamic";
  *
  * `entitlements` is what that tier unlocks (planEntitlements.ts): invention cap, timeframes, auto-trading.
  *
- * `tier` is what the member HAS: the higher of their own WM Pro tier (`ownTier`) and
- * what their World Pass covers (`worldPass.grants`), never the two added up.
+ * `tier` is what the member HAS: the highest of their own WM Pro tier (`ownTier`), what their World
+ * Pass covers (`worldPass.grants`) and — only while WM_FOUNDING_LIVE=on — a FOUNDING grant read from the
+ * Passport (`founding`), never added up.
  */
 export async function GET(request: Request) {
   const auth = await requireAuth(request);
@@ -45,9 +48,18 @@ export async function GET(request: Request) {
   const serverLive = standing.mode === "NOT_CONFIGURED" ? null : standing.live;
   const ownTier = memberTierOf(record, serverLive);
   const grants = worldPassTier(pass, serverLive);
-  const tier = combinedTier(ownTier, grants);
+  // FOUNDING (Founder 2026-11-06), only while WM_FOUNDING_LIVE=on: the Passport's grant — FOUNDING 500 held, or
+  // a FOUNDING 100 trial not yet expired — unlocks Premium. Unreadable → no grant (fail closed).
+  let founding: FoundingGrant | null = null;
+  if (foundingLive(process.env)) {
+    const uuid = passportUuid(auth.user.sub);
+    const got = uuid ? await passportEntitlementsFor(uuid) : null;
+    founding = got && got.ok ? foundingGrantFrom(got.data, Date.now()) : null;
+  }
+  const tier = combinedTier(combinedTier(ownTier, grants), foundingGrantTier(founding));
   return NextResponse.json(
     {
+      ...(foundingLive(process.env) ? { founding: founding ? { source: founding.source, expiresAt: founding.expiresAt } : null } : {}),
       mode: standing.mode,
       tiers,
       tier,

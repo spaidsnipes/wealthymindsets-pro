@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { billingKv, loadEntitlement, noteWebhookVerified, saveEntitlement, userForCustomer } from "@/lib/billing/billingStore";
 import { emptyEntitlement, readStripeEvent, reduceBillingEvent, withChargeLink } from "@/lib/billing/entitlement";
 import { STRIPE_WEBHOOK_SECRET_ENV, billingStanding } from "@/lib/billing/standing";
+import { applyFoundingPaymentEvent } from "@/lib/billing/foundingWebhook";
 import { chargeLink } from "@/lib/billing/stripeApi";
 import { verifyStripeSignature } from "@/lib/billing/webhookSignature";
 
@@ -45,16 +46,28 @@ export async function POST(request: Request) {
   let kv;
   try { kv = await billingKv(); } catch { kv = null; }
   if (!kv) return answer({ error: "The record store is not available.", code: "RETRY" }, 503);
+  let own: Record<string, unknown>;
   try {
     const userId = ev.userId ?? (await userForCustomer(kv, ev.customerId));
-    if (!userId) { await noteWebhookVerified(kv, { atMs: Date.now(), type: ev.type, outcome: "NO_RECORD", livemode: ev.livemode }); return answer({ outcome: "NO_RECORD" }); }
-    const stored = await loadEntitlement(kv, userId);
-    const before = stored && stored.livemode === standing.live ? stored : emptyEntitlement(userId, standing.live);
-    const result = reduceBillingEvent(before, ev, { serverLive: standing.live, env: process.env });
-    if (result.record !== before) await saveEntitlement(kv, result.record);
-    await noteWebhookVerified(kv, { atMs: Date.now(), type: ev.type, outcome: result.outcome, livemode: ev.livemode });
-    return answer({ outcome: result.outcome, changed: result.changed });
+    if (!userId) { await noteWebhookVerified(kv, { atMs: Date.now(), type: ev.type, outcome: "NO_RECORD", livemode: ev.livemode }); own = { outcome: "NO_RECORD" }; }
+    else {
+      const stored = await loadEntitlement(kv, userId);
+      const before = stored && stored.livemode === standing.live ? stored : emptyEntitlement(userId, standing.live);
+      const result = reduceBillingEvent(before, ev, { serverLive: standing.live, env: process.env });
+      if (result.record !== before) await saveEntitlement(kv, result.record);
+      await noteWebhookVerified(kv, { atMs: Date.now(), type: ev.type, outcome: result.outcome, livemode: ev.livemode });
+      own = { outcome: result.outcome, changed: result.changed };
+    }
   } catch {
     return answer({ error: "The record could not be written.", code: "RETRY" }, 503);
   }
+
+  // FOUNDING 500 (Founder 2026-11-06): a verified event about a FOUNDING subscription also reaches the
+  // Passport seat ledger — re-read from Stripe first. Inert while no FOUNDING price is configured.
+  const founding = await applyFoundingPaymentEvent(ev, parsed, process.env);
+  if (founding.handled && founding.retry) {
+    console.warn(`[wm:founding] webhook retry type=${ev.type} reason=${founding.reason}`);
+    return answer({ error: "The FOUNDING record could not be written yet.", code: "RETRY" }, 503);
+  }
+  return answer(founding.handled ? { ...own, founding: founding.outcome } : own);
 }

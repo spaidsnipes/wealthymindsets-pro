@@ -60,6 +60,9 @@ describe("the pricing page", () => {
   });
 
   it("no count of members and no invented claim was added", () => {
-    expect(page).not.toMatch(/of 500|Founding|founding|spots? left|seats? left|limited time|\d+ members/);
+    // FOUNDING 500 / FOUNDING 100 is the Founder's own offer (2026-11-06), mounted only when the server's flag
+    // is on; the page names it only through that component (founding.route.test.ts holds its copy sentinel).
+    expect(page.replace(/.*FoundingOffers?.*\n/g, "").replace(/.*setFounding.*\n/g, "").replace(/.*\bfounding\b.*\n/g, "")).not.toMatch(/Founding|founding/);
+    expect(page).not.toMatch(/of 500|FOUNDING|spots? left|seats? left|limited time|\d+ members/);
   });
 });

@@ -15,7 +15,9 @@ describe("World Pass copy says the Founder's rule", () => {
     for (const w of ["Basic of every other ATH app", "WOW Academy", "Dreamboard", "WOW Marketplace", "not the Premium or Pro tier of every app"]) expect(PRICING, w).toContain(w);
   });
   it("uses tier names, and never excludes future apps or offers a trial", () => {
-    for (const w of ["$10 tier", "$20 tier", "Only the apps named at checkout", "not every future app", "trial", "Founding"]) expect(PRICING, w).not.toContain(w);
+    for (const w of ["$10 tier", "$20 tier", "Only the apps named at checkout", "not every future app", "trial"]) expect(PRICING, w).not.toContain(w);
+    // FOUNDING (Founder 2026-11-06) is mounted only through the flag-gated component; the page itself says nothing of it.
+    expect(PRICING.replace(/.*Founding(Offers?|Offer)\b.*\n/g, "")).not.toContain("Founding");
   });
   it("the World Pass is sold ONCE, on WOW OS: WM Pro's $20 tier is 'WM Pro Premium' and links to it (decision 2026-10-24)", () => {
     expect(PRICING).toContain('name: "WM Pro Premium", price: "$20"');

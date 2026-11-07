@@ -7,6 +7,9 @@
  *   - PASSPORT_PROMO_OPEN is a closed constant. Nothing reads an env var or a date to reopen it.
  *   - Checkout applies no coupon and refuses, before Stripe is asked, any body that asks for an offer.
  *   - The pricing page says no offer.
+ * FOUNDING (Founder offer 2026-11-06) is NOT a coupon and does not reopen this: FOUNDING 500 is its own $10
+ * Stripe price with no promotion code / discount / trial on the session, and FOUNDING 100 is a Passport grant
+ * (no card, no Stripe). Both live in lib/billing/founding.ts behind WM_FOUNDING_LIVE (default off).
  * Members already on a discounted first month are untouched: their Stripe subscription carries its own
  * one-time coupon, and nothing here reads, edits or cancels an existing subscription.
  */
