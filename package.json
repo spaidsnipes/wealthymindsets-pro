@@ -33,6 +33,7 @@
     "electron:build:all": "npm run build:standalone && electron-builder --mac --win --linux --config electron-builder.yml",
     "test": "vitest run",
     "preview:cf": "npm run build:cloudflare && opennextjs-cloudflare preview",
+    "postbuild:cloudflare": "node scripts/guard-no-env-in-bundle.mjs",
     "deploy:cf": "npm run build:cloudflare && opennextjs-cloudflare deploy",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv env.d.ts",
     "receipt:ghost-host": "node scripts/ghost-host-receipt.mjs",
