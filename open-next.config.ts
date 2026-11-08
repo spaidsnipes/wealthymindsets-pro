@@ -13,12 +13,34 @@
  */
 
 import { defineCloudflareConfig } from "@opennextjs/cloudflare";
+import staticAssetsIncrementalCache from "@opennextjs/cloudflare/overrides/incremental-cache/static-assets-incremental-cache";
 
+/*
+ * P0 2026-11-08 — PRERENDERED PAGES ARE SERVED, NOT RE-RENDERED.
+ *
+ * MEASURED 2026-11-08 01:10Z on wealthymindsetspro.com: /pricing, /login and
+ * /welcome hung on ~40–100% of requests (no bytes, then cancelled at 42–80 s
+ * wall with 2–4 ms CPU), while "/" (a redirect) stayed fast. Every hit said
+ * `x-nextjs-cache: MISS` + `x-nextjs-prerender: 1`: with the old empty
+ * config the incremental cache was "dummy", so every request re-rendered a
+ * page that was already prerendered at build — 300–600 ms CPU each.
+ *
+ * From 2026-11-08 00:00Z the Worker began failing with exceededCpu at ~10 ms
+ * (GraphQL workersInvocationsAdaptive: status=exceededResources,
+ * cpuTimeP50=10000 µs). A render killed mid-flight leaves Next's response-cache
+ * Batcher entry for that path pending forever in that isolate, so every later
+ * request for the same path in that isolate awaits a promise nobody will
+ * resolve — the 3 ms-CPU hang.
+ *
+ * All pages in this app are static (only /api routes are dynamic), so the
+ * prerendered output is read straight from Workers static assets, and cache
+ * interception answers it in the routing layer before NextServer (and its
+ * Batcher) is ever entered. No revalidation exists to lose: no page exports
+ * `revalidate`. Route handlers are unchanged.
+ */
 const cloudflareConfig = defineCloudflareConfig({
-  // Intentionally empty. Defaults route SSR/route-handler traffic
-  // through the Workers runtime with in-memory cache. Suitable for
-  // the initial Cloudflare cutover; upgrade to R2/KV incremental
-  // cache when observability shows a need.
+  incrementalCache: staticAssetsIncrementalCache,
+  enableCacheInterception: true,
 });
 
 /*
