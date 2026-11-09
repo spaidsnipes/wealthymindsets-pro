@@ -51,7 +51,7 @@ export function PropEvaluationTodayView({ stored, sessionPlan = null }: { readon
       <section data-testid="prop-today" data-state="EMPTY" aria-label="Prop evaluation today" style={box}>
         <div style={{ fontSize: 12, fontWeight: 700, color: GOLD, letterSpacing: ".06em" }}>PROP EVALUATION · TODAY</div>
         <p style={{ margin: "6px 0 0", fontSize: 13 }}>
-          {PROP_TODAY_EMPTY_LINE} <Link href="/journal" style={{ color: GOLD }}>Journal →</Link>
+          {PROP_TODAY_EMPTY_LINE} <Link prefetch={false} href="/journal" style={{ color: GOLD }}>Journal →</Link>
         </p>
       </section>
     );
@@ -92,7 +92,7 @@ export function PropEvaluationTodayView({ stored, sessionPlan = null }: { readon
       ) : null}
       <p data-testid="prop-today-rules" style={{ margin: "10px 0 0", fontSize: 13, fontWeight: 600 }}>{PROP_TODAY_RULES_LINE}</p>
       <p style={{ margin: "6px 0 0", fontSize: 12, color: MUTED }}>
-        Kept on this device only. Your prep checklist on this page holds the levels (support, resistance, VWAP, POC), the opening range and the order-flow read. <Link href="/journal" style={{ color: GOLD }}>Open the desk →</Link>
+        Kept on this device only. Your prep checklist on this page holds the levels (support, resistance, VWAP, POC), the opening range and the order-flow read. <Link prefetch={false} href="/journal" style={{ color: GOLD }}>Open the desk →</Link>
       </p>
     </section>
   );

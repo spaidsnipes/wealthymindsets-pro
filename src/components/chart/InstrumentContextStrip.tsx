@@ -127,7 +127,7 @@ export function InstrumentContextStrip({
           Watchlist
         </button>
       ) : null}
-      <Link
+      <Link prefetch={false}
         href="/journal"
         data-testid="context-history"
         aria-label="History — your fills and the broker ledger"

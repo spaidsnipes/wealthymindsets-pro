@@ -56,7 +56,7 @@ export function JournalReminderStrip({ tradesToday, journaledToday }: {
         <strong style={{ color: "#F3D78A" }}>Journal reminder</strong> · you haven&apos;t journaled today.
       </span>
       <span style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-        <Link href="/journal" data-testid="journal-reminder-now" style={{ ...btn, display: "inline-flex", alignItems: "center", border: "1px solid rgba(212,175,55,0.8)", color: "#F3D78A", textDecoration: "none" }}>Journal now</Link>
+        <Link prefetch={false} href="/journal" data-testid="journal-reminder-now" style={{ ...btn, display: "inline-flex", alignItems: "center", border: "1px solid rgba(212,175,55,0.8)", color: "#F3D78A", textDecoration: "none" }}>Journal now</Link>
         <button type="button" data-testid="journal-reminder-later" onClick={() => save({ ...state, snoozeUntil: now + HOUR })}
           style={{ ...btn, border: "1px solid rgba(196,165,116,0.35)", background: "transparent", color: "#EDE6D3" }}>Remind me later</button>
         <button type="button" data-testid="journal-reminder-skip" onClick={() => save({ ...state, skipDay: etDayKey(now) })}

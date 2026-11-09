@@ -32,7 +32,7 @@ export function TriggerJournalPanel() {
         <span style={{ fontSize: 13, color: MUTED }}>
           {p.n === 0 ? "No triggers logged yet." : `${p.n} logged · most often “${p.topTrigger}” (${p.topCount}×) · paused ${p.interruptedPct}% · followed rules ${p.followedPct}%`}
         </span>
-        <Link href="/morning-prep" style={{ fontSize: 13, color: GOLD, minHeight: 44, display: "inline-flex", alignItems: "center" }}>Log one in Morning Prep →</Link>
+        <Link prefetch={false} href="/morning-prep" style={{ fontSize: 13, color: GOLD, minHeight: 44, display: "inline-flex", alignItems: "center" }}>Log one in Morning Prep →</Link>
         {p.n > 0 ? <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open} style={{ minHeight: 44, padding: "0 12px", borderRadius: 8, border: `1px solid ${LINE}`, background: "transparent", color: INK, fontSize: 13, cursor: "pointer" }}>{open ? "Hide entries" : "Show entries"}</button> : null}
       </div>
       {open ? (

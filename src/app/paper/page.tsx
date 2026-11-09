@@ -3561,7 +3561,7 @@ export default function PaperTradingPage() {
                           </span>
                           {/* A closing fill hands the trade to the Journal: a sell
                               closes a long, a buy closes a short. */}
-                          <Link href={`/journal?new=1&symbol=${encodeURIComponent(t.symbol)}&side=${t.side==="sell"?"long":"short"}&size=${t.qty}`}
+                          <Link prefetch={false} href={`/journal?new=1&symbol=${encodeURIComponent(t.symbol)}&side=${t.side==="sell"?"long":"short"}&size=${t.qty}`}
                             data-testid="paper-journal-trade" aria-label={`Journal this ${t.symbol} trade`}
                             className="text-[10px] font-bold text-wm-gold hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold">
                             Journal →

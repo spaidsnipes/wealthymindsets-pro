@@ -380,7 +380,7 @@ export default function MorningCommandCenter() {
           <textarea value={day.reviewNote} onChange={e => putDay({ ...day, reviewNote: e.target.value })} rows={2} style={field} />
         </label>
         <p style={{ margin: "8px 0 0", fontSize: 13 }}>
-          <Link href="/journal" style={{ color: GOLD }}>Journal →</Link>{" · "}<Link href="/backtesting" style={{ color: GOLD }}>Backtest lab →</Link>
+          <Link prefetch={false} href="/journal" style={{ color: GOLD }}>Journal →</Link>{" · "}<Link href="/backtesting" style={{ color: GOLD }}>Backtest lab →</Link>
         </p>
       </div>
 

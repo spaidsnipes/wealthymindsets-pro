@@ -381,7 +381,7 @@ export function BrokerTruthToday() {
                   </strong>
                   <span style={{ color: MUTED, fontSize: 11 }}>{st.broker === "webull" ? "Webull" : "tastytrade"} · …{st.accountTail}</span>
                   {st.decisionId ? (
-                    <Link href={`/journal?decisions=${encodeURIComponent(st.decisionId)}`} style={{ color: GOLD, fontSize: 11, marginLeft: "auto" }}>Open this decision&apos;s journal →</Link>
+                    <Link prefetch={false} href={`/journal?decisions=${encodeURIComponent(st.decisionId)}`} style={{ color: GOLD, fontSize: 11, marginLeft: "auto" }}>Open this decision&apos;s journal →</Link>
                   ) : null}
                 </header>
                 {st.orders.length ? (
