@@ -29986,8 +29986,12 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
           const nowSp = Date.now();
           const spokeAt = speakerHoldRef.current;
           for (const [k, t] of spokeAt) if (nowSp - t > SPEAKER_HOLD_MS) spokeAt.delete(k);
+          // ONE VOICE PER SENTENCE (Founder's screen recording, NQ1! 1h 2026-11-08: two "Higher low held" chips side by side
+          // read as a glitch). Only the first anchor in speaking order says a sentence; a repeat stays a quiet pip (tap lists it).
+          const saidOnce = new Set<string>();
           const speakers = new Set(anchors.filter(a => plainAnchorWord(a) != null)
             .sort((p, q) => (spokeAt.has(plainAnchorWord(q)!) ? 1 : 0) - (spokeAt.has(plainAnchorWord(p)!) ? 1 : 0) || q.x - p.x)
+            .filter(a => { const w = plainAnchorWord(a)!; if (saidOnce.has(w)) return false; saidOnce.add(w); return true; })
             .slice(0, EVENT_SENTENCES_MAX));
           for (const a of speakers) spokeAt.set(plainAnchorWord(a)!, nowSp);
           // ONE LIST CHIP (Founder's Chrome, NQ1! 5m 2026-10-23: two "2 events · Show list" chips read as a duplicate). Only
