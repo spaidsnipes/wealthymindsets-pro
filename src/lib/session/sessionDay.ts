@@ -13,6 +13,8 @@
  * PURE — no IO, no clock (the caller passes `nowMs` and the market day), no storage.
  */
 
+import { readEmergencyLog, type EmergencyEvent } from "./emergencyCorner";
+
 export type Cents = number;
 export type LockMode = "UNTIL_SIGN_IN" | "REST_OF_DAY";
 export type LockReason = "TARGET_HIT" | "DONE" | "MAX_LOSS";
@@ -43,6 +45,8 @@ export interface SessionDay {
   /** His own words for the checkpoint ("24,900 — no NQ"). */
   readonly checkpointNote: string;
   readonly lock: SessionLock | null;
+  /** Today's Emergency Corner presses (emergencyCorner.ts). */
+  readonly emergencies: readonly EmergencyEvent[];
 }
 
 export const SESSION_DAY_KIND = "WM_SESSION_DAY" as const;
@@ -52,7 +56,7 @@ export const LOCK_SENDS_NO_ORDERS = "This lock sends no orders. Anything open st
 
 export const emptySessionDay = (day: string): SessionDay => ({
   day, targetCents: null, maxLossCents: null, netCents: null, peakCents: null, updatedAtMs: null,
-  lockOnTarget: true, lockMode: "UNTIL_SIGN_IN", checkpointArmed: false, checkpointNote: "", lock: null,
+  lockOnTarget: true, lockMode: "UNTIL_SIGN_IN", checkpointArmed: false, checkpointNote: "", lock: null, emergencies: [],
 });
 
 const isInt = (v: unknown): v is number => typeof v === "number" && Number.isInteger(v) && Math.abs(v) <= 1e13;
@@ -89,6 +93,7 @@ export function readSessionDay(raw: unknown, today: string): SessionDay {
     peakCents: sameDay ? intOrNull(o.peakCents) : null,
     updatedAtMs: sameDay ? intOrNull(o.updatedAtMs) : null,
     lock: keptLock,
+    emergencies: sameDay ? readEmergencyLog(o.emergencies) : [],
   };
 }
 

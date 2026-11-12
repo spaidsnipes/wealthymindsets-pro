@@ -25,6 +25,7 @@ import { useSessionDay } from "@/components/session/useSessionDay";
 import { GivebackMeter, ToeWhooperCard } from "@/components/session/SessionVerdict";
 import { QuantumDayCard } from "@/components/session/QuantumDayCard";
 import { BeliefChainCard } from "@/components/session/BeliefChainCard";
+import { EmergencyCorner, flattenAskHref } from "@/components/session/EmergencyCorner";
 
 const GOLD = "#d4a94a", MUTED = "#9a927f", LINE = "#3a2f17";
 const card: React.CSSProperties = { border: `1px solid ${LINE}`, background: "linear-gradient(#0e0d0b,#090908)", borderRadius: 10, padding: 16, minWidth: 0 };
@@ -119,9 +120,14 @@ export default function SessionDeskPage() {
               <input type="checkbox" checked={day.lockMode === "REST_OF_DAY"} onChange={e => set({ lockMode: e.target.checked ? "REST_OF_DAY" : "UNTIL_SIGN_IN" })} />
               Keep it locked for the rest of the day (signing back in won&apos;t lift it)
             </label>
+            <Link href={flattenAskHref()} data-testid="session-done-flatten"
+              style={{ display: "block", textAlign: "center", marginTop: 14, padding: "12px 0", border: `1px solid ${GOLD}`, color: GOLD, borderRadius: 8, fontWeight: 800, letterSpacing: ".1em", textDecoration: "none" }}>
+              I&apos;M DONE · 1 — CLOSE WHAT&apos;S OPEN
+            </Link>
+            <div style={{ color: MUTED, fontSize: 11.5, marginTop: 4 }}>Opens the ticket with FLATTEN loaded: you see the symbol, quantity, side and account, and nothing is sent until you confirm it there.</div>
             <button type="button" data-testid="session-done" onClick={() => update(d => lockNow(d, "DONE", Date.now()))}
               style={{ marginTop: 14, width: "100%", minHeight: 46, border: `1px solid ${GOLD}`, color: GOLD, background: "transparent", borderRadius: 8, fontWeight: 800, letterSpacing: ".12em", cursor: "pointer" }}>
-              I&apos;M DONE — LOCK THE SCREEN
+              I&apos;M DONE · 2 — LOCK THE SCREEN
             </button>
             <div style={{ color: MUTED, fontSize: 11.5, marginTop: 6 }}>{LOCK_SENDS_NO_ORDERS}</div>
           </section>
@@ -145,6 +151,7 @@ export default function SessionDeskPage() {
             <div style={{ color: MUTED, fontSize: 12 }}>Switch on <b>Bias &amp; Tape Regime — why</b> in Tools: the chip beside price reads KNOCKOUT (trend tape at its leading edge), BODY SHOTS (balance tape away from the middle — the middle is marked) or WAIT.</div>
           </section>
 
+          <EmergencyCorner day={day} update={update} card={card} title={title} />
           <BeliefChainCard card={card} title={title} />
           <QuantumDayCard card={card} title={title} />
 

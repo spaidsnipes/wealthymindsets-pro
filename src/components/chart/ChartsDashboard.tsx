@@ -21,6 +21,8 @@ import { readAppSettings, writeAppSettings } from "@/lib/settings/appSettingsSto
 
 import { adoptProofSceneSearch, currentProofScene, parseProofScene, pickNewestClosedBar, pickProofSelectObject, proofSceneHoldsWrites, proofSceneHoldsDecisionTag, proofSceneHoldsZones, proofSceneValue, proofSelectReceipt, proofSelectObjectVerdict, type ProofSelectKind, proofVerifyOnly } from "@/lib/chart/proofScene";
 import { useSearchParams } from "next/navigation";
+import { FLATTEN_ASK_PARAM, FLATTEN_ASK_VALUE } from "@/lib/session/emergencyCorner";
+import { requestClose } from "@/lib/execution/closeRequest";
 import Link from "next/link";
 import { listenForWatchlist } from "@/lib/os/watchlistDoor";
 import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
@@ -749,6 +751,20 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     return () => window.removeEventListener(BROKER_CONNECT_EVENT, knock);
   }, [openBrokerConnect]);
   const [tradeOpen,       setTradeOpen]       = useState(false);
+  // "I'M DONE" / EMERGENCY CORNER → `?flatten=ask` (Founder 2026-11-12). Arriving shows ONE card asking to load FLATTEN
+  // into the ticket; only a TAP loads it (requestClose → the ticket's own closing order, preview and confirmation). Nothing
+  // happens on load, and the param is read once.
+  const [flattenAsk, setFlattenAsk] = useState(false);
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get(FLATTEN_ASK_PARAM) === FLATTEN_ASK_VALUE) {
+        url.searchParams.delete(FLATTEN_ASK_PARAM);
+        window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+        setFlattenAsk(true);
+      }
+    } catch { /* malformed URL */ }
+  }, []);
   // A WORKING order line pressed on the chart opens the ticket on its MODIFY (chartOrderLines.askChartLineModify).
   const chartModifyAsk = useChartLineModifyAsk();
   useEffect(() => { if (chartModifyAsk) setTradeOpen(true); }, [chartModifyAsk?.seq]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -6012,6 +6028,22 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       style={{ display:"flex", flexDirection:"column", width:"100%", height:"100%", overflow:"hidden", background: theme === "neon" ? "#02060a" : "transparent" }}
     >
       {theme === "neon" && <div className="wm-neon-scan" />}
+      {flattenAsk ? (
+        <div role="alertdialog" aria-label="Close what's open" data-testid="flatten-ask"
+          style={{ position: "fixed", left: 0, right: 0, margin: "0 auto", top: 96, zIndex: 60, width: "min(440px, calc(100vw - 32px))", padding: 16, borderRadius: 10, border: "1px solid #d4a94a", background: "rgba(9,9,8,0.97)", color: "#ede6d3", boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}>
+          <div style={{ font: "600 11px Inter, system-ui", letterSpacing: ".22em", color: "#d4a94a" }}>I&apos;M DONE · CLOSE WHAT&apos;S OPEN</div>
+          <div style={{ fontSize: 13.5, margin: "8px 0 12px" }}>
+            Load FLATTEN for <b>{symbol}</b> into the ticket? The ticket reads your position from the broker and shows the exact symbol, quantity, side and account. Nothing is sent until you preview and confirm there.
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="button" data-testid="flatten-ask-load" onClick={() => { requestClose(symbol); setTradeOpen(true); setFlattenAsk(false); }}
+              style={{ flex: 1, minHeight: 46, borderRadius: 8, border: "none", background: "#d4a94a", color: "#120d02", fontWeight: 800, letterSpacing: ".08em", cursor: "pointer" }}>LOAD FLATTEN</button>
+            <button type="button" data-testid="flatten-ask-cancel" onClick={() => setFlattenAsk(false)}
+              style={{ minHeight: 46, padding: "0 14px", borderRadius: 8, border: "1px solid #5a5246", background: "transparent", color: "#c8c0ae", cursor: "pointer" }}>Not now</button>
+          </div>
+          <div style={{ color: "#9a927f", fontSize: 11, marginTop: 8 }}>Wrong market? Switch the chart to the symbol you hold first.</div>
+        </div>
+      ) : null}
       {/* THE PHONE'S APP BAR (Founder 2026-10-11): portrait phones only, by CSS; presses the room's own controls. */}
       <MobileTabBar />
       {/* Hidden context tag for SpaidBot to read current chart state.
