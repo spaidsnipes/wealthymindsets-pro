@@ -7744,6 +7744,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       wisdomLineOn={wisdomLineOn}
                       rvolToneOn={rvolToneOn}
                       squabbleOn={squabbleOn}
+                      chartPulse={{ breathing: marketBreathing ? { state: marketBreathing.state, phase: marketBreathing.phase, atrRatio: marketBreathing.atrRatio } : null, families: evidenceLineage?.families.map(f => f.label) ?? [], correlated: evidenceLineage?.correlated ?? 0 }}
                       regimeWhyOn={regimeWhyOn}
                       busRunwayOn={busRunwayOn}
                       breathRibbonOn={breathRibbonOn}

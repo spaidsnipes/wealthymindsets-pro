@@ -154,12 +154,13 @@ describe("§9 — the mark says what was observed, and grades nothing", () => {
     expect(a.drawn && a.mark.label).not.toBe(b.drawn && b.mark.label);
   });
 
-  it("emits no ratio, no percentage and no score", () => {
+  it("carries the reading's own ratios to SIZE the wedge, and the bar's own range for the box — no score, no %", () => {
+    // Founder ruling 2026-11-12 (plate 03 #10 wedge + box). The ratios are the VM's published ones, unchanged.
     const v = selectEffortMark(vm("HIGH_EFFORT_WEAK_RESULT"), BAR);
     expect(v.drawn).toBe(true);
     if (!v.drawn) return;
-    expect(Object.keys(v.mark).sort()).toEqual(["label", "price", "shape", "side", "time"]);
-    expect(JSON.stringify(v.mark)).not.toMatch(/2\.4|0\.3|%/);
+    expect(Object.keys(v.mark).sort()).toEqual(["barHigh", "barLow", "effortX", "label", "price", "resultX", "shape", "side", "time"]);
+    expect(JSON.stringify(v.mark)).not.toMatch(/%|score|grade/i);
   });
 });
 

@@ -120,6 +120,16 @@ export interface EffortMark {
   readonly shape: EffortResultShape;
   /** Plain observation, not a grade. Drawn beside the tick. */
   readonly label: string;
+  /**
+   * Founder ruling 2026-11-12 ("clean and beautiful", plate 03 #10 effort wedge + result box — supersedes the
+   * stem-and-cap-only rule): the reading's own published ratios, so the glass can SIZE the wedge (effort) and
+   * NAME the box (result). They size shapes and print as words; they are never mapped onto the price axis.
+   */
+  readonly effortX: number | null;
+  readonly resultX: number | null;
+  /** The bar's own range, for the result box (prices the bar reached). */
+  readonly barHigh: number | null;
+  readonly barLow: number | null;
 }
 
 export type EffortMarkVerdict =
@@ -202,7 +212,7 @@ export function selectEffortMark(
   return {
     drawn: true,
     reason: vm.shape,
-    mark: { time, price, side, shape: vm.shape, label },
+    mark: { time, price, side, shape: vm.shape, label, effortX: vm.effortRatio, resultX: vm.resultRatio, barHigh: finite(high) ? high : null, barLow: finite(low) ? low : null },
   };
 }
 

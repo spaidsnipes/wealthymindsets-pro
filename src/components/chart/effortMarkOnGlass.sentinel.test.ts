@@ -153,19 +153,20 @@ describe("§9 — two corners, one ink", () => {
     }
   });
 
-  it("draws a stem and a HOLLOW cap, not an arrow and not a filled dot", () => {
-    // An arrow points somewhere and this reading refuses to say where. A
-    // filled mark is this house's vocabulary for ANSWERED, and nothing about
-    // this bar is answered.
-    expect(block).toMatch(/ctx\.arc\(x, y \+ out \* 16, 2\.5, 0, Math\.PI \* 2\)/);
-    const afterArc = block.slice(block.indexOf("ctx.arc("));
-    expect(afterArc.slice(0, 120)).toMatch(/ctx\.stroke\(\)/);
-    expect(afterArc.slice(0, 120)).not.toMatch(/ctx\.fill\(\)/);
+  it("draws the plate's effort wedge and dashed result box (Founder ruling 2026-11-12 supersedes stem-and-cap)", () => {
+    // Codex plate 03 #10 + ATH mockup S-EM2: "clean and beautiful, fully understandable". The wedge is SIZED by the
+    // reading's effort ratio and the box is the bar's own high–low; neither ratio is ever mapped onto the price axis
+    // (the coordinate guard above still holds).
+    expect(block).toMatch(/ds\.effortMarkForm = `WEDGE/);
+    expect(block).toMatch(/ctx\.setLineDash\(\[5, 4\]\)/);
+    expect(block).toMatch(/srs\.priceToCoordinate\(m\.barHigh\)/);
+    expect(block).toMatch(/ctx\.clip\("evenodd"\)/);
   });
 
   it("prints the compiler's words and composes none of its own", () => {
     expect(block).toMatch(/fillText\(m\.label,/);
     expect(block).not.toMatch(/fillText\(\s*["'`]/);
+    expect(block).toMatch(/m\.label/);
   });
 });
 

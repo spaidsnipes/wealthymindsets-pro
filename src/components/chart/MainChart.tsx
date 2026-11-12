@@ -119,6 +119,8 @@ import { selectSquabble, squabbleReceipt, roundWordShown } from "@/lib/chart/squ
 import { selectDayBiasCorridor, selectRegimePeriodLabel } from "@/lib/marketData/selectRegimeBadge";
 import { directionDrawing } from "@/lib/marketData/deriveDirectionDimension";
 import { selectFightModel, FIGHT_MODEL_WORD } from "@/lib/chart/fightModel";
+import { waitingRowWords } from "@/lib/chart/waitingTray";
+import { explainBrickWall, explainWall, type WallExplain } from "@/lib/chart/wallExplain";
 import { selectBusRunway, busReceipt } from "@/lib/chart/busRunway";
 import { playSfx } from "@/lib/sfx";
 import { tastyCandleStreamerFor, tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
@@ -1320,6 +1322,13 @@ interface Props {
    * bars take a brass tone on their own VOLUME bar — never on the body.
    */
   rvolToneOn?: boolean;
+  /**
+   * THE PULSE (Founder ruling 2026-11-12: "turn the Evidence Lineage and Market Breathing side cards into on-chart
+   * embodiments"). The room's own two readings — marketBreathing and compileEvidenceLineage — as one small chip on
+   * the glass: the breath state with a lung that fills to the bar-size ratio, and one dot per independent evidence
+   * family (rings for the tools that only repeat a family). Nothing is re-derived here.
+   */
+  chartPulse?: { readonly breathing: { readonly state: string; readonly phase: string; readonly atrRatio: number } | null; readonly families: readonly string[]; readonly correlated: number } | null;
   /** THE SQUABBLE (Founder 2026-11-05): the live 15m fight's rounds and 15 s punches from the signed tape (squabble.ts). */
   squabbleOn?: boolean;
   /** BIAS & TAPE REGIME — the day-bias corridor and the tape's drift box drawn as the chips' WHY (2026-11-12). */
@@ -2021,7 +2030,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
   compareSymbol, onPriceAtCursor, onOHLCAtCursor, onCrosshairTime, onCrosshairHandle, onSelectBigTrade, proofSelectBigTradeRef, selectedPrintOnChart = null,
   onSelectProfileSlice, selectedProfileSlicePrice = null, selectionInspected = false,
   onSelectAnatomy, selectedAnatomy = null, onAnatomyReading,
-  fixedVPActive = false, sessionVPActive = false, sessionBandsOn = false, effortResponseOn = false, deltaKeelOn = false, wisdomLineOn = false, rvolToneOn = false, squabbleOn = false, regimeWhyOn = false, busRunwayOn = false, breathRibbonOn = false, cvdNotchOn = false, fvgOn = false, onFvgScene, regimeSeries = null, livingDevelopment = null,
+  fixedVPActive = false, sessionVPActive = false, sessionBandsOn = false, effortResponseOn = false, deltaKeelOn = false, wisdomLineOn = false, rvolToneOn = false, squabbleOn = false, chartPulse = null, regimeWhyOn = false, busRunwayOn = false, breathRibbonOn = false, cvdNotchOn = false, fvgOn = false, onFvgScene, regimeSeries = null, livingDevelopment = null,
   absorptionAnatomyActive = false,
   exhaustionOnChart = true,
   imbalanceStack = null,
@@ -2516,6 +2525,8 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
   effortMarksFieldRef.current = effortMarksField;
   const breathAtrRef = useRef<{ key: string; atr: (number | null)[] } | null>(null);
   const breathRibbonRef = useRef<{ key: string; r: BreathRibbon | null } | null>(null);
+  const chartPulseRef = useRef<Props["chartPulse"]>(null);
+  chartPulseRef.current = chartPulse;
   const rvolCacheRef = useRef<{ key: string; bars: RvolBar[] } | null>(null);
   const rvolCostRef = useRef<{ n: number; sum: number; longest: number }>({ n: 0, sum: 0, longest: 0 });
   const deltaKeelGeoRef = useRef<{ keels: unknown; key: string; halo: number[]; groups: Map<string, { solid: number[]; hollow: number[] }>; drawn: number; failed: number; layout?: KeelGeometry } | null>(null);
@@ -2682,6 +2693,9 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
   // The wall rects painted this frame (what a click hits), and the selected strike.
   // `off` marks an EDGE brick (the wall lies beyond the camera): a tap on it is a "show me" ask.
   const pressureWallHitRef = useRef<{ strike: number; x: number; y: number; w: number; h: number; off?: boolean }[]>([]);
+  // Walls & Gamma chips and band rows painted this frame — a tap explains them (Founder 2026-11-12).
+  const wgLabelHitRef = useRef<{ x: number; y: number; w: number; h: number; price: number | null; kinds: readonly string[]; text: string }[]>([]);
+  const [wallExplainCard, setWallExplainCard] = useState<(WallExplain & { x: number; y: number }) | null>(null);
   // SHOW ME (order §4): the level the trader asked the camera to reveal, for a few seconds.
   const cameraRevealRef = useRef<CameraReveal | null>(null);
   // Plate 25: the trader's Delta view (Bars · Ribbon · Bubbles · Number on candle · Heat strip).
@@ -8643,6 +8657,8 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
       // The edge beacons' rects from the LAST frame (this frame's are rebuilt later, at the walls pass).
       const silenceBeacons = [...edgeChipHitRef.current, ...pressureWallHitRef.current.filter(r => r.off)];
       let silenceTaken = 0, silenceFolded = 0;
+      // The pure silences' own words, for the WAITING tray (Founder 2026-11-12: "turn them ON with a clean, neatly placed waiting state").
+      const silenceWaiting: string[] = [];
       const silenceStep = shortPane ? 11 : 14;
       // A SILENCE STOPS AT THE FIRST WORD ON ITS ROW (all-on stress, NQ 5m 2026-10-17: "LIQUIDITY LIFECYCLE · …
       // NO POOL IN VIEW" and its backing ran through the "LIVING VAL" chip). The row's backing and its words end
@@ -8671,9 +8687,9 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
       // drawn", "needs a wider view". The glass carries ink or nothing; the reason lives in Tools › Active (the row's
       // plain status) and the receipts. Only captions that QUALIFY painted ink ("ESTIMATED FROM CANDLES", "N OF M
       // PRINTS", "ZERO-GAMMA WITHHELD") keep a row.
-      const PURE_SILENCE = /·\s*(?:ON|ACTIVE)\s*·|NOTHING ON THIS CAMERA|·\s*SILENT\b|\bSILENT\s*[—-]|\bNO [A-Z ]+ IN VIEW\b|WAITING|SELECT A\b|NONE AT PRICE|NO POSITION|WIDER (?:VIEW|SCREEN)|TOO SHORT|REFUSED|UNAVAILABLE|NOT POSSIBLE|\bNO (?:OPTION|CHAIN|TAPE|DATA|READING|BARS|VOLUME|SIGNED|CURRENT|LIVE|SPOT|EXPOSURE|EVIDENCE)\b|NEEDS? (?:A |THE )?[A-Z]/;
+      const PURE_SILENCE = /·\s*(?:ON|ACTIVE)\s*·|NOTHING ON THIS CAMERA|·\s*SILENT\b|\bSILENT\s*[—-]|\bNO [A-Z ]+ IN VIEW\b|WAITING|SELECT A\b|NONE AT PRICE|NO POSITION|WIDER (?:VIEW|SCREEN)|TOO SHORT|REFUSED|UNAVAILABLE|NOT POSSIBLE|\bNO (?:OPTION|CHAIN|TAPE|DATA|READING|BARS|VOLUME|SIGNED|CURRENT|LIVE|SPOT|EXPOSURE|EVIDENCE)\b|NEEDS? (?:A |THE )?[A-Z]|NOT ENOUGH/;
       const takeSilenceRow = (words?: string): number => {
-        if (words && PURE_SILENCE.test(words.toUpperCase())) { silenceFolded++; return -1000; }
+        if (words && PURE_SILENCE.test(words.toUpperCase())) { silenceFolded++; silenceWaiting.push(words); return -1000; }
         // THE PHONE FOLDS THEM ALL (2026-10-04, narrow-glass word budget):
         // "ORDER FLOW · ACTIVE · NO CURRENT EVENT…" and "FOUNDER ANATOMY ·
         // ACTIVE…" stacked over the candles of a 330px plot. Every sense still
@@ -13495,21 +13511,31 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
           ctx.save();
           // Founder 2026-10-16 ("you can barely see it"): the marks read on a screen — 0.9 of the layer, 1.5px, a 4px ring.
           ctx.globalAlpha = att.alpha("effort") * 0.9;
-          ctx.strokeStyle = "rgba(237,230,211,0.95)";
-          ctx.lineWidth = 1.5;
-          ctx.beginPath();
-          for (const mk of ef.marks) {
-            if (mk.time === subjT) continue;
-            const xr = tsEF.timeToCoordinate(mk.time as never), yr = srs.priceToCoordinate(mk.price);
-            if (xr == null || yr == null || +xr < 0 || +xr > plotRight) continue;
-            const x = Math.round(+xr) + 0.5, y = Math.round(+yr) + 0.5;
-            const out = mk.side === "ABOVE" ? -1 : 1;
-            ctx.moveTo(x, y + out * 3); ctx.lineTo(x, y + out * 12);
-            ctx.moveTo(x + 4, y + out * 16);
-            ctx.arc(x, y + out * 16, 4, 0, Math.PI * 2);
+          // Founder ruling 2026-11-12 (plate 03 #10, mockup S-EM2): every notable bar on camera wears the SAME picture
+          // as the subject bar, small — a dashed result box on the bar's own range and an effort wedge under it sized by
+          // its volume vs normal. No words here (the subject bar carries the cards); a tap on the bar selects it.
+          ctx.globalAlpha = Math.max(0.8, att.alpha("effort") * 0.9);
+          // The five strongest on camera only (16 wedges read as noise on BTC 5m, local proof 2026-11-12).
+          const onCamEF = ef.marks.filter(mk => { if (mk.time === subjT) return false; const xq = tsEF.timeToCoordinate(mk.time as never); return xq != null && +xq >= 0 && +xq <= plotRight; })
+            .sort((a, b) => Math.abs(Math.log((b.effortX ?? 1) / Math.max(0.05, b.resultX ?? 1))) - Math.abs(Math.log((a.effortX ?? 1) / Math.max(0.05, a.resultX ?? 1)))).slice(0, 5);
+          for (const mk of onCamEF) {
+            const xr = tsEF.timeToCoordinate(mk.time as never);
+            if (xr == null) continue;
+            const x = Math.round(+xr) + 0.5;
+            const yH = mk.barHigh != null ? srs.priceToCoordinate(mk.barHigh) : null, yL = mk.barLow != null ? srs.priceToCoordinate(mk.barLow) : null;
+            if (yH == null || yL == null) continue;
+            const half = Math.max(bsp * 0.75, 5);
+            ctx.setLineDash([4, 3]); ctx.strokeStyle = "rgba(212,169,74,0.9)"; ctx.lineWidth = 1.2;
+            ctx.strokeRect(Math.round(x - half) + 0.5, Math.round(+yH) - 3.5, Math.round(half * 2), Math.round(+yL - +yH) + 7);
+            ctx.setLineDash([]);
+            const spread = Math.min(40, Math.max(half, 10 * (mk.effortX ?? 1)));
+            const wTop = Math.round(+yL) + 6, wBot = wTop + 34;
+            const wg = ctx.createLinearGradient(0, wBot, 0, wTop);
+            wg.addColorStop(0, "rgba(111,194,255,0.02)"); wg.addColorStop(1, "rgba(111,194,255,0.38)");
+            ctx.fillStyle = wg; ctx.beginPath(); ctx.moveTo(x - spread, wBot); ctx.lineTo(x + spread, wBot); ctx.lineTo(x, wTop); ctx.closePath(); ctx.fill();
+            ctx.strokeStyle = "rgba(111,194,255,0.7)"; ctx.lineWidth = 1; ctx.stroke();
             drawnEF++;
           }
-          ctx.stroke();
           ctx.restore();
           canvas.dataset.effortMarks = `${drawnEF}/${ef.considered}`;
         }
@@ -16010,7 +16036,9 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
                 meaningW = ctx.measureText("Force is hitting. Price is holding.").width;
                 ctx.font = marketFont("FIDELITY");
               }
-              const chipH = nameH + (meaningLine ? 14 : 0);
+              // 2026-11-12 (Founder: "make the absorption shelf cleaner"): the meaning line sat 1px under the name and
+              // the two read as one smeared line on the effort cloud. 4px between them, each on its own backing.
+              const chipH = nameH + (meaningLine ? 18 : 0);
               const chipW = Math.max(cw2, meaningW) + 12;
               // Clamp BOTH edges. The left was already held off the frame; the
               // right was not, and once the window started following the eye
@@ -16170,7 +16198,8 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
                 // The font it was MEASURED in (Founder's Chrome, ES1! 5m 2026-10-19: drawn in the frame's last font the
                 // name ran past its backing — "…SHELF" onto the newest candles and the absorption figure).
                 ctx.font = marketFont("FIDELITY");
-                ctx.fillText(shelfWords, chipX, chipY + chipH / 2 + 0.5);
+                { const nw = ctx.measureText(shelfWords).width; const sc = ctx.shadowBlur; ctx.shadowBlur = 0; const fs = ctx.fillStyle; ctx.fillStyle = "rgba(11,10,8,0.88)"; ctx.fillRect(chipX - 4, chipY - 1, nw + 8, nameH + 1); ctx.fillStyle = fs; ctx.shadowBlur = sc; }
+                ctx.fillText(shelfWords, chipX, meaningLine ? chipY + nameH : chipY + chipH / 2 + 0.5);
                 ctx.textBaseline = "middle";
                 // §XLVI learning without lecture: one quiet line, the meaning.
                 if (meaningLine) {
@@ -16181,9 +16210,9 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
                   const mw = ctx.measureText("Force is hitting. Price is holding.").width;
                   ctx.shadowBlur = 0;
                   ctx.fillStyle = "rgba(11,10,8,0.9)";
-                  ctx.fillRect(chipX - 4, chipY + nameH - 1, mw + 8, 14);
+                  ctx.fillRect(chipX - 4, chipY + nameH + 3, mw + 8, 14);
                   ctx.fillStyle = "rgba(237,230,211,0.95)";
-                  ctx.fillText("Force is hitting. Price is holding.", chipX, chipY + nameH + 6);
+                  ctx.fillText("Force is hitting. Price is holding.", chipX, chipY + nameH + 10);
                 }
                 ctx.restore();
                 if (shelfSelected) shelfNumbersShown = true;
@@ -19504,46 +19533,68 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
             if (xr != null && yr != null) {
               const x = Math.round(+xr) + 0.5;
               const y = Math.round(+yr) + 0.5;
-              // Outside the extreme, so the description never covers the
-              // candle it describes.
               const out = m.side === "ABOVE" ? -1 : 1;
-              ctx.save(); ctx.globalAlpha = att.alpha("effort");
-              ctx.strokeStyle = "rgba(237,230,211,0.85)";
-              ctx.fillStyle = "rgba(237,230,211,0.85)";
-              ctx.lineWidth = 1;
-
-              // PRICE SOVEREIGNTY (narrow glass): on the newest candles' column
-              // the stem and cap are not drawn (the words below are listed by the
-              // registry's column rule, so the reading is never lost).
+              ctx.save(); ctx.globalAlpha = Math.max(0.85, att.alpha("effort"));
               const colEM = sovereignColumn();
               const effortMarkHeld = colEM != null && x > colEM.x - SOVEREIGN_SHAPE_PAD && x < colEM.x + colEM.w + 4;
               if (effortMarkHeld) sovereigntyHeld++;
-              // A short stem off the bar's own extreme. Not an arrow: an arrow
-              // points somewhere, and this reading refuses to say where.
-              if (!effortMarkHeld) {
-              ctx.beginPath();
-              ctx.moveTo(x, y + out * 3);
-              ctx.lineTo(x, y + out * 13);
-              ctx.stroke();
-
-              // A hollow cap. FILL is reserved elsewhere in this house for
-              // "answered"; nothing about this bar is answered.
-              ctx.beginPath();
-              ctx.arc(x, y + out * 16, 2.5, 0, Math.PI * 2);
-              ctx.stroke();
+              /* EFFORT / RESULT — Codex plate 03 #10, ATH mockup S-EM2 (Founder ruling 2026-11-12: "clean and beautiful,
+                 fully understandable" supersedes the stem-and-cap-only rule). The WEDGE rises from the volume well to the
+                 bar: its width is the effort (volume ÷ the cohort's median, capped). The dashed BOX is the bar's own
+                 high–low: the result. Two plain cards say both numbers. Candles stay in front (cut out of the wedge). */
+              const yHiB = m.barHigh != null ? srs.priceToCoordinate(m.barHigh) : null;
+              const yLoB = m.barLow != null ? srs.priceToCoordinate(m.barLow) : null;
+              const EFF = "111,194,255", RES = "212,169,74";
+              if (!effortMarkHeld && yHiB != null && yLoB != null) {
+                const half = Math.max(bsp * 0.9, 6);
+                // The result box: the bar's own range.
+                ctx.setLineDash([5, 4]); ctx.strokeStyle = `rgba(${RES},0.95)`; ctx.lineWidth = 1.5;
+                ctx.strokeRect(Math.round(x - half) + 0.5, Math.round(+yHiB) - 5.5, Math.round(half * 2), Math.round(+yLoB - +yHiB) + 11);
+                ctx.setLineDash([]);
+                // The effort wedge: from the volume well up to the bar's low edge of the box.
+                const eX = m.effortX != null && Number.isFinite(m.effortX) ? m.effortX : 1;
+                const spread = Math.min(plotRight * 0.12, Math.max(bsp * 1.5, 26 * eX));
+                const wTop = Math.round(+yLoB) + 8, wBot = Math.max(wTop + 30, pane0Bottom - 4);
+                ctx.save();
+                ctx.beginPath(); ctx.rect(0, 0, W, H);
+                for (const r of profileCandlesAt(wTop, wBot)) ctx.rect(r.x, r.y, r.w, r.h);
+                ctx.clip("evenodd");
+                const wg = ctx.createLinearGradient(0, wBot, 0, wTop);
+                wg.addColorStop(0, `rgba(${EFF},0.04)`); wg.addColorStop(1, `rgba(${EFF},0.42)`);
+                ctx.fillStyle = wg; ctx.beginPath(); ctx.moveTo(x - spread, wBot); ctx.lineTo(x + spread, wBot); ctx.lineTo(x, wTop); ctx.closePath(); ctx.fill();
+                ctx.strokeStyle = `rgba(${EFF},0.85)`; ctx.lineWidth = 1.2; ctx.stroke();
+                ctx.restore();
+                // The two cards — the reading's own numbers, as words.
+                ctx.font = marketFont("OBJECT_NAME"); ctx.textBaseline = "middle"; ctx.textAlign = "left";
+                const card = (cx: number, cy: number, t1: string, t2: string, ink: string) => {
+                  wordGate.declareTruth(t1); wordGate.declareTruth(t2);
+                  const w = Math.max(ctx.measureText(t1).width, ctx.measureText(t2).width) + 16;
+                  const bx = Math.max(4, Math.min(cx, plotRight - w - 4)), by = Math.max(HEADER_FLOOR_Y + 4, Math.min(cy, pane0Bottom - 36));
+                  ctx.fillStyle = "rgba(7,9,15,0.92)"; ctx.fillRect(bx, by, w, 32);
+                  ctx.strokeStyle = `rgba(${ink},0.9)`; ctx.lineWidth = 1; ctx.strokeRect(bx + 0.5, by + 0.5, w - 1, 31);
+                  ctx.fillStyle = `rgba(${ink},1)`; ctx.fillText(t1, bx + 8, by + 10);
+                  ctx.fillStyle = "rgba(225,218,200,0.92)"; ctx.fillText(t2, bx + 8, by + 23);
+                  floatingChips.push({ x: bx, y: by, w, h: 32 });
+                };
+                const effWord = m.effortX != null ? `${m.effortX.toFixed(1)}× its normal volume` : "volume vs normal unknown";
+                const resWord = m.resultX != null ? `${m.resultX.toFixed(2)}× a normal move` : "move vs normal unknown";
+                const spent = (m.effortX ?? 1) >= 1;
+                card(x + spread + 8, wBot - 44, spent ? "HIGH EFFORT" : "LOW EFFORT", effWord, EFF);
+                card(x + half + 10, Math.round(+yHiB) - 40, spent ? "SMALL RESULT" : "BIG RESULT", `${resWord} · ${m.label}`, RES);
+                ds.effortMarkForm = `WEDGE|E:${m.effortX == null ? "NA" : m.effortX.toFixed(2)}|R:${m.resultX == null ? "NA" : m.resultX.toFixed(2)}`;
+              } else {
+                // No bar range (or the newest column holds the shapes): the stem, and its words always.
+                ctx.strokeStyle = "rgba(237,230,211,0.85)"; ctx.fillStyle = "rgba(237,230,211,0.85)"; ctx.lineWidth = 1;
+                if (!effortMarkHeld) { ctx.beginPath(); ctx.moveTo(x, y + out * 3); ctx.lineTo(x, y + out * 13); ctx.stroke(); }
+                ctx.font = marketFont("FIDELITY"); ctx.textAlign = "center";
+                ctx.textBaseline = m.side === "ABOVE" ? "bottom" : "top";
+                ctx.fillText(m.label, x, y + out * 21);
+                ds.effortMarkForm = effortMarkHeld ? "WORDS" : "STEM";
               }
-
-              ctx.font = marketFont("FIDELITY");
-              ctx.textAlign = "center";
-              ctx.textBaseline = m.side === "ABOVE" ? "bottom" : "top";
-              ctx.fillText(m.label, x, y + out * 21);
               ctx.restore();
 
               ds.effortMarkSide = m.side;
             } else {
-              // Scrolled out of the visible range. The reading still stands;
-              // it simply has nowhere on this screen to stand. Saying DRAWN
-              // here would claim paint nobody can see.
               ds.effortMark = "OFFSCREEN";
               delete ds.effortMarkSide;
             }
@@ -20706,6 +20757,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
         ds.livingMarket = livingReceiptRef.current;
         delete ds.derivativesPressurePainted;
         pressureWallHitRef.current = [];
+        wgLabelHitRef.current = [];
         edgeChipHitRef.current = [];
         edgeBeaconCandsRef.current = [];
         edgeBeaconFrameRef.current = null;
@@ -22411,6 +22463,10 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
                 ctx.fillText(t.text, x, box.y + box.h / 2 + 0.5);
                 ctx.textBaseline = "bottom";
                 placed.push(box); floatingChips.push(box);
+                const tk = t as unknown as { price?: number; kinds: readonly string[] };
+                wgLabelHitRef.current.push({ ...box, price: tk.price ?? null, kinds: tk.kinds, text: t.text });
+                // The band's own row is a target too (±6px across the plot), under the chip.
+                wgLabelHitRef.current.push({ x: 0, y: t.y - 6, w: plotRightG, h: 12, price: tk.price ?? null, kinds: tk.kinds, text: t.text });
               }
             }
             // ONE status line for the family: grade, source, OI clock, and what yields or waits.
@@ -29883,7 +29939,102 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
       } catch (err) { layerFault("SQUABBLE", err); }
 
       // The folded silences, as one line (see takeSilenceRow).
-      try { if (silenceFolded > 0) {
+      // THE PULSE — Market Breathing + Evidence Lineage on the glass (see the chartPulse prop).
+      try {
+        const pl = chartPulseRef.current;
+        delete canvas.dataset.chartPulse;
+        if (pl && (pl.breathing || pl.families.length > 0)) {
+          ctx.save();
+          ctx.font = marketFont("FIDELITY"); ctx.textBaseline = "middle"; ctx.textAlign = "left";
+          const br = pl.breathing;
+          const bWords = br ? `${br.state} · ${br.atrRatio.toFixed(2)}× BAR SIZE` : "";
+          const fWords = pl.families.length ? `${pl.families.length} WITNESS${pl.families.length === 1 ? "" : "ES"}` : "NO WITNESS";
+          const lungW = 34, dots = pl.families.length + Math.min(pl.correlated, 4);
+          const wP = (br ? 14 + ctx.measureText(bWords).width + lungW + 14 : 0) + ctx.measureText(fWords).width + dots * 10 + 22;
+          const hP = 20;
+          const takenP = [...floatingChips, ...wordGate.rects()];
+          const candsP = [
+            { x: plotRight - wP - 8, y: HEADER_FLOOR_Y + 30 },
+            { x: plotRight - wP - 8, y: Math.round(pane0Bottom * 0.74) - hP - 6 },
+            { x: Math.round(plotRight * 0.5 - wP / 2), y: HEADER_FLOOR_Y + 30 },
+          ];
+          const hitsP = (q: { x: number; y: number }) => takenP.filter(o => q.x < o.x + o.w && q.x + wP > o.x && q.y < o.y + o.h && q.y + hP > o.y).length * 3
+            + profileCandlesAt(q.y, q.y + hP).filter(c => q.x < c.x + c.w && q.x + wP > c.x).length;
+          const seatP = candsP.map((q, i) => ({ q, n: hitsP(q), i })).sort((a, b) => a.n - b.n || a.i - b.i)[0];
+          let px = seatP.q.x; const py = seatP.q.y, cy = py + hP / 2;
+          ctx.fillStyle = "rgba(7,9,15,0.88)"; ctx.fillRect(px, py, wP, hP);
+          ctx.strokeStyle = "rgba(212,175,55,0.45)"; ctx.lineWidth = 1; ctx.strokeRect(px + 0.5, py + 0.5, wP - 1, hP - 1);
+          px += 8;
+          if (br) {
+            const ink = br.state === "COMPRESSED" ? "111,168,220" : br.state === "EXPANDED" ? "239,140,80" : "212,175,55";
+            // The lung: a capsule that fills to the bar-size ratio (1× = half), breathing softly while the page is live.
+            const fill = Math.max(0.06, Math.min(1, br.atrRatio / 2));
+            const pulse = 0.85 + 0.15 * Math.sin(Date.now() / (br.state === "COMPRESSED" ? 900 : br.state === "EXPANDED" ? 350 : 600));
+            ctx.strokeStyle = `rgba(${ink},0.9)`; ctx.beginPath(); ctx.roundRect(px, cy - 4, lungW, 8, 4); ctx.stroke();
+            ctx.fillStyle = `rgba(${ink},${(0.75 * pulse).toFixed(3)})`; ctx.beginPath(); ctx.roundRect(px + 1, cy - 3, Math.max(4, (lungW - 2) * fill), 6, 3); ctx.fill();
+            px += lungW + 6;
+            wordGate.declareTruth(bWords);
+            ctx.fillStyle = `rgba(${ink},1)`; ctx.fillText(bWords, px, cy); px += ctx.measureText(bWords).width + 12;
+            ctx.fillStyle = "rgba(212,175,55,0.35)"; ctx.fillRect(px - 6, py + 4, 1, hP - 8);
+          }
+          for (let k = 0; k < pl.families.length; k++) { ctx.fillStyle = "rgba(212,175,55,0.95)"; ctx.beginPath(); ctx.arc(px + 4, cy, 3.2, 0, Math.PI * 2); ctx.fill(); px += 10; }
+          for (let k = 0; k < Math.min(pl.correlated, 4); k++) { ctx.strokeStyle = "rgba(200,192,174,0.7)"; ctx.beginPath(); ctx.arc(px + 4, cy, 3, 0, Math.PI * 2); ctx.stroke(); px += 10; }
+          wordGate.declareTruth(fWords);
+          ctx.fillStyle = "rgba(225,218,200,0.92)"; ctx.fillText(fWords, px + 4, cy);
+          floatingChips.push({ x: seatP.q.x, y: py, w: wP, h: hP });
+          ctx.restore();
+          canvas.dataset.chartPulse = `${br ? br.state : "NONE"}|F:${pl.families.length}|DUP:${pl.correlated}|SEAT:${seatP.i}|OVER:${seatP.n}`;
+        }
+      } catch (err) { layerFault("CHART_PULSE", err); }
+
+      // THE WAITING TRAY (Founder ruling 2026-11-12: word-only tools ON "with a clean, neatly placed 'waiting…' state —
+      // not cluttered"). On wide glass every on-but-waiting tool gets ONE tidy row in a single small card — its name
+      // and what it waits for — instead of a bare "N SILENT" count; the card seats itself clear of chips, painted words
+      // and candles (bottom-left first, then top-left, then top-middle). Four rows at most; the rest are counted.
+      let waitingTrayDrawn = false;
+      try {
+        delete canvas.dataset.waitingTray;
+        if (!narrowGlass && silenceWaiting.length > 0) {
+          const rows = [...new Set(silenceWaiting.map(waitingRowWords))].filter(Boolean);
+          const shown = rows.slice(0, 4);
+          const more = silenceFolded - shown.length;
+          ctx.save();
+          ctx.font = marketFont("FIDELITY");
+          const head = `WAITING · ${silenceFolded}`;
+          const lines = [...shown, ...(more > 0 ? [`+${more} more in Tools › Active`] : [])];
+          const wT = Math.min(Math.max(...[head, ...lines].map(t => ctx.measureText(t).width)) + 26, Math.max(160, plotRight * 0.42));
+          const hT = 20 + lines.length * 13;
+          const taken = [...floatingChips, ...wordGate.rects()];
+          const cands = [
+            { x: Math.max(8, silenceX - 4), y: Math.max(HEADER_FLOOR_Y + 6, silenceRowY - hT + 7) },
+            { x: Math.max(8, silenceX - 4), y: HEADER_FLOOR_Y + 8 },
+            { x: Math.max(8, Math.round(plotRight * 0.36)), y: HEADER_FLOOR_Y + 8 },
+          ];
+          const hitsT = (q: { x: number; y: number }) => taken.filter(o => q.x < o.x + o.w && q.x + wT > o.x && q.y < o.y + o.h && q.y + hT > o.y).length * 3
+            + profileCandlesAt(q.y, q.y + hT).filter(c => q.x < c.x + c.w && q.x + wT > c.x).length;
+          const seatT = cands.map((q, i) => ({ q, n: hitsT(q), i })).sort((a, b) => a.n - b.n || a.i - b.i)[0];
+          const T = { x: seatT.q.x, y: seatT.q.y, w: wT, h: hT };
+          ctx.fillStyle = "rgba(7,9,15,0.9)"; ctx.fillRect(T.x, T.y, T.w, T.h);
+          ctx.strokeStyle = "rgba(212,175,55,0.35)"; ctx.lineWidth = 1; ctx.strokeRect(T.x + 0.5, T.y + 0.5, T.w - 1, T.h - 1);
+          ctx.textAlign = "left"; ctx.textBaseline = "middle";
+          wordGate.declareTruth(head);
+          ctx.fillStyle = "rgba(212,175,55,0.95)"; ctx.fillText(head, T.x + 8, T.y + 10);
+          lines.forEach((t, k) => {
+            const yy = T.y + 22 + k * 13;
+            wordGate.declareTruth(t);
+            // A hollow ring: on, listening, nothing yet.
+            ctx.strokeStyle = "rgba(200,192,174,0.7)"; ctx.beginPath(); ctx.arc(T.x + 11, yy, 2.5, 0, Math.PI * 2); ctx.stroke();
+            ctx.fillStyle = k < shown.length ? "rgba(225,218,200,0.9)" : "rgba(200,192,174,0.6)";
+            ctx.fillText(t, T.x + 19, yy, T.w - 26);
+          });
+          floatingChips.push(T);
+          ctx.restore();
+          canvas.dataset.waitingTray = `${shown.length}/${silenceFolded}|SEAT:${seatT.i}|OVER:${seatT.n}`;
+          canvas.dataset.silenceFolded = String(silenceFolded);
+          waitingTrayDrawn = true;
+        }
+      } catch (err) { layerFault("WAITING_TRAY", err); }
+      try { if (silenceFolded > 0 && !waitingTrayDrawn) {
         // PHONE ASK 8 (erasure, 2026-10-07): on narrow glass the summary line
         // sat across the volume bars (and the DOM R/A/%/L chips). It moves to
         // the top-left of the price pane, under the header band.
@@ -29930,7 +30081,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
         floatingChips.push({ x: silenceX, y: y - 7, w: ctx.measureText(words).width, h: 14 });
         ctx.restore();
         canvas.dataset.silenceFolded = String(silenceFolded);
-      } else delete canvas.dataset.silenceFolded; } catch (err) { layerFault("SILENCE_FOLD", err); }
+      } else if (!waitingTrayDrawn) delete canvas.dataset.silenceFolded; } catch (err) { layerFault("SILENCE_FOLD", err); }
 
       paintLap(26933);
       /* ══ F05B · THE INSPECTED CANDLE IS MARKED ON THE CANDLE ═══════════════
@@ -32133,7 +32284,12 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
       revealCamera();
       return;
     }
+    setWallExplainCard(null);
     const wallHit = pressureWallHitRef.current.find(r => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h);
+    if (wallHit && !wallHit.off) {
+      const pol = derivativesPressureRef.current && derivativesPressureRef.current.drawn ? derivativesPressureRef.current.walls.find(w => w.strike === wallHit.strike)?.polarity ?? null : null;
+      setWallExplainCard({ ...explainBrickWall(wallHit.strike, pol), x, y });
+    }
     if (wallHit) {
       // SHOW ME (order §4): an edge brick names a wall the camera is not showing; the
       // tap selects it AND asks the camera to reveal it (release any dragged range so
@@ -32145,6 +32301,9 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
       onSelectPressureWall?.(wallHit.strike);
       return;
     }
+    // Walls & Gamma: a chip first (the smallest), then its band's row.
+    const wgHits = wgLabelHitRef.current.filter(r => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h).sort((a, b) => a.w * a.h - b.w * b.h);
+    if (wgHits[0]) { setWallExplainCard({ ...explainWall(wgHits[0].kinds, wgHits[0].price, wgHits[0].text), x, y }); return; }
     // The zero-gamma front: its line, ±6px, across the plot.
     const front = pressureFrontHitRef.current;
     if (front && x <= front.x1 && Math.abs(y - front.y) <= 6) {
@@ -34125,6 +34284,18 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
           were already reading, and saying so every time would train them to
           ignore the one time it is not true.
         */}
+        {wallExplainCard && (
+          <div data-testid="wall-explain" role="dialog" aria-label={wallExplainCard.title} className="absolute"
+            style={{ // Seated AWAY from the finger (local proof 2026-11-12: beside the click the cursor's bar window covered it): the side of the plot the tap was not on, under the header.
+              left: wallExplainCard.x > (containerRef.current?.clientWidth ?? 800) / 2 ? 12 : Math.max(12, (containerRef.current?.clientWidth ?? 800) - 380), top: 96,
+              zIndex: 30, width: 284, padding: "10px 12px 12px", borderRadius: 8, border: "1px solid rgba(212,175,55,0.7)", background: "rgba(9,9,8,0.96)", color: "#ede6d3", fontSize: 12, lineHeight: 1.45, boxShadow: "0 8px 28px rgba(0,0,0,0.5)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+              <b style={{ color: "#d4a94a", letterSpacing: "0.08em", fontSize: 12 }}>{wallExplainCard.title}</b>
+              <button type="button" aria-label="Close" onClick={() => setWallExplainCard(null)} style={{ minWidth: 28, minHeight: 28, color: "#9a927f", background: "transparent", border: "none", cursor: "pointer", fontSize: 16 }}>×</button>
+            </div>
+            {wallExplainCard.lines.map((l, i) => <p key={i} style={{ margin: "6px 0 0", color: i === 0 ? "#c8c0ae" : i === wallExplainCard.lines.length - 1 ? "#9a927f" : "#ede6d3", fontSize: i === 0 || i === wallExplainCard.lines.length - 1 ? 11 : 12 }}>{l}</p>)}
+          </div>
+        )}
         {cameraNote && (
           <div
             data-camera-moved-notice

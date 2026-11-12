@@ -92,7 +92,7 @@ describe("absorption shelf words: FL-06 ①'s name at rest, the numbers on selec
     expect(loop).toContain("const shelfWords = desktopShelfInstrument && !shelfSelected ? shelfName : chip;");
     // The desktop annotation paints shelfWords; the numeric `chip` survives
     // only in the narrow backed chip.
-    expect(loop).toContain("ctx.fillText(shelfWords, chipX, chipY + chipH / 2 + 0.5);");
+    expect(loop).toContain("ctx.fillText(shelfWords, chipX, meaningLine ? chipY + nameH : chipY + chipH / 2 + 0.5);");
     expect([...loop.matchAll(/ctx\.fillText\(chip,/g)].length).toBe(1);
     expect(loop).toContain("const cw2 = ctx.measureText(shelfWords).width;");
   });

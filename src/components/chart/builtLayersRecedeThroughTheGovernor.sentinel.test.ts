@@ -456,7 +456,7 @@ describe("selecting on a phone never withholds its own words; drawn shapes obey 
     expect(CHART).toContain("const colPin = width > 0 && width < 640 && target.object.objectId !== selectedMarketObjectId ? wordGateColumnRef.current : null;");
     // The effort words are still asked for (so the registry lists them).
     const i = CHART.indexOf("const effortMarkHeld =");
-    expect(CHART.slice(i, i + 1400)).toContain("ctx.fillText(m.label, x, y + out * 21);");
+    expect(CHART.slice(i, i + 9000)).toContain("ctx.fillText(m.label, x, y + out * 21);");
   });
 });
 
