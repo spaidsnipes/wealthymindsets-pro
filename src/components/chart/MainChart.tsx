@@ -104,7 +104,7 @@ import clsx from "clsx";
 import { chartHeaderChangeFact, type HeaderChangeKind } from "@/lib/marketData/chartHeaderChangeFact";
 import { deriveBarOverBarChange, deriveLastBarClose } from "@/lib/marketData/deriveLastBarClose";
 import { chartHeaderPriceFact } from "@/lib/marketData/chartHeaderPriceFact";
-import { requestTastyCandles, tastyStreamSnapshotReason, tastyStreamState } from "@/lib/broker/tastyQuoteStream";
+import { requestTastyCandles, reviveTastyStream, subscribeTastyStream, tastyStreamEpoch, tastyStreamSnapshotReason, tastyStreamState } from "@/lib/broker/tastyQuoteStream";
 import { isQuoteSampleSeries, quoteSampleSentence } from "@/lib/marketData/quoteSampleSeries";
 import { IMBALANCE_ZONE_NAMES_MAX, imbalanceTestWords, imbalanceZoneFate, imbalanceZoneName, imbalanceZonesReceipt, type ImbalanceZone, type ImbalanceZoneState } from "@/lib/chart/imbalanceZones";
 import { paneTitle, paneValueWords } from "@/lib/chart/paneNames";
@@ -479,6 +479,7 @@ import { exhaustionEffortResult } from "@/lib/chart/exhaustionEffortResult";
 import { chartBarCountdown } from "@/lib/chart/chartBarCountdown";
 import { candleCountdownUsesPillShell } from "@/lib/chart/candleCountdownMaterial";
 import { chartFeedRecency, thinSessionRecency } from "@/lib/chart/chartFeedRecency";
+import { barsBehindClock, shouldResyncAfterReconnect, shouldResyncBehind } from "@/lib/chart/barResync";
 import { legendShortWords } from "@/lib/chart/legendShortWords";
 import { readMarketSession } from "@/lib/marketData/marketSessionClock";
 import { bindPriceLegendInset } from "@/lib/chart/priceLegendAxisClearance";
@@ -3695,6 +3696,52 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
   // evidence now (quoteSessionClosure → overnightFeedCarried).
   const sessionOpen = useQuoteSessionClosure(symbol, { source, lastObservedAtMs }).sessionOpen;
 
+  // BAR RESYNC (P0 2026-11-12, barResync.ts): bars that stopped tracking the clock, or a live stream that
+  // reopened after a gap, re-run the data load below (the reload's bar half). Receipt: data-bar-resync.
+  const [resyncNonce, setResyncNonce] = useState(0);
+  const resyncRef = useRef({ at: 0, misses: 0, epoch: 0 });
+  const sessionOpenRef = useRef(sessionOpen); sessionOpenRef.current = sessionOpen;
+  useEffect(() => {
+    resyncRef.current = { at: Date.now(), misses: 0, epoch: tastyStreamEpoch() };
+    if (tickCountOf(timeframe) != null) return; // tick bars are prints, not clock buckets
+    const intervalSec = getIntervalSec(timeframe);
+    const lastT = () => { const b = barsRef.current; return b.length ? Number(b[b.length - 1].time) : null; };
+    const fire = (why: string) => {
+      const r = resyncRef.current;
+      r.at = Date.now();
+      try { const ds = canvasRef.current?.dataset; if (ds) ds.barResync = `${why}@${new Date(r.at).toISOString()}|misses:${r.misses}|n:${+(ds.barResync?.split("|n:")[1] ?? 0) + 1}`; } catch { /* receipt only */ }
+      setResyncNonce(v => v + 1);
+    };
+    const behindTick = () => {
+      if (replayCameraRef.current) return; // the replay camera walks history on purpose
+      const r = resyncRef.current;
+      const now = Date.now();
+      const visible = typeof document === "undefined" || !document.hidden;
+      const behind = barsBehindClock(lastT(), intervalSec, now, sessionOpenRef.current);
+      if (behind === 0) { r.misses = 0; return; }
+      if (!shouldResyncBehind({ lastBarTimeSec: lastT(), intervalSec, nowMs: now, sessionOpen: sessionOpenRef.current, visible, lastResyncAtMs: r.at, misses: r.misses })) return;
+      reviveTastyStream("chart");
+      r.misses += 1;
+      fire(`BEHIND:${behind}`);
+    };
+    const iv = window.setInterval(behindTick, 5_000);
+    // Proof door: the same re-read on demand (window event "wm-bar-resync").
+    const onAsk = () => fire("ASKED");
+    window.addEventListener("wm-bar-resync", onAsk);
+    let gapTimer: ReturnType<typeof setTimeout> | null = null;
+    const offStream = subscribeTastyStream(() => {
+      const r = resyncRef.current;
+      const epoch = tastyStreamEpoch();
+      if (epoch === r.epoch) return;
+      const prev = r.epoch; r.epoch = epoch;
+      if (!shouldResyncAfterReconnect(prev, epoch, barsRef.current.length > 0)) return;
+      // Let the reopened stream settle (subscriptions, first prints) before the snapshot is asked.
+      if (gapTimer) clearTimeout(gapTimer);
+      gapTimer = setTimeout(() => { gapTimer = null; fire("RECONNECT"); }, 1_500);
+    });
+    return () => { window.clearInterval(iv); window.removeEventListener("wm-bar-resync", onAsk); if (gapTimer) clearTimeout(gapTimer); offStream(); };
+  }, [symbol, timeframe]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Tick accumulator: EVERY real executed trade (no synthetic / quote-poll noise) ──
   // Map<barTime, Map<priceRounded, {bid, ask}>>
   const tickAccRef = useRef<Map<number, Map<number, { bid: number; ask: number }>>>(new Map());
@@ -5348,7 +5395,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
       // over) and unmount (nothing left to take over).
       versionGuardRef.current.dispose();
     };
-  }, [symbol, timeframe, candleType, extendedHours]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [symbol, timeframe, candleType, extendedHours, resyncNonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Real teardown runs ONCE, on unmount — the chart is persistent while mounted
   // (create-once), so removing it here (not on every dep change) is what keeps

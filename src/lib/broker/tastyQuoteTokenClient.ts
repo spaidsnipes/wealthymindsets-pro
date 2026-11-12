@@ -22,11 +22,21 @@ let inFlight: Promise<QuoteTokenAnswer> | null = null;
  */
 let epoch = 0;
 
+/**
+ * A token request that never answers (a laptop waking, a network hand-off) used to hold the stream's one
+ * connect "in flight" forever — no socket, no retry, a chart frozen until reload (P0 2026-11-12). It now
+ * fails after TOKEN_TIMEOUT_MS and the stream's normal retry asks again.
+ */
+export const TOKEN_TIMEOUT_MS = 15_000;
+function tokenTimeoutSignal(): AbortSignal | undefined {
+  try { return typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(TOKEN_TIMEOUT_MS) : undefined; } catch { return undefined; }
+}
+
 export function fetchQuoteToken(signal?: AbortSignal): Promise<QuoteTokenAnswer> {
   if (memo && Date.now() - memo.at < TTL_MS) return Promise.resolve(memo.answer);
   if (!inFlight) {
     const asked = epoch;
-    const request: Promise<QuoteTokenAnswer> = fetch("/api/broker/tastytrade/quote-token", { cache: "no-store" })
+    const request: Promise<QuoteTokenAnswer> = fetch("/api/broker/tastytrade/quote-token", { cache: "no-store", signal: tokenTimeoutSignal() })
       .then(async r => ({ status: r.status, body: await r.json().catch(() => null) }))
       .then(answer => {
         // Only a usable token is remembered; a refusal is asked again next time.

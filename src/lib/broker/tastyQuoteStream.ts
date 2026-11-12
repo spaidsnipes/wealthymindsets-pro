@@ -63,6 +63,28 @@ let emitQueued = false;
 let identity = 0;
 
 /*
+ * A SILENT SOCKET IS A DEAD SOCKET (P0 2026-11-12 — the Founder's 15m MNQ chart sat "STALE PIPELINE · 7 BARS
+ * BEHIND" while the header and his P&L moved; only a reload brought it back). The crypto lanes have had a
+ * stale-socket watchdog since September; this one had none. A DXLink socket whose network path died (laptop
+ * sleep, Wi-Fi hand-off, a proxy dropping the TCP flow) stays OPEN in the browser for minutes to hours with no
+ * onclose — the stream reads LIVE, the REST quote keeps the header moving, and no print reaches the candle.
+ * SETUP asks the server for a keepalive at least every 60 s (acceptKeepaliveTimeout), so ANY frame is proof
+ * of life; past SILENT_SOCKET_MS with none, the socket is torn down and a fresh one is opened.
+ * `streamEpoch` counts every time the feed channel (re)opens, so a chart can re-read the bars the gap cost it.
+ */
+export const SILENT_SOCKET_MS = 75_000;
+const WATCHDOG_EVERY_MS = 15_000;
+let lastFrameAt = 0;
+let watchdog: ReturnType<typeof setInterval> | null = null;
+let streamEpoch = 0;
+/** How many times the feed channel has opened in this tab. A change after the first = a reconnect (a gap). */
+export function tastyStreamEpoch(): number { return streamEpoch; }
+/** Is this socket silent long enough to be called dead? PURE. */
+export function socketIsSilent(lastFrameAtMs: number, nowMs: number, limitMs = SILENT_SOCKET_MS): boolean {
+  return lastFrameAtMs > 0 && nowMs - lastFrameAtMs > limitMs;
+}
+
+/*
  * THE PRINT TAPE RIDES ITS OWN CHANNEL, UNAGGREGATED (perf 2026-10-25 night — the Founder: "still some
  * delay and lag", worst on 1m). The quote channel is set up with acceptAggregationPeriod 0.25 s: right
  * for quotes, Greeks and option chains (dxFeed conflates them to 4 updates a second), wrong for the
@@ -129,6 +151,8 @@ function send(frame: unknown) {
 function teardown() {
   if (keepalive) clearInterval(keepalive);
   keepalive = null;
+  if (watchdog) clearInterval(watchdog);
+  watchdog = null;
   feedOpen = false;
   tapeLane = "PENDING";
   if (tapeLaneTimer) { clearTimeout(tapeLaneTimer); tapeLaneTimer = null; }
@@ -168,10 +192,31 @@ if (typeof document !== "undefined" && typeof window !== "undefined") {
     } else {
       if (hiddenTimer) { clearTimeout(hiddenTimer); hiddenTimer = null; }
       hiddenReleased = false;
-      if (wanted() && !ws && !retryTimer) { retries = 0; void connect(); }
+      reviveTastyStream("visible");
     }
   });
   window.addEventListener("pagehide", () => { if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; } teardown(); });
+  // BACK/FORWARD CACHE: pagehide tore the socket down; a page restored from the cache runs no module code
+  // again, so nothing reopened it — a chart restored by Back sat with no prints until a reload.
+  window.addEventListener("pageshow", ev => { if ((ev as PageTransitionEvent).persisted) { hiddenReleased = !!document.hidden; reviveTastyStream("pageshow"); } });
+  // The network came back (Wi-Fi hand-off, wake from sleep): a socket from before it is suspect.
+  window.addEventListener("online", () => reviveTastyStream("online"));
+}
+
+/**
+ * Make sure a wanted stream is actually alive NOW: open one if none is open or pending, and replace one that
+ * has gone silent. Called on visible / pageshow / online, and by a chart whose bars stopped tracking the clock
+ * (MainChart's bar resync). Never opens a socket for a background tab that gave its seat back.
+ */
+export function reviveTastyStream(_why = "chart"): void {
+  if (!wanted() || hiddenReleased) return;
+  if (!ws) {
+    if (!retryTimer && !connecting) { retries = 0; void connect(); }
+    return;
+  }
+  // A chart asking means its bars are behind the clock: hold the socket to a tighter silence than the timer's.
+  const limit = _why === "chart" || _why === "online" ? 20_000 : SILENT_SOCKET_MS;
+  if (socketIsSilent(lastFrameAt, Date.now(), limit)) { retries = 0; scheduleRetry(tastyStreamReasonWords("CLOSED")); }
 }
 
 /**
@@ -239,6 +284,13 @@ async function connect() {
 
   const sock = new WebSocket(tok.dxlinkUrl);
   ws = sock;
+  lastFrameAt = Date.now();
+  if (watchdog) clearInterval(watchdog);
+  watchdog = setInterval(() => {
+    if (ws !== sock) return;
+    if (typeof document !== "undefined" && document.hidden) return; // the hidden-tab release owns a background tab
+    if (socketIsSilent(lastFrameAt, Date.now())) scheduleRetry(tastyStreamReasonWords("CLOSED"));
+  }, WATCHDOG_EVERY_MS);
   const token = tok.token;
   sock.onopen = () => send(buildSetupFrame());
   sock.onerror = () => { /* onclose follows */ };
@@ -247,6 +299,7 @@ async function connect() {
   sock.onmessage = ev => {
     // A socket that is no longer THE socket speaks for nobody (it would set up the live one again).
     if (ws !== sock) { try { sock.close(); } catch { /* closed */ } return; }
+    lastFrameAt = Date.now();
     let m: { type?: string; channel?: number; state?: string; data?: unknown; error?: string; message?: string };
     try { m = JSON.parse(String(ev.data)); } catch { return; }
     switch (m.type) {
@@ -271,6 +324,7 @@ async function connect() {
           if (tapeRefs.size) sendTapeSubscription([...tapeRefs.keys()], []);
           if (tapeLane === "PENDING" && !tapeLaneTimer) tapeLaneTimer = setTimeout(() => { tapeLaneTimer = null; if (ws === sock && tapeLane === "PENDING") tapeFallBack(); }, TAPE_CHANNEL_OPEN_MS);
           for (const [symbol, r] of candleRequests) send(candleFrame("add", symbol, r.fromTime));
+          streamEpoch += 1;
           emit({ stream: "LIVE", reason: null });
         } else if (m.channel === TAPE_CHANNEL && tapeLane === "PENDING") {
           send(buildTapeFeedSetupFrame());
@@ -464,6 +518,8 @@ export function peekTastyQuote(streamerSymbol: string): ContractQuoteState | nul
   return quotes.get(streamerSymbol) ?? null;
 }
 const onStore = (l: () => void) => { listeners.add(l); return () => { listeners.delete(l); }; };
+/** Hear every stream change (state, epoch, quotes) without React — the chart's bar resync reads the epoch. */
+export function subscribeTastyStream(l: () => void): () => void { return onStore(l); }
 
 /**
  * WHOSE token the socket uses just changed — a member connected or disconnected
