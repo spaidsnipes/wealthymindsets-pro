@@ -20163,7 +20163,8 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
               ctx.clip("evenodd");
               const bw = bwG;
               // Dashed outline, dashed wick, bone ink, a stroke that survives 0.18.
-              ctx.strokeStyle = GHOST_INK; ctx.lineWidth = 1.25; ctx.setLineDash([3, 2]);
+              // 1.75 since 2026-11-12 (shift 1112 audit: the ghost still read faint at 1440 — ON_MEANS_SEEN).
+              ctx.strokeStyle = GHOST_INK; ctx.lineWidth = 1.75; ctx.setLineDash([3, 2]);
               let drawnCandles = 0;
               for (const c of ghost.candles) {
                 const x = tsG.timeToCoordinate(c.time as never);
@@ -20176,7 +20177,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
                 // A soft silver-blue body (plate 68's filled ghost) — a material
                 // no live candle, Clarity brass or profile wears — under its
                 // dashed outline. The live bodies are clipped out above.
-                ctx.fillStyle = c.close >= c.open ? "rgba(168,196,232,0.30)" : "rgba(120,140,178,0.30)";
+                ctx.fillStyle = c.close >= c.open ? "rgba(168,196,232,0.50)" : "rgba(120,140,178,0.50)";
                 ctx.fillRect(Math.round(cxg - bw / 2), Math.round(top), bw, Math.max(1, Math.round(hB)));
                 ctx.strokeRect(Math.round(cxg - bw / 2) + 0.5, Math.round(top) + 0.5, bw, Math.max(1, Math.round(hB)));
                 ghostHits.push({ x: cxg - bw / 2 - 2, y: Math.min(+yh, +yl) - 2, w: bw + 4, h: Math.abs(+yl - +yh) + 4 });

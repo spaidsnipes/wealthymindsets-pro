@@ -105,7 +105,8 @@ describe("memory ghost candles", () => {
     expect(c).toMatch(/ctx\.rect\(\+x - bsp \* 0\.46, Math\.min\(\+lo, \+lc\) - 1, bsp \* 0\.92, Math\.abs\(\+lc - \+lo\) \+ 2\);/);
     // Plate 68's filled ghost (2026-10-01): a silver-blue body under the dashed
     // outline — still only where the live candle is not (clipped above).
-    expect(c).toContain('ctx.fillStyle = c.close >= c.open ? "rgba(168,196,232,0.30)" : "rgba(120,140,178,0.30)";');
+    // 0.50 since 2026-11-12: at 0.30 the ghost still read faint (ON_MEANS_SEEN).
+    expect(c).toContain('ctx.fillStyle = c.close >= c.open ? "rgba(168,196,232,0.50)" : "rgba(120,140,178,0.50)";');
   });
 
   it("falls back to the path where a hollow body cannot be read", () => {
@@ -144,7 +145,7 @@ describe("H-201 memory ghost — the plate's form on the glass", () => {
     expect(dash).toBeGreaterThan(-1);
     expect(firstBody).toBeGreaterThan(dash);
     expect(firstWick).toBeGreaterThan(dash);
-    expect(c).toMatch(/ctx\.strokeStyle = GHOST_INK; ctx\.lineWidth = 1\.25; ctx\.setLineDash\(\[3, 2\]\);/);
+    expect(c).toMatch(/ctx\.strokeStyle = GHOST_INK; ctx\.lineWidth = 1\.75; ctx\.setLineDash\(\[3, 2\]\);/);
     expect(ghostBlock()).toMatch(/const GHOST_INK = "rgba\(237,230,211,1\)";/);
     expect(CHART).toMatch(/ds\.memoryGhostForm = `DASHED:\$\{drawnCandles\}`;/);
     expect(CHART).not.toMatch(/ds\.memoryGhostForm = `CANDLES:/);
