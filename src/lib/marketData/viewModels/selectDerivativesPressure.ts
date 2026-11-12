@@ -42,6 +42,14 @@ export const MIXED_BAND = 0.12;
 /** A strike must hold this share of gross exposure to be a wall / pocket. */
 export const WALL_MIN_SHARE = 0.035;
 export const MAX_WALLS = 4;
+/**
+ * SMALLER WALLS (Founder 2026-10-15: "It should show me even the smaller walls"; asked for 10–15 on the glass).
+ * A strike holding at least this share of gross exposure — but under WALL_MIN_SHARE — is a MINOR wall: the same
+ * concentration fact, a thinner course on the glass. Kept in its own list so every reader of `walls` (FVG
+ * relationships, scanner, SpaidBot, Inspect) keeps the material walls only; only the masonry paints the minors.
+ */
+export const MINOR_WALL_MIN_SHARE = 0.012;
+export const MAX_MINOR_WALLS = 10;
 export const MAX_POCKETS = 3;
 /** Fewer contracts with OI than this is not a positioning picture. */
 export const MIN_ROWS = 40;
@@ -158,6 +166,8 @@ export type DerivativesPressureVM =
       readonly geography: readonly GeographySample[];
       readonly zeroGamma: number | null;
       readonly walls: readonly PressureWall[];
+      /** Smaller concentrations (MINOR_WALL_MIN_SHARE ≤ share < WALL_MIN_SHARE), strongest first then by strike — the masonry's thin courses. */
+      readonly minorWalls?: readonly PressureWall[];
       /**
        * The span of bars the wall tests were actually counted over (seconds).
        * A 1m chart loads hours, a 15m chart a week: the same wall read BORN on
@@ -352,6 +362,17 @@ export function selectDerivativesPressure(
     }))
     .sort((a, b) => a.strike - b.strike);
   const wallStrikes = new Set(walls.map(w => w.strike));
+  const minorWalls: PressureWall[] = strikes
+    .filter(([k, e]) => !wallStrikes.has(k) && Math.abs(e) / atSpot.gross >= MINOR_WALL_MIN_SHARE && Math.abs(e) / atSpot.gross < WALL_MIN_SHARE)
+    .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+    .slice(0, MAX_MINOR_WALLS)
+    .map(([strike, exposure]) => ({
+      strike, exposure, share: Math.abs(exposure) / atSpot.gross,
+      polarity: (exposure >= 0 ? "CALL_HEAVY" : "PUT_HEAVY") as WallPolarity,
+      callOi: oiAt(strike, "call"), putOi: oiAt(strike, "put"),
+      ...wallLife(strike, bars, spot),
+    }))
+    .sort((a, b) => a.strike - b.strike);
   // Pockets: the amplifying corridors between walls — a negative strike that is itself a wall
   // is masonry, not a corridor.
   const pockets: PressurePocket[] = (subset ? [] : strikes)
@@ -392,6 +413,7 @@ export function selectDerivativesPressure(
     geography,
     zeroGamma,
     walls,
+    minorWalls,
     testSpanSec: bars.length >= 2 ? Math.max(0, bars[bars.length - 1].time - bars[0].time) : 0,
     pockets,
     envelope,

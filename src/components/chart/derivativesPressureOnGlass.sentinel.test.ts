@@ -24,7 +24,7 @@ describe("the pressure world on the glass", () => {
     expect(block).toContain('const fieldOn = layerOnRef.current.derivativesPressure === true && att.paints("derivativesPressure");');
     expect(block).toContain('const wallsOn = layerOnRef.current.brickWalls === true && att.paints("brickWalls");');
     expect(block).toContain('if ((fieldOn || wallsOn) && srs && dp) {');
-    expect(block).toContain("for (const w of wallsOn ? dp.walls : []) {");
+    expect(block).toContain("for (const w of wallsOn ? [...dp.walls, ...minorWallsD] : []) {");
     expect(block).not.toMatch(/selectDerivativesPressure\(/);
     // Tests are observed only inside the positioning's relevance window — the
     // same window on every timeframe (TSLA 1D once counted a year of bars).

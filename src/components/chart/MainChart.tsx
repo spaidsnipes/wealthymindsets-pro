@@ -115,6 +115,11 @@ import { absorptionMeter, deltaVelocity, deltaVelocityWords, volumePace } from "
 import { bigTradePressure, bigTradePressureWords, findSweeps, medianOf, sizeCuts, sizeMixWords, sweepWords, TAPE_FAST_MULTIPLE, tapeSpeed, tapeSpeedWords, tradeSizeMix, type Sweep } from "@/lib/chart/tapeIndicators";
 import { barFlow, chooseWedges, estimatedRuns, evidenceReceipt, EVIDENCE_LEGEND, findShelves, shelfTolerance, shelfWords, wedgeWidth, type BarFlow, type EvidenceBar, type Shelf } from "@/lib/chart/evidenceKinds";
 import { MARKET_MONO, MARKET_NUMBER_MIN_PX, MARKET_SANS, crispText, footprintCellPx, marketFont } from "@/lib/chart/marketType";
+import { selectSquabble, squabbleReceipt, roundWordShown } from "@/lib/chart/squabble";
+import { selectDayBiasCorridor, selectRegimePeriodLabel } from "@/lib/marketData/selectRegimeBadge";
+import { directionDrawing } from "@/lib/marketData/deriveDirectionDimension";
+import { selectBusRunway, busReceipt } from "@/lib/chart/busRunway";
+import { playSfx } from "@/lib/sfx";
 import { tastyCandleStreamerFor, tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
 import { fetchTastyTimeAndSales } from "@/lib/broker/tastyHistory";
 import { tastyTimeAndSaleToMarketEvent } from "@/lib/marketData/adapters/tastytradeFuturesTicks";
@@ -180,6 +185,7 @@ import {
   type CameraResizeOutcome,
 } from "@/lib/chart/chartCameraKeeper";
 import { STRUCTURE_DEFAULT_LOOKBACK } from "@/lib/marketData/viewModels/selectMarketStructure";
+import { selectMarketStructure } from "@/lib/marketData/viewModels/selectMarketStructure";
 
 /**
  * THE PIVOT LOOKBACK THIS CHART DRAWS SWINGS AT — AND THE ONE IT DOESN'T.
@@ -1313,6 +1319,12 @@ interface Props {
    * bars take a brass tone on their own VOLUME bar — never on the body.
    */
   rvolToneOn?: boolean;
+  /** THE SQUABBLE (Founder 2026-11-05): the live 15m fight's rounds and 15 s punches from the signed tape (squabble.ts). */
+  squabbleOn?: boolean;
+  /** BIAS & TAPE REGIME — the day-bias corridor and the tape's drift box drawn as the chips' WHY (2026-11-12). */
+  regimeWhyOn?: boolean;
+  /** THE BUS · CLEAN RUNWAY — the newest break and the road to the next obstacle (busRunway.ts). */
+  busRunwayOn?: boolean;
   /**
    * F15 BREATH RIBBON (panel-erasure, 2026-10-07 night): each closed bar's ATR
    * vs the window's median as a thin ribbon on the volume well's top edge —
@@ -2008,7 +2020,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
   compareSymbol, onPriceAtCursor, onOHLCAtCursor, onCrosshairTime, onCrosshairHandle, onSelectBigTrade, proofSelectBigTradeRef, selectedPrintOnChart = null,
   onSelectProfileSlice, selectedProfileSlicePrice = null, selectionInspected = false,
   onSelectAnatomy, selectedAnatomy = null, onAnatomyReading,
-  fixedVPActive = false, sessionVPActive = false, sessionBandsOn = false, effortResponseOn = false, deltaKeelOn = false, wisdomLineOn = false, rvolToneOn = false, breathRibbonOn = false, cvdNotchOn = false, fvgOn = false, onFvgScene, regimeSeries = null, livingDevelopment = null,
+  fixedVPActive = false, sessionVPActive = false, sessionBandsOn = false, effortResponseOn = false, deltaKeelOn = false, wisdomLineOn = false, rvolToneOn = false, squabbleOn = false, regimeWhyOn = false, busRunwayOn = false, breathRibbonOn = false, cvdNotchOn = false, fvgOn = false, onFvgScene, regimeSeries = null, livingDevelopment = null,
   absorptionAnatomyActive = false,
   exhaustionOnChart = true,
   imbalanceStack = null,
@@ -3819,6 +3831,18 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
   const footprintSnapRef = useRef<(bar: LegacyOhlcvTuple, n: number) => Array<{ priceLevel: number; total: number }>>(() => []);
 
   const hasRealAggressorTape = hasVerifiedAggressorTape;
+  // THE SQUABBLE reads the same signed prints the ladder folds (trade prints only, a verified aggressor tape only).
+  const squabbleTicksRef = useRef<readonly { time: number; price: number; size: number; side: "buy" | "sell"; trade?: boolean }[]>([]);
+  const squabbleSignedRef = useRef(false);
+  const squabbleSoundRef = useRef<{ fight: number; round: number; hay: number } | null>(null);
+  const busStructRef = useRef<{ key: string; vm: MarketStructureVM } | null>(null);
+  const tickerWhyRef = useRef<{ price: number; change: number; changePct: number } | null>(null);
+  useEffect(() => { tickerWhyRef.current = ticker ? { price: ticker.price, change: ticker.change, changePct: ticker.changePct } : null; }, [ticker]);
+  useEffect(() => {
+    const signed = hasRealAggressorTape(tapeSource ?? "");
+    squabbleSignedRef.current = signed;
+    squabbleTicksRef.current = signed ? (recentTicks ?? []) : [];
+  }, [recentTicks, tapeSource]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Min single-trade size to count as a "big trade" (real tape only — never
   // synthetic) now lives with the ranking it gates, in @/lib/bigTradeLevels,
@@ -8641,7 +8665,12 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
       // ACTIVE · NO CURRENT…") — folds into the one summary chip at EVERY width (Founder's 2-minute watch, desk 1568,
       // 2026-10-20: four such lines lay across the candles; the phone already folds them). A line that describes what
       // IS drawn keeps its row. Each sense still names its state in Tools › Active.
-      const PURE_SILENCE = /·\s*(?:ON|ACTIVE)\s*·\s*(?:NO|NOTHING)\b|NOTHING ON THIS CAMERA|·\s*SILENT\b|\bNO [A-Z ]+ IN VIEW\b/;
+      // 2026-11-12 (Founder, "I still see silent indicators… need to see everything visually"): EVERY waiting /
+      // refusal / "select one" line folds too — "· ON · WAITING…", "SELECT A SHELF…", "none at price", "no position
+      // drawn", "needs a wider view". The glass carries ink or nothing; the reason lives in Tools › Active (the row's
+      // plain status) and the receipts. Only captions that QUALIFY painted ink ("ESTIMATED FROM CANDLES", "N OF M
+      // PRINTS", "ZERO-GAMMA WITHHELD") keep a row.
+      const PURE_SILENCE = /·\s*(?:ON|ACTIVE)\s*·|NOTHING ON THIS CAMERA|·\s*SILENT\b|\bSILENT\s*[—-]|\bNO [A-Z ]+ IN VIEW\b|WAITING|SELECT A\b|NONE AT PRICE|NO POSITION|WIDER (?:VIEW|SCREEN)|TOO SHORT|REFUSED|UNAVAILABLE|NOT POSSIBLE|\bNO (?:OPTION|CHAIN|TAPE|DATA|READING|BARS|VOLUME|SIGNED|CURRENT|LIVE|SPOT|EXPOSURE|EVIDENCE)\b|NEEDS? (?:A |THE )?[A-Z]/;
       const takeSilenceRow = (words?: string): number => {
         if (words && PURE_SILENCE.test(words.toUpperCase())) { silenceFolded++; return -1000; }
         // THE PHONE FOLDS THEM ALL (2026-10-04, narrow-glass word budget):
@@ -11614,8 +11643,8 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
           ctx.font = marketFont("OBJECT_NAME");
           ctx.fillStyle = "rgba(200,192,174,0.85)";
           ctx.textAlign = "left"; ctx.textBaseline = "middle";
-          const yN = takeSilenceRow();
           const wordsN = "FOOTPRINT · ROWS NEED A WIDER VIEW — ZOOM IN";
+          const yN = takeSilenceRow(wordsN);
           ctx.fillText(fitSilence(wordsN), silenceX, yN);
           if (yN > 0) forceChips.push({ x: silenceX, y: yN - 7, w: ctx.measureText(wordsN).width, h: 14 });
           ctx.restore();
@@ -20689,8 +20718,8 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
             ctx.font = marketFont("OBJECT_NAME");
             ctx.fillStyle = "rgba(200,192,174,0.85)";
             ctx.textAlign = "left"; ctx.textBaseline = "middle";
-            const yS = takeSilenceRow();
             const wordsS = `BRICK WALLS · ${why.toUpperCase()}`;
+            const yS = takeSilenceRow(wordsS);
             ctx.fillText(fitSilence(wordsS), silenceX, yS);
             if (yS > 0) floatingChips.push({ x: silenceX, y: yS - 7, w: ctx.measureText(wordsS).width, h: 14 });
             ctx.restore();
@@ -20973,7 +21002,12 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
               // The masonry each drawn wall occupies — no pressure chip may sit
               // on the bricks (serving BTC: off-camera wall chips landed on the 85,000 wall).
               const masonryRects: { x: number; y: number; w: number; h: number }[] = [];
-              const strikesSorted = [...new Set(dp.walls.map(w => w.strike))];
+              // SMALLER WALLS (Founder 2026-10-15, "show me even the smaller walls"): the minor concentrations paint as
+              // thin two-course walls, shorter and quieter than the material ones, and never become edge beacons or chips.
+              const minorWallsD = wallsOn ? (dp.minorWalls ?? []) : [];
+              const minorStrikesD = new Set(minorWallsD.map(w => w.strike));
+              let minorWallsPainted = 0;
+              const strikesSorted = [...new Set([...dp.walls, ...minorWallsD].map(w => w.strike))];
               const spacingPx = (() => {
                 const y1 = yOfD(dp.spot), y2 = yOfD(dp.spot * 1.0125);
                 return y1 != null && y2 != null ? Math.abs(y1 - y2) : 12;
@@ -20984,15 +21018,17 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
               // lifecycle ledger fires a burst only for a BREAKING / BROKEN transition watched live — never on load.
               const nowWL = Date.now();
               wallLifeLedgerRef.current = stepLifeTransitions(wallLifeLedgerRef.current, `${symbol}|${dp.source}`, wallsOn ? dp.walls.map(w => ({ id: w.strike, life: w.life })) : [], nowWL);
-              for (const w of wallsOn ? dp.walls : []) {
+              for (const w of wallsOn ? [...dp.walls, ...minorWallsD] : []) {
                 const yc = yOfD(w.strike);
                 if (yc == null) continue;
+                const minorW = minorStrikesD.has(w.strike);
                 // ASK-15 (Sheriff uncovered-set run 2026-10-08: a wall whose strike
                 // sat just inside the pane edge kept only a sliver of masonry under
                 // the header clip — "a thin dark outline"). A wall that cannot show
                 // WALL_EDGE_BODY_PX of body inside the pane is an edge wall: the
                 // brick-stack mark carries it, never a sliver.
                 const edgeUp = yc < HEADER_FLOOR_Y + WALL_EDGE_BODY_PX;
+                if (minorW && (edgeUp || yc > paneBotD - WALL_EDGE_BODY_PX)) continue;
                 if (edgeUp || yc > paneBotD - WALL_EDGE_BODY_PX) {
                   offCamera.push(`${edgeUp ? "▲" : "▼"} WALL ${fmtD(w.strike)} · ${wallLifeWord(w.life)}`);
                   offWalls.push({ strike: w.strike, share: Number.isFinite(w.share) ? w.share : 0, up: edgeUp, put: w.polarity === "PUT_HEAVY" });
@@ -21035,11 +21071,12 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
                     courseH = Math.max(6, Math.min(12, Math.floor(room / courses)));
                   }
                 }
+                if (minorW) { courses = Math.min(courses, 2); courseH = Math.min(courseH, 7); minorWallsPainted++; }
                 const wallH = courses * courseH;
                 // Length still reads materiality, on a shorter scale (serving 67cde10, ES1! 5m 2026-10-23: four put walls 5
                 // points apart each ran ~700px — a brick slab over the whole afternoon's candles). Biggest wall longest; none
                 // longer than 40% of the plot.
-                const len = Math.min(plotRightD * 0.4, 120 + w.share * 1800);
+                const len = minorW ? Math.min(plotRightD * 0.22, 70 + w.share * 1800) : Math.min(plotRightD * 0.4, 120 + w.share * 1800);
                 // The masonry ends where a profile column begins (Founder's Chrome, NQ1! 5m 2026-10-23: the bricks ran under
                 // the Visible Range and volume profile bars to the axis). Its LENGTH (materiality) is kept; it moves left.
                 const pclW = Math.min(profileColumnLeftRef.current.prev, profileColumnLeftRef.current.cur);
@@ -21434,14 +21471,15 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
                 ctx.restore();
                 masonryRects.push({ x: x0, y: top - 2, w: len + 2, h: wallH + 4 });
                 const seenW = wallTestSpanWords(dp.testSpanSec);
-                if (wallsSpeak) wallWords.push({ word: `${w.polarity === "PUT_HEAVY" ? "PUT" : "CALL"} WALL ${fmtD(w.strike)} · ${wallLifeWord(w.life)}${w.tests ? ` ×${w.tests}` : ""}`, x: x0, y: top + wallH / 2 });
+                if (wallsSpeak && !minorW) wallWords.push({ word: `${w.polarity === "PUT_HEAVY" ? "PUT" : "CALL"} WALL ${fmtD(w.strike)} · ${wallLifeWord(w.life)}${w.tests ? ` ×${w.tests}` : ""}`, x: x0, y: top + wallH / 2 });
                 // Name, life, tests — that is the wall's name on the glass (Founder's Chrome, NQ1! 5m 2026-10-23: "… · PULLED
                 // BACK THIS BAR" ran 380px across the Structure rows). The bar's pull-back is the contact glow's to show; the
                 // test span is Inspect's. Both stay in the receipt.
                 if (heldThisBar || seenW) painted.push(`WALL_NOTE@${w.strike}:${heldThisBar ? "PULLED_BACK" : ""}${seenW ? `|${seenW}` : ""}`);
-                painted.push(`WALL@${w.strike}:${w.life}:${w.tests}`);
+                painted.push(`WALL@${w.strike}:${w.life}:${w.tests}${minorW ? ":MINOR" : ""}`);
               }
               void strikesSorted;
+              if (minorWallsD.length) ds.brickWallsMinor = `${minorWallsPainted}/${minorWallsD.length}|${minorWallsD.map(w => w.strike).join(",")}`; else delete ds.brickWallsMinor;
               /* OFF-CAMERA WALLS → EDGE BEACONS (plate 22b, supersedes the ASK-1 wordless brick stack):
                  each wall beyond the pane edge is a beacon candidate; the end of draw() paints one
                  "▲ Call wall 30,900 · Show me" pill per edge, and the pill selects the wall and asks the
@@ -24969,7 +25007,10 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
               // row across the newest candles (serving 390 / 430, b72f896 —
               // "FUSION REFUSED…" sat on the newest column). Narrow glass says it
               // in the silence stack; the desk keeps its place by the profile.
-              if (narrowGlass) {
+              // 2026-11-12 (Founder: no silent indicators as words): every width says it in the silence stack,
+              // which folds a refusal into the one summary chip.
+              const fusionRefusalToStack = true as boolean;
+              if (narrowGlass || fusionRefusalToStack) {
                 ctx.font = marketFont("OBJECT_NAME");
                 ctx.fillStyle = "rgba(200,192,174,0.85)"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
                 const yR = takeSilenceRow(fusionRefusalCaption(pair, fr.reason));
@@ -25719,10 +25760,11 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
             */
             if (on) {
               const words = fu ? fusionSilenceWords(fu, pxDp) : "PROFILE FUSION · silent — no reading";
-              if (words && narrowGlass) {
-                // PHONE: every named silence folds into the ONE summary line
+              // 2026-11-12: a fusion silence folds at EVERY width (Founder: no silent indicators as words on the glass).
+              if (words) {
+                // Every named silence folds into the ONE summary line
                 // (takeSilenceRow) — this one printed on that line's own row.
-                takeSilenceRow();
+                takeSilenceRow(words);
                 ds.profileFusionSilence = `${fu ? fu.reason : "NO_READING"}:FOLDED`;
               } else if (words) {
                 ctx.save(); ctx.globalAlpha = att.alpha("profileFusion");
@@ -29487,6 +29529,336 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
         } else delete canvas.dataset.dvpTapeNote;
       } catch (err) { layerFault("DVP_TAPE_NOTE", err); }
 
+      paintLap(29460);
+      /* ══ BIAS & TAPE REGIME — THE WHY ON THE GLASS (Founder 2026-11-12: "Day Bias / Tape Regime chips → show WHY on
+         the chart"; he distrusted "choppy" twice because the chip never showed its reason). Two readings, each drawn
+         from its OWN owner with its OWN thresholds — nothing re-graded here:
+           DAY / 24H BIAS  (selectDayBiasCorridor): the reference close as a dashed line and the two prices where the
+                           verdict flips (±1.5%) as gold rails; the SIDE corridor between them is lightly lit. Price's
+                           place in the corridor IS the verdict.
+           TAPE REGIME     (directionDrawing, the same aggregate deriveDirectionDimension seals): the tape's observed
+                           range as a box over the time it was heard, and its net drift as an arrow first → last
+                           print. TREND = the arrow covers ≥ 50% of the box; BALANCE = the tape retraced.
+         Off-camera prices become edge tags; no tape / no reference close → nothing is drawn. */
+      try {
+        if (!regimeWhyOn || !srs) { delete canvas.dataset.regimeWhy; }
+        else {
+          const tk = tickerWhyRef.current;
+          const corridor = selectDayBiasCorridor({ price: tk?.price, change: tk?.change, changePct: tk?.changePct });
+          const drift = squabbleSignedRef.current ? directionDrawing(squabbleTicksRef.current) : null;
+          const receipt: string[] = [];
+          const IV = "237,230,211", GOLDW = "212,175,55";
+          const yOf = (p: number) => { const y = srs.priceToCoordinate(p); return y == null ? null : +y; };
+          const topY = HEADER_FLOOR_Y + 4, botY = pane0Bottom - 4;
+          const xLeft = Math.max(8, silenceX - 4);
+          ctx.save();
+          ctx.font = marketFont("OBJECT_NAME"); ctx.textBaseline = "middle";
+          const tag = (t: string, x: number, y: number, ink: string, align: CanvasTextAlign = "left") => {
+            wordGate.declareTruth(t);
+            const w = ctx.measureText(t).width + 10;
+            const bx = align === "left" ? x : x - w;
+            ctx.fillStyle = "rgba(7,9,15,0.82)"; ctx.fillRect(bx, y - 8, w, 16);
+            ctx.strokeStyle = `rgba(${ink},0.7)`; ctx.lineWidth = 1; ctx.strokeRect(bx + 0.5, y - 7.5, w - 1, 15);
+            ctx.fillStyle = `rgba(${ink},1)`; ctx.textAlign = "left"; ctx.fillText(t, bx + 5, y);
+            floatingChips.push({ x: bx, y: y - 8, w, h: 16 });
+          };
+          if (corridor) {
+            const yRef = yOf(corridor.reference), yBull = yOf(corridor.bullAt), yBear = yOf(corridor.bearAt);
+            // The SIDE corridor, lit where it is on camera.
+            const yA = yBull == null ? topY : Math.max(topY, Math.min(botY, yBull));
+            const yB = yBear == null ? botY : Math.max(topY, Math.min(botY, yBear));
+            if (yB > yA) { ctx.fillStyle = corridor.regime === "SIDE" ? "rgba(237,230,211,0.045)" : "rgba(237,230,211,0.025)"; ctx.fillRect(0, yA, plotRight, yB - yA); }
+            let edgeUpN = 0, edgeDnN = 0;
+            const rail = (y: number | null, word: string, ink: string, dash: number[]) => {
+              if (y == null) return "OFF";
+              if (y < topY || y > botY) {
+                const up = y < topY;
+                tag(`${up ? "▲" : "▼"} ${word}`, xLeft, up ? topY + 10 + 18 * edgeUpN++ : botY - 30 - 18 * edgeDnN++, ink);
+                return "EDGE";
+              }
+              ctx.setLineDash(dash); ctx.strokeStyle = `rgba(${ink},0.9)`; ctx.lineWidth = 1.5;
+              ctx.beginPath(); ctx.moveTo(0, Math.round(y) + 0.5); ctx.lineTo(plotRight, Math.round(y) + 0.5); ctx.stroke(); ctx.setLineDash([]);
+              tag(word, xLeft, y - 10, ink);
+              return "ON";
+            };
+            const per = selectRegimePeriodLabel(symbol, new Date()) === "24h" ? "24H" : "DAY";
+            const sRef = rail(yRef, `${per} BIAS ${corridor.regime} · REF ${gPx(corridor.reference)} · ${corridor.changePct >= 0 ? "+" : ""}${corridor.changePct.toFixed(2)}%`, IV, [6, 4]);
+            const sBull = rail(yBull, `BULL ABOVE ${gPx(corridor.bullAt)} (+${corridor.thresholdPct}%)`, "38,166,154", [2, 3]);
+            const sBear = rail(yBear, `BEAR BELOW ${gPx(corridor.bearAt)} (−${corridor.thresholdPct}%)`, "239,83,80", [2, 3]);
+            receipt.push(`BIAS:${corridor.regime}|REF:${sRef}|BULL:${sBull}|BEAR:${sBear}`);
+          } else receipt.push("BIAS:NO_REFERENCE");
+          if (drift && drift.firstTime > 0) {
+            const tsW = chart.timeScale();
+            const bsW = barsRef.current ?? [];
+            const slotsW = bsW.map(b => Number(b.time));
+            const xOfMs = (ms: number) => { const sl = barSlotAt(slotsW, ms / 1000); if (sl == null) return null; const x = tsW.timeToCoordinate(sl as never); return x == null ? null : +x; };
+            let x0 = xOfMs(drift.firstTime), x1 = xOfMs(drift.lastTime);
+            const yMax = yOf(drift.max), yMin = yOf(drift.min), yF = yOf(drift.first), yL = yOf(drift.last);
+            if (x0 == null && x1 != null) x0 = Math.max(0, x1 - bsp * 3);
+            if (x0 != null && x1 != null && yMax != null && yMin != null && yF != null && yL != null) {
+              x0 -= bsp / 2; x1 += bsp / 2;
+              if (x1 - x0 < 24) x0 = x1 - 24;
+              const ink = drift.verdict === "TREND" ? GOLDW : IV;
+              ctx.fillStyle = `rgba(${ink},0.06)`; ctx.fillRect(x0, yMax, x1 - x0, Math.max(2, yMin - yMax));
+              ctx.setLineDash([4, 3]); ctx.strokeStyle = `rgba(${ink},0.8)`; ctx.lineWidth = 1.2;
+              ctx.strokeRect(Math.round(x0) + 0.5, Math.round(yMax) + 0.5, Math.round(x1 - x0), Math.max(2, Math.round(yMin - yMax))); ctx.setLineDash([]);
+              // The drift arrow: first print → last print.
+              ctx.strokeStyle = `rgba(${GOLDW},1)`; ctx.fillStyle = `rgba(${GOLDW},1)`; ctx.lineWidth = 2.5;
+              ctx.beginPath(); ctx.moveTo(x0 + 3, yF); ctx.lineTo(x1 - 3, yL); ctx.stroke();
+              const ang = Math.atan2(yL - yF, (x1 - 3) - (x0 + 3));
+              ctx.beginPath(); ctx.moveTo(x1 - 3, yL); ctx.lineTo(x1 - 3 - 9 * Math.cos(ang - 0.45), yL - 9 * Math.sin(ang - 0.45)); ctx.lineTo(x1 - 3 - 9 * Math.cos(ang + 0.45), yL - 9 * Math.sin(ang + 0.45)); ctx.closePath(); ctx.fill();
+              const share = Math.round(drift.rangeShare * 100);
+              const words = drift.verdict === "THIN" ? `TAPE · ${drift.count} TRADES — TOO FEW TO CALL` : `TAPE REGIME ${drift.verdict} · DRIFT ${share}% OF RANGE (TREND NEEDS 50%)`;
+              tag(words, Math.max(4, x1), yMax - 12 < topY + 10 ? yMin + 12 : yMax - 12, ink, "right");
+              receipt.push(`TAPE:${drift.verdict}|SHARE:${share}|N:${drift.count}`);
+            } else receipt.push("TAPE:OFF_CAMERA");
+          } else receipt.push(drift ? "TAPE:NO_TIMES" : "TAPE:NO_SIGNED_TAPE");
+          ctx.restore();
+          canvas.dataset.regimeWhy = receipt.join("|");
+        }
+      } catch (err) { layerFault("REGIME_WHY", err); }
+
+      paintLap(29465);
+      /* ══ THE BUS · CLEAN RUNWAY (Founder 2026-10-20 "when the bus start moving … a clean runway"; 11-05 "don't get on
+         the bus late") — busRunway.ts. The newest close beyond a confirmed swing is the bus leaving; the lane runs
+         from that break level to the next obstacle the room already compiled in its direction (brick/option walls,
+         structure-zone edges, named levels, older swings). The road price has already travelled is lit; the state
+         chip says BOARDABLE (< half the road), LEFT (≥ half) or STALLED (back behind the break). No break → nothing. */
+      try {
+        if (!busRunwayOn || !srs) { delete canvas.dataset.busRunway; }
+        else {
+          const bsB = barsRef.current ?? [];
+          let st = scaffoldingStructureRef.current;
+          if (!st || !st.measured) {
+            const k = `${bsB.length}|${bsB[bsB.length - 1]?.time}`;
+            if (busStructRef.current?.key !== k) busStructRef.current = { key: k, vm: selectMarketStructure(bsB as never) };
+            st = busStructRef.current.vm;
+          }
+          const obstacles: { price: number; name: string }[] = [];
+          const dpB = derivativesPressureRef.current;
+          if (dpB && dpB.drawn) for (const w of dpB.walls) obstacles.push({ price: w.strike, name: `${w.polarity === "PUT_HEAVY" ? "PUT" : "CALL"} WALL` });
+          for (const z of structureZonesRef.current) { obstacles.push({ price: z.object.priceLow, name: `${z.side} ZONE` }); obstacles.push({ price: z.object.priceHigh, name: `${z.side} ZONE` }); }
+          for (const l of levelTitlesRef.current) obstacles.push({ price: l.value, name: l.title });
+          const bus = st && st.measured
+            ? selectBusRunway({ bars: bsB.map(b => ({ time: Number(b.time), high: b.high, low: b.low, close: b.close })), swingHighs: st.swingHighs, swingLows: st.swingLows, obstacles })
+            : { drawn: false as const, reason: "NO_SWINGS" as const };
+          canvas.dataset.busRunway = busReceipt(bus);
+          if (bus.drawn) {
+            const tsB = chart.timeScale();
+            const xb = tsB.timeToCoordinate(bus.breakBarTime as never);
+            const yBreak = srs.priceToCoordinate(bus.breakLevel), yPx = srs.priceToCoordinate(bus.price);
+            const yTarget = bus.target ? srs.priceToCoordinate(bus.target.price) : null;
+            if (xb != null && yBreak != null && yPx != null) {
+              const up = bus.dir === "UP";
+              const INK = up ? "38,166,154" : "239,83,80";
+              const x0 = Math.max(0, +xb - bsp / 2);
+              const x1 = plotRight - 2;
+              const yEnd = yTarget != null ? Math.max(HEADER_FLOOR_Y, Math.min(pane0Bottom - 2, +yTarget)) : (up ? HEADER_FLOOR_Y : pane0Bottom - 2);
+              const laneTop = Math.min(+yBreak, yEnd), laneBot = Math.max(+yBreak, yEnd);
+              ctx.save();
+              // Candles stay in front of the lane.
+              const vrB = tsB.getVisibleLogicalRange();
+              const cutB = new Path2D(); cutB.rect(0, 0, W, H);
+              for (const r of candleCutOutRects(bsB, {
+                visible: vrB ? { from: +vrB.from, to: +vrB.to } : null, barSpacing: bsp,
+                timeToX: t => { const xk = tsB.timeToCoordinate(t as never); return xk == null ? null : +xk; },
+                priceToY: pr => { const yk = srs.priceToCoordinate(pr); return yk == null ? null : +yk; },
+              }, x0, x1)) cutB.rect(r.x, r.y, r.w, r.h);
+              ctx.clip(cutB, "evenodd");
+              const g = ctx.createLinearGradient(0, +yBreak, 0, yEnd);
+              g.addColorStop(0, `rgba(${INK},0.22)`); g.addColorStop(1, `rgba(${INK},0.05)`);
+              ctx.fillStyle = g; ctx.fillRect(x0, laneTop, x1 - x0, Math.max(2, laneBot - laneTop));
+              // The road already travelled (break → price), lit.
+              const yT0 = Math.min(+yBreak, +yPx), yT1 = Math.max(+yBreak, +yPx);
+              if (bus.state !== "STALLED") { ctx.fillStyle = `rgba(${INK},0.16)`; ctx.fillRect(x0, yT0, x1 - x0, Math.max(1, yT1 - yT0)); }
+              // The road's centre stripes.
+              ctx.setLineDash([10, 8]); ctx.strokeStyle = `rgba(${INK},0.55)`; ctx.lineWidth = 1.5;
+              const xm = x0 + (x1 - x0) * 0.5;
+              ctx.beginPath(); ctx.moveTo(xm, laneTop); ctx.lineTo(xm, laneBot); ctx.stroke(); ctx.setLineDash([]);
+              ctx.restore();
+              ctx.save();
+              // The break level (the stop the bus left from).
+              ctx.strokeStyle = "rgba(212,175,55,0.95)"; ctx.lineWidth = 2;
+              ctx.beginPath(); ctx.moveTo(x0, Math.round(+yBreak) + 0.5); ctx.lineTo(x1, Math.round(+yBreak) + 0.5); ctx.stroke();
+              // The obstacle ahead (end cap).
+              if (yTarget != null && +yTarget >= HEADER_FLOOR_Y && +yTarget <= pane0Bottom) {
+                ctx.fillStyle = `rgba(${INK},0.9)`; ctx.fillRect(x0, Math.round(+yTarget) - 2, x1 - x0, 4);
+              }
+              ctx.font = marketFont("OBJECT_NAME"); ctx.textBaseline = "middle"; ctx.textAlign = "left";
+              const chipB = (t: string, x: number, y: number, ink: string) => {
+                wordGate.declareTruth(t);
+                const w = ctx.measureText(t).width + 10;
+                const bx = Math.max(4, Math.min(x, plotRight - w - 4));
+                const by = Math.max(HEADER_FLOOR_Y + 8, Math.min(pane0Bottom - 10, y));
+                ctx.fillStyle = "rgba(7,9,15,0.85)"; ctx.fillRect(bx, by - 8, w, 16);
+                ctx.strokeStyle = `rgba(${ink},0.8)`; ctx.lineWidth = 1; ctx.strokeRect(bx + 0.5, by - 7.5, w - 1, 15);
+                ctx.fillStyle = `rgba(${ink},1)`; ctx.fillText(t, bx + 5, by);
+                floatingChips.push({ x: bx, y: by - 8, w, h: 16 });
+              };
+              const pct = bus.travelled == null ? null : Math.round(bus.travelled * 100);
+              const stateWord = bus.state === "STALLED" ? "BUS STALLED · BACK BEHIND THE BREAK"
+                : bus.state === "LEFT" ? `BUS LEFT ${up ? "↑" : "↓"} · ${pct}% OF THE RUNWAY GONE`
+                : bus.state === "ARRIVED" ? "BUS ARRIVED · AT THE OBSTACLE"
+                : `STILL BOARDABLE ${up ? "↑" : "↓"}${pct != null ? ` · ${pct}% OF THE RUNWAY GONE` : " · OPEN RUNWAY"}`;
+              chipB(`BREAK ${gPx(bus.breakLevel)}`, x0 + 4, +yBreak + (up ? 12 : -12), "212,175,55");
+              chipB(stateWord, x0 + 4, (+yBreak + yEnd) / 2, INK);
+              if (bus.target && yTarget != null) chipB(`${bus.target.name} ${gPx(bus.target.price)}`, x0 + 4, +yTarget + (up ? -12 : 12), INK);
+              else if (!bus.target) chipB("NO MAPPED WALL AHEAD", x0 + 4, yEnd + (up ? 12 : -12), INK);
+              ctx.restore();
+            }
+          }
+        }
+      } catch (err) { layerFault("BUS_RUNWAY", err); }
+
+      paintLap(29470);
+      /* ══ THE SQUABBLE · 15M FIGHT · 5M ROUNDS · 15S PUNCHES (Founder 2026-11-05; ATH mockup S-SQ1) ══
+         "show the squabble, like the punches … animate it but it's real data". Every punch is one 15-second bucket
+         of the SIGNED tape this page heard (src/lib/chart/squabble.ts): buyers up, sellers down, height = its share of
+         the fight's biggest punch. Round words are measured facts of the round's prints (PUMP · DRAG · DUMP · FLIP ·
+         ABSORBED · CLINCH · HAYMAKER); a round that began before the tape says NO TAPE. On ≤5m charts the round bells
+         stand on the bars at their own time and a haymaker lands a star on the candle at its price. Sound (bell at an
+         OBSERVED round change, a thump on a new haymaker) only when the trader turned "Ring sound" on (sfx.ts, off by
+         default) and Settings › Sound Effects is not off. No signed tape (stocks/futures without prints) → nothing. */
+      try {
+        if (!squabbleOn) { delete canvas.dataset.squabble; }
+        else if (!squabbleSignedRef.current) { canvas.dataset.squabble = "NO_SIGNED_TAPE"; }
+        else {
+          const nowSq = Date.now();
+          const ticksSq = squabbleTicksRef.current;
+          const fight = selectSquabble(ticksSq.filter(t => t.trade === true).map(t => ({ time: t.time, price: t.price, size: t.size, side: t.side })), nowSq);
+          canvas.dataset.squabble = squabbleReceipt(fight);
+          // ── SOUND: only for changes watched live (never on load) ──
+          const prevSq = squabbleSoundRef.current;
+          if (fight.reason === "DRAWN") {
+            if (prevSq && prevSq.fight === fight.fightStartMs && fight.liveRound !== prevSq.round && !soundMasterOff()) playSfx("bell");
+            else if (prevSq && prevSq.fight !== fight.fightStartMs && !soundMasterOff()) playSfx("bell");
+            if (prevSq && prevSq.fight === fight.fightStartMs && fight.haymakers > prevSq.hay && !soundMasterOff()) playSfx("punch");
+            squabbleSoundRef.current = { fight: fight.fightStartMs, round: fight.liveRound, hay: fight.haymakers };
+          }
+          if (fight.reason === "DRAWN") {
+            const tsSq = chart.timeScale();
+            const bsSq = barsRef.current ?? [];
+            const barSecSq = barInterval();
+            const lastSq = bsSq[bsSq.length - 1];
+            // A time on the axis — inside a bar by its fraction, past the newest bar by bar spacing.
+            const xAt = (ms: number): number | null => {
+              if (!lastSq) return null;
+              const tSec = ms / 1000;
+              const slotTimes = bsSq.map(b => Number(b.time));
+              const slot = barSlotAt(slotTimes, tSec);
+              if (slot != null) {
+                const xs = tsSq.timeToCoordinate(slot as never);
+                return xs == null ? null : +xs - bsp / 2 + ((tSec - slot) / barSecSq) * bsp;
+              }
+              const xl = tsSq.timeToCoordinate(lastSq.time as never);
+              return xl == null ? null : +xl - bsp / 2 + ((tSec - Number(lastSq.time)) / barSecSq) * bsp;
+            };
+            const GOLD = "212,175,55", UP = "38,166,154", DN = "239,83,80";
+            ctx.save();
+            ctx.globalAlpha = 1;
+            // ── ROUND BELLS ON THE BARS (≤ 5m: a round is at least one bar wide) ──
+            // A round must be at least 28px wide on this camera for its bells to read (5m bars at 9px are not).
+            if (barSecSq <= 300 && (300 / barSecSq) * bsp >= 28) {
+              for (let r = 0; r <= 3; r++) {
+                const xb = xAt(fight.fightStartMs + r * 5 * 60_000);
+                if (xb == null || xb < 0 || xb > plotRight - 2) continue;
+                ctx.setLineDash([5, 5]); ctx.lineWidth = 1.5;
+                ctx.strokeStyle = `rgba(${GOLD},0.75)`;
+                ctx.beginPath(); ctx.moveTo(Math.round(xb) + 0.5, HEADER_FLOOR_Y + 4); ctx.lineTo(Math.round(xb) + 0.5, pane0Bottom - 4); ctx.stroke();
+                ctx.setLineDash([]);
+                if (r < 3) {
+                  ctx.font = marketFont("OBJECT_NAME"); ctx.textAlign = "left"; ctx.textBaseline = "top";
+                  const tag = `R${r + 1}`;
+                  wordGate.declareTruth(tag);
+                  ctx.fillStyle = `rgba(${GOLD},0.95)`;
+                  ctx.fillText(tag, Math.round(xb) + 4, HEADER_FLOOR_Y + 6);
+                }
+              }
+            }
+            // ── HAYMAKER STARS on the candle at the price it landed ──
+            for (const rd of fight.rounds) for (const pu of rd.punches) {
+              if (!pu.haymaker || !srs) continue;
+              const xh = xAt(pu.t0 + 7_500), yh = srs.priceToCoordinate(pu.price);
+              if (xh == null || yh == null || xh < 0 || xh > plotRight - 4) continue;
+              const pulse = 0.75 + 0.25 * Math.sin(nowSq / 180);
+              ctx.fillStyle = `rgba(255,210,122,${pulse.toFixed(3)})`;
+              ctx.strokeStyle = "rgba(7,9,15,0.9)"; ctx.lineWidth = 1.5;
+              ctx.beginPath();
+              for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + (k * Math.PI) / 5, rr = k % 2 ? 5 : 12; ctx.lineTo(xh + Math.cos(a) * rr, +yh + Math.sin(a) * rr); }
+              ctx.closePath(); ctx.stroke(); ctx.fill();
+            }
+            // ── THE RING ──
+            const ringW = narrowGlass ? Math.max(220, Math.min(plotRight - 24, 340)) : 372;
+            const ringH = narrowGlass ? 92 : 112;
+            // The ring stands in the VOLUME WELL first (bottom-left): candles keep the price pane. Only when that
+            // seat is taken does it climb to the top-left, then the top-middle.
+            let volTopSq = 0.78;
+            try { const t = chart.priceScale("vol").options().scaleMargins?.top; if (Number.isFinite(t)) volTopSq = t as number; } catch { /* default */ }
+            const wellY = Math.max(Math.round(pane0Bottom * volTopSq) - 12, pane0Bottom - ringH - 6);
+            const cands = [
+              { x: Math.max(12, silenceX), y: Math.min(wellY, pane0Bottom - ringH - 6) },
+              { x: Math.max(12, Math.round(plotRight * 0.3)), y: pane0Bottom - ringH - 6 },
+              { x: Math.max(12, silenceX), y: HEADER_FLOOR_Y + 8 },
+              { x: Math.max(12, Math.round(plotRight * 0.3)), y: HEADER_FLOOR_Y + 8 },
+            ];
+            const taken = [...floatingChips, ...sovereignBoxes];
+            const hits = (q: { x: number; y: number }) => taken.filter(o => q.x < o.x + o.w && q.x + ringW > o.x && q.y < o.y + o.h && q.y + ringH > o.y).length
+              + profileCandlesAt(q.y, q.y + ringH).filter(c => q.x < c.x + c.w && q.x + ringW > c.x).length;
+            const spot = cands.map((q, i) => ({ q, n: hits(q), i })).sort((a, b) => a.n - b.n || a.i - b.i)[0].q;
+            const R = { x: spot.x, y: spot.y, w: ringW, h: ringH };
+            onTop(R, "OPAQUE_CARD");
+            floatingChips.push(R);
+            ctx.fillStyle = "rgba(7,9,15,0.96)"; ctx.fillRect(R.x, R.y, R.w, R.h);
+            ctx.strokeStyle = `rgba(${GOLD},0.85)`; ctx.lineWidth = 1.5; ctx.strokeRect(R.x + 0.5, R.y + 0.5, R.w - 1, R.h - 1);
+            const fmtT = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+            const head = `SQUABBLE · ${fmtT(fight.fightStartMs)}–${fmtT(fight.fightEndMs)}`;
+            const score = `BULLS ${fight.score.bulls} · BEARS ${fight.score.bears}`;
+            ctx.font = marketFont("OBJECT_NAME"); ctx.textBaseline = "middle";
+            for (const t of [head, score]) wordGate.declareTruth(t);
+            ctx.fillStyle = `rgba(${GOLD},1)`; ctx.textAlign = "left"; ctx.fillText(head, R.x + 8, R.y + 12);
+            ctx.textAlign = "right"; ctx.fillText(score, R.x + R.w - 8, R.y + 12); ctx.textAlign = "left";
+            const colW = (R.w - 16) / 3;
+            const mid = R.y + (narrowGlass ? 48 : 56);
+            const reach = narrowGlass ? 20 : 26;
+            const slotW = (colW - 6) / 20;
+            for (const rd of fight.rounds) {
+              const x0 = R.x + 8 + (rd.n - 1) * colW;
+              if (rd.live) { ctx.fillStyle = `rgba(${GOLD},0.10)`; ctx.fillRect(x0 - 2, R.y + 22, colW, R.h - 26); }
+              // The rope.
+              ctx.strokeStyle = `rgba(${GOLD},0.55)`; ctx.lineWidth = 1;
+              ctx.beginPath(); ctx.moveTo(x0, mid + 0.5); ctx.lineTo(x0 + colW - 6, mid + 0.5); ctx.stroke();
+              // The bell post between rounds.
+              if (rd.n > 1) { ctx.fillStyle = `rgba(${GOLD},0.9)`; ctx.fillRect(x0 - 4, R.y + 24, 2, R.h - 46); }
+              if (rd.word === "NO_TAPE") {
+                ctx.strokeStyle = "rgba(200,192,174,0.35)";
+                for (let hx = x0; hx < x0 + colW - 8; hx += 7) { ctx.beginPath(); ctx.moveTo(hx, mid + 14); ctx.lineTo(hx + 7, mid - 14); ctx.stroke(); }
+              }
+              for (const pu of rd.punches) {
+                const k = pu.slot - (rd.n - 1) * 20;
+                const hh = Math.max(2, Math.round(pu.strength * reach));
+                const px = x0 + k * slotW;
+                const isLive = rd.live && pu.slot === fight.liveSlot;
+                const a = isLive ? 0.7 + 0.3 * Math.sin(nowSq / 140) : 0.95;
+                ctx.fillStyle = pu.haymaker ? `rgba(255,210,122,${a})` : pu.side === "BUY" ? `rgba(${UP},${a})` : `rgba(${DN},${a})`;
+                ctx.fillRect(px, pu.side === "BUY" ? mid - hh : mid + 1, Math.max(1.5, slotW - 1.5), hh);
+              }
+              if (rd.live) {
+                const lx = x0 + (fight.liveSlot - (rd.n - 1) * 20) * slotW;
+                ctx.strokeStyle = `rgba(255,210,122,${(0.55 + 0.45 * Math.sin(nowSq / 200)).toFixed(3)})`; ctx.lineWidth = 1;
+                ctx.strokeRect(lx - 0.5, mid - reach - 1, Math.max(2, slotW), reach * 2 + 2);
+              }
+              const word = `R${rd.n} · ${roundWordShown(rd)}`;
+              wordGate.declareTruth(word);
+              ctx.font = marketFont("OBJECT_NAME"); ctx.textAlign = "left"; ctx.textBaseline = "middle";
+              ctx.fillStyle = rd.word === "HAYMAKER" ? "rgba(255,210,122,1)" : rd.future ? "rgba(200,192,174,0.55)" : rd.winner === "BULLS" || rd.word === "PUMP" ? `rgba(${UP},1)` : rd.winner === "BEARS" || rd.word === "DUMP" || rd.word === "DRAG" ? `rgba(${DN},1)` : "rgba(237,230,211,0.95)";
+              ctx.fillText(word, x0, R.y + R.h - 11);
+            }
+            canvas.dataset.squabbleRing = `${Math.round(R.x)},${Math.round(R.y)},${Math.round(R.w)}x${Math.round(R.h)}`;
+            ctx.restore();
+          }
+        }
+      } catch (err) { layerFault("SQUABBLE", err); }
+
       // The folded silences, as one line (see takeSilenceRow).
       try { if (silenceFolded > 0) {
         // PHONE ASK 8 (erasure, 2026-10-07): on narrow glass the summary line
@@ -29914,9 +30286,10 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
             ctx.save();
             ctx.font = marketFont("OBJECT_NAME");
             ctx.fillStyle = "rgba(200,192,174,0.85)"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
-            ctx.fillText(fitSilence(noneOn
+            const wisdomQuiet = noneOn
               ? "WISDOM LINE · ON · READS DELTA KEELS, EFFORT · RESPONSE OR VALUE MIGRATION — NONE IS ON"
-              : "WISDOM LINE · ON · NO CURRENT EVENT ACROSS THE CANDLES IT READS"), silenceX, takeSilenceRow());
+              : "WISDOM LINE · ON · NO CURRENT EVENT ACROSS THE CANDLES IT READS";
+            ctx.fillText(fitSilence(wisdomQuiet), silenceX, takeSilenceRow(wisdomQuiet));
             ctx.restore();
           }
           else {
@@ -30590,7 +30963,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
     // each frame, so it stays alive across live ticks (was rebuilding 4x/sec on
     // crypto, which made the VP/footprint flash off). Re-runs only on real config
     // changes below.
-  }, [footprintType, footprintEnabled, bigTradesOverlay, candleType, ready, rangeVer, getBarFootprint, getRealBigTradeLevels, getDeltaBubbleLevels, extendedHours, timeframe, symbol, fixedVPActive, sessionVPActive, sessionBandsOn, effortResponseOn, deltaKeelOn, wisdomLineOn, rvolToneOn, breathRibbonOn, cvdNotchOn, fvgOn, absorptionAnatomyActive, getBarSubProfile]);
+  }, [footprintType, footprintEnabled, bigTradesOverlay, candleType, ready, rangeVer, getBarFootprint, getRealBigTradeLevels, getDeltaBubbleLevels, extendedHours, timeframe, symbol, fixedVPActive, sessionVPActive, sessionBandsOn, effortResponseOn, deltaKeelOn, wisdomLineOn, rvolToneOn, squabbleOn, regimeWhyOn, busRunwayOn, breathRibbonOn, cvdNotchOn, fvgOn, absorptionAnatomyActive, getBarSubProfile]);
 
   /*
     THE HIDDEN-TAB STAMP CANNOT LIVE INSIDE THE RAF LOOP.

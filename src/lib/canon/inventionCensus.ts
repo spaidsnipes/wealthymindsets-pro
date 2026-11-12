@@ -291,6 +291,15 @@ const RAW_CENSUS: readonly CensusEntry[] = [
   { id: "G19.WISDOM", name: "Cross-candle wisdom line", family: "F17 Wisdom", status: "BUILT", owner: "src/lib/chart/crossCandleWisdom.ts", surface: inst("WISDOM_LINE"), plate: null },
   { id: "F15.BREATH_RIBBON", name: "Breath Ribbon (Market Breathing on the field)", family: "F15 Regime", status: "PARTIAL", owner: "src/lib/chart/marketBreathing.ts", surface: inst("BREATH_RIBBON"), plate: "PROPOSED G19-P01 (docs/canon/proposed-garden19)",
     gap: "PROPOSED grammar, default off — waits for the Founder to accept the plate" },
+  // 2026-11-12 visual-embodiment shift (Founder's trading threads, gap audit V3 items 3–5).
+  { id: "G20.SQUABBLE", name: "The Squabble — 15m fight · 5m rounds · 15s punches (with Ring sound)", family: "F06 Order Flow", status: "PARTIAL", owner: "src/lib/chart/squabble.ts", surface: inst("SQUABBLE"), plate: "PROPOSED ATH S-SQ1 (shift-1112 mockup)",
+    aliases: ["squabble", "fight", "rounds", "punches", "haymaker"], gap: "PROPOSED grammar, default off — waits for the Founder's plate; rounds older than the page's tape say NO TAPE" },
+  { id: "G20.SQUABBLE_SOUND", name: "Ring sound (Squabble bell / haymaker thump)", family: "F06 Order Flow", status: "PARTIAL", owner: "src/lib/sfx.ts", surface: inst("SQUABBLE_SOUND"), plate: null,
+    gap: "synthesized bell and thump only; the announcer voice (\"Get 'em Bulls\") is not built" },
+  { id: "G20.REGIME_WHY", name: "Bias & Tape Regime — why (bias rails · tape drift box)", family: "F15 Regime", status: "PARTIAL", owner: "src/lib/marketData/selectRegimeBadge.ts", surface: inst("REGIME_WHY"), plate: null,
+    aliases: ["day bias", "tape regime", "why"], gap: "PROPOSED, default off on a first visit; regime transitions over time (when it flipped) are not drawn" },
+  { id: "G20.BUS_RUNWAY", name: "The Bus · Clean Runway (break → next obstacle, boardable / left / stalled)", family: "F11 Object Passport", status: "PARTIAL", owner: "src/lib/chart/busRunway.ts", surface: inst("BUS_RUNWAY"), plate: null,
+    aliases: ["bus", "runway", "floater"], gap: "PROPOSED, default off; obstacles are the levels already compiled on the room (walls, zones, named levels, swings) — profile POC/VA not yet fed" },
   { id: "G19.FVG", name: "FVG / Imbalance territory (FVG_3C v1)", family: "Price geometry", status: "BUILT", owner: "src/lib/marketData/fvg/fvgEngine.ts", surface: inst("FVG_IMBALANCE"), plate: null, aliases: ["fvg", "fair value gap", "imbalance"] },
   { id: "G19.STACK", name: "Profile stack — show/hide · reorder · side · width · opacity · lock · Auto Arrange · Save My Stack · presets", family: "P-110 Profiles", status: "BUILT",
     owner: `${VM}myProfileStack.ts`, surface: ctx("Tools › Profiles preset bar (Save My Stack)"), plate: "WM_A_P110_LIVING_PROFILE_STACK" },
@@ -345,6 +354,10 @@ const FIELD_FACTS: Readonly<Record<string, { readonly manifestation: Manifestati
   "F08A": { manifestation: "EVENT", ink: ["BRASS"], layer: "liquidityLifecycle" },
   "F06.ANATOMY": { manifestation: "EVENT", ink: ["BRASS", "TRADE_SIDE"], layer: "anatomyCards" },
   "G19.WISDOM": { manifestation: "EVENT", ink: ["BONE"], layer: "wisdomLine" },
+  // 2026-11-12 visual-embodiment shift: painted by MainChart outside the permission table (no depth row yet).
+  "G20.SQUABBLE": { manifestation: "EVENT", ink: ["TRADE_SIDE", "BRASS"], layer: null },
+  "G20.REGIME_WHY": { manifestation: "TERRITORY", ink: ["BONE", "BRASS"], layer: null },
+  "G20.BUS_RUNWAY": { manifestation: "TERRITORY", ink: ["TRADE_SIDE", "BRASS"], layer: null },
   // TERRITORY — on price, never a badge
   "P110.1": { manifestation: "TERRITORY", ink: ["PROFILE_ROLES"], layer: "livingProfile" },
   "P110.2": { manifestation: "TERRITORY", ink: ["PROFILE_ROLES"], layer: "structureProfile" },
@@ -382,6 +395,7 @@ const FIELD_FACTS: Readonly<Record<string, { readonly manifestation: Manifestati
 
 /** Field ids that are deliberately not candle-field paint (a lens, a card, a drawer, a pane, a rail line). */
 export const NOT_FIELD_REASON: Readonly<Record<string, string>> = {
+  "G20.SQUABBLE_SOUND": "a sound (the Squabble's bell / thump), never paint",
   "F13.LENS": "a question lens — chrome that re-weights other layers",
   "F13.SCAFFOLD": "a teaching card and its tags — chrome",
   "F11B": "a passport drawer beside the chart, never paint on price",

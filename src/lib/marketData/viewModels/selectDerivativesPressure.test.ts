@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CboeOptionRow, CboeOptionsReceipt } from "@/lib/marketData/cboeDelayedOptions";
-import { bsGamma, selectDerivativesPressure, wallLife } from "./selectDerivativesPressure";
+import { bsGamma, MAX_MINOR_WALLS, MINOR_WALL_MIN_SHARE, selectDerivativesPressure, WALL_MIN_SHARE, wallLife } from "./selectDerivativesPressure";
 
 const NOW = Date.parse("2026-09-27T07:00:00Z");
 const receipt = (rows: CboeOptionRow[], spot = 100): CboeOptionsReceipt => ({
@@ -54,6 +54,23 @@ describe("climate is read from the SIGN of dealer exposure, never as direction",
     // A strike that is masonry is not also a corridor.
     expect(vm.pockets.map(p => p.strike)).not.toContain(95);
     expect(vm.receipt).toMatch(/WALLS:95\/[A-Z]+\/P/);
+  });
+});
+
+describe("smaller walls (Founder 2026-10-15: \"show me even the smaller walls\")", () => {
+  it("strikes between MINOR_WALL_MIN_SHARE and WALL_MIN_SHARE are minor walls, kept apart from the material walls", () => {
+    const vm = selectDerivativesPressure(receipt(ladder(k => [row("call", k, k === 105 ? 30000 : k === 98 || k === 102 ? 950 : 300), row("put", k, 300)])), [], NOW);
+    expect(vm.drawn).toBe(true);
+    if (!vm.drawn) return;
+    const minors = vm.minorWalls ?? [];
+    expect(vm.walls.map(w => w.strike)).toContain(105);
+    for (const m of minors) {
+      expect(m.share).toBeGreaterThanOrEqual(MINOR_WALL_MIN_SHARE);
+      expect(m.share).toBeLessThan(WALL_MIN_SHARE);
+      expect(vm.walls.map(w => w.strike)).not.toContain(m.strike);
+    }
+    expect(minors.length).toBeGreaterThan(0);
+    expect(minors.length).toBeLessThanOrEqual(MAX_MINOR_WALLS);
   });
 });
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { isSfxOn, playSfx, setSfxOn } from "@/lib/sfx";
 import { lastSpotRoute, relatedMarketTag, SPOT_ROUTE_EVENT, spotRouteFor, spotRouteNotice } from "@/lib/marketData/spotFuturesRoute";
 import { nearestLiveZone } from "@/lib/experience/decisionLifecycle";
 import { type InventionVisibility, parseInventionVisibility } from "@/lib/chart/inventionVisibility";
@@ -1029,6 +1030,14 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [rvolToneOn, setRvolToneOn] = useState<boolean>(() => lsGet("wm_rvolTone", firstVisitOn("wm_rvolTone")) as boolean);
   // F15 BREATH RIBBON (PROPOSED — no Founder plate for Breathing yet): OFF by default.
   const [breathRibbonOn, setBreathRibbonOn] = useState<boolean>(() => lsGet("wm_breathRibbon", false) as boolean);
+  // THE SQUABBLE (Founder 2026-11-05; ATH mockup S-SQ1): OFF by default — the trader turns the fight on.
+  const [squabbleOn, setSquabbleOn] = useState<boolean>(() => lsGet("wm_squabble", false) as boolean);
+  // Ring sound (sfx.ts): OFF by default — never a surprise sound.
+  const [ringSoundOn, setRingSoundOn] = useState<boolean>(() => isSfxOn());
+  // BIAS & TAPE REGIME WHY (Founder 2026-11-12: the chips must show their reason on the chart). First visit stays one-by-one (firstVisitLayers).
+  // THE BUS · CLEAN RUNWAY (Founder 2026-10-20): off on a first visit (one invention at a time).
+  const [busRunwayOn, setBusRunwayOn] = useState<boolean>(() => lsGet("wm_busRunway", firstVisitOn("wm_busRunway")) as boolean);
+  const [regimeWhyOn, setRegimeWhyOn] = useState<boolean>(() => lsGet("wm_regimeWhy", firstVisitOn("wm_regimeWhy")) as boolean);
   // C-06 CVD ⇄ price notch (G19.CVD_REL): PROPOSED, no Founder plate — default OFF.
   const [cvdNotchOn, setCvdNotchOn] = useState<boolean>(() => lsGet("wm_cvdNotch", false) as boolean);
   // FVG / IMBALANCE (Garden 19 FVG lane D): OFF by default; the glass paints
@@ -1450,6 +1459,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   usePersistOnChange("wm_wisdomLine", wisdomLineOn);
   usePersistOnChange("wm_rvolTone", rvolToneOn);
   usePersistOnChange("wm_breathRibbon", breathRibbonOn);
+  usePersistOnChange("wm_squabble", squabbleOn);
+  usePersistOnChange("wm_regimeWhy", regimeWhyOn);
+  usePersistOnChange("wm_busRunway", busRunwayOn);
   usePersistOnChange("wm_cvdNotch", cvdNotchOn);
   usePersistOnChange(FVG_PREF_KEY, fvgOn);
   usePersistOnChange("wm_absorptionAnatomy",   absorptionAnatomy);
@@ -4562,6 +4574,42 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         active: breathRibbonOn,
         onToggle: () => setBreathRibbonOn(v => !v),
         truth: { ok: true, sentence: "Range only (OHLC) — it reads on every market. Proposed until a Founder plate exists." },
+      }, {
+        id: "SQUABBLE",
+        label: "The Squabble (15m fight)",
+        what: "The live 15-minute fight in three 5-minute rounds, painted on the chart: every 15-second punch from the signed tape (buyers up, sellers down, height = its share of the fight's biggest punch), round bells on the bars, each round's measured word (PUMP · DRAG · DUMP · FLIP · ABSORBED · CLINCH) and a haymaker star where one punch moved price 3× the fight's median punch. Needs a signed trade tape",
+        familyWord: "Order Flow",
+        aliases: ["squabble", "fight", "rounds", "punches", "boxing", "haymaker", "pump", "drag", "flip", "arena", "bell"],
+        active: squabbleOn,
+        onToggle: () => setSquabbleOn(v => !v),
+        truth: { ok: true, sentence: "Signed prints this page heard (crypto exchange tape; tastytrade prints for futures). A round older than the tape says NO TAPE." },
+      }, {
+        id: "REGIME_WHY",
+        label: "Bias & Tape Regime — why",
+        what: "Draws the reasons behind the DAY/24H BIAS and TAPE REGIME words: the reference close and the two prices where the bias flips (±1.5%) as rails on the chart, and the tape's observed range as a box with its net drift as an arrow — TREND when the drift covers half the range, BALANCE when the tape retraced",
+        familyWord: "Context",
+        aliases: ["bias", "day bias", "24h bias", "tape regime", "regime", "why", "choppy", "balance", "trend", "side"],
+        active: regimeWhyOn,
+        onToggle: () => setRegimeWhyOn(v => !v),
+        truth: { ok: true, sentence: "The bias reads the provider's change off a real reference close; the tape box reads the same signed prints the regime word does." },
+      }, {
+        id: "BUS_RUNWAY",
+        label: "The Bus · Clean Runway",
+        what: "When price closes beyond a swing, the bus has left: a lane from that break level to the next obstacle already on the chart (walls, zone edges, named levels, older swings), the road already travelled lit, and the state — STILL BOARDABLE (under half the runway gone), BUS LEFT (half or more) or STALLED (back behind the break)",
+        familyWord: "Structure",
+        aliases: ["bus", "runway", "clean runway", "breakout", "late", "boardable", "floater", "room to run", "available r"],
+        active: busRunwayOn,
+        onToggle: () => setBusRunwayOn(v => !v),
+        truth: { ok: true, sentence: "Breaks are closes beyond the structure owner's confirmed swings; obstacles are levels the room already compiled. Nothing is projected." },
+      }, {
+        id: "SQUABBLE_SOUND",
+        label: "Ring sound (Squabble)",
+        what: "A synthesized ring bell when a round changes while you watch, and a thump when a new haymaker lands. Off until you turn it on; Settings › Sound Effects off silences it",
+        familyWord: "Order Flow",
+        aliases: ["sound", "bell", "ring", "sfx", "announcer", "punch sound"],
+        active: ringSoundOn,
+        onToggle: () => { const next = !ringSoundOn; setSfxOn(next); setRingSoundOn(next); if (next) playSfx("bell", { force: true }); },
+        truth: { ok: true, sentence: "Synthesized in the browser (no recordings). Plays only for changes watched live, never on load." },
       }, {
         id: "CVD_NOTCH",
         label: "CVD Notch (proposed)",
@@ -7695,6 +7743,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       deltaKeelOn={deltaKeelOn}
                       wisdomLineOn={wisdomLineOn}
                       rvolToneOn={rvolToneOn}
+                      squabbleOn={squabbleOn}
+                      regimeWhyOn={regimeWhyOn}
+                      busRunwayOn={busRunwayOn}
                       breathRibbonOn={breathRibbonOn}
                       cvdNotchOn={cvdNotchOn}
                       fvgOn={fvgOn}

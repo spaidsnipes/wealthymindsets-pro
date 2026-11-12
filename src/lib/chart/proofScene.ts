@@ -14,7 +14,7 @@
  *   scene=clean   every layer switch starts OFF for this page load
  *   on=…          switches turned ON for this load. Tokens:
  *                   <Name>        → wm_of<Name>      (LivingProfile, TpoProfile, …)
- *                   sessionVP | fixedVP | absorptionAnatomy | exhaustion | sessionBands | effortResponse | deltaKeel | wisdomLine | rvolTone
+ *                   sessionVP | fixedVP | absorptionAnatomy | exhaustion | sessionBands | effortResponse | deltaKeel | wisdomLine | rvolTone | squabble | regimeWhy | busRunway
  *                   decision      → the decision's WAIT tag on the event candle (held in a clean scene otherwise)
  *                   zones         → market zones + their object pins (held in a clean scene otherwise)
  *                   fvg           → wm_fvg (FVG / Imbalance territory, FVG_3C v1; Garden 19 lane D, 2026-10-07)
@@ -164,7 +164,7 @@ const CLEAN_BOOLEAN_PREFIX = "wm_of";
 // clean scene must switch it off too — or the trader's own overlay leaks in.
 // wm_sessionBands (FX lane, 2026-10-06): default ON for spot FX — a clean scene starts without it.
 // wm_fvg (Garden 19 FVG lane D, 2026-10-07): default OFF; a clean scene keeps it off unless on=fvg.
-const CLEAN_EXTRA_OFF = ["wm_fp_enabled", "wm_absorptionAnatomy", "wm_sessionVP", "wm_fixedVP", "wm_bigtrades_on", "wm_sessionBands", "wm_effortResponse", "wm_deltaKeel", "wm_wisdomLine", "wm_rvolTone", "wm_fvg", "wm_breathRibbon", "wm_cvdNotch", "wm_exhaustion"] as const;
+const CLEAN_EXTRA_OFF = ["wm_fp_enabled", "wm_absorptionAnatomy", "wm_sessionVP", "wm_fixedVP", "wm_bigtrades_on", "wm_sessionBands", "wm_effortResponse", "wm_deltaKeel", "wm_wisdomLine", "wm_rvolTone", "wm_fvg", "wm_breathRibbon", "wm_cvdNotch", "wm_exhaustion", "wm_squabble", "wm_regimeWhy", "wm_busRunway"] as const;
 const SCAFFOLDING_KEY = "wm_ofScaffolding";
 /** What the trader asked of the Question Lens (ChartsDashboard's own key). */
 const QUESTION_CHOICE_KEY = "wm_questionChoice";
@@ -175,7 +175,7 @@ const NON_BOOLEAN_OF_KEYS = new Set([SCAFFOLDING_KEY, "wm_ofStackPrefs", "wm_ofM
 /** The Walls & Gamma family's stored switch record (ChartsDashboard reads it through lsGet). */
 export const WALLS_GAMMA_SCENE_KEY = "wm_wallsGamma";
 // wm_exhaustion (2026-10-16): serving 746945f, scene=clean&on=fp:delta listed "Exhaustion · ON" — its saved switch leaked in.
-const PLAIN_TOGGLES = new Set(["sessionVP", "fixedVP", "absorptionAnatomy", "sessionBands", "effortResponse", "deltaKeel", "wisdomLine", "rvolTone", "fvg", "breathRibbon", "cvdNotch", "exhaustion"]);
+const PLAIN_TOGGLES = new Set(["sessionVP", "fixedVP", "absorptionAnatomy", "sessionBands", "effortResponse", "deltaKeel", "wisdomLine", "rvolTone", "fvg", "breathRibbon", "cvdNotch", "exhaustion", "squabble", "regimeWhy", "busRunway"]);
 
 /** Scene-only marker (never a stored key): `on=zones` lets a clean scene show the market zones. */
 export const SCENE_ZONES_KEY = "wm_sceneZones";

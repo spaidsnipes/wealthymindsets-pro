@@ -9,8 +9,8 @@ import { CONCEPT_EDUCATION, INSTRUMENT_EDUCATION, INVENTION_EDUCATION, type Inve
 const ALL: Record<string, InventionEducation> = { ...INVENTION_EDUCATION, ...INSTRUMENT_EDUCATION, ...(CONCEPT_EDUCATION as Record<string, InventionEducation>) };
 
 describe("every ⓘ record states its four evidence conditions", () => {
-  it("64 records (57 + the seven WALLS & GAMMA members), each with FULL, PARTIAL, DEGRADED and SILENCE", () => {
-    expect(Object.keys(ALL)).toHaveLength(64);
+  it("68 records (57 + the seven WALLS & GAMMA members + Squabble, Ring sound, Regime why, Bus 2026-11-12), each with FULL, PARTIAL, DEGRADED and SILENCE", () => {
+    expect(Object.keys(ALL)).toHaveLength(68);
     for (const [id, r] of Object.entries(ALL)) {
       for (const k of ["full", "partial", "degraded", "silence"] as const) expect(r[k]?.trim().length ?? 0, `${id}.${k}`).toBeGreaterThan(3);
     }

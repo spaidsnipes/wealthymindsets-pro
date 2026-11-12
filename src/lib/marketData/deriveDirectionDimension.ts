@@ -96,6 +96,10 @@ export interface DeriveDirectionInput {
 }
 
 interface DirectionAggregate {
+  readonly min: number;
+  readonly max: number;
+  readonly firstTime: number;
+  readonly lastTime: number;
   readonly count: number;
   readonly first: number;
   readonly last: number;
@@ -139,6 +143,10 @@ function aggregateFor(ticks: readonly DirectionTick[]): DirectionAggregate | nul
   const drift = last - first;
   const range = max - min;
   return {
+    min,
+    max,
+    firstTime: usable[0]!.time,
+    lastTime: usable[count - 1]!.time,
     count,
     first,
     last,
@@ -240,5 +248,37 @@ export function deriveDirectionDimension(input: DeriveDirectionInput): MarketSta
     evidence: [evidenceRefFor(input, agg)],
     contradictions: [],
     unknowns: [],
+  };
+}
+
+/**
+ * THE TAPE REGIME'S WHY, AS GEOMETRY (Founder 2026-11-12: "Tape Regime chips → show WHY on the chart").
+ * The SAME aggregate and the SAME thresholds this dimension seals with — the chart draws the tape's observed
+ * range (box), its net drift (first → last print), and whether that drift covers DIRECTION_MIN_RANGE_SHARE of
+ * the range. TREND when it does on enough trades, BALANCE when the tape retraced, THIN below the trade count.
+ */
+export interface DirectionDrawing {
+  readonly verdict: "TREND" | "BALANCE" | "THIN";
+  readonly first: number;
+  readonly last: number;
+  readonly min: number;
+  readonly max: number;
+  /** Epoch ms of the first / last admissible print (0 when the tick carried no time). */
+  readonly firstTime: number;
+  readonly lastTime: number;
+  readonly count: number;
+  readonly rangeShare: number;
+  readonly driftPct: number;
+}
+
+export function directionDrawing(ticks: readonly DirectionTick[]): DirectionDrawing | null {
+  const agg = aggregateFor(ticks);
+  if (!agg) return null;
+  const resolves = agg.count >= DIRECTION_RESOLVE_MIN_TRADES && agg.rangeShare >= DIRECTION_MIN_RANGE_SHARE && Math.abs(agg.driftPct) >= DIRECTION_MIN_DRIFT_PCT;
+  return {
+    verdict: agg.count < DIRECTION_RESOLVE_MIN_TRADES ? "THIN" : resolves ? "TREND" : "BALANCE",
+    first: agg.first, last: agg.last, min: agg.min, max: agg.max,
+    firstTime: agg.firstTime, lastTime: agg.lastTime, count: agg.count,
+    rangeShare: agg.rangeShare, driftPct: agg.driftPct,
   };
 }

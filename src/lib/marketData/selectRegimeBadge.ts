@@ -387,3 +387,36 @@ export function selectRegimePeriodLabel(symbol: string, at: Date | null): Regime
   if (classifySymbol(symbol) === "CRYPTO") return "24h";
   return provenSessionClosure(symbol, at) === false ? "last session" : "today";
 }
+
+/**
+ * THE DAY BIAS'S WHY, AS GEOMETRY (Founder 2026-11-12). The band this chip reads is a percentage off a reference
+ * close; on the chart it is a corridor: the reference price (last − change) and the two prices where the verdict
+ * flips (±BULL/BEAR thresholds of that reference). Same owner of "is this change real" as the chip; null when the
+ * chip itself would not display.
+ */
+export interface DayBiasCorridor {
+  readonly reference: number;
+  readonly bullAt: number;
+  readonly bearAt: number;
+  readonly regime: RegimeClass;
+  readonly changePct: number;
+  readonly thresholdPct: number;
+}
+export function selectDayBiasCorridor(input: { readonly price: unknown; readonly change: unknown; readonly changePct: unknown }): DayBiasCorridor | null {
+  const change = selectTickerChangeDisplay({
+    change: typeof input.change === "number" ? input.change : null,
+    changePct: typeof input.changePct === "number" ? input.changePct : null,
+  });
+  if (!change.displayable || typeof input.price !== "number" || !(input.price > 0) || typeof input.change !== "number") return null;
+  const reference = input.price - input.change;
+  if (!(reference > 0)) return null;
+  const pct = change.changePct;
+  return {
+    reference,
+    bullAt: reference * (1 + BULL_THRESHOLD / 100),
+    bearAt: reference * (1 + BEAR_THRESHOLD / 100),
+    regime: pct > BULL_THRESHOLD ? "BULL" : pct < BEAR_THRESHOLD ? "BEAR" : "SIDE",
+    changePct: pct,
+    thresholdPct: BULL_THRESHOLD,
+  };
+}

@@ -525,10 +525,8 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
   // trader reads on the deck. Not a new panel: an existing panel that stopped
   // doing its own arithmetic. See selectAvailableR.ts for the two answers the
   // two engines used to give.
-  "src/lib/sfx.ts": {
-    reason: "AWAITING_SURFACE",
-    note: "Sound effects. §9 governs what may take the room; nothing currently calls this.",
-  },
+  // REMOVED 2026-11-12: "src/lib/sfx.ts — nothing currently calls this." The Squabble's ring bell / haymaker
+  // thump (MainChart) and the Tools › "Ring sound" switch (ChartsDashboard) call it now.
   // REMOVED 2026-09-08: "projectDecision.ts — the read arrow, unreached ON
   // ARRIVAL." Declared AWAITING_SURFACE in 8ab142d and given a surface in the
   // very next commit: /paper's blotter now lets the trader ask his account
