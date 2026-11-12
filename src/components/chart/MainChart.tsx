@@ -29947,8 +29947,9 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
           ctx.save();
           ctx.font = marketFont("FIDELITY"); ctx.textBaseline = "middle"; ctx.textAlign = "left";
           const br = pl.breathing;
-          const bWords = br ? `${br.state} · ${br.atrRatio.toFixed(2)}× BAR SIZE` : "";
-          const fWords = pl.families.length ? `${pl.families.length} WITNESS${pl.families.length === 1 ? "" : "ES"}` : "NO WITNESS";
+          // A phone gets the short form (prod 390, 2026-11-12: the long chip ran off the plot's left edge).
+          const bWords = br ? (narrowGlass ? br.state : `${br.state} · ${br.atrRatio.toFixed(2)}× BAR SIZE`) : "";
+          const fWords = narrowGlass ? "" : pl.families.length ? `${pl.families.length} WITNESS${pl.families.length === 1 ? "" : "ES"}` : "NO WITNESS";
           const lungW = 34, dots = pl.families.length + Math.min(pl.correlated, 4);
           const wP = (br ? 14 + ctx.measureText(bWords).width + lungW + 14 : 0) + ctx.measureText(fWords).width + dots * 10 + 22;
           const hP = 20;
@@ -29961,6 +29962,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
           const hitsP = (q: { x: number; y: number }) => takenP.filter(o => q.x < o.x + o.w && q.x + wP > o.x && q.y < o.y + o.h && q.y + hP > o.y).length * 3
             + profileCandlesAt(q.y, q.y + hP).filter(c => q.x < c.x + c.w && q.x + wP > c.x).length;
           const seatP = candsP.map((q, i) => ({ q, n: hitsP(q), i })).sort((a, b) => a.n - b.n || a.i - b.i)[0];
+          seatP.q.x = Math.max(8, seatP.q.x);
           let px = seatP.q.x; const py = seatP.q.y, cy = py + hP / 2;
           ctx.fillStyle = "rgba(7,9,15,0.88)"; ctx.fillRect(px, py, wP, hP);
           ctx.strokeStyle = "rgba(212,175,55,0.45)"; ctx.lineWidth = 1; ctx.strokeRect(px + 0.5, py + 0.5, wP - 1, hP - 1);

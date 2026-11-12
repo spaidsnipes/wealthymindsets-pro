@@ -90,6 +90,9 @@ const DEVICE_LEVEL_EXEMPT = new Set<string>([
   // another account — and it MUST survive sign-out: the screen lock he asked for ("shut it down… sign back in") lifts
   // only when that same member signs back in. Sweeping it at sign-out would lift every lock on the way out.
   "wm_session_day_v1",
+  // Belief chain check (Session Desk, 2026-11-12): stored only under `wm_belief_chain_v1:<member id>` and only for the
+  // current market day — another account on this browser never reads it.
+  "wm_belief_chain_v1",
   // Per-TAB (sessionStorage) timestamp of the last deploy-version recovery
   // reload — a loop guard about this browser tab, holds no account data.
   "wm-version-recovery-at",

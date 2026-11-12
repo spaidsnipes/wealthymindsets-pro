@@ -23,6 +23,8 @@ import { readPropTodayCap, type PropTodayCap } from "@/lib/journal/propTodayCap"
 import { enterResult, lockNow, LOCK_SENDS_NO_ORDERS, money, SESSION_DEVICE_LINE, type SessionDay } from "@/lib/session/sessionDay";
 import { useSessionDay } from "@/components/session/useSessionDay";
 import { GivebackMeter, ToeWhooperCard } from "@/components/session/SessionVerdict";
+import { QuantumDayCard } from "@/components/session/QuantumDayCard";
+import { BeliefChainCard } from "@/components/session/BeliefChainCard";
 
 const GOLD = "#d4a94a", MUTED = "#9a927f", LINE = "#3a2f17";
 const card: React.CSSProperties = { border: `1px solid ${LINE}`, background: "linear-gradient(#0e0d0b,#090908)", borderRadius: 10, padding: 16, minWidth: 0 };
@@ -142,6 +144,9 @@ export default function SessionDeskPage() {
             <div style={{ ...title, marginTop: 18 }}>Fight model · on the chart</div>
             <div style={{ color: MUTED, fontSize: 12 }}>Switch on <b>Bias &amp; Tape Regime — why</b> in Tools: the chip beside price reads KNOCKOUT (trend tape at its leading edge), BODY SHOTS (balance tape away from the middle — the middle is marked) or WAIT.</div>
           </section>
+
+          <BeliefChainCard card={card} title={title} />
+          <QuantumDayCard card={card} title={title} />
 
           <section style={{ ...card, gridColumn: "1 / -1", borderColor: GOLD }} data-testid="session-complete">
             <div style={{ ...title, textAlign: "center" }}>Session complete</div>
