@@ -3,6 +3,7 @@ import { CHUNK_RECOVERY_SCRIPT } from "@/components/layout/chunkRecoveryScript";
 import "./globals.css";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { VerifySceneBanner } from "@/components/layout/VerifySceneBanner";
+import { SessionLockGate } from "@/components/session/SessionLockGate";
 import { SymbolProvider } from "@/contexts/SymbolContext";
 import { WMSProvider } from "@/contexts/WMSContext";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -112,6 +113,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <MainLayout>{children}</MainLayout>
                 {/* scene=verify: the one visible mark of a verification load — every room, signed-in only. */}
                 <VerifySceneBanner />
+                {/* The session lock (target / max loss / "I'm done"): covers every room until he signs back in. Sends no orders. */}
+                <SessionLockGate />
               </SymbolProvider>
             </WMSProvider>
           </RadioProvider>

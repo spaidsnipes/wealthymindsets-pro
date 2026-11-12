@@ -28,7 +28,7 @@ export const APP_ROUTE_ROOTS = [
   "ai-bot", "backtest", "backtesting", "charts", "command-deck", "copy-trading", "creator", "desk",
   "education", "heatmaps", "journal", "legal", "login", "lounge", "morning-prep", "nectar", "news",
   "paper", "partnerships", "pricing", "privacy", "profile", "proof-lane", "radio", "readiness",
-  "research-heat", "reset-password", "scanner", "settings", "shop", "signup", "terms", "tv",
+  "research-heat", "reset-password", "scanner", "session", "settings", "shop", "signup", "terms", "tv",
   "vailbuild", "veddbuild", "webull-code", "welcome",
 ] as const;
 

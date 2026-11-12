@@ -4,6 +4,7 @@ import { WM, WM_PRIMARY_ACTION } from "@/lib/design/wmTokens";
 import { liveJournalRecords } from "@/lib/journal/paperEntry";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { TodayManagementRules } from "@/components/journal/TodayManagementRules";
+import { SessionDeskDoor } from "@/components/session/SessionDeskDoor";
 import { PropEvaluationToday } from "@/components/morning-prep/PropEvaluationToday";
 import MorningCommandCenter from "@/components/morning-prep/MorningCommandCenter";
 import Link from "next/link";
@@ -656,6 +657,9 @@ export default function MorningPrepPage() {
 
         {/* Garden 19 §55: patience and management are prepared here, before the bell. */}
         {ownerId ? <TodayManagementRules /> : null}
+
+        {/* Session Desk (2026-11-12): today's target lock, "I'm done", the checkpoint, the verdict. */}
+        {user?.id ? <SessionDeskDoor /> : null}
 
         {/* Founder order §7 (Monday preparation): where the prop evaluation stands — owner only; the rules, not a target. */}
         {ownerId ? <PropEvaluationToday /> : null}

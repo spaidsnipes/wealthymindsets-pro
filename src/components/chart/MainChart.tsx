@@ -118,6 +118,7 @@ import { MARKET_MONO, MARKET_NUMBER_MIN_PX, MARKET_SANS, crispText, footprintCel
 import { selectSquabble, squabbleReceipt, roundWordShown } from "@/lib/chart/squabble";
 import { selectDayBiasCorridor, selectRegimePeriodLabel } from "@/lib/marketData/selectRegimeBadge";
 import { directionDrawing } from "@/lib/marketData/deriveDirectionDimension";
+import { selectFightModel, FIGHT_MODEL_WORD } from "@/lib/chart/fightModel";
 import { selectBusRunway, busReceipt } from "@/lib/chart/busRunway";
 import { playSfx } from "@/lib/sfx";
 import { tastyCandleStreamerFor, tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
@@ -29542,6 +29543,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
                            print. TREND = the arrow covers ≥ 50% of the box; BALANCE = the tape retraced.
          Off-camera prices become edge tags; no tape / no reference close → nothing is drawn. */
       try {
+        delete canvas.dataset.fightModel;
         if (!regimeWhyOn || !srs) { delete canvas.dataset.regimeWhy; }
         else {
           const tk = tickerWhyRef.current;
@@ -29612,6 +29614,20 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
               const words = drift.verdict === "THIN" ? `TAPE · ${drift.count} TRADES — TOO FEW TO CALL` : `TAPE REGIME ${drift.verdict} · DRIFT ${share}% OF RANGE (TREND NEEDS 50%)`;
               tag(words, Math.max(4, x1), yMax - 12 < topY + 10 ? yMin + 12 : yMax - 12, ink, "right");
               receipt.push(`TAPE:${drift.verdict}|SHARE:${share}|N:${drift.count}`);
+              // THE TWO MODELS (Founder 11-05: "Body shots… aiming for the middle. Knockout…") — fightModel.ts reads
+              // the SAME drift box and price's place in it; the chip sits beside the price line, the middle (BODY SHOTS'
+              // target) gets a short dashed tick at the box's right edge.
+              const fm = selectFightModel({ verdict: drift.verdict, min: drift.min, max: drift.max, first: drift.first, last: drift.last, price: tk?.price ?? null });
+              const fmInk = fm.model === "KNOCKOUT" ? GOLDW : fm.model === "BODY_SHOTS" ? "111,168,220" : "160,152,134";
+              const yPxF = yOf(tk?.price ?? drift.last);
+              if (yPxF != null && yPxF > topY && yPxF < botY) {
+                tag(FIGHT_MODEL_WORD[fm.model], plotRight - 70, yPxF + 18, fmInk, "right");
+                if (fm.middle != null) {
+                  const yMid = yOf(fm.middle);
+                  if (yMid != null) { ctx.setLineDash([3, 3]); ctx.strokeStyle = `rgba(${fmInk},0.9)`; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x1, Math.round(yMid) + 0.5); ctx.lineTo(x1 + 28, Math.round(yMid) + 0.5); ctx.stroke(); ctx.setLineDash([]); }
+                }
+              }
+              canvas.dataset.fightModel = `${fm.model}|POS:${fm.position == null ? "NONE" : Math.round(fm.position * 100)}`;
             } else receipt.push("TAPE:OFF_CAMERA");
           } else receipt.push(drift ? "TAPE:NO_TIMES" : "TAPE:NO_SIGNED_TAPE");
           ctx.restore();
@@ -29801,11 +29817,17 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
               { x: Math.max(12, Math.round(plotRight * 0.3)), y: pane0Bottom - ringH - 6 },
               { x: Math.max(12, silenceX), y: HEADER_FLOOR_Y + 8 },
               { x: Math.max(12, Math.round(plotRight * 0.3)), y: HEADER_FLOOR_Y + 8 },
+              // Shift 1112 (signed-in MNQ 5m): the well's left seat sat over a caption's head and its tail ("…CST")
+              // stuck out past the ring. The right side of the well is a fifth seat.
+              { x: Math.max(12, plotRight - ringW - 12), y: Math.min(wellY, pane0Bottom - ringH - 6) },
             ];
-            const taken = [...floatingChips, ...sovereignBoxes];
+            // Every word already painted this frame (the word registry's own boxes) is taken too, not only the chips:
+            // a ring seated over half a caption leaves the other half reading as debris beside it.
+            const taken = [...floatingChips, ...sovereignBoxes, ...wordGate.rects()];
             const hits = (q: { x: number; y: number }) => taken.filter(o => q.x < o.x + o.w && q.x + ringW > o.x && q.y < o.y + o.h && q.y + ringH > o.y).length
               + profileCandlesAt(q.y, q.y + ringH).filter(c => q.x < c.x + c.w && q.x + ringW > c.x).length;
-            const spot = cands.map((q, i) => ({ q, n: hits(q), i })).sort((a, b) => a.n - b.n || a.i - b.i)[0].q;
+            const seat = cands.map((q, i) => ({ q, n: hits(q), i })).sort((a, b) => a.n - b.n || a.i - b.i)[0];
+            const spot = seat.q;
             const R = { x: spot.x, y: spot.y, w: ringW, h: ringH };
             onTop(R, "OPAQUE_CARD");
             floatingChips.push(R);
@@ -29854,7 +29876,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
               ctx.fillStyle = rd.word === "HAYMAKER" ? "rgba(255,210,122,1)" : rd.future ? "rgba(200,192,174,0.55)" : rd.winner === "BULLS" || rd.word === "PUMP" ? `rgba(${UP},1)` : rd.winner === "BEARS" || rd.word === "DUMP" || rd.word === "DRAG" ? `rgba(${DN},1)` : "rgba(237,230,211,0.95)";
               ctx.fillText(word, x0, R.y + R.h - 11);
             }
-            canvas.dataset.squabbleRing = `${Math.round(R.x)},${Math.round(R.y)},${Math.round(R.w)}x${Math.round(R.h)}`;
+            canvas.dataset.squabbleRing = `${Math.round(R.x)},${Math.round(R.y)},${Math.round(R.w)}x${Math.round(R.h)}|SEAT:${seat.i}|OVER:${seat.n}`;
             ctx.restore();
           }
         }

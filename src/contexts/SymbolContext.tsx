@@ -5,7 +5,11 @@ import { proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { normalizeMarketSurfaceSymbol } from "@/lib/routing/marketSurfaceQuery";
 import { resolveEnteredSymbol } from "@/lib/marketData/futuresNotation";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
-import React, { createContext, useContext, useState, useCallback, useEffect, useLayoutEffect } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { checkpointBlocks } from "@/lib/session/sessionDay";
+import { loadSessionDay, sessionDayKeyFor } from "@/components/session/useSessionDay";
+import { CheckpointHold } from "@/components/session/CheckpointHold";
 import { resolveDefaultCameraSymbol } from "@/lib/marketData/defaultMarketCamera";
 
 const LAST_SYMBOL_KEY = "wm_last_symbol";
@@ -120,17 +124,39 @@ export function SymbolProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const setActiveSymbol = useCallback((sym: string) => {
-    // Typed "Open as entered", pickers, restored state: one entry gate, so a
-    // bare root ("NQ") opens the series that has bars (NQ1!), not an empty chart.
-    const up = routeSpot(resolveEnteredSymbol(sym));
+  // THE MNQ → NQ CHECKPOINT (Founder 11-11: "I did this shit again when I got to 900"). Every symbol switch in the
+  // app passes this one gate; while his checkpoint is armed (Session Desk), a micro → its own full size is held
+  // until he confirms on the hold card. Nothing else is ever held.
+  const { user } = useAuth();
+  const memberRef = useRef<string | null>(null);
+  memberRef.current = user?.id ?? null;
+  const activeRef = useRef(activeSymbol);
+  activeRef.current = activeSymbol;
+  const [held, setHeld] = useState<{ from: string; to: string; note: string } | null>(null);
+
+  const commit = useCallback((up: string) => {
     setActiveSymbolState(up);
     try { if (!proofSceneHoldsWrites()) localStorage.setItem(LAST_SYMBOL_KEY, up); } catch {}
   }, []);
 
+  const setActiveSymbol = useCallback((sym: string) => {
+    // Typed "Open as entered", pickers, restored state: one entry gate, so a
+    // bare root ("NQ") opens the series that has bars (NQ1!), not an empty chart.
+    const up = routeSpot(resolveEnteredSymbol(sym));
+    const member = memberRef.current;
+    if (member) {
+      try {
+        const day = loadSessionDay(sessionDayKeyFor(member));
+        if (checkpointBlocks(day, activeRef.current, up)) { setHeld({ from: activeRef.current, to: up, note: day.checkpointNote }); return; }
+      } catch { /* no stored day: nothing armed */ }
+    }
+    commit(up);
+  }, [commit]);
+
   return (
     <SymbolContext.Provider value={{ activeSymbol, setActiveSymbol }}>
       {children}
+      {held ? <CheckpointHold from={held.from} to={held.to} note={held.note} onStay={() => setHeld(null)} onSwitch={() => { const to = held.to; setHeld(null); commit(to); }} /> : null}
     </SymbolContext.Provider>
   );
 }

@@ -18,6 +18,7 @@
  *   · wm-install-dismissed               (PWA install prompt state, device-level)
  *   · wm-watchlist-prices                (cache, not user data)
  *   · wm-tape-symbols                    (ticker tape customization, device-level)
+ *   · wm_session_day_v1:<member> (Session Desk lock — member-keyed, must survive sign-out to be lifted by signing back in)
  *   · wm_fvg                             (FVG / Imbalance layer on/off — device chart pref, 2026-10-07)
  *   · HM_CACHE_PREFIX + tf               (heatmap %s cache, not user data)
  *
