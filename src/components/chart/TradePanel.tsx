@@ -52,6 +52,7 @@ import { PendingFillJournalOffers } from "@/components/journal/FillJournalOffer"
 import { ManagementPlanCard } from "@/components/journal/ManagementPlanCard";
 import { isOwnerRefusal, plainBrokerAnswer, TASTYTRADE_NOT_AVAILABLE } from "@/lib/broker/ownerRefusal";
 import { useTastyQuotes } from "@/lib/broker/tastyQuoteStream";
+import { consumeSideRequest, useSideRequest } from "@/lib/execution/sideRequest";
 import { instrumentEconomics } from "@/lib/marketData/contractEconomics";
 import { useGuardrails } from "@/lib/execution/useGuardrails";
 import { canonicalAssetClass } from "@/lib/marketData/canonicalIdentity";
@@ -172,6 +173,9 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   // Sheriff P2-6: no side is pre-staged — nothing is built until the member picks BUY or SELL.
   const [side, setSide] = useState<"BUY" | "SELL" | null>(null);
   useEffect(() => { setSide(null); }, [symbol]);
+  // The chart's SELL / BUY spread buttons (sideRequest.ts) pick the side here; nothing is sent.
+  const sideAsk = useSideRequest(symbol);
+  useEffect(() => { if (sideAsk) { setSide(sideAsk.side); consumeSideRequest(sideAsk.seq); } }, [sideAsk?.seq]); // eslint-disable-line react-hooks/exhaustive-deps
   // PROOF SCENE (`scene=ticket-fixture`): a SAMPLE book and a pre-picked side, for the signed-in owner only.
   // Every send / cancel / flatten control is refused at the control and no order route can be reached.
   const sceneGate = scene ? railSendGate("PROOF_SCENE", "tastytrade") : null;

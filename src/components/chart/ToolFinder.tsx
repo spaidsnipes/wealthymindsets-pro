@@ -38,6 +38,17 @@ const PEARL = "#E8EAF2";
 const MUTED = "#8B8FA8";
 const AMBER = "#F0B429";
 
+/** His TradingView favourites (Indicators › Favorites, read 2026-11-12) → the WM reading of the same thing. */
+export const TV_FAVOURITES: readonly { readonly tv: string; readonly wm: string; readonly find: string }[] = [
+  { tv: "Cumulative volume delta", wm: "Delta Keel", find: "delta keel" },
+  { tv: "Fixed range volume profile", wm: "Fixed Range Profile", find: "fixed range" },
+  { tv: "Session volume profile HD", wm: "Session VP", find: "session vp" },
+  { tv: "SMC Structures and FVG", wm: "Market Structure + FVG", find: "structure" },
+  { tv: "Support & Resistance with Breaks", wm: "Structure zones", find: "zones" },
+  { tv: "Trendlines with Breaks", wm: "Market Structure", find: "market structure" },
+  { tv: "Volume", wm: "Relative Volume Tone", find: "volume" },
+];
+
 export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, active, onToggle, speciesRefusal, instruments = [], symbol, feed = null, stateDetail, chainScope = null }: {
   /** §B5 · the chart's paint receipts as words (`senseEventStates`) — Active tools says what the glass holds. */
   stateDetail?: Readonly<Partial<Record<string, string>>>;
@@ -98,6 +109,21 @@ export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, 
         style={{ color: PEARL }}
       />
 
+      {/* HIS TRADINGVIEW FAVOURITES (read from his own TradingView layout, 2026-11-12) mapped to the WM tool that reads
+          the same thing — a tap finds it below; switching it on is still the tool's own switch. */}
+      {!q.trim() ? (
+        <div data-testid="tool-finder-tv-favourites" className="mt-1.5">
+          <div className="text-[10px] tracking-[0.18em] uppercase" style={{ color: "#d4a94a" }}>Your TradingView favourites</div>
+          <div className="mt-1 flex flex-wrap gap-1">
+            {TV_FAVOURITES.map(f => (
+              <button key={f.tv} type="button" onClick={() => setQ(f.find)} title={`TradingView: ${f.tv} → WM: ${f.wm}`}
+                className="rounded border border-wm-border px-1.5 py-0.5 text-[10.5px] hover:border-wm-gold" style={{ color: PEARL, minHeight: 28 }}>
+                {f.tv} <span style={{ color: "#9a927f" }}>→ {f.wm}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
       {q.trim() ? (
         <ul data-testid="tool-finder-results" className="mt-1.5 flex flex-col gap-1" aria-label="Matching tools">
           {instHits.map(i => (

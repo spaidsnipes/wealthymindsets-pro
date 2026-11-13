@@ -123,6 +123,7 @@ import { waitingRowWords } from "@/lib/chart/waitingTray";
 import { explainBrickWall, explainWall, type WallExplain } from "@/lib/chart/wallExplain";
 import Link from "next/link";
 import { SquabbleClipButton } from "@/components/chart/SquabbleClipButton";
+import { ChartSpreadButtons } from "@/components/chart/ChartSpreadButtons";
 import { fetchDelayedChartBars } from "@/lib/marketData/delayedChartDoor";
 import { selectBusRunway, busReceipt } from "@/lib/chart/busRunway";
 import { playSfx, speakAnnouncer, playAnnouncerClips } from "@/lib/sfx";
@@ -234,8 +235,9 @@ const KEEL_ATR_WAIT_FRAMES = 2;
 /** Delta Keel salience floor (ASK-6): no keel shorter than this, at any width. */
 const KEEL_MIN_L = 3;
 /** Desk keel (Oct 16 one-at-a-time pass, serving NQ1! 15m: 45 keels drawn at 3 × 2 px — none could be seen). */
-const KEEL_DESK_MIN_L = 6;
-const KEEL_DESK_H = 4;
+// 10 × 6 since 2026-11-12 (recorded QA, BTC 1m at 1440: 6 × 4 caps read as candle ticks).
+const KEEL_DESK_MIN_L = 10;
+const KEEL_DESK_H = 6;
 /** A FAILED keel (failed aggression) on wide glass: at least this long and tall (G19, Oct 10). */
 const KEEL_FAIL_MIN_L = 8;
 const KEEL_FAIL_H = 4;
@@ -12732,18 +12734,20 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
             if (!r.length) continue;
             ctx.beginPath();
             for (let i = 0; i < r.length; i += 4) ctx.rect(r[i], r[i + 1], r[i + 2], r[i + 3]);
-            ctx.fillStyle = `rgba(214,176,96,${rvolToneAlpha(0.6 + (k + 0.5) * 0.08).toFixed(3)})`;
+            // QA 2026-11-12: brass on brass volume bars could not be told from a normal bar. Unusually busy bars now
+            // glow a brighter amber than the well, and the cap is ivory and 3px.
+            ctx.fillStyle = `rgba(255,190,70,${Math.min(1, rvolToneAlpha(0.6 + (k + 0.5) * 0.08) + 0.25).toFixed(3)})`;
             ctx.fill();
           }
           // ASK-6 (Sheriff re-run 69fb204: tone differences not perceivable at
           // MID): every toned bar also carries a 2px brass CAP on its top edge —
           // the "unusually busy" mark reads at any scale; the fill keeps rarity.
           ctx.beginPath();
-          for (const r of steps) for (let i = 0; i < r.length; i += 4) ctx.rect(r[i], r[i + 1], r[i + 2], Math.min(2, r[i + 3]));
-          ctx.fillStyle = "rgba(214,176,96,0.85)";
+          for (const r of steps) for (let i = 0; i < r.length; i += 4) ctx.rect(r[i], r[i + 1], r[i + 2], Math.min(3, r[i + 3]));
+          ctx.fillStyle = "rgba(246,236,210,0.95)";
           ctx.fill();
           ctx.restore();
-          canvas.dataset.rvolWeightSalience = "CAP2";
+          canvas.dataset.rvolWeightSalience = "CAP3";
           canvas.dataset.rvolWeight = `${toned}|BASE:${rv.length && slot === rv.length ? "SLOT" : slot > 0 ? `SLOT${slot}+ROLLING${rv.length - slot}` : "ROLLING"}|SAME`;
           const insp = inspectedBarRef.current?.time ?? null;
           const sel = insp != null ? rv.find(q => q.time === insp) : null;
@@ -15191,14 +15195,19 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
           // the countdown at the left edge. The box (and its pad) is chrome now.
           candleTimerRect = { x: x - 2, y: boxY - 2, w: boxW + 4, h: boxH + 4 };
           countdownPillWRef.current = boxW + 4;
-          const border = flash ? "#FF2E63" : (neon ? "#00FFA3" : "#2F80ED");
+          // TradingView parity (Founder 2026-11-12): the countdown under the price wears the FORMING bar's direction —
+          // the house up ink while it is up on its open, the down ink while it is down. The close flash still wins.
+          const formingC = (barsRef.current ?? [])[(barsRef.current ?? []).length - 1];
+          const formingUp = formingC ? formingC.close >= formingC.open : null;
+          const border = flash ? "#FF2E63" : formingUp === true ? "#26a69a" : formingUp === false ? "#ef5350" : (neon ? "#00FFA3" : "#2F80ED");
+          { const dsD = canvasRef.current?.dataset; if (dsD) dsD.candleTimerInk = formingUp === true ? "UP" : formingUp === false ? "DOWN" : "NONE"; }
           // FL-06: desktop is one continuous price instrument. The countdown
           // keeps its real price coordinate, ring/progress, live-close flash,
           // text and connector, but loses the floating card material. Narrow
           // charts keep the shell because it protects legibility over a
           // compressed market. Only these two paint operations are gated.
-          if (candleCountdownUsesPillShell(W)) {
-            ctx.fillStyle = flash ? "rgba(255,46,99,0.95)" : "rgba(14,18,30,0.94)";
+          if (candleCountdownUsesPillShell(W) || inAxis) {
+            ctx.fillStyle = flash ? "rgba(255,46,99,0.95)" : formingUp === true ? "rgba(38,166,154,0.92)" : formingUp === false ? "rgba(239,83,80,0.92)" : "rgba(14,18,30,0.94)";
             ctx.fillRect(x, boxY, boxW, boxH);
             ctx.strokeStyle = border; ctx.lineWidth = 1;
             ctx.strokeRect(x + 0.5, boxY + 0.5, boxW - 1, boxH - 1);
@@ -19820,6 +19829,10 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
               const tw = Math.ceil(ctx.measureText(t).width) + 12, th = 18;
               const box = { x: dlRightEdge - tw - 4, y: Math.round(b.y - th / 2), w: tw, h: th };
               if (onNewestColumn(box.x, box.y, box.w, box.h)) box.x = Math.max(4, b.x0 - tw - 6);
+              // Not inside a profile histogram either (QA favourite combo: two chips sat in the Structure box) — step to its left.
+              for (const pb of [...profileBoxesRef.current.prev, ...profileBoxesRef.current.cur]) {
+                if (box.x < pb.x + pb.w && box.x + box.w > pb.x && box.y < pb.y + pb.h && box.y + box.h > pb.y) box.x = Math.max(4, pb.x - box.w - 6);
+              }
               if (floatingChips.some(q => box.x < q.x + q.w && box.x + box.w > q.x && box.y < q.y + q.h && box.y + box.h > q.y)) continue;
               if (onNewestColumn(box.x, box.y, box.w, box.h)) continue;
               ctx.fillStyle = "rgba(11,10,8,0.88)";
@@ -22605,7 +22618,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
               const rowsFold = foldNarrowLine([...wgNarrowTruth], Math.max(80, plotRightG - silenceX - 10), t => ctx.measureText(t).width);
               // QA 2026-11-12 (390: a six-line GAMMA block printed over the volume well): the phone keeps the headline and
               // one source line; the rest is read in Tools › Active.
-              const rowsAll = rowsFold.length > 2 ? [rowsFold[0], `${rowsFold[1]} · MORE IN TOOLS ›`] : rowsFold;
+              const rowsAll = rowsFold.length > 2 ? [rowsFold[0], "MORE IN TOOLS ›"] : rowsFold;
               const RH = 13;
               // PRICE SOVEREIGNTY: never on a candle body either — the volume floor is tried first.
               const onBody = (q: { x: number; y: number; w: number; h: number }) => rowBodiesAt(q.y, q.y + q.h).some(b => q.x < b.x + b.w && q.x + q.w > b.x);
@@ -30180,8 +30193,10 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
         // the top-left of the price pane, under the header band.
         let y = narrowGlass ? (lensNarrowBottom > 0 ? lensNarrowBottom + 10 : HEADER_FLOOR_Y + 10) : silenceRowY;
         // The phone's short form (2026-10-18): ~80px finds a row between the candles; Tools › Active says which.
+        // QA 2026-11-12 (phone): "2 SILENT ›" did not say WHICH tool. The phone names the first one it folded.
+        const firstSilent = silenceWaiting.length ? (silenceWaiting[0].split("·")[0] ?? "").trim().toUpperCase().slice(0, 18) : "";
         let words = narrowGlass
-          ? `${silenceFolded} SILENT ›`
+          ? (firstSilent ? `${firstSilent}${silenceFolded > 1 ? ` +${silenceFolded - 1}` : ""} WAITING ›` : `${silenceFolded} SILENT ›`)
           : `${silenceFolded} SILENT — TOOLS ›`;
         ctx.save();
         ctx.font = marketFont("OBJECT_NAME");
@@ -34426,6 +34441,13 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
         */}
         {/* Squabble replay → 15 s clip (#14), beside the ring on desk / tablet glass. */}
         {squabbleOn && (containerRef.current?.clientWidth ?? 0) >= 768 ? <SquabbleClipButton left={392} bottom={TIMEFRAME_FOOTER_H + 10} /> : null}
+        {/* SELL · spread · BUY (TradingView parity): live bid/ask from the member's own tastytrade stream, top-left under
+            the header row. A press opens the ticket on that side — nothing is sent from the chart. */}
+        {onTradeAtPrice && (containerRef.current?.clientWidth ?? 0) >= 640 ? (
+          <div style={{ position: "absolute", top: 28, left: 40, zIndex: 8 }}>
+            <ChartSpreadButtons symbol={symbol} decimals={displayPrecisionFor(symbol, barsRef.current ?? [])} onTradeAt={p => onTradeAtPrice(snapToTick(symbol, p))} />
+          </div>
+        ) : null}
         {plusRow != null && !ctxMenu ? (
           <button type="button" data-testid="price-scale-plus" aria-label="Actions at this price: alert, horizontal line, trade at price"
             onMouseDown={e => { e.preventDefault(); e.stopPropagation(); }}

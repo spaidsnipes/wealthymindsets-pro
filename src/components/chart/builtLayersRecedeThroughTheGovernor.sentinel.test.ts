@@ -99,9 +99,9 @@ describe("ASK-6 (2026-10-08): Delta Keel salience floor at every width", () => {
 });
 
 describe("ASK-6 (2026-10-08): RVOL tone salience", () => {
-  it("every toned volume bar carries a 2px brass cap, named in its receipt", () => {
-    expect(CHART).toContain('canvas.dataset.rvolWeightSalience = "CAP2";');
-    expect(CHART).toContain("for (const r of steps) for (let i = 0; i < r.length; i += 4) ctx.rect(r[i], r[i + 1], r[i + 2], Math.min(2, r[i + 3]));");
+  it("every toned volume bar carries a 3px ivory cap (QA 2026-11-12), named in its receipt", () => {
+    expect(CHART).toContain('canvas.dataset.rvolWeightSalience = "CAP3";');
+    expect(CHART).toContain("for (const r of steps) for (let i = 0; i < r.length; i += 4) ctx.rect(r[i], r[i + 1], r[i + 2], Math.min(3, r[i + 3]));");
   });
 });
 
