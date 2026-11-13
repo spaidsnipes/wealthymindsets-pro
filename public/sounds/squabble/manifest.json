@@ -1,0 +1,77 @@
+{
+ "voice": "Ringside Rome — Kokoro-82M (Apache-2.0) style blend am_onyx+am_fenrir @ speed 1.08 (original synthetic voice; not a clone of anyone)",
+ "clips": {
+  "intro": {
+   "file": "intro.mp3",
+   "text": "Ladies and gentlemen, welcome to the Squabble! Gold corner, the Buyers. Red corner, the Sellers. Three rounds, real tape, no script."
+  },
+  "r1": {
+   "file": "r1.mp3",
+   "text": "Round one! Touch gloves and let the tape talk."
+  },
+  "r2": {
+   "file": "r2.mp3",
+   "text": "Round two! Shake it off, here we go again."
+  },
+  "r3": {
+   "file": "r3.mp3",
+   "text": "Final round! Leave it all on the tape."
+  },
+  "pump": {
+   "file": "pump.mp3",
+   "text": "Pump, pump! Buyers pressing the action!"
+  },
+  "dump": {
+   "file": "dump.mp3",
+   "text": "Ooh, that's a dump! Sellers dropped the hammer!"
+  },
+  "drag": {
+   "file": "drag.mp3",
+   "text": "Sellers dragging it down, slow and mean."
+  },
+  "flip": {
+   "file": "flip.mp3",
+   "text": "Flip! Somebody took that round back!"
+  },
+  "absorbed": {
+   "file": "absorbed.mp3",
+   "text": "Absorbed! All that effort, and the price ain't budge."
+  },
+  "clinch": {
+   "file": "clinch.mp3",
+   "text": "Clinch! They hugging it out in the middle."
+  },
+  "haymaker": {
+   "file": "haymaker.mp3",
+   "text": "Haymaker! Oh, somebody felt that one!"
+  },
+  "knockdown": {
+   "file": "knockdown.mp3",
+   "text": "He's down! He's down! Count it!"
+  },
+  "buyers_win": {
+   "file": "buyers_win.mp3",
+   "text": "Buyers take it! Gold corner, give 'em their flowers!"
+  },
+  "sellers_win": {
+   "file": "sellers_win.mp3",
+   "text": "Sellers take it! Red corner running the block tonight!"
+  },
+  "draw": {
+   "file": "draw.mp3",
+   "text": "It's a draw! Ain't nobody going home happy."
+  },
+  "call_it": {
+   "file": "call_it.mp3",
+   "text": "Make your call before the bell!"
+  },
+  "correct": {
+   "file": "correct.mp3",
+   "text": "You called it! Student of the game!"
+  },
+  "wrong": {
+   "file": "wrong.mp3",
+   "text": "The tape got you this time. Run it back."
+  }
+ }
+}

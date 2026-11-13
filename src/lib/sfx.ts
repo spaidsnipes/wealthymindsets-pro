@@ -3,11 +3,11 @@
 /**
  * WM Sound FX — the toggleable "squabble / boxing" sound layer.
  *
- * HONESTY: every sound here is SYNTHESIZED live via the Web Audio API
- * (oscillators + a noise buffer). There are NO recorded or licensed audio
- * files shipped or fetched — nothing to source, nothing to attribute. That
- * keeps the feature 100% ours and copyright-clean while still giving the
- * ring-side "ding" and body-shot "thump" the boxing theme asks for.
+ * HONESTY: the bell / punch / coin are SYNTHESIZED live via the Web Audio API
+ * (oscillators + a noise buffer). The ONLY recorded files are the Squabble
+ * announcer's lines ("Ringside Rome", VOICES 11-12): original lines voiced by
+ * an original Kokoro-82M (Apache-2.0) style blend rendered by ATH, shipped in
+ * public/sounds/squabble/ — ours, no licensed audio, no one's voice cloned.
  *
  * Design rules:
  *  • OFF by default (opt-in) — we never surprise a user with sound.
@@ -135,6 +135,29 @@ export function speakAnnouncer(line: string): boolean {
     if (local) u.voice = local;
     u.rate = 1.05; u.pitch = 0.9; u.volume = 0.9;
     synth.speak(u);
+    return true;
+  } catch { return false; }
+}
+
+/**
+ * RINGSIDE ROME (VOICES 11-12): plays the recorded announcer clips in order (public/sounds/squabble/<id>.mp3). Same
+ * switch as the ring sounds (off by default). A new call cuts the old one, so a busy tape never stacks stale calls.
+ * If a clip can't play (blocked / missing), the line falls back to speakAnnouncer().
+ */
+let clipEl: HTMLAudioElement | null = null;
+export function playAnnouncerClips(ids: readonly string[], fallbackLine?: string | null): boolean {
+  if (typeof window === "undefined" || !isSfxOn() || !ids.length || typeof Audio === "undefined") return false;
+  try {
+    if (clipEl) { clipEl.pause(); clipEl = null; }
+    try { if ("speechSynthesis" in window) window.speechSynthesis.cancel(); } catch { /* none */ }
+    const queue = [...ids];
+    const next = (): void => {
+      const id = queue.shift(); if (!id) { clipEl = null; return; }
+      const el = new Audio(`/sounds/squabble/${id}.mp3`); el.volume = 0.9; clipEl = el;
+      el.addEventListener("ended", () => { if (clipEl === el) next(); });
+      el.play().catch(() => { if (clipEl === el) { clipEl = null; if (fallbackLine) speakAnnouncer(fallbackLine); } });
+    };
+    next();
     return true;
   } catch { return false; }
 }

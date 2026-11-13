@@ -221,7 +221,7 @@ export function minuteExchanges(r: SquabbleRound): MinuteExchange[] {
 }
 
 /* ── THE ANNOUNCER (#14: "Get 'em Bulls") — one line per OBSERVED event, never on load. ── */
-export interface AnnouncerMemo { readonly fight: number; readonly round: number; readonly hay: number }
+export interface AnnouncerMemo { readonly fight: number; readonly round: number; readonly hay: number; readonly word?: RoundWord; readonly bulls?: number; readonly bears?: number }
 const ROUND_NAME = ["", "one", "two", "three"];
 export function announcerLine(prev: AnnouncerMemo | null, f: SquabbleFight): string | null {
   if (!prev || f.reason !== "DRAWN") return null;
@@ -236,4 +236,24 @@ export function announcerLine(prev: AnnouncerMemo | null, f: SquabbleFight): str
     return `Round ${ROUND_NAME[f.liveRound]}. ${took}`;
   }
   return null;
+}
+
+/* ── RINGSIDE ROME (VOICES 11-12): the recorded announcer clips for the same observed events, plus the live round's
+   word turning (PUMP / DUMP / DRAG / FLIP / ABSORBED / CLINCH) and the last fight's verdict. Clip ids = files in
+   public/sounds/squabble/<id>.mp3 (original Kokoro voice blend, pre-rendered). Buyers = Bulls, Sellers = Bears.
+   Never on load (prev null), at most two clips per change, verdict before the new fight's intro. ── */
+export type AnnouncerClip = "intro" | "r1" | "r2" | "r3" | "pump" | "dump" | "drag" | "flip" | "absorbed" | "clinch" | "haymaker" | "knockdown" | "buyers_win" | "sellers_win" | "draw";
+const WORD_CLIP: Partial<Record<RoundWord, AnnouncerClip>> = { PUMP: "pump", DUMP: "dump", DRAG: "drag", FLIP: "flip", ABSORBED: "absorbed", CLINCH: "clinch" };
+export function announcerClips(prev: AnnouncerMemo | null, f: SquabbleFight): AnnouncerClip[] {
+  if (!prev || f.reason !== "DRAWN") return [];
+  if (prev.fight !== f.fightStartMs) {
+    const b = prev.bulls ?? 0, s = prev.bears ?? 0;
+    const verdict: AnnouncerClip[] = prev.bulls === undefined || b + s === 0 ? [] : [b > s ? "buyers_win" : s > b ? "sellers_win" : "draw"];
+    return [...verdict, "intro"];
+  }
+  if (f.haymakers > prev.hay) return f.haymakers - prev.hay >= 2 ? ["knockdown"] : ["haymaker"];
+  if (f.liveRound !== prev.round) return [f.liveRound === 3 ? "r3" : f.liveRound === 2 ? "r2" : "r1"];
+  const live = f.rounds.find(r => r.n === f.liveRound);
+  const clip = live && live.word !== prev.word ? WORD_CLIP[live.word] : undefined;
+  return clip ? [clip] : [];
 }

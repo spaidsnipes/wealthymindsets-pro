@@ -73,3 +73,28 @@ describe("three-round stack + announcer", () => {
     expect(announcerLine({ fight: 0, round: 2, hay: 0 }, f as never)).toBeNull();
   });
 });
+
+import { announcerClips } from "./squabble";
+describe("Ringside Rome clips (VOICES 11-12)", () => {
+  const base = { reason: "DRAWN" as const, fightStartMs: 900_000, fightEndMs: 1_800_000, score: { bulls: 0, bears: 0 }, tapeFromMs: 0, liveSlot: 0 };
+  const r = (n: 1 | 2 | 3, word: string) => ({ n, startMs: 0, endMs: 0, punches: [], buy: 0, sell: 0, move: null, word, haymakerSide: null, winner: null, live: true, future: false });
+  const f = (liveRound: 1 | 2 | 3, word: string, haymakers = 0) => ({ ...base, rounds: [r(1, word), r(2, word), r(3, word)], liveRound, haymakers }) as never;
+  it("never on load; verdict then intro on a new fight; haymaker / knockdown; round bell; word turns", () => {
+    expect(announcerClips(null, f(1, "PUMP"))).toEqual([]);
+    expect(announcerClips({ fight: 0, round: 3, hay: 0, bulls: 2, bears: 1 }, f(1, "WAITING"))).toEqual(["buyers_win", "intro"]);
+    expect(announcerClips({ fight: 0, round: 3, hay: 0, bulls: 1, bears: 1 }, f(1, "WAITING"))).toEqual(["draw", "intro"]);
+    expect(announcerClips({ fight: 0, round: 3, hay: 0 }, f(1, "WAITING"))).toEqual(["intro"]);
+    expect(announcerClips({ fight: 900_000, round: 1, hay: 0, word: "PUMP" }, f(1, "PUMP", 1))).toEqual(["haymaker"]);
+    expect(announcerClips({ fight: 900_000, round: 1, hay: 0, word: "PUMP" }, f(1, "PUMP", 2))).toEqual(["knockdown"]);
+    expect(announcerClips({ fight: 900_000, round: 1, hay: 0, word: "PUMP" }, f(2, "PUMP"))).toEqual(["r2"]);
+    expect(announcerClips({ fight: 900_000, round: 2, hay: 0, word: "PUMP" }, f(2, "DUMP"))).toEqual(["dump"]);
+    expect(announcerClips({ fight: 900_000, round: 2, hay: 0, word: "DUMP" }, f(2, "DUMP"))).toEqual([]);
+    expect(announcerClips({ fight: 900_000, round: 2, hay: 0, word: "DUMP" }, f(2, "WAITING"))).toEqual([]);
+  });
+  it("every clip id the announcer can call ships as a small mp3", async () => {
+    const fs = await import("node:fs");
+    for (const id of ["intro", "r1", "r2", "r3", "pump", "dump", "drag", "flip", "absorbed", "clinch", "haymaker", "knockdown", "buyers_win", "sellers_win", "draw"]) {
+      const st = fs.statSync(`public/sounds/squabble/${id}.mp3`); expect(st.size).toBeLessThan(60_000);
+    }
+  });
+});

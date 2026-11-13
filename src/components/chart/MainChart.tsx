@@ -115,7 +115,7 @@ import { absorptionMeter, deltaVelocity, deltaVelocityWords, volumePace } from "
 import { bigTradePressure, bigTradePressureWords, findSweeps, medianOf, sizeCuts, sizeMixWords, sweepWords, TAPE_FAST_MULTIPLE, tapeSpeed, tapeSpeedWords, tradeSizeMix, type Sweep } from "@/lib/chart/tapeIndicators";
 import { barFlow, chooseWedges, estimatedRuns, evidenceReceipt, EVIDENCE_LEGEND, findShelves, shelfTolerance, shelfWords, wedgeWidth, type BarFlow, type EvidenceBar, type Shelf } from "@/lib/chart/evidenceKinds";
 import { MARKET_MONO, MARKET_NUMBER_MIN_PX, MARKET_SANS, crispText, footprintCellPx, marketFont } from "@/lib/chart/marketType";
-import { selectSquabble, squabbleReceipt, roundWordShown, announcerLine, minuteExchanges } from "@/lib/chart/squabble";
+import { selectSquabble, squabbleReceipt, roundWordShown, announcerLine, announcerClips, minuteExchanges, type AnnouncerMemo } from "@/lib/chart/squabble";
 import { selectDayBiasCorridor, selectRegimePeriodLabel } from "@/lib/marketData/selectRegimeBadge";
 import { directionDrawing } from "@/lib/marketData/deriveDirectionDimension";
 import { selectFightModel, FIGHT_MODEL_WORD } from "@/lib/chart/fightModel";
@@ -123,7 +123,7 @@ import { waitingRowWords } from "@/lib/chart/waitingTray";
 import { explainBrickWall, explainWall, type WallExplain } from "@/lib/chart/wallExplain";
 import { SquabbleClipButton } from "@/components/chart/SquabbleClipButton";
 import { selectBusRunway, busReceipt } from "@/lib/chart/busRunway";
-import { playSfx, speakAnnouncer } from "@/lib/sfx";
+import { playSfx, speakAnnouncer, playAnnouncerClips } from "@/lib/sfx";
 import { tastyCandleStreamerFor, tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
 import { fetchTastyTimeAndSales } from "@/lib/broker/tastyHistory";
 import { tastyTimeAndSaleToMarketEvent } from "@/lib/marketData/adapters/tastytradeFuturesTicks";
@@ -3852,7 +3852,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
   // THE SQUABBLE reads the same signed prints the ladder folds (trade prints only, a verified aggressor tape only).
   const squabbleTicksRef = useRef<readonly { time: number; price: number; size: number; side: "buy" | "sell"; trade?: boolean }[]>([]);
   const squabbleSignedRef = useRef(false);
-  const squabbleSoundRef = useRef<{ fight: number; round: number; hay: number } | null>(null);
+  const squabbleSoundRef = useRef<AnnouncerMemo | null>(null);
   const busStructRef = useRef<{ key: string; vm: MarketStructureVM } | null>(null);
   const tickerWhyRef = useRef<{ price: number; change: number; changePct: number } | null>(null);
   useEffect(() => { tickerWhyRef.current = ticker ? { price: ticker.price, change: ticker.change, changePct: ticker.changePct } : null; }, [ticker]);
@@ -29862,8 +29862,15 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
             else if (prevSq && prevSq.fight !== fight.fightStartMs && !soundMasterOff()) playSfx("bell");
             if (prevSq && prevSq.fight === fight.fightStartMs && fight.haymakers > prevSq.hay && !soundMasterOff()) playSfx("punch");
             // The announcer: one line per observed change, after the bell (same switch; never on load).
-            if (!soundMasterOff()) { const line = announcerLine(prevSq, fight); if (line) { canvas.dataset.squabbleCall = line; window.setTimeout(() => speakAnnouncer(line), 600); } }
-            squabbleSoundRef.current = { fight: fight.fightStartMs, round: fight.liveRound, hay: fight.haymakers };
+            // Ringside Rome (VOICES 11-12): the recorded voice for the same changes (+ round word turns, last fight's verdict);
+            // the browser's speech engine only when a clip can't play.
+            if (!soundMasterOff()) {
+              const line = announcerLine(prevSq, fight), clips = announcerClips(prevSq, fight);
+              if (line) canvas.dataset.squabbleCall = line;
+              if (clips.length) { canvas.dataset.squabbleClip = clips.join(","); window.setTimeout(() => playAnnouncerClips(clips, line), 600); }
+              else if (line) window.setTimeout(() => speakAnnouncer(line), 600);
+            }
+            squabbleSoundRef.current = { fight: fight.fightStartMs, round: fight.liveRound, hay: fight.haymakers, word: fight.rounds.find(r => r.n === fight.liveRound)?.word, bulls: fight.score.bulls, bears: fight.score.bears };
           }
           if (fight.reason === "DRAWN") {
             const tsSq = chart.timeScale();
