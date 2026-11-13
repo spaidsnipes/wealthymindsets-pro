@@ -121,6 +121,7 @@ import { directionDrawing } from "@/lib/marketData/deriveDirectionDimension";
 import { selectFightModel, FIGHT_MODEL_WORD } from "@/lib/chart/fightModel";
 import { waitingRowWords } from "@/lib/chart/waitingTray";
 import { explainBrickWall, explainWall, type WallExplain } from "@/lib/chart/wallExplain";
+import { SquabbleClipButton } from "@/components/chart/SquabbleClipButton";
 import { selectBusRunway, busReceipt } from "@/lib/chart/busRunway";
 import { playSfx, speakAnnouncer } from "@/lib/sfx";
 import { tastyCandleStreamerFor, tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
@@ -19693,6 +19694,16 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
             clipDL.rect(0, HEADER_FLOOR_Y, dlPlotRight, Math.max(0, pane0Bottom - HEADER_FLOOR_Y));
             for (const r of cutsDL) clipDL.rect(r.x, r.y, r.w, r.h);
             ctx.clip(clipDL, "evenodd");
+            // …and out of every profile histogram on the glass (QA favourite combo: rungs ran through the Structure
+            // Profile's rows). A second clip, so overlaps with the candle cut cannot re-open a hole.
+            const pBoxesDL = [...profileBoxesRef.current.prev, ...profileBoxesRef.current.cur];
+            if (pBoxesDL.length) {
+              const clipP = new Path2D(); clipP.rect(0, 0, W, H);
+              const merged = pBoxesDL.reduce<{ x: number; y: number; w: number; h: number }[]>((acc, b) => { if (!acc.some(a => a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h)) acc.push(b); return acc; }, []);
+              for (const b of merged) clipP.rect(b.x, b.y, b.w, b.h);
+              ctx.clip(clipP, "evenodd");
+              ds.deltaLevelsProfileCut = String(merged.length);
+            }
             let drawnRungs = 0, buyRungs = 0, sellRungs = 0;
             const bandsDL: { y: number; x0: number; rgb: string; r: (typeof dl.rungs)[number] }[] = [];
             // ONE BAND PER PIXEL ROW (serving NQ1! 15m, Oct 16 one-at-a-time pass: with ten minutes of tape every
@@ -22546,7 +22557,10 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
               ctx.save();
               ctx.font = marketFont("OBJECT_NAME");
               ctx.textAlign = "left"; ctx.textBaseline = "middle";
-              const rowsAll = foldNarrowLine([...wgNarrowTruth], Math.max(80, plotRightG - silenceX - 10), t => ctx.measureText(t).width);
+              const rowsFold = foldNarrowLine([...wgNarrowTruth], Math.max(80, plotRightG - silenceX - 10), t => ctx.measureText(t).width);
+              // QA 2026-11-12 (390: a six-line GAMMA block printed over the volume well): the phone keeps the headline and
+              // one source line; the rest is read in Tools › Active.
+              const rowsAll = rowsFold.length > 2 ? [rowsFold[0], `${rowsFold[1]} · MORE IN TOOLS ›`] : rowsFold;
               const RH = 13;
               // PRICE SOVEREIGNTY: never on a candle body either — the volume floor is tried first.
               const onBody = (q: { x: number; y: number; w: number; h: number }) => rowBodiesAt(q.y, q.y + q.h).some(b => q.x < b.x + b.w && q.x + q.w > b.x);
@@ -34358,6 +34372,8 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
           were already reading, and saying so every time would train them to
           ignore the one time it is not true.
         */}
+        {/* Squabble replay → 15 s clip (#14), beside the ring on desk / tablet glass. */}
+        {squabbleOn && (containerRef.current?.clientWidth ?? 0) >= 768 ? <SquabbleClipButton left={392} bottom={TIMEFRAME_FOOTER_H + 10} /> : null}
         {wallExplainCard && (
           <div data-testid="wall-explain" role="dialog" aria-label={wallExplainCard.title} className="absolute"
             style={{ // Seated AWAY from the finger (local proof 2026-11-12: beside the click the cursor's bar window covered it): the side of the plot the tap was not on, under the header.

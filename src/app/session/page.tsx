@@ -26,6 +26,7 @@ import { GivebackMeter, ToeWhooperCard } from "@/components/session/SessionVerdi
 import { QuantumDayCard } from "@/components/session/QuantumDayCard";
 import { BeliefChainCard } from "@/components/session/BeliefChainCard";
 import { EmergencyCorner, flattenAskHref } from "@/components/session/EmergencyCorner";
+import { RedZoneCard } from "@/components/session/RedZoneCard";
 
 const GOLD = "#d4a94a", MUTED = "#9a927f", LINE = "#3a2f17";
 const card: React.CSSProperties = { border: `1px solid ${LINE}`, background: "linear-gradient(#0e0d0b,#090908)", borderRadius: 10, padding: 16, minWidth: 0 };
@@ -152,6 +153,7 @@ export default function SessionDeskPage() {
           </section>
 
           <EmergencyCorner day={day} update={update} card={card} title={title} />
+          <RedZoneCard card={card} title={title} />
           <BeliefChainCard card={card} title={title} />
           <QuantumDayCard card={card} title={title} />
 
