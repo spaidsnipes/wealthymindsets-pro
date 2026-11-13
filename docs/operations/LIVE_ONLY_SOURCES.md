@@ -68,3 +68,15 @@ candle consumer.
   Options: (a) 1D heat from the tastytrade stream (Summary prior close + last trade) for a capped universe — up to 600 symbols
   today, which is far more than the chart's socket carries — and multi-day periods as completed closes only (the backtest rule);
   (b) withdraw both rooms' 1D colour until (a) lands, keeping the completed-close periods; (c) keep them as they are, named HISTORICAL/DELAYED.
+
+## Amendment 2026-11-12 (Founder, direct): every member always sees candles
+
+"When people log in they see no candles" — a member with no connected broker saw a blank chart for futures, stocks and
+FX. The CHART HISTORY may now fall back to delayed public bars (`src/lib/marketData/delayedChartDoor.ts`, the server's
+`/api/yahoo` proxy, ~15 min behind for US futures/stocks), with these limits:
+
+- It is asked only after every live door (the venue's own candles, then tastytrade) returned nothing.
+- While those bars are drawn, the chart shows the **DELAYED DATA · CONNECT A BROKER FOR LIVE** badge.
+- Nothing else reads it. Quotes, tape, order flow, order tickets and every reading that needs live prints stay live-only.
+
+Connecting a broker switches the chart back to the live door automatically.

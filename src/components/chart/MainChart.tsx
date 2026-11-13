@@ -121,7 +121,9 @@ import { directionDrawing } from "@/lib/marketData/deriveDirectionDimension";
 import { selectFightModel, FIGHT_MODEL_WORD } from "@/lib/chart/fightModel";
 import { waitingRowWords } from "@/lib/chart/waitingTray";
 import { explainBrickWall, explainWall, type WallExplain } from "@/lib/chart/wallExplain";
+import Link from "next/link";
 import { SquabbleClipButton } from "@/components/chart/SquabbleClipButton";
+import { fetchDelayedChartBars } from "@/lib/marketData/delayedChartDoor";
 import { selectBusRunway, busReceipt } from "@/lib/chart/busRunway";
 import { playSfx, speakAnnouncer, playAnnouncerClips } from "@/lib/sfx";
 import { tastyCandleStreamerFor, tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
@@ -2216,6 +2218,10 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
    * "close enough" and staying silent would be the same defect wearing a fix.
    */
   const [cameraNote, setCameraNote] = useState<string | null>(null);
+  // The chart's bars came from the DELAYED public door (no broker live door for this member/symbol).
+  // false = live door; a number = minutes behind (measured); -1 = market closed / lag unknown.
+  const [delayedBars, setDelayedBars] = useState<number | false>(false);
+  const delayedSourceRef = useRef(false);
   // WM-CHART-P0-02: aborts the previous symbol/timeframe's in-flight candle
   // fetch the moment a new one starts, instead of only ignoring its result.
   const versionGuardRef = useRef<DataVersionGuard>(new DataVersionGuard());
@@ -3105,6 +3111,8 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
   /** Where the crosshair is on the pane (null off the chart) — read by marks
    *  whose explanation is revealed on hover (delta divergence). */
   const crosshairPointRef = useRef<{ x: number; y: number } | null>(null);
+  const plusRowRef = useRef<number | null>(null);
+  const [plusRow, setPlusRow] = useState<number | null>(null);
   // Big-Trades Pause / Refresh + max-visible controls (toolbar gear dropdown).
   const bubblePausedRef  = useRef<boolean>(
     typeof window !== "undefined" && localStorage.getItem("wm_bubble_paused") === "1"
@@ -4859,7 +4867,18 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
       // function does not interpret any of it. See compileBarHistoryRefusal.
       const vendorLog: VendorAttempt[] = [];
       const tastyData    = exchangeData ? null : await fetchTastyCandles(symbol, timeframe, barCount, myAbortSignal, vendorLog);
-      const canonicalBatch = exchangeData ?? tastyData;
+      // EVERY MEMBER SEES CANDLES (Founder 2026-11-12, direct: "when people log in they see no candles"). Supersedes the
+      // 10-12 live-only rule for the CHART only: with no live door, the delayed public history (Yahoo, ~15 min for US
+      // futures/stocks) is drawn and the chart says DELAYED in plain sight; a connected broker's live door still wins.
+      const delayedData: CanonicalCandleBatch | null = exchangeData || tastyData || skipVendors ? null
+        : await fetchDelayedChartBars(symbol, timeframe, barCount, (j, n) => candleBatch(j as never, n), myAbortSignal);
+      if (delayedData) note(vendorLog, { vendor: "yahoo", outcome: "SERVED" });
+      delayedSourceRef.current = !!delayedData;
+      // The badge says how far behind the bars ARE (newest bar's close vs now), measured, not assumed.
+      { const lastT = delayedData?.candles.length ? Number(delayedData.candles[delayedData.candles.length - 1].time) : null;
+        const lagMin = lastT != null ? Math.max(0, Math.round((Date.now() / 1000 - lastT - intervalSec) / 60)) : null;
+        setDelayedBars(delayedData ? (lagMin != null && lagMin <= 120 ? lagMin : -1) : false); }
+      const canonicalBatch = exchangeData ?? tastyData ?? delayedData;
       const realData = canonicalBatch?.candles ?? null;
       const fetchedBarIdentities = canonicalBatch?.identities ?? [];
       // The bars' own signed volume travels with the bars that carried it.
@@ -4870,7 +4889,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
         skipVendors  ? ((tapeSource ?? "").toUpperCase() || "__unresolved__") :
         exchangeData ? (exParsed?.exchange?.toUpperCase() || "EXCHANGE") :
         // Internal sentinel — never rendered to trader.
-        tastyData    ? "TASTYTRADE" : "__unresolved__";
+        tastyData    ? "TASTYTRADE" : delayedData ? "YAHOO_DELAYED" : "__unresolved__";
 
       const candleData = realData;
 
@@ -5390,6 +5409,10 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
             : null;
           // Hover cards keyed on this point stay shut while a placement owns the pointer (chartInteractionMode).
           if (!mayRunAnalyticalHandler("HOVER_CARD")) crosshairPointRef.current = null;
+          // THE ⊕ ON THE PRICE SCALE (TradingView parity, Founder 2026-11-12): follows the cursor's row.
+          { const py = crosshairPointRef.current ? Math.round(crosshairPointRef.current.y) : null;
+            // A null row (the pointer moved onto the ⊕ itself) keeps the last row so the button can be pressed.
+            if (py != null && py !== plusRowRef.current) { plusRowRef.current = py; setPlusRow(py); } }
           onCrosshairTimeRef.current?.(param?.point && typeof param?.time === "number" ? param.time : null);
           if (!param || !param.time) {
             if (lastCursorKeyRef.current !== null) {
@@ -5438,6 +5461,28 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
       versionGuardRef.current.dispose();
     };
   }, [symbol, timeframe, candleType, extendedHours, resyncNonce]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // THE DELAYED DOOR KEEPS MOVING (Founder 2026-11-12: members must see candles move): every 15 s the newest delayed
+  // bars are re-read and folded into the series in place — no rebuild, the camera stays where the trader left it.
+  useEffect(() => {
+    if (delayedBars === false) return;
+    let stop = false;
+    const tick = async () => {
+      const batch = await fetchDelayedChartBars(symbol, timeframe, 3, (j, n) => candleBatch(j as never, n));
+      if (stop || !batch || !candleRef.current) return;
+      const bars = barsRef.current ?? [];
+      const lastT = bars.length ? Number(bars[bars.length - 1].time) : -Infinity;
+      for (const c of batch.candles) {
+        const t = Number(c.time);
+        if (!Number.isFinite(t) || t < lastT) continue;
+        try { candleRef.current.update({ time: t as never, open: c.open, high: c.high, low: c.low, close: c.close }); } catch { continue; }
+        if (t === lastT && bars.length) bars[bars.length - 1] = { ...bars[bars.length - 1], ...c, time: t as never };
+        else bars.push({ ...c, time: t as never });
+      }
+    };
+    const id = window.setInterval(() => { void tick(); }, 15_000);
+    return () => { stop = true; window.clearInterval(id); };
+  }, [delayedBars === false, symbol, timeframe]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Real teardown runs ONCE, on unmount — the chart is persistent while mounted
   // (create-once), so removing it here (not on every dep change) is what keeps
@@ -34381,6 +34426,20 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
         */}
         {/* Squabble replay → 15 s clip (#14), beside the ring on desk / tablet glass. */}
         {squabbleOn && (containerRef.current?.clientWidth ?? 0) >= 768 ? <SquabbleClipButton left={392} bottom={TIMEFRAME_FOOTER_H + 10} /> : null}
+        {plusRow != null && !ctxMenu ? (
+          <button type="button" data-testid="price-scale-plus" aria-label="Actions at this price: alert, horizontal line, trade at price"
+            onMouseDown={e => { e.preventDefault(); e.stopPropagation(); }}
+            onClick={e => { e.stopPropagation(); const host = containerRef.current; if (!host) return; const r = host.getBoundingClientRect(); openCtxMenuAt(r.left + Math.max(0, (chartRef.current?.timeScale().width() ?? r.width) - 240), r.top + plusRow, host, false); }}
+            style={{ position: "absolute", top: plusRow - 10, left: Math.max(0, (chartRef.current?.timeScale().width() ?? 0) - 24), zIndex: 9, width: 20, height: 20, borderRadius: 10, border: "1px solid rgba(212,175,55,0.8)", background: "rgba(9,9,8,0.92)", color: "#d4a94a", fontSize: 14, lineHeight: "18px", padding: 0, cursor: "pointer" }}>
+            +
+          </button>
+        ) : null}
+        {delayedBars !== false ? (
+          <Link href="/settings?connect=brokers" prefetch={false} data-testid="chart-delayed-badge" title="These candles are delayed public data. Connect a broker for the live feed."
+            style={{ position: "absolute", top: 8, left: 0, right: 0, margin: "0 auto", width: "fit-content", maxWidth: "calc(100% - 140px)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "center", zIndex: 8, padding: "3px 10px", borderRadius: 6, border: "1px solid rgba(240,180,41,0.75)", background: "rgba(13,12,8,0.94)", color: "rgba(240,180,41,1)", fontSize: 11, fontWeight: 800, letterSpacing: "0.08em", textDecoration: "none" }}>
+            {delayedBars > 0 ? `DELAYED ~${delayedBars} MIN` : "DELAYED"}{(containerRef.current?.clientWidth ?? 1000) < 640 ? " · GO LIVE ›" : " · CONNECT A BROKER FOR LIVE ›"}
+          </Link>
+        ) : null}
         {wallExplainCard && (
           <div data-testid="wall-explain" role="dialog" aria-label={wallExplainCard.title} className="absolute"
             style={{ // Seated AWAY from the finger (local proof 2026-11-12: beside the click the cursor's bar window covered it): the side of the plot the tap was not on, under the header.

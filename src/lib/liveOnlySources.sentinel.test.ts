@@ -12,7 +12,9 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 const ROOT = path.join(process.cwd(), "src");
-const EXEMPT = new Set(["src/lib/backtest/engine.ts", "src/lib/marketData/fvg/fvgBarSource.ts"]);
+// 2026-11-12 amendment (Founder, direct): the CHART's history may fall back to the delayed door when no live door
+// answers, and only behind the DELAYED badge — one file owns it (delayedChartDoor.ts), and the test below pins the badge.
+const EXEMPT = new Set(["src/lib/backtest/engine.ts", "src/lib/marketData/fvg/fvgBarSource.ts", "src/lib/marketData/delayedChartDoor.ts"]);
 const BANNED: readonly [RegExp, string][] = [
   [/\/api\/yahoo\?[^`'"]*type=(quote|candles)|\/api\/yahoo\?\$\{|`\/api\/yahoo\?/, "Yahoo quote/candles (delayed)"],
   [/\/api\/market-data\/cboe\//, "Cboe delayed options"],
@@ -45,6 +47,13 @@ describe("live-only sources (Founder 2026-10-12)", () => {
       for (const [re, what] of BANNED) if (re.test(code)) offenders.push(`${rel} — ${what}`);
     }
     expect(offenders).toEqual([]);
+  });
+  it("the delayed chart door is asked only after the live doors, and the chart says DELAYED while it draws", () => {
+    const mc = readFileSync("src/components/chart/MainChart.tsx", "utf8");
+    expect(mc).toContain("const delayedData: CanonicalCandleBatch | null = exchangeData || tastyData || skipVendors ? null");
+    expect(mc).toContain("const canonicalBatch = exchangeData ?? tastyData ?? delayedData;");
+    expect(mc).toContain('data-testid="chart-delayed-badge"');
+    expect(mc).toContain("setDelayedBars(delayedData ?");
   });
   it("the standing order is written down where the team reads it", () => {
     expect(readFileSync("docs/operations/LIVE_ONLY_SOURCES.md", "utf8")).toContain("Do not reintroduce a delayed or dead price source");

@@ -27,8 +27,9 @@ describe("crypto bars follow the tape's venue", () => {
     const tasty = code.indexOf("const tastyData    = exchangeData ? null");
     expect(tasty).toBeGreaterThan(0);
     expect(code.indexOf("const tapeCoinbase =")).toBeLessThan(tasty);
-    // 2026-10-12: no delayed door follows tastytrade (Founder: "remove anything delayed and dead").
-    expect(code).toContain("const canonicalBatch = exchangeData ?? tastyData;");
+    // 2026-10-12: no delayed door follows tastytrade — amended 2026-11-12 (Founder: members must always see candles):
+    // ONE labelled delayed chart door, last.
+    expect(code).toContain("const canonicalBatch = exchangeData ?? tastyData ?? delayedData;");
     expect(code).not.toMatch(/const (alpacaData|yahooData|finnhubData|fhDirectData|polyData)\b/);
   });
 });
