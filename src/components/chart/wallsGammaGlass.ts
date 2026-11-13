@@ -156,6 +156,12 @@ export function paintWallsGamma(env: WallsGammaGlassEnv): WallsGammaGlassResult 
     });
     ctx.restore();
     heat = `ON:${gex.grade}:POS${pos}:NEG${neg}:${preset.id}`;
+    // QA 2026-11-12 (BTC 1m: "only a ~30px strip on the left edge"): when one strike band covers the whole camera there
+    // is no profile to see at this zoom — the glass says so instead of leaving a lone strip to be guessed at.
+    if (heatHits.length <= 1) {
+      labels.push({ y: top + 46, text: heatHits.length ? "Gamma · one strike band covers this view — zoom out to see the profile" : "Gamma · no strike band on this camera — zoom out", rgb: preset.posRgb, kinds: ["GAMMA_HEAT_POS"] });
+      heat += "|ZOOM_OUT_CUE";
+    }
 
     /* THE GAMMA LADDER (Founder's Garden 19 finish-line order §3, 2026-10-15). Serving AAPL 5m:
        the two positive buckets were $5 strike steps and the viewport spanned $4.5, so the
