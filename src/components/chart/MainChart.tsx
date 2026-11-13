@@ -34436,7 +34436,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
         ) : null}
         {delayedBars !== false ? (
           <Link href="/settings?connect=brokers" prefetch={false} data-testid="chart-delayed-badge" title="These candles are delayed public data. Connect a broker for the live feed."
-            style={{ position: "absolute", top: 8, left: 0, right: 0, margin: "0 auto", width: "fit-content", maxWidth: "calc(100% - 140px)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "center", zIndex: 8, padding: "3px 10px", borderRadius: 6, border: "1px solid rgba(240,180,41,0.75)", background: "rgba(13,12,8,0.94)", color: "rgba(240,180,41,1)", fontSize: 11, fontWeight: 800, letterSpacing: "0.08em", textDecoration: "none" }}>
+            style={{ position: "absolute", bottom: TIMEFRAME_FOOTER_H + 34, left: 0, right: 0, margin: "0 auto", width: "fit-content", maxWidth: "calc(100% - 140px)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "center", zIndex: 8, padding: "3px 10px", borderRadius: 6, border: "1px solid rgba(240,180,41,0.75)", background: "rgba(13,12,8,0.94)", color: "rgba(240,180,41,1)", fontSize: 11, fontWeight: 800, letterSpacing: "0.08em", textDecoration: "none" }}>
             {delayedBars > 0 ? `DELAYED ~${delayedBars} MIN` : "DELAYED"}{(containerRef.current?.clientWidth ?? 1000) < 640 ? " · GO LIVE ›" : " · CONNECT A BROKER FOR LIVE ›"}
           </Link>
         ) : null}

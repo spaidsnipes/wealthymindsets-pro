@@ -124,7 +124,7 @@ function measure(coarse) {
   };
 }
 
-const browser = await chromium.launch({ channel: "chrome" });
+const browser = await chromium.launch((process.env.WM_BUNDLED_CHROMIUM ? {} : { channel: "chrome" }));
 const report = { base: BASE, at: new Date().toISOString(), widths: WIDTHS, rows: [] };
 let failures = 0;
 

@@ -63,7 +63,7 @@ const PROBE = `(() => {
 let startPx = 80000;
 try { startPx = Number((await (await fetch("https://api.exchange.coinbase.com/products/BTC-USD/ticker")).json()).price) || startPx; } catch { /* offline: a fixed start */ }
 
-const browser = await chromium.launch({ channel: "chrome", headless: true, args: ["--enable-precise-memory-info"] })
+const browser = await chromium.launch({ ...(process.env.WM_BUNDLED_CHROMIUM ? {} : { channel: "chrome" }), headless: true, args: ["--enable-precise-memory-info"] })
   .catch(() => chromium.launch({ headless: true, args: ["--enable-precise-memory-info"] }))
   .catch((e) => { console.log(`REFUSING TO REPORT — no browser could be launched (${String(e.message).split("\n")[0]}).`); process.exit(2); });
 

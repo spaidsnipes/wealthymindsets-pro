@@ -198,7 +198,7 @@ function probe() {
 }
 
 let engine = "chrome";
-const browser = await chromium.launch({ channel: "chrome" }).catch(async (e) => {
+const browser = await chromium.launch((process.env.WM_BUNDLED_CHROMIUM ? {} : { channel: "chrome" })).catch(async (e) => {
   engine = "bundled-chromium";
   console.log("NOTICE installed Chrome unavailable:", e.message.split("\n")[0]);
   return chromium.launch();

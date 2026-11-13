@@ -59,7 +59,7 @@ const launch = process.env.PW_CHROMIUM_PATH
       engine = `executable:${process.env.PW_CHROMIUM_PATH}`;
       return b;
     })
-  : chromium.launch({ channel: "chrome" }).catch(() => {
+  : chromium.launch((process.env.WM_BUNDLED_CHROMIUM ? {} : { channel: "chrome" })).catch(() => {
       engine = "bundled-chromium";
       return chromium.launch();
     });

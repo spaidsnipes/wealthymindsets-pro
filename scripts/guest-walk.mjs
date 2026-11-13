@@ -50,7 +50,7 @@ const LEAK = /BROKER_ACCOUNT_NOT_AUTHORIZED|BROKER_OWNER_NOT_CONFIGURED|belong t
 const OWNER_ONLY = /\/api\/broker\/(webull|tastytrade|alpaca)|\/api\/market-data\/webull|\/api\/alpaca/;
 
 mkdirSync(OUT, { recursive: true });
-const browser = await chromium.launch({ channel: "chrome" });
+const browser = await chromium.launch((process.env.WM_BUNDLED_CHROMIUM ? {} : { channel: "chrome" }));
 let unexpected = 0;
 
 for (const [w, h] of WIDTHS) {

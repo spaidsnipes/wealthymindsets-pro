@@ -300,7 +300,7 @@ function probe({ minTap, tolerance }) {
  * then be a machine with no geometry check at all.
  */
 let engine = "chrome";
-const browser = await chromium.launch({ channel: "chrome" }).catch(async (error) => {
+const browser = await chromium.launch((process.env.WM_BUNDLED_CHROMIUM ? {} : { channel: "chrome" })).catch(async (error) => {
   engine = "bundled-chromium";
   console.log(
     `NOTICE  installed Chrome unavailable (${error.message.split("\n")[0]}) — ` +

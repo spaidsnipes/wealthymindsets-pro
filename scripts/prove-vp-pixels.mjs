@@ -151,7 +151,7 @@ execFileSync(join(ROOT, "node_modules/.bin/esbuild"), [
 ], { stdio: "inherit" });
 
 let engine = "chrome";
-const browser = await chromium.launch({ channel: "chrome" }).catch(async (error) => {
+const browser = await chromium.launch((process.env.WM_BUNDLED_CHROMIUM ? {} : { channel: "chrome" })).catch(async (error) => {
   engine = "bundled-chromium";
   console.log(
     `NOTICE  installed Chrome unavailable (${error.message.split("\n")[0]}) — ` +

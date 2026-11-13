@@ -109,7 +109,7 @@ execFileSync(join(ROOT, "node_modules/.bin/esbuild"), [
 ], { stdio: "inherit" });
 
 let engine = "installed-chrome";
-const browser = await chromium.launch({ channel: "chrome" }).catch(async () => {
+const browser = await chromium.launch((process.env.WM_BUNDLED_CHROMIUM ? {} : { channel: "chrome" })).catch(async () => {
   engine = "bundled-chromium";
   return chromium.launch().catch((second) => {
     console.error(

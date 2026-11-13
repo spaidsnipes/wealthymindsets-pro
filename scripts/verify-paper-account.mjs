@@ -122,7 +122,7 @@ const rows = [];
 const errors = [];
 let failure = null;
 try {
-  browser = await chromium.launch({channel:'chrome',headless:true});
+  browser = await chromium.launch({...(process.env.WM_BUNDLED_CHROMIUM ? {} : { channel: "chrome" }), headless:true});
   for (const [device, width, height] of [
     ['computer-1280',1280,900], ['computer-1920',1920,1080],
     ['iphone-390',390,844], ['ipad-portrait',834,1194], ['ipad-landscape',1194,834],

@@ -578,7 +578,7 @@ const { surfaces } = await import(pathToFileURL(out).href);
 // instrument. With neither browser it refuses outright: "could not measure"
 // must never be reportable as "found nothing".
 let engine = "chrome";
-const browser = await chromium.launch({ channel: "chrome" }).catch(async (error) => {
+const browser = await chromium.launch((process.env.WM_BUNDLED_CHROMIUM ? {} : { channel: "chrome" })).catch(async (error) => {
   engine = "bundled-chromium";
   console.log(
     `NOTICE  installed Chrome unavailable (${error.message.split("\n")[0]}) — ` +
