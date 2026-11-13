@@ -14,9 +14,10 @@ describe("Delta Levels are bands across price (Codex plate 03)", () => {
     expect(CHART).toContain("const DELTA_LEVELS_ALPHA_FLOOR = 0.8;");
     expect(block).toContain('Math.max(DELTA_LEVELS_ALPHA_FLOOR, att.alpha("deltaLevels"))');
   });
-  it("each level is a band ending at the plot's right edge, length and ink by weight", () => {
-    expect(block).toContain("const len = Math.round(60 + (bandMax - 60) * r.weight);");
-    expect(block).toContain("const x0 = dlPlotRight - 6 - len;");
+  it("each level is a band ending at the plot's right edge — or at a profile column's left edge (QA 2026-11-12) — length and ink by weight", () => {
+    expect(block).toContain("const len = Math.max(30, Math.min(dlRightEdge - 8, Math.round(60 + (bandMax - 60) * r.weight)));");
+    expect(block).toContain("const x0 = dlRightEdge - len;");
+    expect(block).toContain("pclDL - 8 : dlPlotRight - 6;");
     expect(block).toContain("ctx.fillRect(x0, y - bandH / 2, len, bandH);");
     expect(block).toContain('ds.deltaLevelsLane = "BANDS";');
   });

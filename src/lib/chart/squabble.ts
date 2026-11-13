@@ -206,3 +206,34 @@ export function squabbleReceipt(f: SquabbleFight): string {
   if (f.reason !== "DRAWN") return f.reason;
   return `DRAWN|${f.rounds.map(r => `R${r.n}:${r.word}`).join("|")}|SCORE:${f.score.bulls}-${f.score.bears}|HAY:${f.haymakers}|PUNCHES:${f.rounds.reduce((s, r) => s + r.punches.length, 0)}`;
 }
+
+/* ── THE THREE-ROUND STACK'S THIRD LAYER: 1-MINUTE EXCHANGES (MISSING-INVENTIONS #14) ───────────────────────────
+   Inside each 5m round, five 1m exchanges, each the net of its four 15 s punches (buy size − sell size). Read from
+   the round's own punches; a minute with no punch says null, never 0. */
+export interface MinuteExchange { readonly m: 0 | 1 | 2 | 3 | 4; readonly net: number | null; readonly side: PunchSide | null }
+export function minuteExchanges(r: SquabbleRound): MinuteExchange[] {
+  return ([0, 1, 2, 3, 4] as const).map(m => {
+    const ps = r.punches.filter(p => p.t0 >= r.startMs + m * 60_000 && p.t0 < r.startMs + (m + 1) * 60_000);
+    if (!ps.length) return { m, net: null, side: null };
+    const net = ps.reduce((s, p) => s + p.net, 0);
+    return { m, net, side: net > 0 ? "BUY" : net < 0 ? "SELL" : null };
+  });
+}
+
+/* ── THE ANNOUNCER (#14: "Get 'em Bulls") — one line per OBSERVED event, never on load. ── */
+export interface AnnouncerMemo { readonly fight: number; readonly round: number; readonly hay: number }
+const ROUND_NAME = ["", "one", "two", "three"];
+export function announcerLine(prev: AnnouncerMemo | null, f: SquabbleFight): string | null {
+  if (!prev || f.reason !== "DRAWN") return null;
+  if (prev.fight !== f.fightStartMs) return "New fight. Fifteen minutes. Round one.";
+  if (f.haymakers > prev.hay) {
+    const hay = f.rounds.flatMap(r => r.punches).filter(p => p.haymaker).sort((a, b) => b.t0 - a.t0)[0];
+    return hay ? `Haymaker from the ${hay.side === "BUY" ? "Bulls" : "Bears"}!` : "Haymaker!";
+  }
+  if (f.liveRound !== prev.round) {
+    const done = f.rounds.find(r => r.n === prev.round);
+    const took = done?.winner === "BULLS" ? "Bulls took it. Get 'em Bears!" : done?.winner === "BEARS" ? "Bears took it. Get 'em Bulls!" : "Even round.";
+    return `Round ${ROUND_NAME[f.liveRound]}. ${took}`;
+  }
+  return null;
+}

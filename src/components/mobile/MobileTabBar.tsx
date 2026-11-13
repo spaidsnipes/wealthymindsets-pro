@@ -101,6 +101,9 @@ export function moreSections(all: readonly WmDestination[] = WM_DESTINATIONS): r
   ].filter(sec => sec.items.length > 0);
 }
 
+/** The OS frame opens its Tools panel on this event (WMOperatingSystem). */
+export const OS_OPEN_TOOLS_EVENT = "wm-os-open-tools";
+
 function MobileMoreSheet({ onClose }: { onClose: () => void }): React.ReactElement {
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -114,6 +117,19 @@ function MobileMoreSheet({ onClose }: { onClose: () => void }): React.ReactEleme
         <button type="button" className="wm-mobile-more-close" onClick={onClose} aria-label="Close More">Close</button>
       </div>
       <div className="wm-mobile-more-body">
+        {/* QA 2026-11-12: the phone had no way to switch an invention on. The same Tools panel the desk opens. */}
+        <section className="wm-mobile-more-section">
+          <h2 className="wm-mobile-more-section-title">Chart</h2>
+          <button type="button" className="wm-mobile-more-row" data-testid="mobile-chart-tools"
+            onClick={() => {
+              onClose();
+              if (!window.location.pathname.startsWith(INSTRUMENT_VIEW_ROUTE)) { window.location.href = `${INSTRUMENT_VIEW_ROUTE}?open=tools`; return; }
+              window.dispatchEvent(new CustomEvent(OS_OPEN_TOOLS_EVENT));
+            }}>
+            <span className="wm-mobile-more-label">Tools · switch inventions on</span>
+            <span aria-hidden="true" className="wm-mobile-more-chev">›</span>
+          </button>
+        </section>
         {moreSections().map(sec => (
           <section key={sec.title} className="wm-mobile-more-section">
             <h2 className="wm-mobile-more-section-title">{sec.title}</h2>

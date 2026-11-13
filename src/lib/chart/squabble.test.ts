@@ -54,3 +54,22 @@ describe("selectSquabble — the fight is read from the signed tape", () => {
     expect(f.rounds[0].winner).toBeNull();
   });
 });
+
+import { announcerLine, minuteExchanges } from "./squabble";
+describe("three-round stack + announcer", () => {
+  const base = { reason: "DRAWN" as const, fightStartMs: 0, fightEndMs: 900_000, score: { bulls: 0, bears: 0 }, tapeFromMs: 0, liveSlot: 0 };
+  const round = (n: 1 | 2 | 3, punches: { t0: number; net: number; haymaker?: boolean; side?: "BUY" | "SELL" }[], winner: "BULLS" | "BEARS" | "EVEN" | null = null) => ({
+    n, startMs: (n - 1) * 300_000, endMs: n * 300_000, punches: punches.map((p, i) => ({ slot: i, side: p.side ?? (p.net > 0 ? "BUY" : "SELL"), move: 0, strength: 1, prints: 1, haymaker: !!p.haymaker, price: 1, ...p })),
+    buy: 0, sell: 0, move: null, word: "CLINCH" as const, haymakerSide: null, winner, live: false, future: false,
+  });
+  it("splits a round into five 1m exchanges from its own punches (null when silent)", () => {
+    const ex = minuteExchanges(round(1, [{ t0: 0, net: 5 }, { t0: 15_000, net: -2 }, { t0: 130_000, net: -4 }]) as never);
+    expect(ex.map(e => e.net)).toEqual([3, null, -4, null, null]);
+  });
+  it("speaks only on an observed change", () => {
+    const f = { ...base, rounds: [round(1, [], "BEARS"), round(2, [])], liveRound: 2 as const, haymakers: 0 };
+    expect(announcerLine(null, f as never)).toBeNull();
+    expect(announcerLine({ fight: 0, round: 1, hay: 0 }, f as never)).toBe("Round two. Bears took it. Get 'em Bulls!");
+    expect(announcerLine({ fight: 0, round: 2, hay: 0 }, f as never)).toBeNull();
+  });
+});

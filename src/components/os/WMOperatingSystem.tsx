@@ -1572,6 +1572,13 @@ export function WMOperatingSystem({
   // up, and giving it equipment chrome would say the opposite.
   type ScenePanel = "rooms" | "workspace" | "tools" | "community";
   const [scenePanel, setScenePanel] = React.useState<ScenePanel | null>(null);
+  // The phone's More › Tools row (MobileTabBar) — and `?open=tools` on arrival — open the same Tools panel.
+  React.useEffect(() => {
+    const open = () => setScenePanel("tools" as ScenePanel);
+    window.addEventListener("wm-os-open-tools", open);
+    try { if (new URLSearchParams(window.location.search).get("open") === "tools") open(); } catch { /* no URL */ }
+    return () => window.removeEventListener("wm-os-open-tools", open);
+  }, []);
   // PICKING A DESTINATION PUTS THE EQUIPMENT DOWN. The shell outlives route
   // changes, so a Rooms panel opened on /charts stayed open over the Journal
   // and was still covering the chart's left edge on the way back (finish-line

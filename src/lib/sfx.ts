@@ -119,3 +119,22 @@ export function playSfx(kind: SfxKind, opts?: { force?: boolean }): boolean {
     return false;
   }
 }
+
+/**
+ * THE ANNOUNCER (MISSING-INVENTIONS #14, "Get 'em Bulls"). Speaks one squabble line through the browser's own speech
+ * engine, preferring an on-device voice. Same switch as the ring sounds (off by default); never queues more than one
+ * line, so a busy tape cannot pile up a backlog of stale calls.
+ */
+export function speakAnnouncer(line: string): boolean {
+  if (typeof window === "undefined" || !isSfxOn() || !("speechSynthesis" in window)) return false;
+  try {
+    const synth = window.speechSynthesis;
+    if (synth.speaking || synth.pending) synth.cancel();
+    const u = new SpeechSynthesisUtterance(line);
+    const local = synth.getVoices().find(v => v.localService && /^en/i.test(v.lang));
+    if (local) u.voice = local;
+    u.rate = 1.05; u.pitch = 0.9; u.volume = 0.9;
+    synth.speak(u);
+    return true;
+  } catch { return false; }
+}

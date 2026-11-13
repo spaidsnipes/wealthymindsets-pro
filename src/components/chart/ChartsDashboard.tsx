@@ -21,6 +21,7 @@ import { readAppSettings, writeAppSettings } from "@/lib/settings/appSettingsSto
 
 import { adoptProofSceneSearch, currentProofScene, parseProofScene, pickNewestClosedBar, pickProofSelectObject, proofSceneHoldsWrites, proofSceneHoldsDecisionTag, proofSceneHoldsZones, proofSceneValue, proofSelectReceipt, proofSelectObjectVerdict, type ProofSelectKind, proofVerifyOnly } from "@/lib/chart/proofScene";
 import { useSearchParams } from "next/navigation";
+import { useBrokerAudience } from "@/lib/broker/useBrokerAudience";
 import { FLATTEN_ASK_PARAM, FLATTEN_ASK_VALUE } from "@/lib/session/emergencyCorner";
 import { requestClose } from "@/lib/execution/closeRequest";
 import Link from "next/link";
@@ -5798,6 +5799,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // second render and not the first — React #310, /charts down on serving
   // 2026-09-27 04:22Z (sentinel: hooksAboveHydrationGate).
   const webullLive = useWebullLiveCrypto(symbol);
+  // QA 2026-11-12: "WEBULL · RECONNECTING" showed to every non-owner (the owner's broker feed). Owner only.
+  const webullAudience = useBrokerAudience();
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
   // Garden 18 v2 §70 — today's broker trades against the profile's rules, on the rail.
@@ -5887,7 +5890,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     drawnPlan: riskPlan,
     // Webull's own real-time frames for a USD crypto symbol (measured working
     // 2026-09-27; stocks/futures refused by package, so not asked here).
-    webullLive,
+    webullLive: webullAudience === "OWNER" ? webullLive : null,
     evidenceLineage,
     breathing: marketBreathing,
     evidenceDensity,
