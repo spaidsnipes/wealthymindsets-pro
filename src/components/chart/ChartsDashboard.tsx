@@ -22,6 +22,7 @@ import { readAppSettings, writeAppSettings } from "@/lib/settings/appSettingsSto
 import { adoptProofSceneSearch, currentProofScene, parseProofScene, pickNewestClosedBar, pickProofSelectObject, proofSceneHoldsWrites, proofSceneHoldsDecisionTag, proofSceneHoldsZones, proofSceneValue, proofSelectReceipt, proofSelectObjectVerdict, type ProofSelectKind, proofVerifyOnly } from "@/lib/chart/proofScene";
 import { useSearchParams } from "next/navigation";
 import { useBrokerAudience } from "@/lib/broker/useBrokerAudience";
+import { BeforeFirstTrade } from "@/components/session/BeforeFirstTrade";
 import { FLATTEN_ASK_PARAM, FLATTEN_ASK_VALUE } from "@/lib/session/emergencyCorner";
 import { requestClose } from "@/lib/execution/closeRequest";
 import Link from "next/link";
@@ -6047,6 +6048,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           <div style={{ color: "#9a927f", fontSize: 11, marginTop: 8 }}>Wrong market? Switch the chart to the symbol you hold first.</div>
         </div>
       ) : null}
+      {/* Founder 2026-11-13: the day's routine before the first trade — once per day, until done or "not today". */}
+      <BeforeFirstTrade />
       {/* THE PHONE'S APP BAR (Founder 2026-10-11): portrait phones only, by CSS; presses the room's own controls. */}
       <MobileTabBar />
       {/* Hidden context tag for SpaidBot to read current chart state.

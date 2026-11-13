@@ -93,6 +93,8 @@ const DEVICE_LEVEL_EXEMPT = new Set<string>([
   // Belief chain check (Session Desk, 2026-11-12): stored only under `wm_belief_chain_v1:<member id>` and only for the
   // current market day — another account on this browser never reads it.
   "wm_belief_chain_v1",
+  // Before-the-first-trade "not today" (2026-11-13): member-keyed, holds only today's date.
+  "wm_before_first_trade_v1",
   // Per-TAB (sessionStorage) timestamp of the last deploy-version recovery
   // reload — a loop guard about this browser tab, holds no account data.
   "wm-version-recovery-at",
