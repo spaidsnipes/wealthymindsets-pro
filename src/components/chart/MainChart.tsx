@@ -124,7 +124,7 @@ import { explainBrickWall, explainWall, type WallExplain } from "@/lib/chart/wal
 import Link from "next/link";
 import { SquabbleClipButton } from "@/components/chart/SquabbleClipButton";
 import { ChartSpreadButtons } from "@/components/chart/ChartSpreadButtons";
-import { fetchDelayedChartBars } from "@/lib/marketData/delayedChartDoor";
+import { fetchDelayedChartBars, delayedDoorServes, DELAYED_SECONDS_RULE } from "@/lib/marketData/delayedChartDoor";
 import { selectBusRunway, busReceipt } from "@/lib/chart/busRunway";
 import { playSfx, speakAnnouncer, playAnnouncerClips } from "@/lib/sfx";
 import { tastyCandleStreamerFor, tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
@@ -1117,7 +1117,7 @@ async function fetchTastyCandles(sym: string, tf: string, count: number, signal?
   // A long range (3M … 5Y) is served as tastytrade's monthly candles; the header names them (servedTimeframeFor).
   const servedTf = tastyServedTimeframe(tf);
   if (!servedTf || !tastyCandlePeriod(servedTf)) {
-    note(log, { vendor: "tastytrade", outcome: "NOT_ASKED", rule: `tastytrade publishes no ${tf} bars, and WM Pro uses no delayed bar source.` });
+    note(log, { vendor: "tastytrade", outcome: "NOT_ASKED", rule: `tastytrade publishes no ${tf} bars.` });
     return null;
   }
   tf = servedTf;
@@ -1127,9 +1127,15 @@ async function fetchTastyCandles(sym: string, tf: string, count: number, signal?
     if (signal?.aborted) return null;
     if (!contract) {
       // LIVE ONLY (2026-10-12): no live door carries this instrument — say which, and where to go.
+      // A FUTURES symbol always has a tastytrade product; no contract means the chain was refused (a member with no
+      // connected broker, 2026-11-13 customer report) — say that, not "tastytrade does not list it".
+      if (classifySymbol(sym) === "FUTURES") {
+        note(log, { vendor: "tastytrade", outcome: "REFUSED", edge: "live bars come from a connected broker, and this account has none — connect one in Settings › Brokers" });
+        return null;
+      }
       note(log, { vendor: "tastytrade", outcome: "NOT_ASKED", rule: classifySymbol(sym) === "FOREX"
         ? `spot forex has no live source in WM Pro (no central exchange, and the delayed vendors were removed) — chart the CME currency future instead, e.g. 6E1! for EUR/USD.`
-        : `no live source carries ${sym.toUpperCase()} (tastytrade does not list it), and WM Pro uses no delayed bar source.` });
+        : `no live source carries ${sym.toUpperCase()} (tastytrade does not list it).` });
       return null;
     }
     const candleSymbol = tastyCandleSymbol(contract.streamer, tf);
@@ -4875,6 +4881,9 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
       const delayedData: CanonicalCandleBatch | null = exchangeData || tastyData || skipVendors ? null
         : await fetchDelayedChartBars(symbol, timeframe, barCount, (j, n) => candleBatch(j as never, n), myAbortSignal);
       if (delayedData) note(vendorLog, { vendor: "yahoo", outcome: "SERVED" });
+      else if (!exchangeData && !tastyData && !skipVendors) note(vendorLog, delayedDoorServes(timeframe)
+        ? { vendor: "delayed public bars", outcome: "REFUSED", edge: null }
+        : { vendor: "delayed public bars", outcome: "NOT_ASKED", rule: DELAYED_SECONDS_RULE });
       delayedSourceRef.current = !!delayedData;
       // The badge says how far behind the bars ARE (newest bar's close vs now), measured, not assumed.
       { const lastT = delayedData?.candles.length ? Number(delayedData.candles[delayedData.candles.length - 1].time) : null;

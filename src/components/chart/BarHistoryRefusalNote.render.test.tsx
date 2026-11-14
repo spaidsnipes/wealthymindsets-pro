@@ -110,7 +110,10 @@ describe("the refusal note reaches the trader on the chart itself", () => {
   it("a symbol no live door serves is named as such, with the way out for spot FX (2026-10-12)", () => {
     expect(mainChart).toContain("spot forex has no live source in WM Pro");
     expect(mainChart).toContain("chart the CME currency future instead, e.g. 6E1! for EUR/USD.");
-    expect(mainChart).toMatch(/tastytrade publishes no \$\{tf\} bars, and WM Pro uses no delayed bar source\./);
+    expect(mainChart).toMatch(/tastytrade publishes no \$\{tf\} bars\./);
+    // 2026-11-13: the delayed door exists (Founder 11-12) — the chart never says "no delayed bar source" again.
+    expect(mainChart).not.toContain("uses no delayed bar source");
+    expect(mainChart).toContain("DELAYED_SECONDS_RULE");
   });
 
   it("a member without the tastytrade connection is told why there are no bars (2026-10-12)", () => {
