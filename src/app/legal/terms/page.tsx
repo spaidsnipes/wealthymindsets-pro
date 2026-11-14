@@ -14,7 +14,7 @@ export default function TermsOfService() {
   usePublishOsStanding({ surface: "Terms of Service", feed: FEEDLESS_SURFACE });
   return (
     <LegalPage title="Terms of Service" version={TERMS_PRIVACY_VERSION ?? "draft"}>
-      <p>WealthyMindsets Pro (&ldquo;WM Pro&rdquo;) is operated by {LEGAL_OPERATOR}. By creating an account or buying a plan you agree to these terms, the <Link href="/legal/privacy" style={A}>Privacy Policy</Link>, the <Link href="/legal/risk" style={A}>Risk disclosure</Link> and the <Link href="/legal/market-data" style={A}>Market-data disclosure</Link>.</p>
+      <p>WealthyMindsets Pro (&ldquo;WM Pro&rdquo;) is operated by {LEGAL_OPERATOR}. By creating an account or buying a plan you agree to these terms, the <Link prefetch={false} href="/legal/privacy" style={A}>Privacy Policy</Link>, the <Link prefetch={false} href="/legal/risk" style={A}>Risk disclosure</Link> and the <Link prefetch={false} href="/legal/market-data" style={A}>Market-data disclosure</Link>.</p>
 
       <h2 style={legalH2}>Your account</h2>
       <p>You must be at least 18 and able to agree to these terms where you live. One Passport signs you in to WM Pro and the other ATH rooms. Keep your password to yourself; you are responsible for what happens under your account.</p>

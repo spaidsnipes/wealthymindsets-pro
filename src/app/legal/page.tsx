@@ -16,11 +16,11 @@ export default function LegalIndex() {
       <h2 style={legalH2}>Published</h2>
       <ul>
         {termsPrivacyInEffect() ? (<>
-        <li><Link href="/legal/terms" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "#c9a55c" }}>Terms of Service</Link> — your account, plans and billing, and the rules of use.</li>
-        <li><Link href="/legal/privacy" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "#c9a55c" }}>Privacy Policy</Link> — what WM Pro keeps, who processes it, and how to delete it.</li>
+        <li><Link prefetch={false} href="/legal/terms" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "#c9a55c" }}>Terms of Service</Link> — your account, plans and billing, and the rules of use.</li>
+        <li><Link prefetch={false} href="/legal/privacy" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "#c9a55c" }}>Privacy Policy</Link> — what WM Pro keeps, who processes it, and how to delete it.</li>
         </>) : null}
-        <li><Link href="/legal/risk" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "#c9a55c" }}>Risk disclosure</Link> — trading risk, what WM Pro is and is not, and how orders work.</li>
-        <li><Link href="/legal/market-data" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "#c9a55c" }}>Market-data disclosure</Link> — where prices come from, how fresh they are, and what you may not do with them.</li>
+        <li><Link prefetch={false} href="/legal/risk" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "#c9a55c" }}>Risk disclosure</Link> — trading risk, what WM Pro is and is not, and how orders work.</li>
+        <li><Link prefetch={false} href="/legal/market-data" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "#c9a55c" }}>Market-data disclosure</Link> — where prices come from, how fresh they are, and what you may not do with them.</li>
       </ul>
       {/* The state is the legal-version owner's (lib/legal/legalVersion): the checkout records the same value, so this
           page and a purchase record cannot disagree. This paragraph is shown ONLY while they are not in effect. */}

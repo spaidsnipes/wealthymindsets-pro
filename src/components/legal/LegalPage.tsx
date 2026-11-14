@@ -18,11 +18,11 @@ export function LegalPage({ title, version, children }: { title: string; version
         <p style={{ color: MUTED, fontSize: 13, margin: "0 0 24px" }}>Version {version}</p>
         {children}
         <nav aria-label="Policies" style={{ marginTop: 36, paddingTop: 16, borderTop: "1px solid rgba(201,165,92,0.25)", fontSize: 13, color: MUTED, display: "flex", gap: 16, flexWrap: "wrap" }}>
-          <Link href="/legal" style={TAP}>All policies</Link>
-          <Link href="/legal/risk" style={TAP}>Risk disclosure</Link>
-          <Link href="/legal/market-data" style={TAP}>Market-data disclosure</Link>
-          <Link href="/pricing" style={TAP}>Pricing</Link>
-          <Link href="/login" style={TAP}>Sign in</Link>
+          <Link prefetch={false} href="/legal" style={TAP}>All policies</Link>
+          <Link prefetch={false} href="/legal/risk" style={TAP}>Risk disclosure</Link>
+          <Link prefetch={false} href="/legal/market-data" style={TAP}>Market-data disclosure</Link>
+          <Link prefetch={false} href="/pricing" style={TAP}>Pricing</Link>
+          <Link prefetch={false} href="/login" style={TAP}>Sign in</Link>
         </nav>
       </article>
     </div>

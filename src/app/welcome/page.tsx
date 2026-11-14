@@ -180,8 +180,8 @@ export default function WelcomePage() {
             {inspect[view].lines.map(l => <p key={l} style={{ fontSize: 13, color: MUTED, lineHeight: 1.55, margin: "0 0 8px" }}>{l}</p>)}
             <p style={{ fontSize: 12, color: "#e0a050", lineHeight: 1.5, margin: "12px 0 0" }}>Source: simulated in your browser. Nothing here is a price, a signal or advice.</p>
             <div style={{ display: "grid", gap: 8, marginTop: 18 }}>
-              <Link href="/login?mode=signup" style={{ display: "inline-flex", justifyContent: "center", alignItems: "center", minHeight: 44, borderRadius: 8, border: `1px solid ${GOLD}`, background: "rgba(201,165,92,0.14)", color: "#e8b923", fontWeight: 700, textDecoration: "none" }}>Create a free account</Link>
-              <Link href="/pricing" style={{ display: "inline-flex", justifyContent: "center", alignItems: "center", minHeight: 44, borderRadius: 8, border: "1px solid rgba(255,255,255,0.14)", color: INK, textDecoration: "none" }}>See pricing</Link>
+              <Link prefetch={false} href="/login?mode=signup" style={{ display: "inline-flex", justifyContent: "center", alignItems: "center", minHeight: 44, borderRadius: 8, border: `1px solid ${GOLD}`, background: "rgba(201,165,92,0.14)", color: "#e8b923", fontWeight: 700, textDecoration: "none" }}>Create a free account</Link>
+              <Link prefetch={false} href="/pricing" style={{ display: "inline-flex", justifyContent: "center", alignItems: "center", minHeight: 44, borderRadius: 8, border: "1px solid rgba(255,255,255,0.14)", color: INK, textDecoration: "none" }}>See pricing</Link>
             </div>
           </aside>
         </div>
@@ -193,9 +193,9 @@ export default function WelcomePage() {
 
         <p style={{ color: MUTED, fontSize: 12, lineHeight: 1.6, marginTop: 24, maxWidth: 860 }}>
           Guest mode · sample candles are simulated and labelled · no account data, no broker, no live orders.{" "}
-          <Link href="/legal/risk" style={TAP}>Risk disclosure</Link> ·{" "}
-          <Link href="/legal/market-data" style={TAP}>Market data</Link> ·{" "}
-          <Link href="/login" style={TAP}>Sign in</Link>
+          <Link prefetch={false} href="/legal/risk" style={TAP}>Risk disclosure</Link> ·{" "}
+          <Link prefetch={false} href="/legal/market-data" style={TAP}>Market data</Link> ·{" "}
+          <Link prefetch={false} href="/login" style={TAP}>Sign in</Link>
         </p>
       </div>
       {/* The sample chart scales to ~0.47× on a 390 phone, so its 11-unit axis

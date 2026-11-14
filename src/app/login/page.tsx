@@ -343,7 +343,7 @@ function LoginPage() {
             <p data-testid="login-phone-product-line" className="mt-3 text-[13px] leading-relaxed" style={{ color: WM.text.body }}>
               <span style={{ color: WM.text.hero }}>{HEADLINE}</span> {PLAIN_PROMISE}
             </p>
-            <Link href="/welcome" className="inline-flex min-h-11 items-center text-[12px] font-bold" style={{ color: WM.gold.mark }}>See how it works →</Link>
+            <Link prefetch={false} href="/welcome" className="inline-flex min-h-11 items-center text-[12px] font-bold" style={{ color: WM.gold.mark }}>See how it works →</Link>
           </div>
 
           {/* Mode tabs — hidden in forgot mode */}
@@ -537,8 +537,8 @@ function LoginPage() {
                 {mode === "signup" && (
                   <p className="text-[11px] text-center mt-3" style={{ color: WM.text.muted }}>
                     By creating an account you agree to the{" "}
-                    <Link href="/legal/terms" className="inline-flex min-h-11 items-center" style={{ color: WM.gold.mark }}>Terms of Service</Link> and{" "}
-                    <Link href="/legal/privacy" className="inline-flex min-h-11 items-center" style={{ color: WM.gold.mark }}>Privacy Policy</Link>.
+                    <Link prefetch={false} href="/legal/terms" className="inline-flex min-h-11 items-center" style={{ color: WM.gold.mark }}>Terms of Service</Link> and{" "}
+                    <Link prefetch={false} href="/legal/privacy" className="inline-flex min-h-11 items-center" style={{ color: WM.gold.mark }}>Privacy Policy</Link>.
                   </p>
                 )}
               </form>
@@ -555,13 +555,13 @@ function LoginPage() {
               </div>
               {/* Readable before signing up (ATHOS order §9 / P0.4). */}
               <nav aria-label="Before you join" className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 text-[11px]">
-                <Link href="/welcome" className="inline-flex min-h-11 items-center font-bold" style={{ color: WM.gold.mark }}>Explore as a guest →</Link>
-                <Link href="/pricing" className="inline-flex min-h-11 min-w-11 items-center justify-center" style={{ color: WM.gold.mark }}>Pricing</Link>
-                <Link href="/legal/terms" className="inline-flex min-h-11 min-w-11 items-center justify-center" style={{ color: WM.gold.mark }}>Terms</Link>
-                <Link href="/legal/privacy" className="inline-flex min-h-11 items-center" style={{ color: WM.gold.mark }}>Privacy</Link>
-                <Link href="/legal/risk" className="inline-flex min-h-11 items-center" style={{ color: WM.gold.mark }}>Risk disclosure</Link>
-                <Link href="/legal/market-data" className="inline-flex min-h-11 items-center" style={{ color: WM.gold.mark }}>Market data</Link>
-                <Link href="/legal" className="inline-flex min-h-11 min-w-11 items-center justify-center" style={{ color: WM.gold.mark }}>Policies</Link>
+                <Link prefetch={false} href="/welcome" className="inline-flex min-h-11 items-center font-bold" style={{ color: WM.gold.mark }}>Explore as a guest →</Link>
+                <Link prefetch={false} href="/pricing" className="inline-flex min-h-11 min-w-11 items-center justify-center" style={{ color: WM.gold.mark }}>Pricing</Link>
+                <Link prefetch={false} href="/legal/terms" className="inline-flex min-h-11 min-w-11 items-center justify-center" style={{ color: WM.gold.mark }}>Terms</Link>
+                <Link prefetch={false} href="/legal/privacy" className="inline-flex min-h-11 items-center" style={{ color: WM.gold.mark }}>Privacy</Link>
+                <Link prefetch={false} href="/legal/risk" className="inline-flex min-h-11 items-center" style={{ color: WM.gold.mark }}>Risk disclosure</Link>
+                <Link prefetch={false} href="/legal/market-data" className="inline-flex min-h-11 items-center" style={{ color: WM.gold.mark }}>Market data</Link>
+                <Link prefetch={false} href="/legal" className="inline-flex min-h-11 min-w-11 items-center justify-center" style={{ color: WM.gold.mark }}>Policies</Link>
               </nav>
             </motion.div>
           </AnimatePresence>

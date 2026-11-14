@@ -82,11 +82,10 @@ const TIERS: Tier[] = [
       "Everything in WM Pro Premium — one $30 charge, not $30 + $20 + $10",
       "Spaidbot automated trading: your strategy, run by the bot",
       "Built in stages — strategy, then backtest, then paper, then live",
-      "Broker connections — in BETA, opening to members as each broker is supported",
+      "Broker connections, added broker by broker as each one is supported",
     ],
     limits: [
-      "Automated trading is opening in stages; it is not live for members yet",
-      "Live automated orders only after you approve each broker account — your limits and kill switch stay yours",
+      "Live automated orders start only after your paper run, and only on a broker account you approve — your limits and kill switch stay yours",
       "Exchange data and broker capabilities depend on your broker and markets",
     ],
     cta: { label: "Not on sale yet" },
@@ -222,7 +221,7 @@ export default function PricingPage() {
                   return (
                     <div data-testid="tier-buy" data-tier={t.id} data-kind={b.kind}>
                       {b.kind === "SIGN_IN" ? (
-                        <Link href="/login?next=/pricing" style={live}>{b.label}</Link>
+                        <Link prefetch={false} href="/login?next=/pricing" style={live}>{b.label}</Link>
                       ) : b.kind === "COVERED" ? (
                         <a href="https://thewow.online/passport#world-pass" rel="noopener" style={live}>{b.label}</a>
                       ) : (
@@ -233,12 +232,12 @@ export default function PricingPage() {
                       {b.note ? <p style={{ margin: "6px 0 0", color: MUTED, fontSize: 12 }}>{b.note}</p> : null}
                       {/* Beside the button: what the buyer should read first. */}
                       <p style={{ margin: "6px 0 0", fontSize: 12, color: MUTED, lineHeight: 1.6 }}>
-                        Before you buy, read the <Link href="/legal/terms" style={{ color: GOLD }}>Terms</Link> &amp; <Link href="/legal/privacy" style={{ color: GOLD }}>Privacy Policy</Link> and the <Link href="/legal/risk" style={{ color: GOLD }}>trading risk disclosure</Link>. Not investment advice.
+                        Before you buy, read the <Link prefetch={false} href="/legal/terms" style={{ color: GOLD }}>Terms</Link> &amp; <Link prefetch={false} href="/legal/privacy" style={{ color: GOLD }}>Privacy Policy</Link> and the <Link prefetch={false} href="/legal/risk" style={{ color: GOLD }}>trading risk disclosure</Link>. Not investment advice.
                       </p>
                     </div>
                   );
                 })() : t.cta.href ? (
-                  <Link href={t.cta.href} style={{ display: "inline-flex", alignItems: "center", minHeight: 44, padding: "0 18px", borderRadius: 8, border: `1px solid ${GOLD}`, background: "rgba(201,165,92,0.12)", color: "#e8b923", fontWeight: 700, textDecoration: "none" }}>{t.cta.label}</Link>
+                  <Link prefetch={false} href={t.cta.href} style={{ display: "inline-flex", alignItems: "center", minHeight: 44, padding: "0 18px", borderRadius: 8, border: `1px solid ${GOLD}`, background: "rgba(201,165,92,0.12)", color: "#e8b923", fontWeight: 700, textDecoration: "none" }}>{t.cta.label}</Link>
                 ) : (
                   <span aria-disabled="true" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, padding: "0 18px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", color: MUTED, fontWeight: 600 }}>{t.cta.label}</span>
                 )}
@@ -275,12 +274,12 @@ export default function PricingPage() {
           WM Pro is analysis and trading software, not investment advice. Read the risk and market-data disclosures before you trade.
         </p>
         <nav aria-label="Policies" style={{ display: "flex", flexWrap: "wrap", gap: 12, fontSize: 12 }}>
-          <Link href="/legal/terms" style={TAP}>Terms</Link>
-          <Link href="/legal/privacy" style={TAP}>Privacy</Link>
-          <Link href="/legal/risk" style={TAP}>Risk disclosure</Link>
-          <Link href="/legal/market-data" style={TAP}>Market-data disclosure</Link>
-          <Link href="/legal" style={TAP}>All policies</Link>
-          <Link href="/login" style={TAP}>Sign in</Link>
+          <Link prefetch={false} href="/legal/terms" style={TAP}>Terms</Link>
+          <Link prefetch={false} href="/legal/privacy" style={TAP}>Privacy</Link>
+          <Link prefetch={false} href="/legal/risk" style={TAP}>Risk disclosure</Link>
+          <Link prefetch={false} href="/legal/market-data" style={TAP}>Market-data disclosure</Link>
+          <Link prefetch={false} href="/legal" style={TAP}>All policies</Link>
+          <Link prefetch={false} href="/login" style={TAP}>Sign in</Link>
         </nav>
       </div>
     </div>
