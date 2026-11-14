@@ -300,7 +300,7 @@ export function ExperienceModeBar({ bus, className, collapsed = false, lifecycle
           // A CHANGED JOB IS A DOOR, NOT A PHASE. Same face as its six
           // siblings; it navigates to the Academy and says so in its title.
           return (
-            <Link
+            <Link prefetch={false}
               key={mode}
               href={route.href}
               data-mode-route="ROOM"

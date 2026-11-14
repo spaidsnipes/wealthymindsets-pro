@@ -170,7 +170,7 @@ function EpisodeRow({ e, all, conds, tags, asOf }: { e: Episode; all: readonly E
       {open ? (
         <div style={{ margin: "6px 0 2px 16px", fontSize: 11, color: MUTED }}>
           <div style={{ marginBottom: 4 }}>
-            <Link href={`/charts?symbol=${encodeURIComponent(e.symbol)}&tf=1m`} data-testid="ledger-open-chart" style={{ color: GOLD, marginRight: 8 }}>Open {e.symbol} chart →</Link>
+            <Link prefetch={false} href={`/charts?symbol=${encodeURIComponent(e.symbol)}&tf=1m`} data-testid="ledger-open-chart" style={{ color: GOLD, marginRight: 8 }}>Open {e.symbol} chart →</Link>
             {webullEpisodeJournalable(e) ? (
               <button type="button" data-testid="ledger-journal-this" onClick={journalThis} style={{ background: "none", border: `1px solid ${GOLD}`, borderRadius: 6, color: GOLD, minHeight: 32, padding: "0 10px", marginRight: 8, cursor: "pointer", font: "inherit" }}>Journal this trade →</button>
             ) : null}

@@ -175,7 +175,7 @@ export default function AIBotPage() {
           </p>
         </div>
         {activeSymbol && (
-          <Link href={`/charts?symbol=${encodeURIComponent(activeSymbol)}`} data-testid="ai-bot-open-chart"
+          <Link prefetch={false} href={`/charts?symbol=${encodeURIComponent(activeSymbol)}`} data-testid="ai-bot-open-chart"
             className="inline-flex min-h-11 items-center text-xs font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold"
             style={{ color: WM.gold.hero }}>
             Open {activeSymbol} on the chart →

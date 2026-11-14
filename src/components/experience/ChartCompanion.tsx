@@ -722,7 +722,7 @@ export function ChartCompanion({ symbol: explicitSymbol }: { symbol?: string } =
           paddingTop: 8, marginTop: 2,
         }}
       >
-        <Link
+        <Link prefetch={false}
           href={vm.chartHref}
           data-testid="chart-companion-open-chart"
           aria-label={`Open the ${vm.symbol} ${vm.timeframe} chart, carrying this camera.`}

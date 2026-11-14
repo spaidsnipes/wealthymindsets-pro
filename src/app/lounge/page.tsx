@@ -205,7 +205,7 @@ function CommentsPanel({ postId, myHandle, myName, myAvatar, myColor }:
           </button>
         </div>
       ) : (
-        <p className="text-[10px] text-wm-text-dim"><Link href="/login" className="font-bold text-wm-blue hover:underline">Sign in</Link> to comment.</p>
+        <p className="text-[10px] text-wm-text-dim"><Link prefetch={false} href="/login" className="font-bold text-wm-blue hover:underline">Sign in</Link> to comment.</p>
       )}
     </motion.div>
   );

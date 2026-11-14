@@ -399,7 +399,7 @@ export function ShellAccessChrome({ showPoints = true, compact = false }: ShellA
                      is rendered by `renderToStaticMarkup` in the founder-route
                      gates, which mount no router — so calling that hook here
                      would take the masthead down in every one of them. */}
-              <Link
+              <Link prefetch={false}
                 href="/profile"
                 role="menuitem"
                 style={{ ...MENU_ITEM, textDecoration: "none" }}

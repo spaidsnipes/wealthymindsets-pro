@@ -99,7 +99,7 @@ describe("wiring in the drawer", () => {
   });
   it("the strip's 'View details →' link keeps its 44px touch slop", () => {
     const strip = readFileSync(path.join(process.cwd(), "src/components/marketData/ProviderWireStrip.tsx"), "utf8");
-    expect(strip).toMatch(/<Link href="\/readiness" className="wm-tap-slop"[^>]*>\{compact \? "View details →"/);
+    expect(strip).toMatch(/<Link prefetch=\{false\} href="\/readiness" className="wm-tap-slop"[^>]*>\{compact \? "View details →"/);
     const css = readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
     expect(css).toMatch(/\(pointer: coarse\) \{\s*\.wm-tap-slop:not\(\.absolute\):not\(\.fixed\) \{ position: relative; \}\s*\.wm-tap-slop::after \{[\s\S]{0,200}width: max\(100%, 44px\);\s*height: max\(100%, 44px\);/);
   });

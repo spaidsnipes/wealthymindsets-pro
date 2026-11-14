@@ -67,7 +67,7 @@ export function FoundingOffers({ offer, signedIn }: { offer: FoundingOffer; sign
           {signedIn ? (
             <button type="button" disabled={busy !== null} onClick={() => { void start("500"); }} style={{ ...BUTTON, opacity: busy !== null ? 0.6 : 1 }}>{busy === "500" ? "Opening Stripe…" : "Join FOUNDING 500"}</button>
           ) : (
-            <Link href="/login?next=/pricing" style={BUTTON}>Sign in to join</Link>
+            <Link prefetch={false} href="/login?next=/pricing" style={BUTTON}>Sign in to join</Link>
           )}
         </div>
       ) : null}
@@ -77,13 +77,13 @@ export function FoundingOffers({ offer, signedIn }: { offer: FoundingOffer; sign
           {signedIn ? (
             <button type="button" disabled={busy !== null} onClick={() => { void start("100"); }} style={{ ...BUTTON, opacity: busy !== null ? 0.6 : 1 }}>{busy === "100" ? "Checking…" : "Claim FOUNDING 100"}</button>
           ) : (
-            <Link href="/login?next=/pricing" style={BUTTON}>Sign in to claim</Link>
+            <Link prefetch={false} href="/login?next=/pricing" style={BUTTON}>Sign in to claim</Link>
           )}
         </div>
       ) : null}
       {said ? <p role="status" data-testid="founding-said" style={{ margin: "10px 0 0", fontSize: 13, color: MUTED }}>{said}</p> : null}
       <p style={{ margin: "10px 0 0", fontSize: 12, lineHeight: 1.6, color: MUTED }}>
-        Read the <Link href="/legal/terms" style={{ color: GOLD }}>Terms</Link> and the <Link href="/legal/risk" style={{ color: GOLD }}>trading risk disclosure</Link> first. Not investment advice.
+        Read the <Link prefetch={false} href="/legal/terms" style={{ color: GOLD }}>Terms</Link> and the <Link prefetch={false} href="/legal/risk" style={{ color: GOLD }}>trading risk disclosure</Link> first. Not investment advice.
       </p>
     </section>
   );

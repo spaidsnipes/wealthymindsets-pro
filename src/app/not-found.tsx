@@ -30,7 +30,7 @@ export default function NotFound() {
         </p>
         <nav aria-label="Rooms" style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center", marginTop: 18 }}>
           {DOORS.map(d => (
-            <Link key={d.href} href={d.href}
+            <Link prefetch={false} key={d.href} href={d.href}
               style={{ minHeight: 44, display: "inline-flex", alignItems: "center", padding: "0 16px", borderRadius: 10, border: "1px solid rgba(201,165,92,0.45)", color: "#ede6d3", fontSize: 13, fontWeight: 700, textDecoration: "none" }}>
               {d.label}
             </Link>

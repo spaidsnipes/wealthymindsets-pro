@@ -47,7 +47,7 @@ export function HeaderVaultPill() {
   const hasGaps = gapCount > 0;
 
   return (
-    <Link
+    <Link prefetch={false}
       href="/nectar"
       aria-label={
         hasGaps

@@ -139,7 +139,7 @@ function DeskMarketScreen({ symbol, timeframe, setTimeframe, view, link, paneId 
       <summary style={{ cursor: "pointer" }}>{pending.length} selected tools unavailable on this Desk screen</summary>
       <p style={{ margin: "6px 0" }}>These preferences are kept. Open the full market chart to use:</p>
       <p style={{ margin: "6px 0", textTransform: "capitalize" }}>{pending.map(id => id.replaceAll("_", " ").toLowerCase()).join(" · ")}</p>
-      <Link href={`${INSTRUMENT_VIEW_ROUTE}?symbol=${encodeURIComponent(symbol)}&tf=${encodeURIComponent(timeframe)}`} style={{ color: "#ead9ad", textDecoration: "underline" }}>Open full market chart</Link>
+      <Link prefetch={false} href={`${INSTRUMENT_VIEW_ROUTE}?symbol=${encodeURIComponent(symbol)}&tf=${encodeURIComponent(timeframe)}`} style={{ color: "#ead9ad", textDecoration: "underline" }}>Open full market chart</Link>
     </details>}
   </>;
 }
@@ -205,7 +205,7 @@ function ScreenHeader({ index, symbol, timeframe, maximized, focused, link, onLi
         {compact && !link ? "Link" : <>{linkChipLabel(link)}</>}
       </button>
       <span style={{ flex: 1 }} />
-      <Link href={`${INSTRUMENT_VIEW_ROUTE}?symbol=${encodeURIComponent(symbol)}&tf=${encodeURIComponent(timeframe)}`} style={{ ...btn(), display: "inline-flex", alignItems: "center", textDecoration: "none" }}>
+      <Link prefetch={false} href={`${INSTRUMENT_VIEW_ROUTE}?symbol=${encodeURIComponent(symbol)}&tf=${encodeURIComponent(timeframe)}`} style={{ ...btn(), display: "inline-flex", alignItems: "center", textDecoration: "none" }}>
         {compact ? "Room" : "Open room"}
       </Link>
       {/* §LV + DESK LINKING: a second monitor — this screen in its own Desk
@@ -464,7 +464,7 @@ export function DeskShell() {
     <div data-testid="desk" data-desk-layout={working.layout} data-hydrated={hydrated} data-touch={touch} data-desk-form={phone ? "PHONE" : tabletPortrait ? "TABLET_PORTRAIT" : "GRID"} style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0, background: "#07060a", color: INK }}>
       {touch ? <style>{DESK_TOUCH_CSS}</style> : null}
       <div className="wm-desk-chrome" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, padding: "8px 12px", borderBottom: `1px solid ${LINE}` }}>
-        <Link href={INSTRUMENT_VIEW_ROUTE} style={{ ...btn(), display: "inline-flex", alignItems: "center", textDecoration: "none" }}>← Charts</Link>
+        <Link prefetch={false} href={INSTRUMENT_VIEW_ROUTE} style={{ ...btn(), display: "inline-flex", alignItems: "center", textDecoration: "none" }}>← Charts</Link>
         <strong style={{ color: GOLD, letterSpacing: ".12em", textTransform: "uppercase", fontSize: 12 }}>Desk</strong>
         {popout ? (
           <span data-testid="desk-popout" data-cross-window={crossWindow} style={{ color: crossWindow ? INK : GOLD, fontSize: 11 }}>

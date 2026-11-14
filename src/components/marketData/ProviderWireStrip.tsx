@@ -916,7 +916,7 @@ const LANE_INK_COLOR: Record<LaneInk, string> = {
  */
 export function ProviderWireCell({ wire, compact }: { readonly wire: ProviderWireView; readonly compact: boolean }) {
   return (
-          <Link
+          <Link prefetch={false}
             href="/readiness"
             title={wire.detail}
             aria-label={`${wire.source}: ${wire.label}. ${wire.detail} Open provider readiness wireboard.`}
@@ -1106,7 +1106,7 @@ export default function ProviderWireStrip({
     <section aria-label="Market data provider wires" style={{ marginTop: compact ? 0 : 8, border: "1px solid rgba(240,180,41,0.18)", borderRadius: compact ? 8 : 10, background: "rgba(5,5,6,0.76)", padding: compact ? "6px 8px" : "9px 10px", flexShrink: 0 }}>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, marginBottom: compact ? 5 : 7 }}>
         <span style={{ color: "#f0b429", fontSize: 10, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase" }}>{compact ? "Connections" : "Market data wires"}</span>
-        <Link href="/readiness" className="wm-tap-slop" style={{ color: "#8b92ac", fontSize: 9, textDecoration: "none", whiteSpace: "nowrap", display: "inline-block" }}>{compact ? "View details →" : "read-only · capability truth"}</Link>
+        <Link prefetch={false} href="/readiness" className="wm-tap-slop" style={{ color: "#8b92ac", fontSize: 9, textDecoration: "none", whiteSpace: "nowrap", display: "inline-block" }}>{compact ? "View details →" : "read-only · capability truth"}</Link>
       </div>
       <div style={compact
         ? { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))", gap: 7 }

@@ -188,7 +188,7 @@ export default function ReadinessPage() {
                 >
                   <Plug2 size={14} aria-hidden="true" /> Connect or review brokers
                 </button>
-                <Link href={FOUNDER_LANDING_ROUTE} className="rounded-full border border-wm-brass/30 px-4 py-2 text-xs font-semibold text-wm-ivory-body transition hover:border-wm-brass/60 hover:text-wm-ivory focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-brass-mark">
+                <Link prefetch={false} href={FOUNDER_LANDING_ROUTE} className="rounded-full border border-wm-brass/30 px-4 py-2 text-xs font-semibold text-wm-ivory-body transition hover:border-wm-brass/60 hover:text-wm-ivory focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-brass-mark">
                   ← Market
                 </Link>
               </div>
@@ -227,7 +227,7 @@ export default function ReadinessPage() {
             <p className="mt-2 text-wm-text-dim">
               This board is where the platform operator checks WM&apos;s own data feeds. Linking a brokerage
               account of your own isn&apos;t available yet.
-              To practise in the meantime, the <Link href="/paper" className="text-wm-watch underline-offset-2 hover:underline">Paper room →</Link> is open to you.
+              To practise in the meantime, the <Link prefetch={false} href="/paper" className="text-wm-watch underline-offset-2 hover:underline">Paper room →</Link> is open to you.
             </p>
             {/* 2026-10-09: what a member can use here, and in what state — trader words only. The operator's
                 counts ("7/10 providers configured", "13/40 required names present") are in the owner's view alone. */}

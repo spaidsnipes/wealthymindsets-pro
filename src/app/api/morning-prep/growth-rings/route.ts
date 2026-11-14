@@ -1,3 +1,4 @@
+import { marketDayKey } from "@/lib/journal/localDayKey";
 import { audienceBody, isOperator } from "@/lib/publicFailure";
 import { NextResponse } from "next/server";
 import { checkRateLimit } from "@/lib/rateLimit";
@@ -74,7 +75,9 @@ export async function POST(request: Request) {
   const practices = [...new Set((body?.practices || []).map(value => value.trim()).filter(Boolean))];
   const reflection = body?.reflection?.trim().slice(0, 2000) || null;
   if (!category || !categories.has(category) || !practices.length || practices.some(practice => practice.length > 80)) return NextResponse.json({ error: "Choose a category and at least one valid practice." }, { status: 400 });
-  const occurred_on = new Date().toISOString().slice(0, 10);
+  // GHM 2026-11-14 TEMPORAL_SPLIT_BRAIN: the UTC day filed evening practices (after 7 PM CT) under tomorrow.
+  // WM's "today" is the New York day (Founder ruling 2026-10-05).
+  const occurred_on = marketDayKey();
   const response = await fetch(`${config.url}/rest/v1/dreamboard_growth_entries?on_conflict=owner_id,occurred_on,category,practice`, {
     method: "POST",
     headers: { "Content-Type": "application/json", apikey: config.serviceKey, Authorization: `Bearer ${config.serviceKey}`, Prefer: "resolution=merge-duplicates,return=representation" },

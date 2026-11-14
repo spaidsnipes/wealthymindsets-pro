@@ -120,7 +120,7 @@ export function RoomAuthorityNotice({ href }: RoomAuthorityNoticeProps): React.R
         the chart, and each one states its own reading or why it has none.
       </span>
       {home ? (
-        <Link
+        <Link prefetch={false}
           href={home.href}
           data-testid="room-legacy-notice-home"
           style={{

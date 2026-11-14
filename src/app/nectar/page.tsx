@@ -616,7 +616,7 @@ function VaultHeader() {
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-        <Link
+        <Link prefetch={false}
           href={FOUNDER_LANDING_ROUTE}
           aria-label="Back to the market"
           style={{
@@ -916,7 +916,7 @@ function SymbolCard({ symbol, tapeSource, slot, isActive, fidelity, coverageStat
         >
           {isActive ? "Open active symbol on chart →" : "Open on chart →"}
         </button>
-        <Link
+        <Link prefetch={false}
           href={`/nectar/${encodeURIComponent(symbol)}`}
           aria-label={`View full memory detail for ${symbol}`}
           title={`Deep-dive into ${symbol}'s retained memory: full CVD, per-stat metrics, coverage receipts`}
@@ -1079,7 +1079,7 @@ function EmptyVault() {
         Open a chart and let accepted market observations arrive. Each symbol will appear here with its browser-retained summary.
       </div>
       <div style={{ marginTop: 18 }}>
-        <Link
+        <Link prefetch={false}
           href={INSTRUMENT_VIEW_ROUTE}
           style={{
             display: "inline-flex", alignItems: "center",

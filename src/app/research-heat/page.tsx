@@ -45,7 +45,7 @@ function Movers({ title, rows }: { readonly title: string; readonly rows: readon
     <div style={{ flex: "1 1 160px" }}>
       <div style={{ fontSize: 10, letterSpacing: 1.2, color: WM.text.muted, fontWeight: 700, textTransform: "uppercase", marginBottom: 4 }}>{title}</div>
       {rows.map(([s, v]) => (
-        <Link key={s} href={heatCellCameraHref(s)} style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 12.5, lineHeight: "20px", color: WM.text.hero, textDecoration: "none" }}>
+        <Link prefetch={false} key={s} href={heatCellCameraHref(s)} style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 12.5, lineHeight: "20px", color: WM.text.hero, textDecoration: "none" }}>
           <span style={{ fontWeight: 700 }}>{s}</span>
           <span style={{ color: tone(v), fontVariantNumeric: "tabular-nums" }}>{pct(v)}</span>
         </Link>
@@ -103,7 +103,7 @@ export default function ResearchHeatArchivePage() {
     <div data-testid="research-heat-archive" style={{ padding: "20px 16px 40px", maxWidth: 1100, margin: "0 auto", color: WM.text.body }}>
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: 12, marginBottom: 6 }}>
         <h1 style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 22, letterSpacing: 2, color: WM.gold.hero, margin: 0, textTransform: "uppercase" }}>Research Heat Archive</h1>
-        <Link href="/scanner/map" style={{ fontSize: 12, color: WM.gold.mark }}>Live heat: Opportunity Map →</Link>
+        <Link prefetch={false} href="/scanner/map" style={{ fontSize: 12, color: WM.gold.mark }}>Live heat: Opportunity Map →</Link>
       </div>
       <p style={{ fontSize: 12.5, color: WM.text.muted, margin: "0 0 16px" }}>
         Heat you saved from the Opportunity Map, read beside the market now. Kept in this browser — saved heat does not travel to other devices.
@@ -111,7 +111,7 @@ export default function ResearchHeatArchivePage() {
 
       {list.length === 0 ? (
         <RoomStatePlaque kind="empty" testId="heat-archive-empty" title="No saved heat yet.">
-          Open the <Link href="/scanner/map" style={{ color: WM.gold.mark }}>Opportunity Map</Link> and press <b>Save this heat</b> at a moment you want to remember — an open, a breakout day, a flush.
+          Open the <Link prefetch={false} href="/scanner/map" style={{ color: WM.gold.mark }}>Opportunity Map</Link> and press <b>Save this heat</b> at a moment you want to remember — an open, a breakout day, a flush.
         </RoomStatePlaque>
       ) : (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "flex-start" }}>
@@ -178,7 +178,7 @@ export default function ResearchHeatArchivePage() {
                     <tbody>
                       {shifts.map(r => (
                         <tr key={r.symbol} style={{ borderTop: `1px solid ${WM.border.hair}` }}>
-                          <td style={{ padding: "4px 0" }}><Link href={heatCellCameraHref(r.symbol)} style={{ color: WM.text.hero, fontWeight: 700, textDecoration: "none" }}>{r.symbol}</Link></td>
+                          <td style={{ padding: "4px 0" }}><Link prefetch={false} href={heatCellCameraHref(r.symbol)} style={{ color: WM.text.hero, fontWeight: 700, textDecoration: "none" }}>{r.symbol}</Link></td>
                           <td style={{ textAlign: "right", color: tone(r.then) }}>{pct(r.then)}</td>
                           <td style={{ textAlign: "center", color: WM.text.muted }}>→</td>
                           <td style={{ textAlign: "right", color: tone(r.now) }}>{pct(r.now)}</td>

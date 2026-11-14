@@ -577,7 +577,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             {railItems.map(({ href, icon: Icon, label, authority }) => {
               const active = isPrimaryDestinationActive(pathname, href);
               return (
-                <Link href={href} title={label}
+                <Link prefetch={false} href={href} title={label}
                   key={href}
                   aria-current={active ? "page" : undefined}
                   style={{
@@ -738,7 +738,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                         {section.items.map(({ href, icon: Icon, label, authority }) => {
                           const active = pathname.startsWith(href);
                           return (
-                            <Link key={href} href={href} aria-current={active ? "page" : undefined}
+                            <Link prefetch={false} key={href} href={href} aria-current={active ? "page" : undefined}
                               style={{
                                 minHeight: 72, borderRadius: 12, border: active ? "1px solid rgba(232,185,35,.55)" : "1px solid #242735",
                                 background: active ? "linear-gradient(145deg,rgba(232,185,35,.16),rgba(5,150,105,.08))" : "rgba(255,255,255,.025)",
@@ -813,7 +813,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         {MOBILE_NAV_ITEMS.map(({ href, icon: Icon, label }) => {
           const active = pathname.startsWith(href);
           return (
-            <Link
+            <Link prefetch={false}
               key={href}
               href={href}
               aria-current={active ? "page" : undefined}
@@ -852,7 +852,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             <Settings size={19} aria-hidden="true" />
             <span>Settings</span>
           </button>
-          <Link
+          <Link prefetch={false}
             href="/profile"
             aria-label="Open profile"
             className={clsx(

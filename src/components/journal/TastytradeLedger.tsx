@@ -87,7 +87,7 @@ export function TastytradeLedger({ onAccounts }: {
                     <td style={{ color: INK, wordBreak: "break-all", minWidth: 96 }}>
                       {t.symbol}
                       {ttChartSymbol(t) && (
-                        <Link href={`/charts?symbol=${encodeURIComponent(ttChartSymbol(t)!)}`} data-testid="tt-ledger-open-chart"
+                        <Link prefetch={false} href={`/charts?symbol=${encodeURIComponent(ttChartSymbol(t)!)}`} data-testid="tt-ledger-open-chart"
                           aria-label={`Open ${ttChartSymbol(t)} chart`}
                           style={{ color: GOLD, display: "block", fontSize: 11, fontWeight: 700, minHeight: 24 }}>chart →</Link>
                       )}

@@ -39,6 +39,12 @@ export function JournalFvgReferenceField({ value, onChange, onContext, contextNo
   const [when, setWhen] = useState(toLocalInput(initialDecisionAtMs ?? null));
   const [busy, setBusy] = useState(false);
   const [refusal, setRefusal] = useState<string | null>(null);
+  // §58: a read in flight stops with the field — no state set after unmount.
+  // GHM 2026-11-14: these two hooks ran AFTER the `if (value)` early return, so attaching a
+  // reference (value goes from undefined to set) rendered fewer hooks and React threw —
+  // the journal form crashed at the moment the read succeeded. Hooks now run every render.
+  const abortRef = useRef<AbortController | null>(null);
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   if (value) {
     return (
@@ -52,9 +58,6 @@ export function JournalFvgReferenceField({ value, onChange, onContext, contextNo
     );
   }
 
-  // §58: a read in flight stops with the field — no state set after unmount.
-  const abortRef = useRef<AbortController | null>(null);
-  useEffect(() => () => abortRef.current?.abort(), []);
   const read = async () => {
     abortRef.current?.abort();
     const ac = new AbortController();

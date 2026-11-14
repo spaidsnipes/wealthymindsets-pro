@@ -187,7 +187,7 @@ export function LedgerPersonalEdge({ episodes, onRehearse }: { readonly episodes
                 <b>{x.dimension}: {x.bucket.key}</b> — {x.bucket.n} trades, {guardCell(x.bucket.n, usd(x.bucket.expectancy))} per trade (<span style={{ color: tone(x.bucket.vsOverall) }}>{usd(x.bucket.vsOverall)}</span> {x.dimension === "Pattern from your fills" ? "vs trades without it" : "vs your average"}), {usd(x.bucket.net)} in all.
                 <div style={{ fontSize: 11, color: MUTED }}>
                   Capability: {x.capability}.{" "}
-                  {x.lesson ? <Link href={lessonHref(x.lesson.id)} style={{ color: GOLD }}>Study “{x.lesson.title}” →</Link> : <span>The Academy has no lesson for this yet.</span>}
+                  {x.lesson ? <Link prefetch={false} href={lessonHref(x.lesson.id)} style={{ color: GOLD }}>Study “{x.lesson.title}” →</Link> : <span>The Academy has no lesson for this yet.</span>}
                   {onRehearse ? <>{" · "}<button type="button" data-testid="study-rehearse" onClick={() => onRehearse(x)} style={{ background: "none", border: "none", padding: 0, color: GOLD, fontSize: 11, cursor: "pointer", textDecoration: "underline" }}>Rehearse on your own {x.bucket.n} trades →</button></> : null}
                 </div>
               </li>

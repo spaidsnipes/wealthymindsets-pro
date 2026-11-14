@@ -166,7 +166,7 @@ export function MobileSessionPill(): React.ReactElement | null {
   const accessibleStatus = `session ${sessionToken}, ${sessionTruth.detail}; ${activityPhrase}`;
 
   return (
-    <Link
+    <Link prefetch={false}
       href={INSTRUMENT_VIEW_ROUTE}
       aria-label={`${symbol} — ${accessibleStatus}, ${detail}. Open chart.`}
       title={`${symbol} · ${sessionToken}\n${accessibleStatus} — ${detail}`}

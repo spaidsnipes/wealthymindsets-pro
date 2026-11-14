@@ -87,6 +87,6 @@ describe("shell drawers and the Tool Finder take the touch floor (sheriff batch 
     // The order-flow tools card (Tools → WM Smart Money Tools) extends the same hook — no second rule.
     expect(read("components/chart/ChartsDashboard.tsx")).toContain('data-testid="order-flow-tools" data-touch-floor=""');
     // The Connections strip's "View details →" link carries the 44px slop.
-    expect(read("components/marketData/ProviderWireStrip.tsx")).toContain('<Link href="/readiness" className="wm-tap-slop"');
+    expect(read("components/marketData/ProviderWireStrip.tsx")).toContain('<Link prefetch={false} href="/readiness" className="wm-tap-slop"');
   });
 });

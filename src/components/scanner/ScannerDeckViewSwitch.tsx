@@ -19,7 +19,7 @@ export function ScannerDeckViewSwitch() {
       {SCANNER_DECK_VIEWS.map((view) => {
         const current = pathname === view.href;
         return (
-          <Link
+          <Link prefetch={false}
             key={view.href}
             href={view.href}
             aria-current={current ? "page" : undefined}

@@ -34,7 +34,7 @@ export function EmergencyCorner({ day, update, card, title }: {
           <div>
             <div style={{ font: "700 18px Georgia, serif" }}>1 · STOP</div>
             <div style={{ fontSize: 13.5, margin: "4px 0 8px" }}>{kind.stop} No new orders.</div>
-            <Link href={flattenAskHref()} data-testid="emergency-flatten" style={{ display: "inline-block", padding: "10px 14px", border: `1px solid ${GOLD}`, borderRadius: 8, color: GOLD, fontWeight: 800, letterSpacing: ".08em", textDecoration: "none" }}>
+            <Link prefetch={false} href={flattenAskHref()} data-testid="emergency-flatten" style={{ display: "inline-block", padding: "10px 14px", border: `1px solid ${GOLD}`, borderRadius: 8, color: GOLD, fontWeight: 800, letterSpacing: ".08em", textDecoration: "none" }}>
               CLOSE WHAT&apos;S OPEN — opens the ticket with FLATTEN
             </Link>
             <div style={{ color: MUTED, fontSize: 11.5, marginTop: 6 }}>The ticket shows the exact symbol, quantity, side and account. Nothing is sent until you preview and confirm it there. Flat already? Skip this.</div>

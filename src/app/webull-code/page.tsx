@@ -47,7 +47,7 @@ export default function WebullCodePage() {
       <div className="max-w-md w-full rounded-xl border border-[#c9a55c]/40 p-5" data-webull-code="NOT_YOURS">
         <div className="text-[11px] font-bold tracking-wider text-[#c9a55c]">WEBULL · SESSION CODE</div>
         <p className="mt-3 text-[15px] leading-relaxed">This page belongs to the account owner&apos;s Webull connection, so there&apos;s nothing to do here on your account.</p>
-        <Link href="/" className="mt-4 inline-flex min-h-11 items-center rounded-lg border border-[#c9a55c]/40 px-4 text-[13px] font-semibold text-[#EDE6D3] hover:bg-[#c9a55c]/10">Back to home →</Link>
+        <Link prefetch={false} href="/" className="mt-4 inline-flex min-h-11 items-center rounded-lg border border-[#c9a55c]/40 px-4 text-[13px] font-semibold text-[#EDE6D3] hover:bg-[#c9a55c]/10">Back to home →</Link>
       </div>
       ) : (
       <div className="max-w-md w-full rounded-xl border border-[#c9a55c]/40 p-5" data-webull-code={said?.outcome ?? "ASKING"}>

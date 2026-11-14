@@ -58,7 +58,7 @@ function PropCard({ cap }: { readonly cap: PropTodayCap | null }) {
     <section style={card} data-testid="session-prop" data-whole={cap?.known ? String(cap.wholeTargetToday) : "UNKNOWN"}>
       <div style={title}>Prop · consistency</div>
       {cap == null ? (
-        <div style={{ color: MUTED, fontSize: 13 }}>No prop account on this device yet. Enter it once in <Link href="/journal" style={{ color: GOLD }}>Journal › Prop Evaluation</Link>; this card reads that desk.</div>
+        <div style={{ color: MUTED, fontSize: 13 }}>No prop account on this device yet. Enter it once in <Link prefetch={false} href="/journal" style={{ color: GOLD }}>Journal › Prop Evaluation</Link>; this card reads that desk.</div>
       ) : !cap.known ? (
         <div style={{ color: MUTED, fontSize: 13 }}>{cap.why}</div>
       ) : (
@@ -121,7 +121,7 @@ export default function SessionDeskPage() {
               <input type="checkbox" checked={day.lockMode === "REST_OF_DAY"} onChange={e => set({ lockMode: e.target.checked ? "REST_OF_DAY" : "UNTIL_SIGN_IN" })} />
               Keep it locked for the rest of the day (signing back in won&apos;t lift it)
             </label>
-            <Link href={flattenAskHref()} data-testid="session-done-flatten"
+            <Link prefetch={false} href={flattenAskHref()} data-testid="session-done-flatten"
               style={{ display: "block", textAlign: "center", marginTop: 14, padding: "12px 0", border: `1px solid ${GOLD}`, color: GOLD, borderRadius: 8, fontWeight: 800, letterSpacing: ".1em", textDecoration: "none" }}>
               I&apos;M DONE · 1 — CLOSE WHAT&apos;S OPEN
             </Link>

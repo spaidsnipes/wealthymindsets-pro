@@ -1331,7 +1331,7 @@ export default function ScannerPage() {
                     className="w-full flex min-h-11 items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold bg-wm-blue/15 text-wm-blue border border-wm-blue/40 hover:bg-wm-blue/25 transition-all">
                     <BarChart2 size={12}/> Open Chart
                   </button>
-                  <Link href={`/backtesting?symbol=${encodeURIComponent(selected.symbol)}`} data-testid="scanner-backtest-symbol"
+                  <Link prefetch={false} href={`/backtesting?symbol=${encodeURIComponent(selected.symbol)}`} data-testid="scanner-backtest-symbol"
                     className="w-full flex min-h-11 items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold bg-wm-surface border border-wm-border text-wm-text-muted hover:text-wm-text transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold">
                     Backtest {selected.symbol} →
                   </Link>

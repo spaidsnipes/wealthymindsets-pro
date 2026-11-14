@@ -882,7 +882,7 @@ export default function OpportunityMapPage() {
           />
           {Object.keys(pcts).length > 0 ? (
             savedHeat === "SAVED" ? (
-              <Link href="/research-heat" data-testid="heat-saved" style={{ fontSize: 11, color: WM.gold.hero, fontWeight: 700, whiteSpace: "nowrap" }}>Saved — open the Archive →</Link>
+              <Link prefetch={false} href="/research-heat" data-testid="heat-saved" style={{ fontSize: 11, color: WM.gold.hero, fontWeight: 700, whiteSpace: "nowrap" }}>Saved — open the Archive →</Link>
             ) : (
               <button type="button" data-testid="heat-save" onClick={saveHeat} className="[@media(pointer:coarse)]:!min-h-[44px]"
                 title="Keep this moment's heat in the Research Heat Archive (this browser)"

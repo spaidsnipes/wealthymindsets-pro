@@ -70,7 +70,7 @@ export default function ResetPasswordPage() {
         {checked && !accessToken ? (
           <div role="status" className="mt-7 rounded-2xl border border-white/10 bg-black/30 p-4 text-sm text-white/70">
             {message || "This page opens from the reset link in your email, and this visit carried none — it may have expired or been opened in another browser."}
-            <Link href="/login?mode=forgot" className="mt-3 flex min-h-11 items-center font-semibold text-[#E8B923] hover:underline">Send me a new reset link →</Link>
+            <Link prefetch={false} href="/login?mode=forgot" className="mt-3 flex min-h-11 items-center font-semibold text-[#E8B923] hover:underline">Send me a new reset link →</Link>
           </div>
         ) : (
         <form onSubmit={submit} className="mt-7 space-y-4">
@@ -117,7 +117,7 @@ export default function ResetPasswordPage() {
         {/* MEASURED 105.5x20 at 375px on production 2026-09-08 — under the 44px
             floor, on the password-recovery path, where it is the only way back.
             The TEXT stays `text-sm`; the TARGET is what grows. */}
-        <Link href="/login" className="mt-6 inline-flex min-h-11 items-center text-sm text-[#E8B923] hover:underline">Return to sign in</Link>
+        <Link prefetch={false} href="/login" className="mt-6 inline-flex min-h-11 items-center text-sm text-[#E8B923] hover:underline">Return to sign in</Link>
       </section>
     </main>
   );

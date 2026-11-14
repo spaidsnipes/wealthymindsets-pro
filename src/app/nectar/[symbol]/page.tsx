@@ -258,7 +258,7 @@ function SymbolHeader({ symbol }: { symbol: string }) {
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-        <Link
+        <Link prefetch={false}
           href="/nectar"
           aria-label="Back to Market Evidence"
           style={{
@@ -677,7 +677,7 @@ function UnobservedState({ symbol, onOpen }: { symbol: string; onOpen: () => voi
         >
           Open {symbol} on chart →
         </button>
-        <Link
+        <Link prefetch={false}
           href="/nectar"
           style={{
             padding: "9px 14px", borderRadius: 8,

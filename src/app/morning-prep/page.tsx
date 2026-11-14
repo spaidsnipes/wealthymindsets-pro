@@ -784,7 +784,7 @@ export default function MorningPrepPage() {
                       </span>
                     </button>
                     {door && (
-                      <Link href={door.href} data-testid="morning-prep-item-door"
+                      <Link prefetch={false} href={door.href} data-testid="morning-prep-item-door"
                         aria-label={`Open ${door.label} for: ${i.text}`}
                         className="shrink-0 inline-flex min-h-8 items-center px-2 text-[11px] font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold"
                         style={{ color: "#c9a55c" }}>

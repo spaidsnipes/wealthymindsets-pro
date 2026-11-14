@@ -52,7 +52,7 @@ export function ToolPrimerBody({ primer, color }: { primer: ToolPrimer; color: s
         <p className="text-[12px] text-wm-text-muted leading-relaxed">{PRIMER_CANNOT_KNOW}</p>
       </div>
 
-      <Link href={INSTRUMENT_VIEW_ROUTE} className="inline-flex min-h-11 items-center rounded-lg border px-3 text-[12px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
+      <Link prefetch={false} href={INSTRUMENT_VIEW_ROUTE} className="inline-flex min-h-11 items-center rounded-lg border px-3 text-[12px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
         style={{ borderColor: `${color}66`, color }}>
         Open the chart — find it in Tools →
       </Link>
