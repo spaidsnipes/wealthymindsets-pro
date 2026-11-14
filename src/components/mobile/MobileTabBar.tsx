@@ -30,7 +30,14 @@ interface Tab {
   readonly primary?: boolean;
   /** Where this tab goes when its control is not on this page (another room): the chart, told what to open. */
   readonly fallbackHref?: string;
+  /** A window event this tab sends in the market room (the shell's own door answers it). */
+  readonly event?: string;
+  /** Shown only in the market room (a market-screen job; every other room keeps its masthead door). */
+  readonly marketOnly?: boolean;
 }
+
+/** The OS frame opens its Tools panel on this event (WMOperatingSystem). */
+export const OS_OPEN_TOOLS_EVENT = "wm-os-open-tools";
 
 const stroke = { fill: "none", stroke: "currentColor", strokeWidth: 1.7, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
 
@@ -43,6 +50,11 @@ export const MOBILE_TABS: readonly Tab[] = [
     icon: <svg width="20" height="20" viewBox="0 0 24 24" {...stroke}><path d="M4 6h16M4 12h16M4 18h10" /></svg> },
   { id: "trade", label: "Trade", target: '[data-testid="context-trade"]', fallbackHref: `${INSTRUMENT_VIEW_ROUTE}?open=trade`, primary: true,
     icon: <svg width="20" height="20" viewBox="0 0 24 24" {...stroke}><path d="M4 17l5-6 4 3 7-8" /><path d="M15 6h5v5" /></svg> },
+  // W14 (wm-qa 11-12 BOARD FAIL: "no visible Tools entry on the phone"): the market screen's Tools door, one tap,
+  // in the thumb row. It presses nothing of its own — it sends the same event the More › Tools row sends, which
+  // opens the shell's ONE Tools panel (WMOperatingSystem scenePanel "tools", the desk's brass Tools plate).
+  { id: "tools", label: "Tools", event: OS_OPEN_TOOLS_EVENT, fallbackHref: `${INSTRUMENT_VIEW_ROUTE}?open=tools`, marketOnly: true,
+    icon: <svg width="20" height="20" viewBox="0 0 24 24" {...stroke}><path d="M4 7h10M18 7h2M4 17h4M12 17h8" /><circle cx="16" cy="7" r="2" /><circle cx="10" cy="17" r="2" /></svg> },
   { id: "journal", label: "Journal", href: "/journal",
     icon: <svg width="20" height="20" viewBox="0 0 24 24" {...stroke}><path d="M6 4h10a2 2 0 0 1 2 2v14H8a2 2 0 0 1-2-2z" /><path d="M9 8h6M9 12h6" /></svg> },
   // More = every other place in the product, as an app's More screen (MobileMoreSheet): the rooms
@@ -50,6 +62,11 @@ export const MOBILE_TABS: readonly Tab[] = [
   { id: "more", label: "More",
     icon: <svg width="20" height="20" viewBox="0 0 24 24" {...stroke}><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></svg> },
 ];
+
+/** The bar's tabs for a room: the market room adds its own jobs (Tools); every other room keeps five. */
+export function mobileTabsFor(inMarketRoom: boolean): readonly Tab[] {
+  return MOBILE_TABS.filter(t => !t.marketOnly || inMarketRoom);
+}
 
 /** Press the room's own control for a tab. Returns false when that control is not on the page. */
 export function pressMobileTab(target: string, doc: Pick<Document, "querySelector"> = document): boolean {
@@ -100,9 +117,6 @@ export function moreSections(all: readonly WmDestination[] = WM_DESTINATIONS): r
     { title: "Account", items: rest.filter(isAccount) },
   ].filter(sec => sec.items.length > 0);
 }
-
-/** The OS frame opens its Tools panel on this event (WMOperatingSystem). */
-export const OS_OPEN_TOOLS_EVENT = "wm-os-open-tools";
 
 function MobileMoreSheet({ onClose }: { onClose: () => void }): React.ReactElement {
   React.useEffect(() => {
@@ -177,10 +191,12 @@ export function MobileTabBar(): React.ReactElement {
   const closeMore = React.useCallback(() => setMoreOpen(false), []);
   React.useEffect(() => { setMoreOpen(false); }, [path]);
   const isCurrent = (t: Tab) => !!t.href && (path === t.href || path.startsWith(`${t.href}/`));
+  const inMarketRoom = path === INSTRUMENT_VIEW_ROUTE || path.startsWith(`${INSTRUMENT_VIEW_ROUTE}/`);
+  const tabs = mobileTabsFor(inMarketRoom);
   return (
     <>
-    <nav className="wm-mobile-tabbar" aria-label="Market app">
-      {MOBILE_TABS.map(t => t.href ? (
+    <nav className="wm-mobile-tabbar" aria-label="Market app" data-tabs={tabs.length}>
+      {tabs.map(t => t.href ? (
         <Link key={t.id} href={t.href} prefetch={false} data-tab={t.id} aria-current={isCurrent(t) ? "page" : undefined}
           onClick={() => { closeOpenSheet(); setMoreOpen(false); }}
           className={isCurrent(t) ? "wm-mobile-tab wm-mobile-tab--current" : "wm-mobile-tab"}>
@@ -198,6 +214,7 @@ export function MobileTabBar(): React.ReactElement {
             if (t.id === "more") { setMoreOpen(o => !o); return; }
             setMoreOpen(false);
             if (t.id === "watchlist" && closed != null && /watchlist/i.test(closed)) return;
+            if (t.event && inMarketRoom) { window.dispatchEvent(new CustomEvent(t.event)); return; }
             // This room's own control when it is here; from another room, the chart told what to open.
             if (t.target && pressMobileTab(t.target)) return;
             if (t.fallbackHref) window.location.assign(t.fallbackHref);

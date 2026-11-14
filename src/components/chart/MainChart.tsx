@@ -29929,7 +29929,7 @@ function MainChartBody({ showEvidenceVault = true, symbol, timeframe, setTimefra
             else if (prevSq && prevSq.fight !== fight.fightStartMs && !soundMasterOff()) playSfx("bell");
             if (prevSq && prevSq.fight === fight.fightStartMs && fight.haymakers > prevSq.hay && !soundMasterOff()) playSfx("punch");
             // The announcer: one line per observed change, after the bell (same switch; never on load).
-            // Ringside Rome (VOICES 11-12): the recorded voice for the same changes (+ round word turns, last fight's verdict);
+            // Midnight announcer (Founder-approved 11-13): the recorded voice for the same changes (+ round word turns, last fight's verdict);
             // the browser's speech engine only when a clip can't play.
             if (!soundMasterOff()) {
               const line = announcerLine(prevSq, fight), clips = announcerClips(prevSq, fight);

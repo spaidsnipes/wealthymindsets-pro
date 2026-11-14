@@ -1,5 +1,5 @@
 {
- "voice": "Ringside Rome — Kokoro-82M (Apache-2.0) style blend am_onyx+am_fenrir @ speed 1.08 (original synthetic voice; not a clone of anyone)",
+ "voice": "Midnight — Kokoro-82M (Apache-2.0) style blend am_onyx*2+am_echo @ speed 1.0, pitch x0.92 (original synthetic voice; not a clone of anyone)",
  "clips": {
   "intro": {
    "file": "intro.mp3",

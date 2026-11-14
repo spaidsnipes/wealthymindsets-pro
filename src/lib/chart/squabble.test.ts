@@ -75,7 +75,7 @@ describe("three-round stack + announcer", () => {
 });
 
 import { announcerClips } from "./squabble";
-describe("Ringside Rome clips (VOICES 11-12)", () => {
+describe("Midnight announcer clips (Founder-approved 11-13; replaced Ringside Rome)", () => {
   const base = { reason: "DRAWN" as const, fightStartMs: 900_000, fightEndMs: 1_800_000, score: { bulls: 0, bears: 0 }, tapeFromMs: 0, liveSlot: 0 };
   const r = (n: 1 | 2 | 3, word: string) => ({ n, startMs: 0, endMs: 0, punches: [], buy: 0, sell: 0, move: null, word, haymakerSide: null, winner: null, live: true, future: false });
   const f = (liveRound: 1 | 2 | 3, word: string, haymakers = 0) => ({ ...base, rounds: [r(1, word), r(2, word), r(3, word)], liveRound, haymakers }) as never;
@@ -96,5 +96,13 @@ describe("Ringside Rome clips (VOICES 11-12)", () => {
     for (const id of ["intro", "r1", "r2", "r3", "pump", "dump", "drag", "flip", "absorbed", "clinch", "haymaker", "knockdown", "buyers_win", "sellers_win", "draw"]) {
       const st = fs.statSync(`public/sounds/squabble/${id}.mp3`); expect(st.size).toBeLessThan(60_000);
     }
+  });
+  it("ships the Founder-approved Midnight voice, never the unapproved Ringside Rome", async () => {
+    const fs = await import("node:fs");
+    const m = JSON.parse(fs.readFileSync("public/sounds/squabble/manifest.json", "utf8")) as { voice: string; clips: Record<string, { file: string }> };
+    expect(Object.keys(m.clips).length).toBeGreaterThanOrEqual(18);
+    expect(m.voice.startsWith("Midnight")).toBe(true);
+    expect(m.voice).not.toMatch(/Rome/);
+    for (const c of Object.values(m.clips)) expect(fs.existsSync(`public/sounds/squabble/${c.file}`)).toBe(true);
   });
 });

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { moreSections } from "./MobileTabBar";
+import { moreSections, mobileTabsFor, OS_OPEN_TOOLS_EVENT } from "./MobileTabBar";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 import { WM_DESTINATIONS } from "@/lib/routing/wmDestinations";
 
@@ -62,5 +62,25 @@ describe("More screen", () => {
     const css = readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
     expect(css).toContain(".wm-mobile-more { display: none; }");
     expect(css).toContain("bottom: calc(52px + env(safe-area-inset-bottom)); z-index: 45;");
+  });
+});
+
+/** W14 (wm-qa 11-12 BOARD FAIL): the phone market room has a visible, one-tap Tools door. */
+describe("phone Tools tab", () => {
+  it("the market room's bar carries Tools; every other room keeps its five tabs", () => {
+    expect(mobileTabsFor(true).map(t => t.id)).toEqual(["chart", "watchlist", "trade", "tools", "journal", "more"]);
+    expect(mobileTabsFor(false).map(t => t.id)).toEqual(["chart", "watchlist", "trade", "journal", "more"]);
+  });
+  it("opens the shell's one Tools panel (same event as More › Tools); from elsewhere the chart opens it", () => {
+    const tools = mobileTabsFor(true).find(t => t.id === "tools");
+    expect(tools?.event).toBe(OS_OPEN_TOOLS_EVENT);
+    expect(tools?.fallbackHref).toBe(`${INSTRUMENT_VIEW_ROUTE}?open=tools`);
+    const os = readFileSync(path.join(process.cwd(), "src/components/os/WMOperatingSystem.tsx"), "utf8");
+    expect(os).toContain('window.addEventListener("wm-os-open-tools", open);');
+  });
+  it("six tabs keep the 13px words; only the spacing gives way", () => {
+    const css = readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
+    expect(css).toContain('.wm-mobile-tabbar[data-tabs="6"] .wm-mobile-tab { letter-spacing: 0; }');
+    expect(css).not.toMatch(/\.wm-mobile-tabbar\[data-tabs="6"\][^{]*\{[^}]*font-size/);
   });
 });

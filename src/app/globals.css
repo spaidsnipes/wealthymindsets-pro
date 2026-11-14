@@ -2965,6 +2965,11 @@ html[data-capture="true"] [data-owner-private] { display: none !important; }
     flex: 1.3 1 0; margin: 5px 4px; border-radius: 12px; color: #0b0b0d;
     background: linear-gradient(135deg, #d4af37, #8b6a29); font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
   }
+  /* W14: the market room's bar carries six tabs (Tools joins). Same 13px words; the spacing gives way so
+     "Watchlist" stays inside its own tab at 360 (measured: 3px over with the five-tab spacing). */
+  .wm-mobile-tabbar[data-tabs="6"] { padding-inline: 2px; }
+  .wm-mobile-tabbar[data-tabs="6"] .wm-mobile-tab { letter-spacing: 0; }
+  .wm-mobile-tabbar[data-tabs="6"] .wm-mobile-tab--trade { margin-inline: 2px; letter-spacing: 0.04em; }
   .wm-chart-market-pane[data-market-primary="true"] button[aria-label="Data window"],
   .wm-chart-market-pane[data-market-primary="true"] .wm-nectar-vault-chip { display: none !important; }
 }

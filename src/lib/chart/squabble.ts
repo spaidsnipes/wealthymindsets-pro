@@ -238,7 +238,7 @@ export function announcerLine(prev: AnnouncerMemo | null, f: SquabbleFight): str
   return null;
 }
 
-/* ── RINGSIDE ROME (VOICES 11-12): the recorded announcer clips for the same observed events, plus the live round's
+/* ── MIDNIGHT ANNOUNCER (Founder-approved 11-13; replaced Ringside Rome): the recorded announcer clips for the same observed events, plus the live round's
    word turning (PUMP / DUMP / DRAG / FLIP / ABSORBED / CLINCH) and the last fight's verdict. Clip ids = files in
    public/sounds/squabble/<id>.mp3 (original Kokoro voice blend, pre-rendered). Buyers = Bulls, Sellers = Bears.
    Never on load (prev null), at most two clips per change, verdict before the new fight's intro. ── */

@@ -5,7 +5,7 @@
  *
  * HONESTY: the bell / punch / coin are SYNTHESIZED live via the Web Audio API
  * (oscillators + a noise buffer). The ONLY recorded files are the Squabble
- * announcer's lines ("Ringside Rome", VOICES 11-12): original lines voiced by
+ * announcer's lines ("Midnight", Founder-approved voice 11-13; was Ringside Rome): original lines voiced by
  * an original Kokoro-82M (Apache-2.0) style blend rendered by ATH, shipped in
  * public/sounds/squabble/ — ours, no licensed audio, no one's voice cloned.
  *
@@ -140,7 +140,7 @@ export function speakAnnouncer(line: string): boolean {
 }
 
 /**
- * RINGSIDE ROME (VOICES 11-12): plays the recorded announcer clips in order (public/sounds/squabble/<id>.mp3). Same
+ * MIDNIGHT ANNOUNCER (Founder-approved 11-13; replaced Ringside Rome): plays the recorded announcer clips in order (public/sounds/squabble/<id>.mp3). Same
  * switch as the ring sounds (off by default). A new call cuts the old one, so a busy tape never stacks stale calls.
  * If a clip can't play (blocked / missing), the line falls back to speakAnnouncer().
  */
