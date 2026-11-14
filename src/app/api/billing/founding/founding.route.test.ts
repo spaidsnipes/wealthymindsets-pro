@@ -378,7 +378,7 @@ describe("SENTINELS", () => {
   });
   it("FOUNDING copy: the exact Founder words, all caps names, no counts, no scarcity anywhere it is shown", async () => {
     const { FOUNDING_COPY } = await import("@/lib/billing/founding");
-    expect(FOUNDING_COPY.paid500).toBe("FOUNDING 500 — $10/month for as long as you stay subscribed.");
+    expect(FOUNDING_COPY.paid500).toBe("FOUNDING 500 — $10/month while you stay subscribed, with a 1-year price guarantee: your $10 is locked for 12 months, then it moves to the standard price and we tell you first.");
     expect(FOUNDING_COPY.promo100).toBe("FOUNDING 100 — a free 30-day Premium trial after your first real save. No card. It never charges.");
     const noComments = (t: string) => t.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
     const shown = [noComments(src("src/components/billing/FoundingOffers.tsx")), ...Object.values(FOUNDING_COPY)].join("\n");

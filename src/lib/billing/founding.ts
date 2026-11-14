@@ -64,7 +64,7 @@ export const FOUNDING_EVENT_TYPES = [
 
 /** The only words the pricing page says about FOUNDING (Founder copy; no counts, no scarcity). */
 export const FOUNDING_COPY = Object.freeze({
-  paid500: "FOUNDING 500 — $10/month for as long as you stay subscribed.",
+  paid500: "FOUNDING 500 — $10/month while you stay subscribed, with a 1-year price guarantee: your $10 is locked for 12 months, then it moves to the standard price and we tell you first.",
   promo100: "FOUNDING 100 — a free 30-day Premium trial after your first real save. No card. It never charges.",
 });
 

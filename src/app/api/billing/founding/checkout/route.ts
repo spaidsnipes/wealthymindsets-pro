@@ -27,7 +27,7 @@ const refuse = (body: object, status: number) => NextResponse.json(body, { statu
 const NOT_STARTED = { error: "FOUNDING 500 can't be started right now. Nothing was charged.", code: "FOUNDING_UNAVAILABLE" } as const;
 
 /**
- * POST /api/billing/founding/checkout — FOUNDING 500: $10/month for as long as you stay subscribed.
+ * POST /api/billing/founding/checkout — FOUNDING 500: $10/month while subscribed, with a 1-year price guarantee (Founder 11-13 night).
  *
  * Flag off (WM_FOUNDING_LIVE ≠ "on") → 404 FOUNDING_OFF before anything else is read.
  * Signed-in Passport member, this site's origin, five starts per ten minutes. The body chooses nothing.
